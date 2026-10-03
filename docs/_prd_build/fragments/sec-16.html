@@ -1,0 +1,90 @@
+<section id="sec-16">
+<h2 id="validation-gates"><span class="num">16</span> 16. Research Validation Gates</h2>
+
+<p>Everything here is <em>advisory input to sizing and validation</em>. No gate can place an order; each can only veto or
+shrink. Their real power: their verdicts are read by the deterministic path in §05.4–05.5, so they change live
+behaviour <em>without</em> the LLM's consent.</p>
+
+<h3 id="s16-1-walkforward">16.1 Walk-forward and decay</h3>
+<p><span class="file">core/walk_forward_validator.py</span> with its real defaults:</p>
+<div class="formula"><span class="c">constants (:78-83)</span>
+  DEFAULT_IC_WINDOW            = 20    <span class="c"># rolling window for IC</span>
+  DEFAULT_IC_DECAY_THRESHOLD   = 0.02  <span class="c"># IC below this = decaying</span>
+  DEFAULT_IC_CONFIRM_BARS      = 3     <span class="c"># bars of decay before confirmation</span>
+  DEFAULT_HALF_LIFE_MAX        = 100   <span class="c"># max half-life in bars</span>
+  DEFAULT_WFE_ACCEPT_THRESHOLD = 0.5   <span class="c"># WFE = OOS Sharpe / IS Sharpe</span>
+  STATE_FILE = "walk_forward_state.json"
+
+<span class="c">types &amp; API</span>
+  DecayStatus (:90) · ICPoint (:98) · DecayReport (:113) · WalkForwardResult (:144) · WFEVerdict (:171)
+  detect_decay(:347) · _estimate_half_life(:475) · walk_forward_splits(:517)
+  walk_forward_efficiency_gate(:583) · get_status(:629)</div>
+<p>Consumption: <code>walk_forward_status == "DEAD"</code> zeroes size (<em>"alpha is harmful, all entries blocked"</em>),
+<code>"DECAYING"</code> halves it, and WFE &lt; 0.5 scales size to <code>max(0.5, WFE)</code> while OOS Sharpe ≤ 0 zeroes it
+(<span class="file">core/risk_manager.py</span> ~1066–1101). The validator refuses outright when WFE is below its floor
+(<span class="file">core/trading_safety.py</span> ~1089–1103).</p>
+
+<h3 id="s16-2-cpcv">16.2 CPCV and the probability of backtest overfitting</h3>
+<p><span class="file">core/cpcv_validation.py</span> exposes <code>CombinatorialPurgedCrossValidator.split(...)</code> (~33) —
+combinatorial splits with purging/embargo so train and test cannot share information through overlapping labels — and
+<code>calculate_probability_of_backtest_overfitting(...)</code> (~102), the PBO estimate used to ask whether a good
+configuration is merely the luckiest of many. The same machinery is reachable from
+<code>core/cpcv_backtester.run_combinatorial_purged_backtest</code> and runs in the weekly research schedule
+(<code>_execute_weekly_research</code> ~5420).</p>
+
+<h3 id="s16-3-overfit">16.3 The overfit detector and the overfit gate</h3>
+<p><span class="file">core/overfit_detector.py</span> returns four result types — <code>OverfitResult</code> (~40),
+<code>DivergenceResult</code> (~52), <code>MinBacktestResult</code> (~64), <code>StepwiseFitResult</code> (~76): an
+overall score plus targeted evidence (IS/OOS divergence, minimum-backtest robustness, stepwise selection).</p>
+<div class="formula"><span class="c">core/overfit_gate.py</span>
+  BLOCKED_RISK_LEVELS = frozenset({"HIGH", "CRITICAL"})   <span class="c"># :34</span>
+  validate_strategy(...)  → GateResult     <span class="c"># :92</span>
+  check_strategy(strategy) → GateResult    <span class="c"># :270</span>
+  get_passed/rejected_strategies()          <span class="c"># :362 / :355</span>
+  state: overfit_gate_state.json (per strategy)</div>
+<p>Downstream: <code>CRITICAL</code> → size 0, <code>HIGH</code> → ×0.25
+(<span class="file">core/risk_manager.py</span> ~1103–1114); the validator vetoes with
+<em>"overfit gate REJECT: risk=…"</em>.</p>
+
+<h3 id="s16-4-trials">16.4 The trial ledger: paying for the number of attempts</h3>
+<p><span class="file">core/trial_ledger.py</span> records every experiment (<code>TrialRecord</code> ~46) and computes
+deflated statistics (<code>DSRResult</code> ~74) from <code>n_trials()</code> (~218) and <code>trial_sharpes()</code> (~225).
+The deflated Sharpe ratio answers the only question that matters after a hundred parameter tweaks: <em>given how many
+things I tried, is this Sharpe surprising?</em> Because the ledger is durable, attempts cannot be quietly forgotten —
+which is what keeps <span class="file">core/bayesian_update.py</span> and promotion honest.</p>
+
+<h3 id="s16-5-rest">16.5 The remaining gates</h3>
+<table>
+<thead><tr><th>Gate</th><th>Module</th><th>Question it answers</th></tr></thead>
+<tbody>
+<tr><td>Sample gate</td><td><span class="file">research/sample_gate.py</span></td><td>Is there enough data to judge at all?</td></tr>
+<tr><td>SPRT</td><td><span class="file">core/sprt_strategy_test.py</span></td><td>Sequential evidence to accept or reject a strategy early</td></tr>
+<tr><td>Progressive gates</td><td><span class="file">core/progressive_gates.py</span> (initialised at boot, <span class="file">mt5_trader.py</span> ~4157)</td><td>Stage-gated promotion: candidate → shadow → paper → micro</td></tr>
+<tr><td>Robustness playbook</td><td><span class="file">core/robustness_playbook.py</span></td><td>Which perturbations must the strategy survive?</td></tr>
+<tr><td>Research validation</td><td><span class="file">research/research_validation.py</span>, <span class="file">research/research_stress.py</span></td><td>Aggregate verdict for a research run, and stress scenarios</td></tr>
+<tr><td>News-gate A/B</td><td><span class="file">research/news_gate_backtest.py</span> + <code>mt5_trader.py news-gate-backtest</code></td><td>Does the news gate add or destroy value?</td></tr>
+<tr><td>Capstone</td><td><span class="file">core/capstone_validator.py</span> (boot-time, <span class="file">mt5_trader.py</span> ~4173)</td><td>Scenario stress + benchmark grade before live readiness</td></tr>
+<tr><td>Backtest parity</td><td><span class="file">research/full_pipeline_backtest.py</span>, <span class="file">research/vbt_engine.py</span>, <span class="file">research/mt5_backtest_engine.py</span></td><td>Does the research pipeline reproduce broker-like fills?</td></tr>
+</tbody>
+</table>
+<div class="callout good">
+<strong>The consumption pattern is the point.</strong> Gate verdicts travel to the live path as
+<code>toon["walk_forward_status"]</code>, <code>toon["overfit_risk_level"]</code>, <code>toon["data_drift_status"]</code>
+and <code>toon["walk_forward_wfe"]</code>. The LLM sees them as context; the gates act on them as law. If a researcher
+disagrees with a verdict, the correct response is to change the gate's evidence — not to talk the validator out of it.
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">core/walk_forward_validator.py</span> 78–630</td><td>Real thresholds, decay states, WFE gate</td></tr>
+<tr><td><span class="file">core/cpcv_validation.py</span> 18–140</td><td>Purged combinatorial splits and PBO</td></tr>
+<tr><td><span class="file">core/overfit_gate.py</span> 34–380, <span class="file">core/overfit_detector.py</span> 40–76</td><td>Blocked risk levels and the four overfit result types</td></tr>
+<tr><td><span class="file">core/trial_ledger.py</span> 46–230</td><td>Trial accounting and deflated statistics</td></tr>
+<tr><td><span class="file">core/risk_manager.py</span> 1066–1140</td><td>How gate verdicts become size multipliers</td></tr>
+</tbody>
+</table>
+</div>
+</section>

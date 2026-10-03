@@ -1,0 +1,385 @@
+================================================================================
+RETAIL QUANTITATIVE TRADING — PART 3: COMPOUNDING, PRACTITIONERS, FORMULAS
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 9: RETAIL COMPOUNDING ENGINE (5 Pillars)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+9.1 PILLAR 1: Alpha Signal Layer
+  Generate continuous Z-scores, not binary signals
+  Incorporate regime filters (volatility, trend)
+  Mean-reversion engines scale down during violent breaks
+
+9.2 PILLAR 2: Dynamic Volatility Targeting
+  Position_size = (Account * Risk_Target) / (k * ATR_20)
+  Equalize dollar risk across all assets
+  Prevents high-vol instruments from dominating
+
+9.3 PILLAR 3: Fractional Kelly Sizing
+  f* = (P_win * R - (1 - P_win)) / R
+  Applied: 0.25 * f* (Quarter-Kelly)
+  75% of max growth, 80% drawdown reduction
+
+9.4 PILLAR 4: Portfolio De-Correlation
+  Combine 4 uncorrelated sleeves (r <= 0.15):
+    Sleeve A: Macro Trend (FRED-conditioned momentum)
+    Sleeve B: COT Reversal (commodity/FX positioning)
+    Sleeve C: Intraday MFT (volatility breakout/spread capture)
+    Sleeve D: Stat-Arb (Kalman cointegration)
+  Portfolio vol drops from 15% to 7.5%, variance drag halved
+
+9.5 PILLAR 5: Trade Buffering (Robert Carver Rule)
+  Execution buffer band: +/- 10%
+  Only route orders when target deviates > 10% from current
+  Eliminates fee drag from constant rebalancing
+
+9.6 COMPOUNDING FORMULA
+  CAGR ≈ mu - (1/2)*sigma^2
+  Maximize: mu (mean return)
+  Minimize: sigma^2 (volatility drag)
+  Geometric growth = Arithmetic mean - Volatility drag
+
+9.7 VARIANCE DRAG EXAMPLES
+  Arithmetic 20%, Vol 20%: CAGR = 20% - (0.5 * 0.04) = 18%
+  Arithmetic 20%, Vol 40%: CAGR = 20% - (0.5 * 0.16) = 12%
+  Arithmetic 15%, Vol 10%: CAGR = 15% - (0.5 * 0.01) = 14.5%
+  Lower vol beats higher arithmetic return
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 10: PRACTITIONER FRAMEWORKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+10.1 AUTHOR-C'S ROBUSTNESS CRITERIA
+  1. Structural Economic Logic: Must exploit structural/regulatory cause
+  2. Stationarity Verification: ADF / Johansen tests with zero lookahead
+  3. Half-Life Time Exits: OU parameter decay stops
+  4. Fractional Kelly Sizing: Never trade full Kelly (0.25x - 0.5x)
+  5. Backtest Deflation: Haircut returns by 50% for live reality
+
+  Occam's Razor: Models with fewer parameters outperform multi-indicator ML
+  A 2-parameter system generalizes better than a 15-feature deep learning model
+
+  The 50% Backtest Haircut Rule:
+    Live Sharpe and CAGR will be at least 50% lower than backtested results
+    Hurdle: Backtest Sharpe >= 2.0 (before costs), >= 1.0 (after friction)
+
+  OU Time Stops Over Fixed Price Stops:
+    Arbitrary fixed price stops harm mean-reverting strategies
+    Cut positions right at maximum temporary dislocation before reversion
+    Solution: If position fails to mean-revert within 2*lambda to 3*lambda bars, close
+
+10.2 ROBERT CARVER'S SYSTEMATIC TRADING PRINCIPLES
+  Position Buffering: +/- 10% threshold, only rebalance when exceeded
+  Instrument Diversity: Trade 20+ instruments across asset classes
+  Forecast Averaging: Combine multiple horizon forecasts
+  Cost-Aware Optimization: Include transaction costs in portfolio optimization
+
+10.3 AUTHOR-C'S ML FRAMEWORK
+  Fractional Differentiation: (1-L)^d * x_t = epsilon_t, d from ADF
+    Achieves stationarity while preserving long-term memory
+    Find minimum d such that ADF p < 0.05
+
+  Triple-Barrier Labeling:
+    Upper: P_0 + k_1 * ATR (take-profit)
+    Lower: P_0 - k_2 * ATR (stop-loss)
+    Vertical: t_0 + tau_i (time expiration)
+    Label = which barrier hit first
+
+  Meta-Labeling:
+    Primary model: direction (+1, -1, 0)
+    Secondary model: P(correct | features)
+    Size = f(P(correct))
+
+  Combinatorial Purged Cross-Validation (CPCV):
+    N distinct train/test paths (not single walk-forward)
+    Purging: remove overlapping labels
+    Embargoing: time delay after test set
+
+  Deflated Sharpe Ratio:
+    Accounts for number of trials, skewness, kurtosis
+    If DSR < 0.05: strategy is likely false positive
+
+  Hierarchical Risk Parity (HRP):
+    Cluster assets by correlation
+    Allocate risk within and across clusters
+    No matrix inversion needed (robust to ill-conditioning)
+
+10.4 PRACTITIONER MODEL COMPARISON
+  Dimension       | Chan              | Carver            | Author-C
+  Strategy Logic  | Cointegration     | Forecast averaging | ML + Stat-Arb
+  Sizing          | Quarter-Kelly     | Cost-optimal      | HRP
+  Stops           | OU half-life      | Forecast-based    | Triple-barrier
+  Validation      | ADF/Johansen      | WFO + Costs       | CPCV + DSR
+  Execution       | Passive limits    | Buffer + TWAP     | Micro-price
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 11: RETAIL KEY FORMULAS QUICK REFERENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  EV = (P_win * W) - (P_loss * L) - Friction
+  Breakeven win rate: p* = L / (W + L) = 1 / (1 + R)
+  Kelly: f* = (b*p - q) / b
+  Quarter-Kelly: f_applied = 0.25 * f*
+  Vol targeting: w = (sigma_target / sigma_realized) * signal
+  ATR sizing: Units = (Equity * RiskPct) / (k * ATR)
+  OU half-life: t_1/2 = ln(2) / theta
+  Gambler's ruin: RoR = ((1-a)/(1+a))^N
+  Max streak: L_max = ln(N) / ln(1/P_loss)
+  Sharpe: SR = (R_p - R_f) / sigma_p * sqrt(252)
+  Sortino: Sortino = (R_p - MAR) / sigma_downside * sqrt(252)
+  Calmar: Calmar = CAGR / MaxDD
+  Information Ratio: IR = IC * sqrt(breadth)
+  CAGR: CAGR = (End/Start)^(1/n) - 1 ≈ mu - (1/2)*sigma^2
+  SQN: SQN = sqrt(N) * mu_R / sigma_R
+  WFE: WFE = Return_OOS / Return_IS
+  DSR: DSR = Phi((SR - SR_0) / SE(SR))
+  Implementation Shortfall: IS = Side*(P_exec - P_0)*Q + Explicit_Costs
+  Square-Root Impact: Impact = Y * sigma * sqrt(Q/V_ADV)
+  Dynamic Spread: S_t = S_base * (1 + kappa_vol*(ATR/ATR_base - 1) + kappa_liq*(Vol_base/Vol_t - 1)) * M_session
+  Alpha Capacity: SR(A) = SR_0 * (1 - (A/A_max)^gamma) - impact_cost
+  Heat Cap: SUM Risk_i <= 3.0R - 4.0R
+  Recovery: Required_Gain = (Loss / (1 - Loss)) * 100
+  Streak: P(k) = (1 - P_win)^k
+  Bayesian Update: p ~ Beta(alpha + wins, beta + losses)
+  SPRT: LR = prod[p1^x*(1-p1)^{1-x}] / [p0^x*(1-p0)^{1-x}]
+  CUSUM: S_t = max(0, S_{t-1} + (x_t - mu_0) - K)
+  Micro-Price: P_micro = (p_b*q_a + p_a*q_b) / (q_b + q_a)
+  OFI: OFI = I{p^b>=prev}*q^b - I{p^b<=prev}*q^b_prev - I{p^a<=prev}*q^a + I{p^a>=prev}*q^a_prev
+  VPIN: VPIN = SUM|V_B - V_S| / (N*V)
+  Roll Spread: S = 2*sqrt(-Cov(Delta_p_t, Delta_p_{t-1}))
+  Hawkes: lambda(t) = mu + SUM alpha*exp(-beta*(t-t_i))
+  OU: dX = theta*(mu-X)*dt + sigma*dW
+  GARCH: sigma^2 = omega + alpha*epsilon^2 + beta*sigma^2
+  HAR-RV: RV = beta_d*RV_d + beta_w*RV_w + beta_m*RV_m
+  Kalman: x = x^- + K*(z - H*x^-), K = P^-*H'*(H*P^-*H'+R)^{-1}
+  TSMOM: Position = sign(r_{12-1}) * (sigma_target / sigma_realized)
+  KAMA: ER = |P_t - P_{t-n}| / SUM|P_i - P_{i-1}|, SC = [ER*(2/3 - 2/31) + 2/31]^2
+  Fisher: Fisher(x) = 0.5*ln((1+x)/(1-x))
+  Hurst: E[R/S] = c*n^H
+  ADF: Delta_y = alpha + beta*t + gamma*y_{t-1} + SUM delta_i*Delta_{t-i} + epsilon
+  Johansen: rank(Sigma) = number of cointegrating vectors
+  Engle-Granger: test residuals for stationarity
+  Cointegration: spread = ln(P1) - beta*ln(P2), trade z-score
+  Triple-Barrier: Upper = P0 + k1*ATR, Lower = P0 - k2*ATR, Timeout = t0 + tau
+  Meta-Labeling: S_tilde = D * max(0, 2*(p - 0.5))
+  Fractional Diff: (1-L)^d * x_t = epsilon_t, d from ADF
+  Permutation Entropy: h_p = -SUM p(pi)*ln(p(pi)) / ln(m!)
+  Sample Entropy: SampEn = -ln(A/B)
+  Transfer Entropy: TE(X->Y) = SUM p(y_{t+1}, y_t, x_t)*log[p(y_{t+1}|y_t,x_t)/p(y_{t+1}|y_t)]
+  KL Divergence: D_KL(P||Q) = SUM P(x)*ln(P(x)/Q(x))
+  Shannon Entropy: H = -SUM p_i*ln(p_i)
+  GPD: G_{xi,beta}(y) = 1 - (1 + xi*y/beta)^{-1/xi}
+  VaR: VaR_alpha = u + (beta/xi)*[((N_u/n)*(1-alpha))^{-xi} - 1]
+  ES: ES_alpha = VaR/(1-xi) + (beta-xi*u)/(1-xi)
+  Student-t Copula: lambda_L = lambda_U = 2*t_{nu+1}(-sqrt((nu+1)*(1-rho)/(1+rho)))
+  GEX: GEX = SUM Gamma*OI*S^2*Sign*100
+  VEX: VEX = SUM (-sigma*phi(d1)*d2)*OI*S*Sign
+  Black-Scholes: Call = S*Phi(d1) - K*exp(-rT)*Phi(d2)
+  Put-Call Parity: C - P = S - K*exp(-rT)
+  Binomial: V = exp(-r*dt)*[p*V_up + (1-p)*V_down]
+  Duration: ModDuration = Macaulay / (1 + y/k)
+  Convexity: Conv = (1/P)*SUM t*(t+1)*CF/(1+y)^{t+2}
+  YTM: P = SUM C/(1+y)^t + F/(1+y)^T
+  Swap Rate: K = (1 - P(0,T)) / (SUM tau_i * P(0, T_i))
+  Merton: E = V*Phi(d1) - D*exp(-rT)*Phi(d2)
+  CDS: spread ≈ (1-Recovery)*PD / (1-PD)
+  CAPM: R_i - R_f = beta*(R_m - R_f) + alpha
+  Fama-French: R = alpha + beta_MKT*MKT + beta_SMB*SMB + beta_HML*HML
+  Carhart: + beta_MOM*MOM
+  Black-Litterman: E(r) = [(tau*Sigma)^{-1} + P'Omega^{-1}P]^{-1} * [(tau*Sigma)^{-1}Pi + P'Omega^{-1}Q]
+  Risk Parity: w_i * (Sigma*w)_i = constant
+  Min Variance: w* = Sigma^{-1}*1 / (1'*Sigma^{-1}*1)
+  ERC: RC_i = RC_j for all i,j
+  Markowitz: max w'mu - (lambda/2)*w'Sigma*w
+  TWAP: slice = total_qty / N_slices
+  VWAP: participate at rate proportional to historical volume
+  POV: participate at fixed % of market volume
+  Almgren-Chriss: x_j = sinh(kappa*(T-t_j))/sinh(kappa*T) * X_0
+  IS: IS = execution_price - decision_price
+  CPCV: combinatorial purged cross-validation
+  DSR: deflated Sharpe ratio
+  PBO: probability of backtest overfitting
+  CSCV: combinatorial symmetric cross-validation
+  SQN: system quality number
+  WFE: walk-forward efficiency
+  PEAD: post-earnings announcement drift
+  COT: commitment of traders
+  OFI: order flow imbalance
+  VPIN: volume-synchronized probability of informed trading
+  BOCPD: Bayesian online changepoint detection
+  SOR: smart order routing
+  DMA: direct market access
+  FIX: financial information exchange
+  PFOF: payment for order flow
+  B-Book: broker internalization desk
+  last-look: broker right to reject fill
+  virtual dealer: broker-side slippage manipulation
+  stop-hunting: driving price to trigger clustered stops
+  liquidity sweep: triggering stops then reversing
+  front-running: trading ahead of known orders
+  sandwich attack: front-run + back-run (MEV)
+  MEV: maximal extractable value
+  flashbots: private transaction pool
+  mempool: pending transaction pool
+  gas fee: Ethereum transaction cost
+  TVL: total value locked (DeFi)
+  APY: annual percentage yield
+  APR: annual percentage rate
+  IL: impermanent loss
+  AMM: automated market maker
+  DEX: decentralized exchange
+  CEX: centralized exchange
+  stablecoin: pegged cryptocurrency
+  depeg: breaking the peg
+  funding rate: perpetual futures carry
+  basis: futures - spot
+  halving: BTC supply cut (4-year cycle)
+  hash rate: network computing power
+  difficulty: mining difficulty adjustment
+  SOPR: spent output profit ratio
+  MVRV: market value to realized value
+  NUPL: net unrealized profit/loss
+  HODL: hold on for dear life (buy and hold)
+  DCA: dollar cost averaging
+  VA: value averaging
+  R-multiple: risk multiple (Van Tharp)
+  1R: base account risk unit
+  heat: total portfolio risk exposure
+  tilt: small overweight/underweight
+  factor: systematic return driver
+  smart beta: rules-based factor investing
+  alpha: excess return after beta
+  beta: market sensitivity
+  delta: option price sensitivity to underlying
+  gamma: option delta sensitivity to underlying
+  theta: option time decay
+  vega: option sensitivity to volatility
+  rho: option sensitivity to rates
+  implied vol: market-expected volatility
+  realized vol: actual historical volatility
+  vol surface: IV across strikes and expiries
+  skew: IV difference between OTM puts and calls
+  term structure: IV across expiries
+  VIX: 30-day SPX implied volatility
+  VRP: volatility risk premium
+  straddle: buy call + put at same strike
+  strangle: buy OTM call + OTM put
+  iron condor: sell put spread + sell call spread
+  butterfly: buy 1 lower, sell 2 middle, buy 1 higher
+  calendar spread: sell near-term, buy far-term
+  risk reversal: buy call, sell put (skew trade)
+  gamma scalping: delta-hedge long gamma
+  delta hedge: neutralize directional exposure
+  pin risk: gamma exposure near expiry
+  OpEx: options expiration
+  gamma squeeze: dealer hedging amplifies moves
+  dealer gamma: aggregate options gamma positioning
+  GEX: gamma exposure
+  VEX: vanna exposure
+  CEX: charm exposure
+  vanna: dDelta/dVol
+  charm: dDelta/dTime
+  yield curve: interest rates across maturities
+  NSS: Nelson-Siegel-Svensson
+  forward rate: implied future rate
+  term premium: compensation for duration risk
+  credit spread: corporate yield - treasury yield
+  TED spread: SOFR - T-bill
+  CIP: covered interest parity
+  UIP: uncovered interest parity
+  PPP: purchasing power parity
+  carry trade: borrow low-rate, buy high-rate
+  forward premium puzzle: UIP violation
+  Taylor Rule: central bank policy rate model
+  net liquidity: Fed balance sheet - TGA - RRP
+  DXY: US dollar index
+  real exchange rate: q = S*P_dom/P_for
+  Fisher effect: (1+i_nom) = (1+i_real)*(1+pi)
+  Balassa-Samuelson: productivity → real appreciation
+  oil-FX nexus: oil-exporting currencies correlate with oil
+  gold macro: gold = f(-real_rates, -DXY, VIX)
+  crypto macro: BTC = f(NASDAQ, -DXY, M2)
+  sector rotation: regime-dependent sector allocation
+  risk-on/risk-off: appetite for risk assets
+  RORO: risk-on/risk-off index
+  PMI: purchasing managers index
+  CPI: consumer price index
+  NFP: non-farm payrolls
+  FOMC: federal open market committee
+  WASDE: USDA crop estimates
+  EIA: energy information administration
+  OPEC: oil producers cartel
+  CTA: commodity trading advisor
+  TSMOM: time-series momentum
+  PEAD: post-earnings announcement drift
+  index rebalance: benchmark composition change
+  window dressing: quarter-end portfolio beautification
+  disposition effect: sell winners too early
+  anchoring: fixate on reference price
+  herding: follow the crowd
+  momentum ignition: order flow manipulation
+  spoofing: fake orders to manipulate price
+  layering: multiple fake orders
+  latency arb: speed advantage arbitrage
+  co-location: server near exchange
+  FPGA: field-programmable gate array
+  kernel bypass: skip OS network stack
+  ITCH/OUCH: exchange direct feeds
+  L1/L2/L3: order book depth levels
+  BBO: best bid and offer
+  micro-price: volume-weighted mid
+  queue position: place in order line
+  fill probability: chance of execution
+  adverse selection: toxic flow fills
+  Glosten-Milgrom: spread = info asymmetry
+  Kyle's lambda: price impact of flow
+  Amihud lambda: illiquidity measure
+  Roll model: effective spread from autocovariance
+  Hawkes process: self-exciting intensity
+  branching ratio: endogenous excitability
+  OU process: mean-reverting diffusion
+  half-life: ln(2)/theta
+  GBM: geometric Brownian motion
+  jump-diffusion: Merton model with Poisson jumps
+  CIR: Cox-Ingersoll-Ross (mean-reverting vol)
+  SABR: stochastic alpha-beta-rho (vol surface)
+  Heston: stochastic volatility model
+  local vol: Dupire local volatility
+  implied vol: Black-Scholes inversion
+  binomial tree: discrete option pricing
+  trinomial tree: extended binomial
+  Monte Carlo: simulation-based pricing
+  quasi-Monte Carlo: low-discrepancy sequences
+  antithetic variates: variance reduction
+  control variates: variance reduction
+  importance sampling: variance reduction
+  Longstaff-Schwartz: American option MC
+  DeepLOB: CNN on order book images
+  DeepHFT: RL for market making
+  reinforcement learning: PPO, DQN, SAC
+  online learning: SGD with exponential decay
+  transfer learning: pre-train + fine-tune
+  meta-learning: learning to learn
+  SHAP: Shapley additive explanations
+  LIME: local interpretable model explanations
+  feature importance: MDI, permutation
+  PCA: principal component analysis
+  ICA: independent component analysis
+  t-SNE: t-distributed stochastic neighbor embedding
+  UMAP: uniform manifold approximation
+  k-means: centroid clustering
+  DBSCAN: density clustering
+  Gaussian mixture: soft clustering
+  hierarchical clustering: tree-based clustering
+  spectral clustering: graph-based clustering
+  BIRCH: balanced iterative reducing clustering
+  HDBSCAN: hierarchical DBSCAN
+  silhouette score: cluster quality
+  elbow method: optimal k selection
+  gap statistic: optimal k selection
+  calinski-harabasz: cluster quality
+  davies-bouldin: cluster quality
+================================================================================
+END OF RETAIL QUANTITATIVE TRADING MODELS
+================================================================================

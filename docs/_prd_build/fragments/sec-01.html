@@ -1,0 +1,82 @@
+<section id="sec-01">
+<h2 id="executive-summary"><span class="num">01</span> 01. Executive Summary &amp; System Identity</h2>
+
+<p>This repository is an <strong>institutional-grade, multi-agent autonomous trading system</strong> that trades
+MetaTrader&nbsp;5 (MT5) instruments with a hybrid brain: a Large Language Model proposes trades from a fully
+deterministic, point-in-time market context, while a stack of <em>non-LLM</em> gates — validation rules, account-risk
+limits, a portfolio arbiter, margin safety, broker preflight — alone hold the authority to let an order reach the
+broker. Everything that happens is written to a single authoritative SQLite journal. Nothing in the research,
+machine-learning or self-improvement stack can trade by itself; it advises, and the gates dispose.</p>
+
+<div class="callout">
+<strong>The one-sentence contract.</strong> <em>The LLM proposes; <code>DeterministicValidator</code> +
+<code>RiskManager</code> + <code>PortfolioRiskArbiter</code> + margin/broker gates grant or deny permission; the
+journal (<code>trading_state.db</code>) is the source of truth; missing or stale data means HOLD.</em>
+</div>
+
+<h3 id="s1-1-what-it-is">01.1 What the system actually is</h3>
+<table>
+<thead><tr><th>Dimension</th><th>Implementation</th><th>Anchor</th></tr></thead>
+<tbody>
+<tr><td>Broker / venue</td><td>MetaTrader 5 terminal via the official Python API; primary symbol EURUSD, XAUUSD and a scan watchlist</td><td><span class="file">mt5_trader.py</span> (<code>MT5Client</code> ~680)</td></tr>
+<tr><td>Decision maker</td><td>Multi-model LLM (OpenRouter / TokenRouter / RoutesMe / Cerebras / NVIDIA NIM) prompted with a compact JSON "TOON" state payload</td><td><span class="file">intelligence/llm_orchestrator.py</span> <code>get_decision</code> ~1147</td></tr>
+<tr><td>Permission layer</td><td>Deterministic validator + risk manager + portfolio arbiter + margin safety + execution policy — no LLM in this path</td><td><span class="file">core/trading_safety.py</span>, <span class="file">core/risk_manager.py</span></td></tr>
+<tr><td>Execution</td><td>Paper broker (in-process simulation) or real MT5 market/pending orders with dynamic slippage and urgency routing</td><td><span class="file">core/order_execution.py</span></td></tr>
+<tr><td>Position management</td><td>Break-even, ATR trailing, partial scale-outs, time stops, pyramiding — all authority-checked</td><td><span class="file">core/trade_manager.py</span></td></tr>
+<tr><td>Memory</td><td>L0 episodic → L1 atomic facts → L2 scenario playbooks → L3 strategy knowledge, plus semantic and case-study retrieval</td><td><span class="file">intelligence/trading_memory.py</span> (102&nbsp;KB)</td></tr>
+<tr><td>Research / ML</td><td>GA alpha mining, factor library, Kronos, PPO/meta-RL, contextual bandits, supervised models, CPCV/DSR/overfit/promotion gates</td><td><span class="file">research/</span>, <span class="file">core/alpha_*.py</span></td></tr>
+<tr><td>Autonomy</td><td>Supervisor kernel, autonomy levels L0–L3, circuits, scheduler, dual-velocity lanes, watchdog, crash/restart recovery</td><td><span class="file">operations/autonomy.py</span>, <span class="file">operations/supervisor.py</span></td></tr>
+<tr><td>Operator surfaces</td><td>FastAPI + WebSocket server, React/OpenTUI command deck, Tkinter terminal, static HTML dashboards, standalone visualizer</td><td><span class="file">gui/gui_api.py</span>, <span class="file">tui_opentui/</span></td></tr>
+</tbody>
+</table>
+
+
+<h3 id="s1-2-scale">01.2 Measured scale of the codebase</h3>
+<p>Counted directly from the working tree (excluding <code>.kilo/</code> worktrees, <code>vendor/</code> and
+<code>node_modules</code>):</p>
+<table>
+<thead><tr><th>Scope</th><th class="num">Files</th><th class="num">Lines</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Root façade <span class="file">mt5_trader.py</span></td><td class="num">1</td><td class="num">~7,000</td><td>Single CLI entrypoint: subcommands, config, MT5 client, the pulse loop</td></tr>
+<tr><td>Source layers (<code>core/ intelligence/ data/ operations/ research/ strategies/ scripts/ ui/</code>)</td><td class="num">442</td><td class="num">152,883</td><td>Pure Python; the trading path needs no third-party framework</td></tr>
+<tr><td>Test suite</td><td class="num">360</td><td class="num">51,401</td><td>Includes the <code>tests/components/</code> modular matrix</td></tr>
+<tr><td>All <code>*.py</code> in tree (incl. knowledge bases, tools, benchmark harnesses)</td><td class="num">908</td><td class="num">—</td><td>≈10.7&nbsp;MB of Python source</td></tr>
+<tr><td>Largest single module</td><td class="num">1</td><td class="num">~10,000</td><td><span class="file">intelligence/llm_orchestrator.py</span> — the decision loop</td></tr>
+</tbody>
+</table>
+
+<h3 id="s1-3-doctrine">01.3 The six non-negotiable doctrines</h3>
+<div class="grid2">
+<div class="card"><h4>1. Stateless agents, stateful graph</h4><p>Every agent stage reads a point-in-time slice of
+state, computes, writes back an immutable event, and ends. Continuity lives in the state tensor (SQLite + a keyed
+JSON↔SQLite store), never in process memory.</p></div>
+<div class="card"><h4>2. The LLM is a proposer, never an executor</h4><p>A model may only emit a
+<code>TradeProposal</code>-shaped decision. The order API is called only downstream of the gates; there is no LLM
+path that reaches <code>place_market_order</code> directly.</p></div>
+<div class="card"><h4>3. Fail-closed</h4><p>Missing ticks, stale marks, unknown spread, unmeasurable heat, absent
+broker spec, provider failure, unapproved execution policy → HOLD. "Unknown" is never treated as "safe".</p></div>
+<div class="card"><h4>4. The journal is the source of truth</h4><p>Every proposal (approved <em>and</em> rejected),
+every lifecycle transition, fill and management action is persisted with its reason. Surfaces render the journal;
+they never fabricate values.</p></div>
+<div class="card"><h4>5. Research is advisory until promoted</h4><p>Kelly / RL / Kronos / HMM output cannot mutate
+live risk parameters or size without passing the research-influence gate and the promotion funnel. The factory may
+demote its own work, but can never self-approve live authority.</p></div>
+<div class="card"><h4>6. Autonomy is bounded by levels</h4><p>L0 shadow → L1 paper → L2 micro live (0.25&nbsp;% risk
+per trade) → L3 full live (1&nbsp;%). Escalation, demotion and every circuit trip are persisted and journalled.</p></div>
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">mt5_trader.py</span></td><td>Single CLI façade; <code>Config</code> ~606, <code>MT5Client</code> ~680, <code>main()</code> ~1252, pulse loop ~4218+</td></tr>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span></td><td>The decision loop, TOON payload, validation and execution call sites</td></tr>
+<tr><td><span class="file">core/trading_safety.py</span></td><td><code>TradeProposal</code>, <code>DeterministicValidator</code> ~875, <code>PortfolioRiskArbiter</code> ~1223, journal DDL ~129</td></tr>
+<tr><td><span class="file">core/risk_manager.py</span></td><td>Account-level circuits and <code>calc_position_size</code> ~861</td></tr>
+<tr><td><span class="file">operations/autonomy.py</span></td><td>Levels L0–L3, circuits, control plane</td></tr>
+<tr><td><span class="file">.env.example</span></td><td>Provider fabric, budgets, live opt-in, MT5 credentials contract</td></tr>
+</tbody>
+</table>
+</div>
+</section>

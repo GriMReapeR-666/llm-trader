@@ -1,0 +1,96 @@
+<section id="sec-14">
+<h2 id="reflection"><span class="num">14</span> 14. Post-Trade Reflection &amp; Continuous Learning</h2>
+
+<p>Everything here runs <em>after</em> a trade closes, on the slow lane, with no authority over positions. Its purpose is
+to convert outcomes into beliefs that are auditable, reviewable and — where they touch policy — gated.</p>
+
+<h3 id="s14-1-graph">14.1 The reflection graph</h3>
+<p><span class="file">intelligence/reflection_graph.py</span> is a LangGraph pipeline whose docstring states the contract:
+<em>"Slow-Lane Post-Trade Memory Reflection &amp; Consolidation Graph. Asynchronously processes closed trades, distills L1
+Atomic Facts, updates L2 Scenario Documents, and recalibrates causal edge weights."</em> It is checkpointed with
+<code>SqliteCheckpointSaver</code> (<span class="file">intelligence/graph_checkpointer.py</span>), so a crash mid-reflection
+resumes rather than restarts.</p>
+<table>
+<thead><tr><th>Node</th><th>Class</th><th>Job</th></tr></thead>
+<tbody>
+<tr><td>1. <code>equity_state_update</code></td><td><code>EquityStateUpdateNode</code> (~20)</td><td>Rebuilds equity-aware risk state: reads <code>risk_manager_state</code> from the store, reconstructs <code>RiskManager(balance=…, store=…)</code> (falling back to <code>10000.0</code> only if the stored base balance is unusable) and recalibrates streak counters, R-history and Kelly inputs. It runs <em>first</em> so the next cycle's gates read fresh state.</td></tr>
+<tr><td>2. <code>quantitative_coach</code></td><td><code>QuantitativeCoachNode</code> (<span class="file">intelligence/graph_nodes.py</span> ~1247)</td><td>Distils L1 atomic facts and classifies <em>why</em> the trade ended: regime shift, execution slippage, or thesis invalidation.</td></tr>
+<tr><td>3. <code>scenario_consolidator</code></td><td>scenario consolidation</td><td>Updates L2 scenario playbooks with realised win rate and payout for the matched setup cluster.</td></tr>
+<tr><td>4. <code>macro_feedback</code></td><td>macro feedback</td><td>Applies Bayesian credit/blame to the causal DAG paths active when the trade was taken (§11).</td></tr>
+</tbody>
+</table>
+
+<h3 id="s14-2-labels">14.2 Labels: the bridge from outcome to memory</h3>
+<p><code>TradingMemory.label_closed_trade(ticket, pnl, risk_amount, exit_reason)</code>
+(<span class="file">intelligence/trading_memory.py</span> ~1498) converts a close into a labelled outcome, and
+<code>_setup_outcome_label(state, reason)</code> (~1526) maps lifecycle states to labels. These labels feed scenario
+rebuilding (~759, explicitly including <em>rejected and unresolved</em> setups, so near-misses teach the system too),
+core-memory proposals (~961, review-gated) and retrieval-outcome resolution (~1346).</p>
+
+<h3 id="s14-3-rewards">14.3 Reward attribution and the RL eligibility gate</h3>
+<p>Reward accounting lives in <span class="file">operations/reward_ledger.py</span> and
+<span class="file">operations/reward_attribution.py</span>, with sustainability checks in
+<span class="file">operations/reward_sustainability.py</span>. Model updates are <em>not</em> automatic:</p>
+<table>
+<thead><tr><th>Gate</th><th>Anchor</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>_rl_learning_allowed()</code></td><td><span class="file">intelligence/llm_orchestrator.py</span> ~3671</td><td>Whether any RL update may be applied right now</td></tr>
+<tr><td><code>_research_influence_allowed(model_kind, paper_mode=…)</code></td><td>~3695</td><td>Whether research output may influence <em>this</em> parameter set in this mode; paper is scoped separately from live</td></tr>
+<tr><td>Research-influence ledger</td><td><span class="file">operations/research_influence_gate.py</span></td><td>Which model kinds an operator has approved, revocable through the journal CLI</td></tr>
+</tbody>
+</table>
+<p>The same gate protects risk mutation elsewhere: a meta-adaptive engine may <em>suggest</em> a new
+<code>risk_per_trade</code>, but the write only happens when influence is approved; otherwise the suggestion is
+journaled and nothing changes.</p>
+
+<h3 id="s14-4-lane">14.4 Why reflection runs on its own lane</h3>
+<p>Memory work is submitted through <code>DualVelocityExecutor.submit_slow(key, fn, limit=3)</code>
+(<span class="file">operations/dual_velocity.py</span> ~44–110) from the maintenance prefix, keyed
+<code>memory:YYYYMMDDHH</code> so the hourly batch deduplicates. A saturated slow lane returns
+<code>{"status": "BACKPRESSURE"}</code>, which raises a <code>slow_lane_backpressure</code> event instead of blocking the
+five-second market pulse. Fast-lane work (quotes, indicators, validation) is never queued behind a slow LLM call.</p>
+
+<h3 id="s14-5-schedules">14.5 Scheduled learning work</h3>
+<table>
+<thead><tr><th>Schedule</th><th>Handler</th><th>Typical effect</th></tr></thead>
+<tbody>
+<tr><td>Session review</td><td><code>_execute_session_review</code> (<span class="file">intelligence/llm_orchestrator.py</span> ~5370)</td><td>Session metrics, distillation trigger</td></tr>
+<tr><td>Daily review</td><td><code>_execute_daily_review(payload, paper_mode)</code> (~5398)</td><td><code>generate_daily_narrative</code>, reconciliation, label review queue</td></tr>
+<tr><td>Weekly research</td><td><code>_execute_weekly_research</code> (~5420)</td><td><code>generate_weekly_narrative</code>, <code>consolidate_weekly_core</code>, walk-forward/CPCV re-runs</td></tr>
+<tr><td>Self-improvement</td><td><code>_execute_self_improvement</code> (~5486)</td><td>Improvement-pipeline and meta-loop proposals; writes <code>last_*</code> state so a missed run is visible rather than silent</td></tr>
+<tr><td>Monthly maintenance</td><td><code>monthly_memory_maintenance</code>, <code>archive_stale_candidates</code> (<span class="file">trading_memory.py</span> ~680, ~701)</td><td>Prune and archive unverified candidates</td></tr>
+</tbody>
+</table>
+
+<h3 id="s14-6-ladder">14.6 The memory ladder in one table</h3>
+<table>
+<thead><tr><th>Layer</th><th>Write API</th><th>Read API</th><th>Governance</th></tr></thead>
+<tbody>
+<tr><td>L0 episodic (trade outcomes, labels)</td><td><code>label_closed_trade</code> ~1498</td><td><code>retrieve_facts</code> / trade tables</td><td>Immutable record; corrections are labels, not edits</td></tr>
+<tr><td>L1 atomic facts</td><td><code>record_fact</code> ~324, <code>supersede_fact</code> ~348</td><td><code>retrieve_facts</code> ~352</td><td>Supersession chain, not mutation</td></tr>
+<tr><td>L2 scenario playbooks</td><td><code>current_playbook</code> ~416, <code>rebuild_scenarios</code> ~759</td><td><code>retrieve_scenarios</code> ~899</td><td><code>review_scenario</code> ~868</td></tr>
+<tr><td>L3 core memories</td><td><code>propose_core_memory</code> ~961</td><td><code>retrieve_core_memories</code> ~1023</td><td><code>review_core_memory</code> ~978, <code>retire_core_memory</code> ~990</td></tr>
+<tr><td>Working context (session)</td><td><code>append_working_context</code> ~1356</td><td><code>retrieve_working_context</code> ~1415</td><td><code>compact_working_context(max_active=24)</code> ~1379</td></tr>
+<tr><td>Retrieval provenance</td><td><code>_record_retrieval</code> ~1044, <code>link_retrievals_to_trade</code> ~1337</td><td><code>memory_quality_metrics</code> ~1229</td><td>Every recall is scored by the trade it influenced</td></tr>
+</tbody>
+</table>
+<div class="callout">
+<strong>Self-promotion of belief is structurally impossible.</strong> A lesson can reach the core namespace only through
+<code>propose_core_memory</code> → <code>review_core_memory</code>. Until then it is a candidate that the retrieval path
+treats differently.
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">intelligence/reflection_graph.py</span> 1–45</td><td>Reflection graph order, checkpointing, equity recalibration</td></tr>
+<tr><td><span class="file">intelligence/trading_memory.py</span> 324–1050, 1337–1526</td><td>L0→L3 write/review/retrieve ladder and outcome labelling</td></tr>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span> 3671–3810, 4938–5540</td><td>RL/research-influence gates and scheduled reviews</td></tr>
+<tr><td><span class="file">operations/research_influence_gate.py</span>, <span class="file">operations/reward_ledger.py</span></td><td>Operator-approved influence and durable reward accounting</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+

@@ -1,0 +1,2070 @@
+
+Conversation with Gemini
+From the paid data sources what can we get for free
+
+Even though enterprise vendors (Bloomberg, CME, Databento, Kpler, RavenPack) charge tens of thousands of dollars annually, substantial portions of their underlying datasets, free tiers, and official public mirrors can be accessed at zero cost.
+
+Paid Provider / Domain	Retail Cost	Free Equivalent / Free Tier	What You Can Get for Free
+Databento / TickData	$500–$5,000/mo	Databento Free Credits & IEX TOPS	$125 in free signup credit (covers gigabytes of historical CME/Nasdaq L2/L3 tick data); real-time free US equity tick feeds via IEX.
+CBOE Volatility & Options	$2,000+/yr	Cboe Historical Portal & FRED	Complete daily historical data from 1990 to present for VIX, VVIX, and SKEW indices in raw CSV format.
+CME DataMine	$1,000+/mo	CME Daily Bulletins & FedWatch	Daily settlement prices, end-of-day open interest, volume per strike/expiration, and Fed funds target rate probabilities.
+RavenPack / Bloomberg News	$20,000+/yr	Finnhub & FMP News Sentiment API	Free API tier offering real-time company news, bullish/bearish sentiment scores, and media buzz metrics.
+WhaleWisdom / Refinitiv	$500–$3,000/yr	SEC EDGAR Direct JSON API	Complete institutional hedge fund holdings (Form 13F), insider transactions (Form 4), and material 8-K filings.
+Ursa Space / Kpler	$30,000+/yr	ESA Copernicus CDSE & AISStream	Raw 10-meter resolution Synthetic Aperture Radar (Sentinel-1) images and real-time global ship transponder feeds.
+1. Institutional Tick Data & Order Book Feeds
+
+Databento Signup Allowance: Databento offers $125 in free usage credits upon creating an account. This is enough to download multiple full days of raw CME futures MBO (Market By Order / Level 3) or Nasdaq ITCH tick data for backtesting microstructure models without a paid subscription.  
+Databento
+
+IEX Exchange Direct Feed: While the consolidated SIP feed is paid, the Investors Exchange (IEX) publishes its entire live order book and trade stream (TOPS feed) for free via WebSocket through APIs like Alpaca and the IEX Cloud public endpoints.
+
+FirstRate Data Sample Packs: Provides free historical intraday data packs (5 to 15 years of 1-minute and 5-minute OHLCV bars) for benchmark assets including SPY, QQQ, EURUSD, and VIX.
+
+2. Exchange Derivatives & Volatility Data
+
+Cboe Direct Archives: CBOE publishes full, unadjusted daily closing histories for volatility indices (VIX, V3M, VXN, RVX, TYVIX) downloadable directly from their public portal without authentication.  
+Cboe Global Markets
+
+CME Daily Volume & Open Interest Bulletins: CME Group publishes Section 01–60 Daily Bulletins every evening as public PDFs and text files, breaking down the exact volume, cleared open interest, and settlement prices for every active futures contract and option strike traded across the exchange.
+
+3. NLP, Sentiment & Institutional Positioning
+
+Finnhub Free Tier: Grants up to 60 API calls per minute for real-time market news and automated sentiment classification (Bullish % vs. Bearish % scores derived from global news outlets).
+
+SEC EDGAR API: The SEC provides a free, structured REST API endpoint ([https://data.sec.gov/](https://data.sec.gov/)) that serves full institutional hedge fund portfolios (13F filings from Bridgewater, Citadel, Renaissance Technologies) in machine-readable JSON within minutes of filing.
+
+4. Alternative & Geospatial Data
+
+Copernicus Data Space & Planetary Computer: Commercial satellite intelligence providers (like Ursa Space) derive oil tank storage by applying shadow-detection algorithms to public European Space Agency Sentinel-1 SAR imagery. The raw radar datasets are 100% free and open-access via public STAC APIs.
+
+ADS-B Exchange & OpenSky Network: Provides open-source flight tracking data to track corporate jet movements between financial hubs or corporate M&A sites.
+
+By combing all the data source what types of quant trading can be done on what pair ot asset? Complete conceots of all types
+
+Combining open-source datasets, free REST/WebSocket APIs, satellite imagery, and broker execution bridges allows you to execute five major quantitative trading strategy archetypes across specific asset classes.
+
+Strategy Archetype	Primary Assets	Combined Data Pipeline	Quantitative Alpha Mechanism
+1. Alternative Geospatial Supply-Driven	USOIL (Crude)	Sentinel-1 SAR (Planetary Computer) + AISStream (Tankers) + EIA v2 API + MT5 API	Estimates floating-roof tank capacity and transit volume before EIA/OPEC reports to trade pre-announcement inventory drift.
+2. Macro Fair-Value & Residual Arbitrage	XAUUSD (Gold)	FRED API (10Y TIPS, DXY) + CFTC COT (cot_reports) + MT5 Tick Data	Quantifies mispricing between spot gold and its real-yield regression fair value, filtered by institutional futures positioning.
+3. Systematic Carry & Cointegration StatArb	Forex (EUR/USD, USD/JPY, AUD/NZD)	FRED (Policy Rates) + Cboe Data (VIX) + CFTC COT + MT5 Multi-Symbol M1 Bars	Captures central bank yield spreads with dynamic volatility regime filters; executes statistical arbitrage on cointegrated FX pairs.
+4. Microstructure & Constituent Relative Value	US30 (Dow Jones)	IEX TOPS / Databento L2 Credits + SEC EDGAR (13F) + Finnhub Sentiment + MT5 API	Arbitrages intraday pricing lags between the price-weighted 30-stock basket and the index CFD/futures contract.
+5. Cross-Asset Volatility Regime Switching	US30, XAUUSD, USOIL	Cboe Volatility (VIX, VVIX, SKEW) + CME Daily Bulletins + MT5 Historical Bars	Switches algorithmic allocations between momentum, mean reversion, and cash based on volatility term structure contango/backwardation.
+1. Alternative Geospatial Supply-Driven Quant Trading
+Target Asset: USOIL (WTI Crude), UKOIL (Brent Crude)
+
+Data Fusion: ESA Sentinel-1 SAR Radar + AISStream.io + EIA API v2 + MT5 Execution
+
+[Sentinel-1 SAR Imagery] ──► Shadow Geometry CV Model ──► Tank Storage Capacity Est. ──┐
+[AISStream WebSockets]   ──► Chokepoint Tanker Volume ──► Daily Export Throughput    ──┼─► Composite Supply Signal ──► MT5 Order
+[EIA API (Historical)]   ──► Time-Series Baseline     ──► Expected Inventory Delta   ──┘
+Concept & Mathematical Workflow:
+
+Radar Shadow Extraction: Synthetic Aperture Radar (SAR) penetrates cloud cover over major storage hubs (Cushing, OK; Fujairah, UAE; Rotterdam). Algorithms calculate the inner crescent shadow area (A 
+inner
+​
+ ) versus the total exterior shadow (A 
+exterior
+​
+ ) on floating-roof tanks:  
+GitHub
+
+Fill Level=1− 
+A 
+exterior
+​
+ 
+A 
+inner
+​
+ 
+​
+ 
+Vessel Flow Aggregation: AISStream WebSockets stream live tanker coordinates through geopolitical chokepoints (Strait of Hormuz, Malacca, Bab el-Mandeb). Tanker draft changes determine loaded export volume.
+
+Alpha Generation: Compute the forecast inventory surprise (ΔS=Model Forecast−Consensus). If ΔS<0 (inventory tighter than expected), the engine enters long USOIL via MT5 6 to 12 hours before the official Wednesday EIA report release.
+
+2. Macro Fair-Value & Residual Arbitrage
+Target Asset: XAUUSD (Spot Gold)
+
+Data Fusion: FRED API (TIPS Yields, DXY) + CFTC COT + MT5 Tick Engine
+
+Concept & Mathematical Workflow:
+
+Fair-Value Regression Engine: Gold generates no cash flow, making it function as an inverse real-rate asset. A rolling Ordinary Least Squares (OLS) or Ridge regression models gold's theoretical fair price:
+
+ln(P 
+Gold,t
+​
+ )=α+β 
+1
+​
+ ⋅TIPS 
+10Y,t
+​
+ +β 
+2
+​
+ ⋅ln(DXY 
+t
+​
+ )+ϵ 
+t
+​
+ 
+Residual Mean Reversion: The residual ϵ 
+t
+​
+ =ln(P 
+Actual
+​
+ )−ln(P 
+Fair
+​
+ ) represents the pricing error. Standardize the error into a z-score:
+
+z 
+t
+​
+ = 
+σ 
+ϵ
+​
+ 
+ϵ 
+t
+​
+ −μ 
+ϵ
+​
+ 
+​
+ 
+Positioning Overlay: Query CFTC COT data using cot_reports. If z 
+t
+​
+ <−2.0 (Gold severely undervalued) AND non-commercial institutional speculators are not at extreme net-short thresholds, execute automated long entries on XAUUSD via MT5, targeting z=0.
+
+3. Systematic Carry & Cointegration StatArb
+Target Asset: USD/JPY, EUR/USD, AUD/USD, NZD/USD, EUR/GBP
+
+Data Fusion: FRED API + Cboe Direct Data + CFTC COT + MT5 Data Engine
+
+Concept & Mathematical Workflow:
+
+Macro Carry Component:
+
+Pull short-term central bank policy rates from FRED. Rank currency pairs by yield differential Δr=r 
+base
+​
+ −r 
+quote
+​
+ .
+
+Volatility Filter: Monitor Cboe VIX daily data. If VIX<20 (low systemic volatility), maintain full long exposure in highest carry pairs (e.g., long USD/JPY). If VIX>25 or 5-day VIX rate of change exceeds +30%, trigger emergency liquidation before carry unwinds.
+
+Cointegration StatArb Component:
+
+Run the Engle-Granger two-step cointegration test or Johansen test on economically linked pairs like AUD/USD (y 
+t
+​
+ ) and NZD/USD (x 
+t
+​
+ ):
+
+y 
+t
+​
+ =γx 
+t
+​
+ +η 
+t
+​
+ 
+Test residual η 
+t
+​
+  for stationarity via the Augmented Dickey-Fuller (ADF) test.
+
+When stationary, compute the dynamic hedge ratio γ using a Kalman Filter. Enter long/short positions on MT5 whenever the spread diverges past ±2 rolling standard deviations.
+
+4. Index Microstructure & Constituent Relative Value
+Target Asset: US30 (Dow Jones Industrial Average CFD / Futures)
+
+Data Fusion: IEX TOPS / Databento Credits + SEC EDGAR API + Finnhub News API + MT5 API
+
+Concept & Mathematical Workflow:
+
+Real-Time Price-Weighted Synthetic Index: The Dow 30 is price-weighted with a variable divisor d:
+
+US30 
+Fair
+​
+ = 
+d
+∑ 
+i=1
+30
+​
+ P 
+i,t
+​
+ 
+​
+ 
+Compute the synthetic index tick-by-tick from individual constituent stock data (via IEX / Databento).
+
+Order Flow Imbalance (OBI): Calculate the bid/ask queue imbalance from the Level 2 order book:
+
+OBI 
+t
+​
+ = 
+V 
+bid,t
+​
+ +V 
+ask,t
+​
+ 
+V 
+bid,t
+​
+ −V 
+ask,t
+​
+ 
+​
+ 
+Execution: When the US30 CFD price on MT5 lags the calculated synthetic constituent index by more than the spread cost + execution slippage, and OBI 
+t
+​
+  confirms directional momentum, the algorithm executes latency-arbitrage scalps.
+
+Sentiment / 13F Filter: Finnhub real-time news sentiment scores and SEC EDGAR quarterly 13F institutional accumulation data provide a directional trend filter to avoid buying constituents facing negative earnings shocks.
+
+5. Cross-Asset Volatility Regime Switching
+Target Asset: Multi-Asset Portfolio (US30, XAUUSD, USOIL, EURUSD)
+
+Data Fusion: Cboe Historical Archives (VIX, VVIX, SKEW) + CME Bulletins + MT5 Strategy Engine
+
+Concept & Mathematical Workflow:
+
+Term Structure Signal: Extract the ratio between 30-day VIX and 3-month VIX (V3M):
+
+Vol Ratio= 
+V3M
+VIX
+​
+ 
+Regime Rules:
+
+Contango Regime (Vol Ratio<0.95): Normal market conditions. The portfolio runs trend-following (M15/H1 breakout models) across US30 and USOIL.
+
+Backwardation Regime (Vol Ratio≥1.00): High market stress. The algorithm cuts equity exposure, halts breakout strategies, switches XAUUSD to a volatility-expansion breakout model, and reallocates capital into short-volatility mean-reversion once the VIX spikes past +3σ.
+
+Everyone has the same data how does the aplha generation works and is the profitability generated from and what is better in performance 9f the model
+
+Raw data is a commodity, but raw data is not alpha. Alpha is generated through the mathematical transformations applied to that data, the ability to exploit non-economic counterparty flows, and how efficiently trades are executed after accounting for transaction friction.
+
+1. How Alpha is Generated from the Same Data
+When two quant funds look at the exact same public data (e.g., tick history, 10-Year TIPS yields, or satellite tiles), their returns diverge drastically based on three operational layers:
+
+[Identical Public Data] 
+       │
+       ├──► Feature Engineering (Non-linear extraction, transformations, noise filtering)
+       ├──► Signal Fusion (Orthogonalizing weak predictors into a strong meta-model)
+       └──► Execution Optimization (Minimizing market impact, slippage, and fees)
+               │
+               ▼
+       [Divergent Alpha & Profitability]
+Feature Engineering & Representation: Two quants download the same Sentinel-1 SAR satellite radar data. A naive trader calculates mean pixel brightness. A sophisticated quant trains a Convolutional Neural Network (CNN) with a shadow-geometry algorithm to calculate precise tank-roof displacement in cubic meters.
+
+Noise Filtering & Signal Extraction: Market data has an extremely low Signal-to-Noise Ratio (SNR < 5%). Superior models use advanced filtering (such as Kalman Filters, Wavelet transforms, or Fractional Differentiation) to preserve memory while making time-series stationary, whereas basic indicators (like RSI or Moving Averages) introduce lag and false breakouts.
+
+Orthogonality & Signal Fusion: Individual signals rarely have an Information Coefficient (IC) higher than 0.03 to 0.08. Top quantitative models combine dozens of uncorrelated (orthogonal) weak signals using ensemble techniques, PCA, or cross-sectional ranking.
+
+2. Where Profitability Actually Comes From
+Quant trading is a zero-sum game net of transaction costs. Profitability does not appear out of thin air; it is extracted directly from market participants trading for non-alpha reasons:
+
+Counterparty	Why They Trade (Their Incentive)	How Quants Profit From Them
+Commercial Hedgers	Airlines hedging jet fuel; multinational corporations hedging foreign currency exposure.	Liquidity & Insurance Premium: Hedgers accept unfavorable market pricing to eliminate balance-sheet variance; quants absorb the risk and capture the spread/carry.
+Retail Noise Traders	Emotion-driven retail traders entering on laggy technical indicators or FOMO.	Adverse Selection & Mean Reversion: Quants fade overextended retail retail liquidity clusters, stop-loss cascades, and structural behavioral biases.
+Mandate-Constrained Institutional Funds	Passive index funds, mutual funds, and pension funds required to rebalance or track benchmarks at fixed dates/times.	Front-Running Predictable Flow: Quants anticipate forced index additions/deletions, quarterly rebalancing, and month-end portfolio reallocations.
+Central Banks	Intervening to defend currency pegs or stabilize domestic bond yields (not profit-seeking).	Macro Dislocation Trading: Exploiting market distortions and pricing anomalies created by artificial policy interventions.
+3. What Determines Superior Model Performance
+A common misconception is that model performance comes down to using more complex machine learning models (like deep neural networks). In practice, complex models often overfit financial noise. High-performing quant models excel across four structural metrics:
+
+1. The Fundamental Law of Active Management
+The expected performance (Information Ratio) of a strategy is governed by Grinold and Kahn's Fundamental Law:
+
+IR≈IC× 
+Breadth
+
+​
+ 
+IC (Information Coefficient): The correlation between the model's forecast and actual future returns.
+
+Breadth: The number of independent trading decisions made per year.
+
+Implication: A model does not need a high win rate (e.g., an IC=0.05, or a 52.5% win rate, is elite). Applying that minor edge across 10,000 independent trades across FX, commodities, and equities generates a high Sharpe ratio through law of large numbers.
+
+2. Out-of-Sample Robustness vs. Overfitting
+
+Poor models over-optimize parameters (e.g., finding the "best" period for an EMA on historical backtests), resulting in catastrophic live failure.
+
+Superior models use Purged & Embargoed Cross-Validation (to prevent data leakage in time-series data) and calculate the Deflated Sharpe Ratio (DSR) to adjust for selection bias and backtest trial counts.
+
+3. Execution Efficiency & Implementation Shortfall
+
+A strategy with a theoretical backtested Sharpe Ratio of 3.0 can have a realized Sharpe Ratio of 0.5 if it enters via market orders with poor fill logic.
+
+High-performing systems model Transaction Cost Analysis (TCA) directly inside the optimization objective, using limit order placement, Volume-Weighted Average Price (VWAP) execution, and dark pool routing to avoid paying the bid-ask spread and market impact costs.
+
+4. Dynamic Regime Awareness
+Static models fail when the macroeconomic backdrop changes. High-performing architectures implement Hidden Markov Models (HMMs) or Volatility Regimes to dynamically scale leverage, reduce risk during high-volatility structural shifts, or turn off mean-reversion engines when trends break out.
+
+Explain first 2 options
+
+Here is a detailed breakdown of the first two quantitative strategy archetypes, including their core economic rationale, operational pipeline, and execution mechanics.
+
+Option 1: Alternative Geospatial Supply-Driven Quant Trading
+Target Asset: WTI Crude Oil (USOIL), Brent Crude (UKOIL)
+
+[Satellite Radar Tiles]  ──► SAR Shadow Area Extraction ──┐
+[AIS Tanker Telemetry]   ──► Chokepoint Transit Volume  ──┼─► Forecast Surprise ΔS ──► Trade USOIL
+[Historical EIA Baseline] ──► Expected Weekly Inventory  ──┘
+Core Economic Logic
+Physical commodities trade fundamentally on supply-and-demand balances. Official data (like the weekly U.S. Energy Information Administration / EIA crude inventory reports) only reflect historical figures with a multi-day reporting lag.
+
+By calculating physical storage levels directly from orbit and monitoring maritime tanker flows in real time, you can estimate whether the upcoming inventory report will show a supply build or draw before the broader market reacts.
+
+How It Works Step-by-Step
+Synthetic Aperture Radar (SAR) Tank Modeling:
+
+Commercial crude is stored in floating-roof tanks, where the roof moves up and down depending on how full the tank is.
+
+Sentinel-1 SAR satellites emit radar pulses that penetrate cloud cover. As the roof sinks inside the tank wall, it casts an internal radar shadow.
+
+Computer vision algorithms calculate the ratio between the inner shadow area (A 
+inner
+​
+ ) and total exterior shadow (A 
+exterior
+​
+ ):
+
+Fill Level=1− 
+A 
+exterior
+​
+ 
+A 
+inner
+​
+ 
+​
+ 
+Multiplying fill levels by known storage capacities across major hubs (e.g., Cushing, Oklahoma) gives an aggregate physical inventory estimate.
+
+AIS Tanker Telemetry Tracking:
+
+Using AISStream.io, the algorithm tracks crude carrier vessels passing through transit chokepoints (Strait of Hormuz, Suez Canal, Strait of Malacca).
+
+Changes in vessel draught (how deep the ship sits in the water) indicate whether a tanker is fully loaded or running in ballast (empty).
+
+Alpha Signal & Trade Execution:
+
+The model compares estimated physical inventory against consensus market expectations:
+
+ΔS=Model Supply Forecast−Market Consensus Forecast
+Bullish Signal (ΔS<0): Physical supply is tighter than expected. The model buys USOIL CFDs or futures 4–12 hours prior to the EIA release to capture pre-announcement positioning drift.
+
+Bearish Signal (ΔS>0): Physical supply is accumulating. The model opens short positions.
+
+Key Edge & Limitations
+Edge: Front-runs lagging macro reports using raw physical observation.
+
+Limitation: Free satellite revisit times (typically 6 to 12 days per pass for Sentinel-1) create latency gaps between fresh visual data points.
+
+Option 2: Macro Fair-Value & Residual Arbitrage
+Target Asset: Spot Gold (XAUUSD)
+
+[FRED: 10Y TIPS Yield] ──┐
+[FRED: DXY Dollar Index] ─┼─► Rolling Fair-Value OLS Model ──► Residual Spread (z-score) ──► Mean-Reversion Long/Short
+[CFTC: COT Positioning]  ──┘
+Core Economic Logic
+Gold pays no yield or dividend. Therefore, its primary opportunity cost is the real risk-free yield available on sovereign debt (specifically, US 10-Year Treasury Inflation-Protected Securities / TIPS) combined with the purchasing power of the US Dollar Index (DXY).
+
+Historically, when real yields and the US dollar rise, gold prices fall; when real yields decline, gold rallies. When market noise or transient liquidity events cause gold's market price to deviate significantly from this macroeconomic relationship, an arbitrage opportunity exists for the price to mean-revert.
+
+How It Works Step-by-Step
+Macro Econometric Modeling:
+
+Pull daily historical 10-Year TIPS yields (r 
+TIPS
+​
+ ) and Dollar Index (P 
+DXY
+​
+ ) from the FRED API.
+
+Train a rolling Ordinary Least Squares (OLS) or dynamic Kalman Filter regression to estimate gold’s theoretical fair price:
+
+ln(P 
+Fair,t
+​
+ )=α 
+t
+​
+ +β 
+1,t
+​
+ ⋅r 
+TIPS,t
+​
+ +β 
+2,t
+​
+ ⋅ln(P 
+DXY,t
+​
+ )
+Residual Calculation & Standardization:
+
+Calculate the pricing residual (ϵ 
+t
+​
+ ) between actual spot gold (P 
+XAUUSD
+​
+ ) and the modeled fair price (P 
+Fair
+​
+ ):
+
+ϵ 
+t
+​
+ =ln(P 
+XAUUSD,t
+​
+ )−ln(P 
+Fair,t
+​
+ )
+Standardize the residual over a 60-day rolling window into a statistical z-score:
+
+z 
+t
+​
+ = 
+σ 
+ϵ
+​
+ 
+ϵ 
+t
+​
+ −μ 
+ϵ
+​
+ 
+​
+ 
+Institutional Positioning Overlay:
+
+Inspect the CFTC Commitments of Traders (COT) report. If z 
+t
+​
+ <−2.0 (gold is undervalued by >2 standard deviations) and non-commercial hedge funds are not aggressively increasing net-short contracts, the signal is validated.
+
+Execution Rules:
+
+Long Entry: Enter long XAUUSD when z 
+t
+​
+ ≤−2.0.
+
+Short Entry: Enter short XAUUSD when z 
+t
+​
+ ≥+2.0.
+
+Exit Target: Close positions when the spread returns to mean equilibrium (z 
+t
+​
+ =0).
+
+Key Edge & Limitations
+Edge: Eliminates discretionary guessing by anchoring trades to real interest rates and macro gravity.
+
+Limitation: Structural regime shifts (such as massive central bank physical bullion accumulation or sudden geopolitical crises) can temporarily decouple gold from real yields for extended periods.
+
+Explain how Purged and Embargoed Cross-Validation works for financial time series to prevent data leakage.
+
+Standard K-Fold cross-validation assumes data is Independent and Identically Distributed (i.i.d.). In financial machine learning, overlapping label windows and serial correlation violate this assumption, leaking future pricing information into training folds and creating artificially inflated backtest performance.
+
+Purging and Embargoing resolve these two distinct data leakage channels by removing contaminated samples from training folds around the test set boundaries.  
+Medium
+
+Time Axis ──────────────────────────────────────────────────────────────────────────►
+[    Train Fold    ] [ Purge ] [   Test Fold   ] [ Embargo ] [     Train Fold     ]
+                          ▲                             ▲
+                          │                             │
+          Drops overlapping labels            Drops post-test autoregressive
+          that extend into test set            memory and feature leakage
+1. The Leakage Mechanisms in Financial Data
+
+Label Overlap Leakage: Target variables in quantitative trading often span multi-period holding windows (such as a 5-day return or a Triple-Barrier label spanning t 
+0
+​
+  to t 
+1
+​
+ ). A training sample indexed at t−2 whose label resolves at t+3 already contains price information from inside a test set starting at t.  
+GitHub
+
+Autoregressive Feature Leakage: Financial features (such as rolling realized volatility, MACD, or ARMA residuals) exhibit serial correlation. Training samples immediately after the test set retain statistical memory of the test regime.  
+skfolio
+
+2. Purging: Eliminating Label Overlap
+
+Purging strips out any training sample whose label time horizon overlaps with the test set's time window.  
+skfolio
+
+Let an observation i be sampled at time t 
+i,0
+​
+  with its label determined at time t 
+i,1
+​
+ . If the held-out test split spans the interval [T 
+test, start
+​
+ ,T 
+test, end
+​
+ ], the purging rule removes any training observation i satisfying:
+
+[t 
+i,0
+​
+ ,t 
+i,1
+​
+ ]∩[T 
+test, start
+​
+ ,T 
+test, end
+​
+ ]
+
+=∅
+This ensures the training algorithm never observes labels that evaluated during the out-of-sample testing window.  
+Medium
+
+3. Embargoing: Eliminating Post-Test Memory
+
+Embargoing imposes a quarantine buffer on training data that occurs immediately after the test fold.
+
+Because information persists forward through autoregressive processes, training on samples immediately after test completion allows the model to leverage momentum or regime states learned in-sample.
+
+The embargo period drops all training observations within a buffer length h 
+embargo
+​
+  (typically 1% to 5% of sample size or the feature autocorrelation half-life):
+
+t 
+train
+​
+ ∈[T 
+test, end
+​
+ ,T 
+test, end
+​
+ +h 
+embargo
+​
+ ]
+4. Combinatorial Purged Cross-Validation (CPCV)
+
+In production, quants combine purging and embargoing with Combinatorial Purged Cross-Validation (CPCV). Instead of testing a single path like walk-forward analysis, CPCV splits N data blocks into combinations of k test blocks, generating ( 
+k
+N
+​
+ ) distinct models. This reconstructs multiple out-of-sample equity curves to compute distribution metrics like the Deflated Sharpe Ratio (DSR) and Probability of Backtest Overfitting (PBO).  
+skfolio
+
+Provide Python code to calculate rolling Information Coefficient (IC), Information Ratio (IR), and Deflated Sharpe Ratio.
+
+The complete mathematical formulas and a modular Python implementation for calculating Rolling Information Coefficient (IC), Information Ratio (IR), and the Deflated Sharpe Ratio (DSR) are provided below.
+
+Core Mathematical Formulations
+Information Coefficient (IC): Measures the predictive power of a signal by calculating the cross-sectional or rolling rank correlation (Spearman) between factor predictions (f 
+t
+​
+ ) and realized forward returns (R 
+t+1
+​
+ ):
+
+IC 
+t
+​
+ =Corr(Rank(f 
+t
+​
+ ),Rank(R 
+t+1
+​
+ ))
+Information Ratio (IR):
+
+Factor/Signal IR: Measures the consistency of the alpha model:
+
+IR 
+IC
+​
+ = 
+Std(IC)
+Mean(IC)
+​
+ × 
+T 
+annual
+​
+ 
+
+​
+ 
+Portfolio Active IR: Evaluates excess return generated per unit of active risk (tracking error) relative to a benchmark R 
+b
+​
+ :
+
+IR 
+Portfolio
+​
+ = 
+σ(R 
+p
+​
+ −R 
+b
+​
+ )
+E[R 
+p
+​
+ −R 
+b
+​
+ ]
+​
+ × 
+T 
+annual
+​
+ 
+
+​
+ 
+Deflated Sharpe Ratio (DSR): Developed by Bailey and Author-C (2014) to adjust the observed Sharpe Ratio ( 
+SR
+
+ ) for non-normality (skewness  
+γ
+^
+​
+  
+3
+​
+ , kurtosis  
+γ
+^
+​
+  
+4
+​
+ ), sample length (T), and multiple testing selection bias across N trials:  
+QuanterLab
+
+SR 
+∗
+ = 
+V[{SR 
+n
+​
+ }]
+
+​
+ ⋅[(1−γ 
+E
+​
+ )Φ 
+−1
+ (1− 
+N
+1
+​
+ )+γ 
+E
+​
+ Φ 
+−1
+ (1− 
+Ne
+1
+​
+ )]
+DSR=Φ 
+
+​
+  
+1− 
+γ
+^
+​
+  
+3
+​
+  
+SR
+
+ + 
+4
+γ
+^
+​
+  
+4
+​
+ −1
+​
+  
+SR
+
+  
+2
+ 
+
+​
+ 
+( 
+SR
+
+ −SR 
+∗
+ ) 
+T−1
+
+​
+ 
+​
+  
+
+​
+ 
+where γ 
+E
+​
+ ≈0.5772156649 is the Euler-Mascheroni constant, Φ(⋅) is the standard normal CDF, and  
+γ
+^
+​
+  
+4
+​
+  is Pearson's kurtosis (Gaussian =3).
+
+Python Implementation
+Python
+import numpy as np
+import pandas as pd
+from scipy.stats import norm, skew, kurtosis
+
+# =======================================================================
+# 1. Rolling Information Coefficient (IC)
+# =======================================================================
+def rolling_information_coefficient(
+    signals: pd.DataFrame, 
+    forward_returns: pd.DataFrame, 
+    window: int = 60, 
+    method: str = "spearman"
+) -> pd.Series:
+    """
+    Computes rolling cross-sectional Information Coefficient across multi-asset panels.
+    
+    Parameters:
+    - signals: DataFrame (Date x Asset) of model alpha predictions
+    - forward_returns: DataFrame (Date x Asset) of realized forward returns
+    - window: Rolling window length in periods
+    - method: 'spearman' (rank correlation) or 'pearson'
+    
+    Returns:
+    - pd.Series of rolling average IC
+    """
+    # Cross-sectional correlation per timestamp
+    daily_ic = signals.corrwith(forward_returns, axis=1, method=method)
+    rolling_ic = daily_ic.rolling(window=window, min_periods=max(5, window // 2)).mean()
+    return rolling_ic
+
+
+# =======================================================================
+# 2. Information Ratio (IR)
+# =======================================================================
+def calculate_information_ratio(
+    strategy_returns: pd.Series, 
+    benchmark_returns: pd.Series = None, 
+    periods_per_year: int = 252
+) -> float:
+    """
+    Computes Annualized Information Ratio. 
+    If benchmark is None, calculates pure Strategy Sharpe/IR against 0 risk-free rate.
+    """
+    if benchmark_returns is not None:
+        active_return = strategy_returns - benchmark_returns
+    else:
+        active_return = strategy_returns
+
+    mean_active = active_return.mean()
+    std_active = active_return.std(ddof=1)
+    
+    if std_active == 0 or np.isnan(std_active):
+        return 0.0
+        
+    return (mean_active / std_active) * np.sqrt(periods_per_year)
+
+
+def calculate_ic_information_ratio(ic_series: pd.Series, periods_per_year: int = 252) -> float:
+    """Computes IC Information Ratio (Signal stability metric)."""
+    clean_ic = ic_series.dropna()
+    if len(clean_ic) < 2 or clean_ic.std() == 0:
+        return 0.0
+    return (clean_ic.mean() / clean_ic.std(ddof=1)) * np.sqrt(periods_per_year)
+
+
+# =======================================================================
+# 3. Deflated Sharpe Ratio (DSR)
+# =======================================================================
+def expected_maximum_sharpe(n_trials: int, var_sharpe: float = 1.0) -> float:
+    """
+    Approximates expected maximum Sharpe ratio under the null hypothesis (H0: SR = 0)
+    using extreme value theory and Euler-Mascheroni expansion.
+    """
+    if n_trials <= 1:
+        return 0.0
+    
+    gamma_e = 0.57721566490153286  # Euler-Mascheroni constant
+    e = np.exp(1.0)
+    
+    z_1 = norm.ppf(1.0 - 1.0 / n_trials)
+    z_2 = norm.ppf(1.0 - 1.0 / (n_trials * e))
+    
+    sr_star = np.sqrt(var_sharpe) * ((1.0 - gamma_e) * z_1 + gamma_e * z_2)
+    return sr_star
+
+
+def deflated_sharpe_ratio(
+    returns: pd.Series, 
+    n_trials: int = 1, 
+    var_sharpe_trials: float = None,
+    periods_per_year: int = 252
+) -> dict:
+    """
+    Calculates Deflated Sharpe Ratio (DSR) and Probabilistic Sharpe Ratio (PSR).
+    
+    Parameters:
+    - returns: Series of periodic strategy returns (unannualized)
+    - n_trials: Number of strategy configurations / backtests tested
+    - var_sharpe_trials: Variance of Sharpe ratios across all tested trials (optional)
+    - periods_per_year: 252 for daily, 52 for weekly, 12 for monthly
+    
+    Returns:
+    - dict containing estimated SR, annualized SR, DSR p-value, and expected max SR.
+    """
+    clean_returns = returns.dropna().values
+    t = len(clean_returns)
+    if t < 5:
+        raise ValueError("Insufficient sample size for DSR estimation.")
+    
+    # 1. Periodic (unannualized) moments
+    mean = np.mean(clean_returns)
+    std = np.std(clean_returns, ddof=1)
+    sr_hat = mean / std if std > 0 else 0.0
+    
+    # Skewness and Pearson Kurtosis (Fisher=False -> Normal = 3)
+    gamma_3 = skew(clean_returns)
+    gamma_4 = kurtosis(clean_returns, fisher=False)
+    
+    # 2. Variance of the estimated periodic Sharpe ratio under non-normality
+    sr_std_err = np.sqrt((1.0 - gamma_3 * sr_hat + ((gamma_4 - 1.0) / 4.0) * (sr_hat ** 2)) / (t - 1.0))
+    
+    # 3. Benchmark SR threshold calculation
+    if var_sharpe_trials is None:
+        # Default to sampling variance if cross-trial variance is unknown
+        var_sharpe = 1.0 / (t - 1.0)
+    else:
+        # Convert annualized trial variance to periodic variance
+        var_sharpe = var_sharpe_trials / periods_per_year
+        
+    sr_benchmark = expected_maximum_sharpe(n_trials=n_trials, var_sharpe=var_sharpe)
+    
+    # 4. Probabilistic Sharpe Ratio & Deflated Sharpe Ratio
+    # PSR checks probability against 0; DSR checks probability against expected max SR*
+    z_dsr = (sr_hat - sr_benchmark) / sr_std_err
+    dsr_stat = norm.cdf(z_dsr)
+    
+    return {
+        "Annualized_SR": sr_hat * np.sqrt(periods_per_year),
+        "Periodic_SR": sr_hat,
+        "Expected_Max_SR_Periodic": sr_benchmark,
+        "Expected_Max_SR_Annualized": sr_benchmark * np.sqrt(periods_per_year),
+        "Skewness": gamma_3,
+        "Kurtosis": gamma_4,
+        "DSR": dsr_stat,  # Probability that true SR > 0 after adjusting for N trials
+        "Track_Record_Periods": t
+    }
+Executable Example
+Python
+if __name__ == "__main__":
+    np.random.seed(42)
+    dates = pd.date_range("2024-01-01", periods=500, freq="B")
+    assets = ["EURUSD", "USDJPY", "XAUUSD", "USOIL", "US30"]
+    
+    # Simulate cross-sectional signals and realized forward returns
+    signals = pd.DataFrame(np.random.randn(500, 5), index=dates, columns=assets)
+    forward_returns = pd.DataFrame(
+        0.05 * signals + np.random.randn(500, 5), index=dates, columns=assets
+    )
+    
+    # 1. Calculate Rolling Information Coefficient
+    rolling_ic = rolling_information_coefficient(signals, forward_returns, window=60)
+    ic_ir = calculate_ic_information_ratio(rolling_ic)
+    
+    # 2. Simulate strategy returns with negative skew (typical trading strategy)
+    strat_returns = pd.Series(
+        np.random.normal(loc=0.0008, scale=0.012, size=500) - np.random.exponential(scale=0.003, size=500),
+        index=dates
+    )
+    benchmark_returns = pd.Series(np.random.normal(0.0003, 0.010, size=500), index=dates)
+    
+    ir = calculate_information_ratio(strat_returns, benchmark_returns)
+    
+    # 3. Calculate Deflated Sharpe Ratio assuming 250 backtests were executed
+    dsr_results = deflated_sharpe_ratio(
+        returns=strat_returns, 
+        n_trials=250, 
+        var_sharpe_trials=0.5, 
+        periods_per_year=252
+    )
+
+    print(f"Mean Rolling IC:       {rolling_ic.mean():.4f}")
+    print(f"Factor IC IR:          {ic_ir:.2f}")
+    print(f"Portfolio Active IR:   {ir:.2f}")
+    print("-----------------------------------------")
+    print(f"Raw Annualized SR:     {dsr_results['Annualized_SR']:.2f}")
+    print(f"Expected Max Null SR:  {dsr_results['Expected_Max_SR_Annualized']:.2f}")
+    print(f"Deflated Sharpe Ratio: {dsr_results['DSR']:.4f} "
+          f"({'Statistically Significant' if dsr_results['DSR'] >= 0.95 else 'Rejected / Overfitted'})")
+Interpretation Guide
+IC >0.05: Represents a strong predictive factor in daily cross-sectional modeling.
+
+Factor IR≥1.0: Indicates high signal stability with low turnover decay.
+
+DSR≥0.95: Rejects the null hypothesis of backtest overfitting at the 5% significance level, confirming that performance is likely genuine skill rather than the result of mining across N configurations.
+
+How do you calculate the Probability of Backtest Overfitting (PBO) and Deflated Sharpe Ratio from CPCV backtest paths?
+
+Calculating the Probability of Backtest Overfitting (PBO) and the Deflated Sharpe Ratio (DSR) from Combinatorial Purged Cross-Validation (CPCV) evaluates whether a strategy's selected parameters generated true out-of-sample alpha or merely mined historical noise.
+
+Mathematical Methodology
+1. CPCV Partitioning and Matrix Generation
+Given a matrix of historical returns R∈R 
+T×M
+  representing M model parameterizations over T time steps:
+
+Divide T into S contiguous blocks.  
+Medium
+
+Generate all combinations C=( 
+k
+S
+​
+ ) (typically symmetric, where k=S/2).
+
+For each combination c∈{1,…,C}:
+
+In-Sample (IS) Fold: Train on the S−k blocks (with purging and embargo applied at the boundaries). Compute the vector of IS Sharpe ratios r 
+IS
+(c)
+​
+ ∈R 
+M
+ .
+
+Out-of-Sample (OOS) Fold: Evaluate performance on the held-out k blocks. Compute the vector of OOS Sharpe ratios r 
+OOS
+(c)
+​
+ ∈R 
+M
+ .
+
+Combinations Matrix:
+          Model 1     Model 2    ...    Model M
+Split 1: [ r_IS,1   , r_IS,2   , ... ,  r_IS,M   ] ──► Select max IS: m*(1) ──► Rank in OOS
+Split 2: [ r_IS,1   , r_IS,2   , ... ,  r_IS,M   ] ──► Select max IS: m*(2) ──► Rank in OOS
+  ...
+Split C: [ r_IS,1   , r_IS,2   , ... ,  r_IS,M   ] ──► Select max IS: m*(C) ──► Rank in OOS
+2. Probability of Backtest Overfitting (PBO)
+PBO quantifies the probability that the best in-sample strategy performs at or below median out-of-sample performance.  
+Medium
+
+For each combination split c∈{1,…,C}, identify the best in-sample configuration:
+
+m 
+∗
+ (c)=arg 
+m∈{1,…,M}
+max
+​
+ r 
+IS,m
+(c)
+​
+ 
+Determine the rank of m 
+∗
+ (c) within the out-of-sample vector r 
+OOS
+(c)
+​
+ , and compute its relative percentile  
+ω
+ˉ
+  
+c
+​
+ ∈(0,1):
+
+ω
+ˉ
+  
+c
+​
+ = 
+M+1
+Rank(r 
+OOS,m 
+∗
+ (c)
+(c)
+​
+ )
+​
+ 
+(where Rank 1 is the worst and M is the best)
+
+Map  
+ω
+ˉ
+  
+c
+​
+  into the logit distribution:
+
+λ 
+c
+​
+ =ln( 
+1− 
+ω
+ˉ
+  
+c
+​
+ 
+ω
+ˉ
+  
+c
+​
+ 
+​
+ )
+Compute the empirical PBO as the proportion of splits where the top in-sample strategy degraded below the OOS median ( 
+ω
+ˉ
+  
+c
+​
+ ≤0.5, or λ 
+c
+​
+ ≤0):
+
+PBO= 
+C
+1
+​
+  
+c=1
+∑
+C
+​
+ I( 
+ω
+ˉ
+  
+c
+​
+ ≤0.5)
+3. Deflated Sharpe Ratio (DSR) from the CPCV Trial Space
+DSR assesses whether the top-performing strategy retains statistical significance after penalizing for the variance across all M backtest configurations and the return distribution's non-normality.
+
+Extract the annualized OOS Sharpe ratio  
+SR
+
+  of the overall selected model, its return track record length T, skewness  
+γ
+^
+​
+  
+3
+​
+ , and kurtosis  
+γ
+^
+​
+  
+4
+​
+ .
+
+Calculate the cross-trial variance of Sharpe ratios across all M configurations: V[{SR 
+m
+​
+ }].
+
+Compute the expected maximum Sharpe ratio under the null hypothesis (H 
+0
+​
+ :SR=0):
+
+SR 
+∗
+ = 
+V[{SR 
+m
+​
+ }]
+
+​
+ ⋅[(1−γ 
+E
+​
+ )Φ 
+−1
+ (1− 
+M
+1
+​
+ )+γ 
+E
+​
+ Φ 
+−1
+ (1− 
+Me
+1
+​
+ )]
+where γ 
+E
+​
+ ≈0.57721566 is the Euler-Mascheroni constant.
+
+Calculate the DSR test statistic:
+
+DSR=Φ 
+
+​
+  
+1− 
+γ
+^
+​
+  
+3
+​
+  
+SR
+
+ + 
+4
+γ
+^
+​
+  
+4
+​
+ −1
+​
+  
+SR
+
+  
+2
+ 
+
+​
+ 
+( 
+SR
+
+ −SR 
+∗
+ ) 
+T−1
+
+​
+ 
+​
+  
+
+​
+ 
+Complete Python Implementation
+Python
+import itertools
+import numpy as np
+import pandas as pd
+from scipy.stats import norm, rankdata, skew, kurtosis
+
+def compute_sharpe(returns: np.ndarray, periods_per_year: int = 252) -> float:
+    """Calculates annualized Sharpe Ratio."""
+    std = np.std(returns, ddof=1)
+    if std == 0 or np.isnan(std):
+        return 0.0
+    return (np.mean(returns) / std) * np.sqrt(periods_per_year)
+
+def calculate_pbo_and_dsr(
+    pnl_matrix: pd.DataFrame, 
+    n_blocks: int = 10, 
+    k_test_blocks: int = 5,
+    periods_per_year: int = 252
+) -> dict:
+    """
+    Computes PBO and DSR from CPCV backtest trials.
+    
+    Parameters:
+    - pnl_matrix: DataFrame of shape (T timestamps, M strategy configurations)
+    - n_blocks: Total number of time blocks for partitioning (S)
+    - k_test_blocks: Number of blocks assigned to out-of-sample testing
+    - periods_per_year: 252 for daily data
+    
+    Returns:
+    - dict with PBO, DSR, and distribution metrics.
+    """
+    t_samples, m_trials = pnl_matrix.shape
+    returns_arr = pnl_matrix.values
+    
+    # 1. Split time-series into S contiguous blocks
+    block_indices = np.array_split(np.arange(t_samples), n_blocks)
+    
+    # 2. Generate all combinations of test blocks: C(n_blocks, k_test_blocks)
+    combos = list(itertools.combinations(range(n_blocks), k_test_blocks))
+    n_combos = len(combos)
+    
+    omega_list = []
+    logits_list = []
+    
+    # 3. Iterate through CPCV combinations
+    for test_block_ids in combos:
+        train_block_ids = [b for b in range(n_blocks) if b not in test_block_ids]
+        
+        # Flatten sample indices
+        test_idx = np.concatenate([block_indices[b] for b in test_block_ids])
+        train_idx = np.concatenate([block_indices[b] for b in train_block_ids])
+        
+        train_returns = returns_arr[train_idx, :]
+        test_returns = returns_arr[test_idx, :]
+        
+        # In-sample & Out-of-sample Sharpe ratios for all M models
+        is_sharpes = np.array([compute_sharpe(train_returns[:, m]) for m in range(m_trials)])
+        oos_sharpes = np.array([compute_sharpe(test_returns[:, m]) for m in range(m_trials)])
+        
+        # Best model in-sample
+        best_is_model = np.argmax(is_sharpes)
+        
+        # Rank of the best IS model in OOS (1 = worst, M = best)
+        oos_ranks = rankdata(oos_sharpes)
+        best_oos_rank = oos_ranks[best_is_model]
+        
+        # Relative OOS percentile
+        omega = best_oos_rank / (m_trials + 1.0)
+        omega_list.append(omega)
+        
+        # Logit metric
+        logit = np.log(omega / (1.0 - omega))
+        logits_list.append(logit)
+        
+    omega_arr = np.array(omega_list)
+    
+    # 4. Probability of Backtest Overfitting (PBO)
+    pbo = np.mean(omega_arr <= 0.5)
+    
+    # 5. Deflated Sharpe Ratio (DSR) Calculation
+    # Aggregate OOS performance for all trials
+    overall_trial_sharpes = np.array([compute_sharpe(returns_arr[:, m], periods_per_year) for m in range(m_trials)])
+    best_overall_model = np.argmax(overall_trial_sharpes)
+    
+    best_series = returns_arr[:, best_overall_model]
+    best_sr_unann = np.mean(best_series) / np.std(best_series, ddof=1)
+    best_sr_ann = best_sr_unann * np.sqrt(periods_per_year)
+    
+    # Non-normality moments
+    gamma_3 = skew(best_series)
+    gamma_4 = kurtosis(best_series, fisher=False)
+    
+    # Variance across all M trials (periodic)
+    var_sharpe_periodic = np.var(overall_trial_sharpes / np.sqrt(periods_per_year), ddof=1)
+    
+    # Expected maximum Sharpe threshold
+    gamma_e = 0.57721566490153286
+    z1 = norm.ppf(1.0 - 1.0 / m_trials)
+    z2 = norm.ppf(1.0 - 1.0 / (m_trials * np.e))
+    sr_star_periodic = np.sqrt(var_sharpe_periodic) * ((1.0 - gamma_e) * z1 + gamma_e * z2)
+    sr_star_ann = sr_star_periodic * np.sqrt(periods_per_year)
+    
+    # DSR calculation
+    sr_std_err = np.sqrt((1.0 - gamma_3 * best_sr_unann + ((gamma_4 - 1.0) / 4.0) * (best_sr_unann ** 2)) / (t_samples - 1.0))
+    z_dsr = (best_sr_unann - sr_star_periodic) / sr_std_err
+    dsr = norm.cdf(z_dsr)
+    
+    return {
+        "PBO": pbo,
+        "Mean_OOS_Percentile": np.mean(omega_arr),
+        "Best_Model_Index": int(best_overall_model),
+        "Observed_Sharpe_Annualized": best_sr_ann,
+        "Expected_Max_Null_Sharpe": sr_star_ann,
+        "Deflated_Sharpe_Ratio": dsr,
+        "Total_CPCV_Splits": n_combos
+    }
+
+# =======================================================================
+# Simulation Example
+# =======================================================================
+if __name__ == "__main__":
+    np.random.seed(42)
+    T = 1000  # Timestamps
+    M = 50    # Strategy configurations tested
+    
+    # Simulate return matrix with 0 true alpha (pure noise)
+    noise_data = np.random.normal(loc=0.0001, scale=0.01, size=(T, M))
+    df_trials = pd.DataFrame(noise_data, columns=[f"Config_{i}" for i in range(M)])
+    
+    results = calculate_pbo_and_dsr(df_trials, n_blocks=10, k_test_blocks=5)
+    
+    print(f"Total CPCV Splits Evaluated:  {results['Total_CPCV_Splits']}")
+    print(f"Probability of Backtest Overfitting (PBO): {results['PBO']:.2%}")
+    print(f"Mean OOS Percentile of Best IS Models:   {results['Mean_OOS_Percentile']:.4f}")
+    print("--------------------------------------------------")
+    print(f"Best Configuration Annualized SR:        {results['Observed_Sharpe_Annualized']:.2f}")
+    print(f"Expected Null Maximum SR (M={M} trials):  {results['Expected_Max_Null_Sharpe']:.2f}")
+    print(f"Deflated Sharpe Ratio (DSR):             {results['Deflated_Sharpe_Ratio']:.4f}")
+Diagnostic Thresholds
+Metric	Target / Benchmark	Interpretation
+PBO<0.20	Acceptable	Low risk of overfitting; in-sample top performers consistently rank in the upper half out-of-sample.
+PBO≥0.50	High Overfitting	The best backtested parameterization is no better than a coin flip out-of-sample.
+DSR≥0.95	Statistically Significant	Performance is robust after accounting for trial multiplicity (M), track record length (T), and non-normal fat tails.
+DSR<0.50	False Discovery	The observed Sharpe ratio fails to exceed the maximum Sharpe ratio expected purely by random chance across M trials.
+Show a Python OpenCV example demonstrating how to detect and measure floating-roof tank shadows from satellite imagery.
+
+To measure the fill level of a floating-roof crude oil tank from satellite imagery, the computer vision pipeline isolates the circular tank perimeter, segments the inner crescent shadow cast on the floating roof, and calculates the ratio of shadow area to total tank area.
+
+Geometric Measurement Model
+The height of the liquid level inside a cylindrical tank of radius R and total wall height H relates to the shadow cast by the sun (optical) or radar beam (SAR):
+
+         Sunlight / Radar Ray (Elevation Angle θ)
+              \
+               \
+  Top Rim ┌─────\────────┐
+          │      \       │
+          │  Wall \      │
+          │ Shadow \     │
+          │         ▼    │
+          │   [Shadow] [Floating Roof] ◄── Liquid Level (h)
+          │              │
+          └──────────────┘
+Crescent Shadow Width (L 
+shadow
+​
+ ):
+
+L 
+shadow
+​
+ =(H−h)⋅cot(θ)
+where θ is the solar/sensor elevation angle and h is the current oil level.
+
+Fractional Fill Level (f):
+
+f≈1− 
+A 
+max shadow
+​
+ 
+A 
+shadow
+​
+ 
+​
+ 
+where A 
+shadow
+​
+  is the measured pixel area of the shadow on the floating roof and A 
+max shadow
+​
+  is the shadow area when the tank is empty (h=0).
+
+Complete Python OpenCV Implementation
+The script below generates a synthetic floating-roof tank image (so it runs standalone without external dependencies) and applies the detection and measurement pipeline.
+
+Python
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def create_synthetic_tank_image() -> np.ndarray:
+    """Generates a synthetic satellite crop of a floating-roof oil tank."""
+    img = np.full((500, 500), 120, dtype=np.uint8)  # Ground background
+    center = (250, 250)
+    radius = 150
+
+    # Draw tank rim (outer shell)
+    cv2.circle(img, center, radius + 4, 220, -1)
+    # Draw floating roof base
+    cv2.circle(img, center, radius, 175, -1)
+
+    # Simulate inner wall crescent shadow (sun from top-left, 45 deg)
+    shadow_mask = np.zeros((500, 500), dtype=np.uint8)
+    # Tank boundary
+    cv2.circle(shadow_mask, center, radius, 255, -1)
+    
+    # Offset roof illuminated area (shifted down-right by shadow displacement)
+    sun_offset = (250 + 45, 250 + 45)  # 45px shadow displacement
+    sun_mask = np.zeros((500, 500), dtype=np.uint8)
+    cv2.circle(sun_mask, sun_offset, radius, 255, -1)
+
+    # Crescent shadow = (Tank Interior) AND NOT (Sunlit Region)
+    inner_shadow = cv2.bitwise_and(shadow_mask, cv2.bitwise_not(sun_mask))
+    img[inner_shadow > 0] = 35  # Dark shadow value
+
+    # Add Gaussian sensor noise
+    noise = np.random.normal(0, 4, img.shape).astype(np.int16)
+    noisy_img = np.clip(img.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+    return noisy_img
+
+
+def analyze_floating_roof_tank(
+    image: np.ndarray, 
+    sun_elevation_deg: float = 45.0, 
+    tank_height_m: float = 20.0,
+    m_per_pixel: float = 0.5
+) -> dict:
+    """
+    Detects tank perimeter and measures inner shadow area & fill level.
+    
+    Parameters:
+    - image: Grayscale image (uint8)
+    - sun_elevation_deg: Sun/radar elevation angle in degrees
+    - tank_height_m: Known physical height of tank in meters
+    - m_per_pixel: Ground Sample Distance (GSD) resolution
+    """
+    # 1. Preprocessing & Smoothing
+    blurred = cv2.GaussianBlur(image, (7, 7), 1.5)
+
+    # 2. Detect Circular Tank Boundary using Hough Transform
+    circles = cv2.HoughCircles(
+        blurred,
+        cv2.HOUGH_GRADIENT,
+        dp=1.2,
+        minDist=100,
+        param1=50,
+        param2=30,
+        minRadius=80,
+        maxRadius=200
+    )
+
+    if circles is None:
+        raise ValueError("No circular tank detected in image.")
+
+    circles = np.uint16(np.around(circles))
+    cx, cy, r = circles[0][0]
+
+    # 3. Create Region of Interest (ROI) mask for tank interior
+    tank_mask = np.zeros_like(image)
+    cv2.circle(tank_mask, (cx, cy), r - 3, 255, -1)  # inset 3px to exclude wall rim
+    total_tank_pixels = np.sum(tank_mask > 0)
+
+    # 4. Shadow Segmentation (Otsu adaptive thresholding inside tank)
+    tank_pixels = image[tank_mask > 0]
+    thresh_val, _ = cv2.threshold(tank_pixels, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    _, binary_shadow = cv2.threshold(image, thresh_val, 255, cv2.THRESH_BINARY_INV)
+    inner_shadow = cv2.bitwise_and(binary_shadow, binary_shadow, mask=tank_mask)
+
+    # Morphological cleaning to remove salt-and-pepper noise
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    inner_shadow = cv2.morphologyEx(inner_shadow, cv2.MORPH_OPEN, kernel)
+
+    # 5. Measure Metrics
+    shadow_pixels = np.sum(inner_shadow > 0)
+    shadow_ratio = shadow_pixels / total_tank_pixels
+
+    # Estimate physical height of liquid:
+    # Max theoretical shadow ratio for 100% empty tank at this angle
+    theta_rad = np.radians(sun_elevation_deg)
+    max_shadow_length_px = (tank_height_m * (1.0 / np.tan(theta_rad))) / m_per_pixel
+    max_shadow_ratio_approx = min(1.0, (max_shadow_length_px / (2 * r)))
+
+    estimated_fill_pct = np.clip((1.0 - (shadow_ratio / max_shadow_ratio_approx)) * 100.0, 0.0, 100.0)
+
+    # 6. Generate Diagnostic Visualization
+    overlay = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    # Draw detected tank boundary in green
+    cv2.circle(overlay, (cx, cy), r, (0, 255, 0), 2)
+    # Highlight shadow in red
+    overlay[inner_shadow > 0] = [0, 0, 255]
+
+    return {
+        "center": (int(cx), int(cy)),
+        "radius_px": int(r),
+        "total_tank_area_px": int(total_tank_pixels),
+        "shadow_area_px": int(shadow_pixels),
+        "shadow_area_ratio": float(shadow_ratio),
+        "estimated_fill_percent": float(estimated_fill_pct),
+        "visual_overlay": overlay
+    }
+
+
+# =======================================================================
+# Execution
+# =======================================================================
+if __name__ == "__main__":
+    synthetic_img = create_synthetic_tank_image()
+    results = analyze_floating_roof_tank(synthetic_img, sun_elevation_deg=45.0, tank_height_m=20.0)
+
+    print(f"Tank Center:           {results['center']}")
+    print(f"Tank Radius:           {results['radius_px']} px")
+    print(f"Shadow Area:           {results['shadow_area_px']} px ({results['shadow_area_ratio']:.2%})")
+    print(f"Estimated Fill Level:  {results['estimated_fill_percent']:.1f}%")
+
+    # Plot results
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    plt.title("Synthetic Satellite Crop")
+    plt.imshow(synthetic_img, cmap="gray")
+    plt.axis("off")
+
+    plt.subplot(1, 2, 2)
+    plt.title(f"Segmentation (Fill: {results['estimated_fill_percent']:.1f}%)")
+    plt.imshow(cv2.cvtColor(results["visual_overlay"], cv2.COLOR_BGR2RGB))
+    plt.axis("off")
+    plt.tight_layout()
+    plt.show()
+Key Adjustments for Real-World Satellite Pipelines
+Synthetic Aperture Radar (SAR / Sentinel-1): In SAR data, the shadow appears as a complete radar "void" (near-zero backscatter coefficient σ 
+0
+ ). Unlike optical images where the shadow direction depends on the time-of-day solar azimuth, SAR shadows are always oriented strictly along the satellite range direction (look angle ∼30 
+∘
+ –45 
+∘
+ ).
+
+False Shadow Rejection: Internal floating roof support columns, water drainage pooling, or roof structural trusses can produce dark pixels. A morphological opening filter with an elliptical kernel removes these micro-features while keeping the crescent wall shadow intact.
+
+Elliptical Correction for Off-Nadir Imagery: When satellites capture images at an off-nadir angle, circular tanks project as ellipses. Replace cv2.HoughCircles with cv2.fitEllipse applied to Canny edge contours.
+
+How do you set up a deep learning object detection pipeline (YOLOv8/Mask R-CNN) to detect floating-roof tanks automatically across large satellite scenes?
+
+Processing large satellite scenes (often 10,000×10,000+ pixels in multi-gigabyte GeoTIFFs) requires a specialized computer vision workflow. Standard deep learning architectures cannot digest gigapixel images directly without downsampling, which destroys the fine spatial resolution needed to detect tank rims and shadows.
+
+The solution is an Instance Segmentation Pipeline (YOLOv8-seg / Mask R-CNN) coupled with Slicing Aided Hyper Inference (SAHI) and geospatial coordinate reprojection.
+
+[Gigapixel GeoTIFF (Sentinel/Maxar)] 
+                 │
+                 ▼
+[Sliding-Window Tiling (e.g., 640x640 with 25% overlap)]
+                 │
+                 ▼
+[YOLOv8-seg / Mask R-CNN Batch Inference] (Detects Tank + Inner Shadow Polygons)
+                 │
+                 ▼
+[Global Sliced Non-Maximum Suppression (NMS)] (Deduplicates edge-split tanks)
+                 │
+                 ▼
+[GeoTransform Matrix Reprojection] ──► GeoJSON / Shapefile of Tanks + Fill %
+Pipeline Architecture Overview
+Phase	Tool / Library	Key Function
+1. Ingestion & Tiling	rasterio, SAHI, shapely	Slices large GeoTIFFs into 640×640 overlapping patches while preserving affine transformation matrices.
+2. Target Labeling	Roboflow / CVAT / Labelme	Polygon annotation for two classes: 0: floating_roof_tank, 1: tank_shadow.
+3. Segmentation Model	ultralytics (YOLOv8x-seg)	Extracts pixel-accurate masks for the tank perimeter and the inner crescent shadow.
+4. Sliced NMS Stitching	sahi.predict / Custom NMS	Merges overlapping patch detections back into global pixel and geospatial coordinates.
+5. Measurement Engine	shapely, numpy	Calculates A 
+shadow
+​
+ /A 
+tank
+​
+  ratio per segmented instance to estimate volume.
+Step 1: Dataset Preparation and Class Schema
+Instance segmentation is chosen over pure bounding boxes because calculating fill level requires exact pixel area masks.
+
+Class 0 (tank): The full circular boundary of the tank rim.
+
+Class 1 (shadow): The internal crescent shadow on the floating roof.
+
+Convert annotations into standard YOLO segmentation format (.txt per image tile):
+
+<class-index> <x1> <y1> <x2> <y2> ... <xn> <yn>
+(Coordinates normalized between 0.0 and 1.0)
+
+Step 2: Model Training (YOLOv8-seg)
+Train a segmentation model using satellite-specific augmentations (high rotation invariance and mosaic augmentation).
+
+Python
+from ultralytics import YOLO
+
+# Load pre-trained segmentation model weights
+model = YOLO("yolov8x-seg.pt")
+
+# Train on cropped satellite patches
+results = model.train(
+    data="tank_segmentation.yaml",
+    epochs=100,
+    imgsz=640,
+    batch=16,
+    degrees=180.0,       # Full rotation invariance for aerial views
+    flipud=0.5,          # Vertical flip
+    fliplr=0.5,          # Horizontal flip
+    mosaic=1.0,          # Mosaic augmentation for multi-scale handling
+    mixup=0.15,
+    device=0
+)
+Step 3: End-to-End Gigapixel Inference Pipeline
+This script slices a large satellite GeoTIFF, runs batch instance segmentation, stitches overlapping detections using boundary-aware Non-Maximum Suppression (NMS), and maps the results to geospatial coordinates.
+
+Python
+import rasterio
+from rasterio.windows import Window
+import numpy as np
+import cv2
+import torch
+import torchvision
+from ultralytics import YOLO
+from shapely.geometry import Polygon, box
+import geopandas as gpd
+
+class SatelliteTankPipeline:
+    def __init__(self, model_path: str, tile_size: int = 640, overlap: float = 0.25):
+        self.model = YOLO(model_path)
+        self.tile_size = tile_size
+        self.stride = int(tile_size * (1.0 - overlap))
+        self.overlap = overlap
+
+    def process_large_scene(self, geotiff_path: str, conf_thresh: float = 0.4, iou_thresh: float = 0.4):
+        with rasterio.open(geotiff_path) as src:
+            width, height = src.width, src.height
+            transform = src.transform
+            crs = src.crs
+            
+            # Read RGB bands (or 1-band SAR scaled to 3-channel uint8)
+            img_data = src.read([1, 2, 3])
+            # Transpose (C, H, W) -> (H, W, C)
+            full_img = np.transpose(img_data, (1, 2, 0))
+            if full_img.dtype != np.uint8:
+                full_img = cv2.normalize(full_img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+
+        global_boxes = []
+        global_scores = []
+        global_masks = []
+        global_classes = []
+
+        # 1. Sliding Window Tiling
+        for y in range(0, height, self.stride):
+            for x in range(0, width, self.stride):
+                # Ensure window does not exceed image bounds
+                w = min(self.tile_size, width - x)
+                h = min(self.tile_size, height - y)
+                tile = full_img[y:y+h, x:x+w]
+
+                # Pad tile to square if near boundaries
+                if h != self.tile_size or w != self.tile_size:
+                    padded_tile = np.zeros((self.tile_size, self.tile_size, 3), dtype=np.uint8)
+                    padded_tile[:h, :w] = tile
+                    tile = padded_tile
+
+                # 2. Run Inference on Tile
+                results = self.model.predict(tile, conf=conf_thresh, verbose=False)[0]
+
+                if results.boxes is not None and len(results.boxes) > 0:
+                    boxes = results.boxes.xyxy.cpu().numpy()
+                    scores = results.boxes.conf.cpu().numpy()
+                    classes = results.boxes.cls.cpu().numpy()
+                    
+                    # Offset local coordinates to global image pixel coordinates
+                    for idx in range(len(boxes)):
+                        gx1, gy1, gx2, gy2 = boxes[idx]
+                        global_boxes.append([gx1 + x, gy1 + y, gx2 + x, gy2 + y])
+                        global_scores.append(scores[idx])
+                        global_classes.append(classes[idx])
+
+        if not global_boxes:
+            return gpd.GeoDataFrame()
+
+        # 3. Global Non-Maximum Suppression (NMS) across tile boundaries
+        boxes_t = torch.tensor(global_boxes, dtype=torch.float32)
+        scores_t = torch.tensor(global_scores, dtype=torch.float32)
+        keep_indices = torchvision.ops.nms(boxes_t, scores_t, iou_thresh).numpy()
+
+        # 4. Filter Detections & Reproject to Geo-Coordinates
+        geometries = []
+        final_scores = []
+        final_classes = []
+        
+        for idx in keep_indices:
+            x1, y1, x2, y2 = global_boxes[idx]
+            # Convert pixel bounding box to geographic coordinates
+            geo_x1, geo_y1 = rasterio.transform.xy(transform, y1, x1)
+            geo_x2, geo_y2 = rasterio.transform.xy(transform, y2, x2)
+            
+            geo_poly = box(min(geo_x1, geo_x2), min(geo_y1, geo_y2), 
+                           max(geo_x1, geo_x2), max(geo_y1, geo_y2))
+            geometries.append(geo_poly)
+            final_scores.append(global_scores[idx])
+            final_classes.append("tank" if global_classes[idx] == 0 else "shadow")
+
+        # 5. Build GeoDataFrame
+        gdf = gpd.GeoDataFrame({
+            "class": final_classes,
+            "confidence": final_scores,
+            "geometry": geometries
+        }, crs=crs)
+
+        return gdf
+Step 4: Measuring Storage Volumes Across Detected Tanks
+Once tanks and shadows are extracted into global vectors, compute the spatial intersection to pair each shadow with its corresponding tank:
+
+Python
+def compute_tank_fill_rates(gdf_results: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Calculates fill level percentages by intersecting tank and shadow geometries."""
+    tanks = gdf_results[gdf_results["class"] == "tank"].copy()
+    shadows = gdf_results[gdf_results["class"] == "shadow"].copy()
+
+    fill_levels = []
+
+    for _, tank in tanks.iterrows():
+        tank_geom = tank.geometry
+        tank_area = tank_geom.area
+
+        # Find shadows intersecting this specific tank
+        overlapping_shadows = shadows[shadows.geometry.intersects(tank_geom)]
+        
+        if not overlapping_shadows.empty:
+            # Union overlapping shadow areas inside the tank
+            shadow_geom = overlapping_shadows.geometry.unary_union.intersection(tank_geom)
+            shadow_area = shadow_geom.area
+            shadow_ratio = shadow_area / tank_area
+            
+            # Assuming max observable shadow ratio is ~0.45 under typical sun angles
+            estimated_fill = np.clip((1.0 - (shadow_ratio / 0.45)) * 100.0, 0.0, 100.0)
+        else:
+            # No shadow detected = tank is 100% full (roof at the top rim)
+            estimated_fill = 100.0
+
+        fill_levels.append(estimated_fill)
+
+    tanks["estimated_fill_percent"] = fill_levels
+    return tanks
+Production Edge Cases in Satellite Imagery
+Off-Nadir Look Angles: When satellites view targets at angles >15 
+∘
+  from vertical, cylindrical tanks become sheared ellipses. Using Oriented Bounding Boxes (YOLOv8-OBB) or pure instance masks prevents false intersections with adjacent tanks.
+
+SAR Speckle Noise: For Sentinel-1 radar scenes, apply a Lee or Refined Lee spatial speckle filter prior to tiling to prevent false positive detections caused by radar backscatter noise.
+
+Cloud & Snow Occlusion: Filter optical scenes using the Sentinel-2 QA60 cloud mask band or switch exclusively to Sentinel-1 C-band SAR when cloud cover over the storage terminal exceeds 10%.
+
+Show how to modify the OpenCV pipeline using cv2.fitEllipse to measure oil tank shadows in off-nadir oblique satellite images.
+
+When satellite sensors capture imagery at an off-nadir look angle ϕ, a circular tank of radius R projects onto the image plane as an ellipse with semi-major axis a=R, semi-minor axis b=Rcos(ϕ), and an orientation angle matching the satellite azimuth.
+
+Key Adjustments for Off-Nadir Imagery
+Step	Standard (Nadir) Pipeline	Off-Nadir Oblique Pipeline
+Geometry Model	Circle: (x−x 
+0
+​
+ ) 
+2
+ +(y−y 
+0
+​
+ ) 
+2
+ =R 
+2
+ 	Rotated Ellipse:  
+a 
+2
+ 
+((x−x 
+0
+​
+ )cosα+(y−y 
+0
+​
+ )sinα) 
+2
+ 
+​
+ + 
+b 
+2
+ 
+((y−y 
+0
+​
+ )cosα−(x−x 
+0
+​
+ )sinα) 
+2
+ 
+​
+ =1
+Detection Algorithm	cv2.HoughCircles	Canny Edge Detection → Contour Filtering → cv2.fitEllipse
+Mask Generation	cv2.circle(mask, center, r, 255, -1)	cv2.ellipse(mask, fitted_ellipse, 255, -1)
+Area Metric	A 
+tank
+​
+ =πR 
+2
+ 	A 
+tank
+​
+ =πab
+Fill Level Model	Linear function of solar elevation θ	Combined vector model of solar elevation θ, sun azimuth, and sensor off-nadir angle ϕ
+Python Implementation with cv2.fitEllipse
+This self-contained script creates a synthetic oblique satellite view of a floating-roof oil tank, fits an oriented ellipse to the tank rim, segments the inner shadow, and computes fill metrics.
+
+Python
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def generate_synthetic_oblique_tank(
+    off_nadir_deg: float = 30.0, 
+    rotation_deg: float = 35.0, 
+    fill_ratio: float = 0.65
+) -> np.ndarray:
+    """
+    Generates a synthetic oblique satellite crop of a floating-roof tank.
+    """
+    img = np.full((600, 600), 125, dtype=np.uint8)  # Terrain background
+    center = (300, 300)
+    radius_major = 160
+    radius_minor = int(radius_major * np.cos(np.radians(off_nadir_deg)))
+    axes = (radius_major, radius_minor)
+
+    # 1. Outer rim of the tank
+    cv2.ellipse(img, center, (axes[0] + 3, axes[1] + 3), rotation_deg, 0, 360, 220, -1)
+    
+    # 2. Base floating roof
+    cv2.ellipse(img, center, axes, rotation_deg, 0, 360, 170, -1)
+
+    # 3. Inner crescent shadow cast on floating roof
+    shadow_displacement = int((1.0 - fill_ratio) * 60)
+    offset_rad = np.radians(rotation_deg + 45)  # Shadow offset vector
+    offset_center = (
+        int(center[0] + shadow_displacement * np.cos(offset_rad)),
+        int(center[1] + shadow_displacement * np.sin(offset_rad))
+    )
+
+    tank_mask = np.zeros((600, 600), dtype=np.uint8)
+    cv2.ellipse(tank_mask, center, axes, rotation_deg, 0, 360, 255, -1)
+
+    sunlit_mask = np.zeros((600, 600), dtype=np.uint8)
+    cv2.ellipse(sunlit_mask, offset_center, axes, rotation_deg, 0, 360, 255, -1)
+
+    crescent_shadow = cv2.bitwise_and(tank_mask, cv2.bitwise_not(sunlit_mask))
+    img[crescent_shadow > 0] = 30  # Dark shadow pixels
+
+    # Add Gaussian sensor noise
+    noise = np.random.normal(0, 3, img.shape).astype(np.int16)
+    noisy_img = np.clip(img.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+    return noisy_img
+
+
+def analyze_oblique_floating_tank(
+    image: np.ndarray, 
+    sun_elevation_deg: float = 40.0, 
+    tank_height_m: float = 22.0,
+    m_per_pixel: float = 0.5
+) -> dict:
+    """
+    Fits an oriented ellipse to the tank rim and segments the shadow area.
+    """
+    # 1. Noise reduction and edge detection
+    blurred = cv2.GaussianBlur(image, (5, 5), 1.2)
+    edges = cv2.Canny(blurred, threshold1=40, threshold2=120)
+
+    # 2. Extract structural contours
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    if not contours:
+        raise ValueError("No valid contours found in image.")
+
+    # 3. Filter candidates and fit ellipse
+    best_ellipse = None
+    max_area = 0
+    
+    for cnt in contours:
+        # cv2.fitEllipse requires at least 5 points
+        if len(cnt) >= 5:
+            area = cv2.contourArea(cnt)
+            if area > 10000:  # Minimum tank area threshold
+                ellipse_candidate = cv2.fitEllipse(cnt)
+                # Ensure candidate is reasonably circular/elliptical, not an irregular polygon
+                (cx, cy), (major_axis, minor_axis), angle = ellipse_candidate
+                if minor_axis > 0:
+                    aspect_ratio = major_axis / minor_axis
+                    if 1.0 <= aspect_ratio <= 3.0 and area > max_area:
+                        max_area = area
+                        best_ellipse = ellipse_candidate
+
+    if best_ellipse is None:
+        raise ValueError("Failed to fit an ellipse to tank perimeter.")
+
+    (cx, cy), (axis_2a, axis_2b), rotation_angle = best_ellipse
+    semi_major = axis_2a / 2.0
+    semi_minor = axis_2b / 2.0
+
+    # 4. Generate elliptical ROI mask (inset by 3px to eliminate wall rim effects)
+    tank_mask = np.zeros_like(image)
+    inset_axes = (int(semi_major - 3), int(semi_minor - 3))
+    cv2.ellipse(tank_mask, (int(cx), int(cy)), inset_axes, rotation_angle, 0, 360, 255, -1)
+    total_tank_pixels = np.sum(tank_mask > 0)
+
+    # 5. Segment inner shadow using Otsu thresholding inside the ellipse
+    tank_pixels = image[tank_mask > 0]
+    thresh_val, _ = cv2.threshold(tank_pixels, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    _, binary_shadow = cv2.threshold(image, thresh_val, 255, cv2.THRESH_BINARY_INV)
+    inner_shadow = cv2.bitwise_and(binary_shadow, binary_shadow, mask=tank_mask)
+
+    # Morphological cleaning
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    inner_shadow = cv2.morphologyEx(inner_shadow, cv2.MORPH_OPEN, kernel)
+
+    # 6. Area and fill estimation
+    shadow_pixels = np.sum(inner_shadow > 0)
+    shadow_ratio = shadow_pixels / total_tank_pixels
+
+    # Inferred off-nadir viewing angle from ellipse eccentricity
+    estimated_off_nadir_rad = np.arccos(np.clip(semi_minor / semi_major, 0.0, 1.0))
+    estimated_off_nadir_deg = np.degrees(estimated_off_nadir_rad)
+
+    # Calculate theoretical maximum shadow ratio at this geometry
+    theta_rad = np.radians(sun_elevation_deg)
+    max_shadow_len_px = (tank_height_m * (1.0 / np.tan(theta_rad))) / m_per_pixel
+    max_shadow_ratio_baseline = min(1.0, max_shadow_len_px / (2.0 * semi_major))
+    
+    estimated_fill_pct = np.clip((1.0 - (shadow_ratio / max_shadow_ratio_baseline)) * 100.0, 0.0, 100.0)
+
+    # 7. Diagnostic visualization overlay
+    overlay = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    # Draw fitted outer ellipse in green
+    cv2.ellipse(overlay, best_ellipse, (0, 255, 0), 2)
+    # Highlight segmented shadow in red
+    overlay[inner_shadow > 0] = [0, 0, 255]
+
+    return {
+        "center": (round(cx, 1), round(cy, 1)),
+        "semi_major_axis_px": round(semi_major, 1),
+        "semi_minor_axis_px": round(semi_minor, 1),
+        "ellipse_rotation_deg": round(rotation_angle, 1),
+        "estimated_off_nadir_angle": round(estimated_off_nadir_deg, 1),
+        "shadow_area_ratio": float(shadow_ratio),
+        "estimated_fill_percent": float(estimated_fill_pct),
+        "overlay": overlay
+    }
+
+
+# =======================================================================
+# Execution
+# =======================================================================
+if __name__ == "__main__":
+    synthetic_oblique = generate_synthetic_oblique_tank(
+        off_nadir_deg=30.0, 
+        rotation_deg=35.0, 
+        fill_ratio=0.65
+    )
+    
+    results = analyze_oblique_floating_tank(
+        synthetic_oblique, 
+        sun_elevation_deg=40.0, 
+        tank_height_m=22.0
+    )
+
+    print(f"Fitted Center:             {results['center']}")
+    print(f"Semi-Major / Minor:        {results['semi_major_axis_px']}px / {results['semi_minor_axis_px']}px")
+    print(f"Ellipse Orientation:       {results['ellipse_rotation_deg']}°")
+    print(f"Calculated Look Angle:     {results['estimated_off_nadir_angle']}°")
+    print(f"Shadow Area Ratio:         {results['shadow_area_ratio']:.2%}")
+    print(f"Estimated Fill Level:      {results['estimated_fill_percent']:.1f}%")
+
+    # Plot visual verification
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    plt.title("Oblique Satellite Crop (Off-Nadir View)")
+    plt.imshow(synthetic_oblique, cmap="gray")
+    plt.axis("off")
+
+    plt.subplot(1, 2, 2)
+    plt.title(f"Fitted Ellipse & Shadow (Fill: {results['estimated_fill_percent']:.1f}%)")
+    plt.imshow(cv2.cvtColor(results["overlay"], cv2.COLOR_BGR2RGB))
+    plt.axis("off")
+    plt.tight_layout()
+    plt.show()
+Handling Edge Occlusions & Perspective Warping
+Direct Least Squares Fitting: cv2.fitEllipse uses the Fitzgibbon algorithm, which guarantees an elliptical output even if parts of the tank rim are obscured by maintenance stairwells, piping, or floating roof vents.
+
+Aspect Ratio Verification: Enforce 1.0≤ 
+b
+a
+​
+ ≤3.0 during contour filtering to prevent fitting long linear structures (e.g., roads, pipelines) as degenerate ellipses.
+
+Homography Rectification: Alternatively, if the satellite camera calibration matrix and sensor zenith/azimuth angles are known, compute an inverse homography matrix (H 
+−1
+ ) to un-warp the oblique image back to a top-down orthogonal nadir plane before running circular segmentation.
+
+To extend this satellite vision pipeline:
+
+Perform inverse homography perspective unwarping on satellite scenes
+
+Calculate volumetric crude oil storage in barrels from fitted dimensions
+
+Combine Sentinel-1 SAR backscatter amplitude with optical ellipse fitting
+
+ 
+
+Defining the Scope

@@ -1,0 +1,88 @@
+<section id="sec-22">
+<h2 id="surfaces"><span class="num">22</span> 22. Operator Surfaces: API, Dashboards &amp; OpenTUI Deck</h2>
+
+<h3 id="s22-1-api">22.1 The FastAPI server</h3>
+<p><span class="file">gui/gui_api.py</span> creates the app at line 82 (<code>app = FastAPI()</code>) and serves both a REST
+surface and a websocket. The trading process is the <em>producer</em>: it mirrors state into the server through
+<code>POST /api/internal/update</code> (via <span class="file">ui/web_dashboard_adapter.py</span>), so the API is a
+read-model of the journal rather than a second source of truth.</p>
+<table>
+<thead><tr><th>Route</th><th>Method</th><th>Backing data</th></tr></thead>
+<tbody>
+<tr><td><code>/</code>, <code>/api/health</code></td><td>GET</td><td>Service banner and liveness</td></tr>
+<tr><td><code>/api/status</code>, <code>/api/account</code>, <code>/api/snapshot</code></td><td>GET</td><td>Mirrored run state, account summary, full snapshot</td></tr>
+<tr><td><code>/api/dashboard</code>, <code>/api/logs</code></td><td>GET</td><td>Dashboard payload and recent logs</td></tr>
+<tr><td><code>/api/trading/positions</code>, <code>/api/trading/history</code></td><td>GET</td><td>Journal trades</td></tr>
+<tr><td><code>/api/control/start</code>, <code>/api/control/{action}</code></td><td>POST</td><td>Control plane: start, pause, resume, flatten, killswitch (writes <code>control_plane.jsonl</code>)</td></tr>
+<tr><td><code>/api/internal/update</code></td><td>POST</td><td>Inbound state mirror from the trading process</td></tr>
+<tr><td><code>/api/config/models</code>, <code>/api/config/accounts</code>, <code>/api/config/accounts/secure</code>, <code>/api/config/accounts/test-login</code>, <code>/api/config/accounts/secure-login</code></td><td>GET/POST</td><td>Provider and account configuration; secure entry keeps passwords out of logs/state</td></tr>
+<tr><td><code>/api/brain/*</code> (metrics, cycle-brief, profitability, observability, memory, regime, causal-edges, macro-observations, economic-coverage, realtime-news)</td><td>GET</td><td><span class="file">intelligence/brain_observability.py</span> and the memory/causal stores</td></tr>
+<tr><td><code>/api/graph/status</code></td><td>GET</td><td>Knowledge-graph/agent-graph status</td></tr>
+<tr><td><code>/api/market</code>, <code>/api/economic-events</code>, <code>/api/mtf-trends</code>, <code>/api/scanner</code></td><td>GET</td><td>Quotes, calendar, multi-timeframe trends, scanner results (fails closed with <code>ENGINE_OFFLINE</code> when the cache is empty)</td></tr>
+<tr><td><code>/api/tasks</code>, <code>/api/agents</code>, <code>/api/workflows</code></td><td>GET</td><td>Reads the <code>agent_runs</code>/<code>agent_tasks</code> tables (§19) rather than inventing rows</td></tr>
+<tr><td><code>/api/autonomy/history</code>, <code>/api/approvals</code>, <code>/api/rewards</code>, <code>/api/growth</code></td><td>GET</td><td>Governance history, pending approvals, reward ledger, growth policy</td></tr>
+<tr><td><code>/api/alpha-signals</code>, <code>/api/alpha-health</code>, <code>/api/research-pipeline</code>, <code>/api/backtests</code></td><td>GET</td><td>Alpha layer, research pipeline state and backtest artefacts</td></tr>
+<tr><td><code>/api/causal-fusion</code>, <code>/api/win-probability</code>, <code>/api/rl-training</code>, <code>/api/llm-providers</code></td><td>GET</td><td>Advisory model views (§17) and provider status (§10)</td></tr>
+<tr><td><code>/api/compliance-events</code>, <code>/api/compliance-full</code>, <code>/api/security-full</code>, <code>/api/diagnostics</code>, <code>/api/analytics</code>, <code>/api/skills</code>, <code>/api/settings-full</code>, <code>/api/lifecycle-full</code></td><td>GET</td><td>Audit, security, diagnostics and aggregated operator views</td></tr>
+<tr><td><code>/ws/harness-events</code>, <code>/api/harness-events/recent</code></td><td>WS/GET</td><td>Live stage/cycle telemetry pushed to the deck</td></tr>
+</tbody>
+</table>
+<div class="callout">
+<strong>Fail-closed surfaces.</strong> Endpoints backed by an engine expose an explicit offline state (for example the
+scanner returning <code>ENGINE_OFFLINE</code>) instead of an empty list that would read as "nothing to trade". This is the
+API-side expression of the same doctrine as the trading loop.
+</div>
+
+<h3 id="s22-2-deck">22.2 The OpenTUI command deck</h3>
+<p><span class="file">tui_opentui/</span> is the single canonical interactive terminal: React/TypeScript on Bun, launched by
+<code>python mt5_trader.py deck</code>, <code>START_DECK.bat</code>, or automatically when the CLI is run bare
+(<span class="file">mt5_trader.py</span> ~1263). Two transport modes are supported via <code>TRANSPORT</code>:</p>
+<ul>
+<li><code>TRANSPORT=mcp</code> — the deck spawns the MT5 MCP server
+(<code>MT5_MCP_COMMAND=python</code>, <code>MT5_MCP_ARGS=-m metatrader5_mcp.main</code>, configured in
+<span class="file">.env</span>/<span class="file">.env.example</span> and <code>opencode.json</code>).</li>
+<li><code>TRANSPORT=live</code> — talks to the API server, optionally auto-starting the MCP sidecar via
+<code>MT5_MCP_AUTOSTART=1</code>.</li>
+</ul>
+<p>The deck's screens (pipeline, tasks, scanner, strategies, memory, compliance, settings) read the §22.1 API; the
+repository history records the deliberate removal of mock data from these screens, and every screen now surfaces the
+journal or an explicit offline state. Settings → Accounts accepts masked credentials and routes them to
+<code>/api/config/accounts/secure</code>.</p>
+
+<h3 id="s22-3-other">22.3 The other surfaces</h3>
+<table>
+<thead><tr><th>Surface</th><th>Path</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>Classic menu</td><td><span class="file">ui/interactive_menu.py</span> (<code>interactive_menu.py</code> at root)</td><td>Fallback guided configuration when the deck is unavailable</td></tr>
+<tr><td>Tkinter terminal</td><td><span class="file">ui/gui_dashboard.py</span></td><td>Desktop dashboard; <code>--tui</code> attaches it in-process and mirrors state with <code>--api-sync</code></td></tr>
+<tr><td>Alpha dashboard</td><td><span class="file">ui/alpha_dashboard.py</span> → <code>alpha_dashboard.html</code></td><td>Alpha health, decay and pipeline view (auto-generated unless <code>--no-dashboard</code>)</td></tr>
+<tr><td>Compliance dashboard</td><td><code>compliance_dashboard.html</code> + <span class="file">core/compliance_audit.py</span></td><td>κ hash-chained audit trail view</td></tr>
+<tr><td>Knowledge-graph studio</td><td><span class="file">visualizer/</span> (standalone single-file app)</td><td>Interactive lifecycle tour, knowledge matrix and deep-dive over <span class="file">graphify-out/</span></td></tr>
+<tr><td>Strategy selection funnel</td><td><code>.freebuff/strategy-selection-funnel.html</code></td><td>Human-readable explanation of how the winning strategy is chosen</td></tr>
+</tbody>
+</table>
+
+<h3 id="s22-4-control">22.4 Control actions end to end</h3>
+<div class="flow">
+<span class="node state"><b>Operator</b>deck button / POST /api/control/…</span><span class="arrow">→</span>
+<span class="node"><b>AutonomyManager.issue_control</b>appends to control_plane.jsonl</span><span class="arrow">→</span>
+<span class="node adv"><b>Next pulse</b>drain_controls()</span><span class="arrow">→</span>
+<span class="node gate"><b>Gate</b>trading_allowed() → pause / flatten / kill</span><span class="arrow">→</span>
+<span class="node"><b>Journal</b>CONTROL_ISSUED / CONTROL_EXECUTED</span>
+</div>
+<p>Every step is persisted, so the deck can show not just "paused" but who paused it, when, and from which source
+(<code>actor</code>, <code>source</code> recorded in the queue record).</p>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">gui/gui_api.py</span> 82–2750</td><td>FastAPI app, every route, the websocket and the internal update mirror</td></tr>
+<tr><td><span class="file">ui/web_dashboard_adapter.py</span></td><td>How the trading process publishes state to the API</td></tr>
+<tr><td><span class="file">tui_opentui/</span> + <code>opencode.json</code> + <span class="file">.env.example</span> 147–157</td><td>Deck screens, MCP transport and secure account entry</td></tr>
+<tr><td><span class="file">operations/autonomy.py</span> 231–276</td><td>Control-plane issue/drain semantics and the journal events they emit</td></tr>
+</tbody>
+</table>
+</div>
+</section>

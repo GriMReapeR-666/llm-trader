@@ -1,0 +1,71 @@
+<section id="sec-15">
+<h2 id="alpha-mining"><span class="num">15</span> 15. Alpha Mining &amp; Factor Library</h2>
+
+<h3 id="s15-1-loop">15.1 The discovery loop and its sandbox</h3>
+<p><code>AlphaDiscoveryEngine</code> (<span class="file">core/alpha_discovery.py</span> ~505) searches for alphas under
+constraints that matter more than the search itself:</p>
+<table>
+<thead><tr><th>Guard</th><th>Implementation</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>Expression allow-list</td><td><code>_ALLOWED_NAMES</code> (~54)</td><td>Only sanctioned operators/functions may appear in a candidate</td></tr>
+<tr><td>Column allow-list</td><td><code>_ALLOWED_COLUMNS = {"open","high","low","close","volume","returns"}</code> (~62)</td><td>No leakage from future columns, labels or exogenous series</td></tr>
+<tr><td>Safe evaluation</td><td><code>SafeAlphaEvaluator</code> (~65)</td><td>Evaluates candidate ASTs without arbitrary execution</td></tr>
+<tr><td>Hermetic runs</td><td><code>SealedSandboxEvaluator</code> (~281)</td><td>Backtests run sealed; a candidate cannot reach the network, disk or broker</td></tr>
+<tr><td>Originality</td><td><code>_normalize_ast</code> / <code>_ast_similarity</code> / <code>check_originality</code> (~197–259)</td><td>Rejects near-duplicates of already-registered alphas</td></tr>
+<tr><td>Experience memory</td><td><code>ExperienceMemory</code> (~413), <code>AlphaExperienceMemory</code> (~440, store-backed)</td><td>Remembers what was tried so the loop does not rediscover failures</td></tr>
+</tbody>
+</table>
+<p>Bootstrapping also runs a fast genetic pass: <code>GAEngine(GAConfig(population_size=15, generations=1,
+min_ic_threshold=0.005))</code> over 1,000 H1 bars, logging evaluated/significant counts
+(<span class="file">mt5_trader.py</span> ~4134–4153).</p>
+
+<h3 id="s15-2-library">15.2 The factor library</h3>
+<p><span class="file">core/alpha_factors.py</span> implements the operator vocabulary
+(<code>ts_rank</code> ~28, <code>ts_argmax/argmin</code> ~39/~44, <code>ts_min/max</code> ~49/~54, <code>delta</code> ~59,
+<code>delay</code> ~64, <code>rank</code> ~69, <code>scale</code> ~78, <code>decay_linear</code> ~86,
+<code>signed_power</code> ~97, <code>log_safe</code> ~102) and a numbered alpha family
+(<code>alpha_001</code> … <code>alpha_060</code>) plus a dedicated persistence family:</p>
+<div class="formula"><span class="c">persistence family (time-series momentum with vol normalisation)</span>
+  _tsmom_z(df, horizon_bars, vol_window?)  = z-score of cumulative return over horizon
+  alpha_persistence_5d / 10d / 20d / 40d      = fixed-horizon variants
+  alpha_persistence_ma_gap                     = price vs moving-average gap
+  alpha_persistence_sign_agreement             = agreement of sign across lookbacks
+
+<span class="c">usage</span>
+  ic_t = corr( alpha_t , forward_return_{t+h} )        <span class="c"># information coefficient</span>
+  composite = Σ w_i · zscore( alpha_i )                <span class="c"># alpha_composite in sizing</span></div>
+<p>Orthogonalisation and redundancy control live in <span class="file">core/signal_orthogonalizer.py</span> and
+<span class="file">core/causal_feature_filter.py</span>; capacity limits in
+<span class="file">core/alpha_capacity.py</span>; sizing in <span class="file">core/alpha_sizing.py</span> (§05.5).</p>
+
+<h3 id="s15-3-lifecycle">15.3 Decay, rotation and the live hand-off</h3>
+<table>
+<thead><tr><th>Component</th><th>Module</th><th>Responsibility</th></tr></thead>
+<tbody>
+<tr><td>Decay monitor</td><td><span class="file">core/alpha_decay_monitor.py</span> + <code>alpha_decay_state.json</code></td><td>Tracks IC decay and demotes alphas that stop working</td></tr>
+<tr><td>Rotation</td><td><span class="file">core/alpha_rotation.py</span> + <code>alpha_rotation_state.json</code></td><td>Replaces dead members of the active alpha set</td></tr>
+<tr><td>Ensemble</td><td><span class="file">core/alpha_ensemble.py</span></td><td>Combines member alphas into a composite with quality weighting</td></tr>
+<tr><td>Discovery state</td><td><code>alpha_discovery_state.json</code></td><td>Loop progress and experience memory persistence</td></tr>
+<tr><td>Live hand-off</td><td><code>_apply_alpha_mining_enrichment(toon)</code> (<span class="file">intelligence/llm_orchestrator.py</span> ~4399)</td><td>Injects alpha features/IC into the decision payload</td></tr>
+</tbody>
+</table>
+<div class="callout">
+<strong>Zero live authority.</strong> A mined alpha can enrich the payload and reduce or zero a position (through the
+alpha-risk and walk-forward multipliers), but it can never <em>open</em> a trade. Only a validated LLM proposal does
+that. <code>alpha_discovery_state.json</code> and <code>alpha_rotation_state.json</code> are advisory state, not
+permissions.
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">core/alpha_discovery.py</span> 54–560</td><td>Allow-lists, safe evaluator, sealed sandbox, originality, experience memory, engine</td></tr>
+<tr><td><span class="file">core/alpha_factors.py</span> 28–520</td><td>Operator vocabulary, numbered alpha family, persistence family</td></tr>
+<tr><td><span class="file">mt5_trader.py</span> 4134–4153</td><td>Boot-time GA mining parameters and logging</td></tr>
+<tr><td><span class="file">core/alpha_decay_monitor.py</span>, <span class="file">core/alpha_rotation.py</span>, <span class="file">core/alpha_sizing.py</span></td><td>Decay, replacement and sizing of the active alpha set</td></tr>
+</tbody>
+</table>
+</div>
+</section>

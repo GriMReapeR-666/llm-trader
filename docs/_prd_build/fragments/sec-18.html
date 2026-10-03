@@ -1,0 +1,80 @@
+<section id="sec-18">
+<h2 id="promotion"><span class="num">18</span> 18. Promotion, Model Registry &amp; Strategy Lifecycle Governance</h2>
+
+<h3 id="s18-1-registry">18.1 The model registry</h3>
+<p>The journal owns a <code>model_registry</code> table (<span class="file">core/trading_safety.py</span> ~248–257):</p>
+<pre><code>CREATE TABLE IF NOT EXISTS model_registry (
+  id INTEGER PRIMARY KEY, model_key TEXT NOT NULL, version TEXT NOT NULL,
+  kind TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'CANDIDATE',
+  feature_schema_version TEXT, training_data_hash TEXT,
+  metrics TEXT NOT NULL, artifact_uri TEXT, created_at TEXT NOT NULL,
+  reviewed_at TEXT, reviewed_by TEXT, review_note TEXT,
+  UNIQUE(model_key, version)
+);
+CREATE INDEX IF NOT EXISTS idx_model_registry_status ON model_registry(model_key, status, created_at);</code></pre>
+<p>Three fields make promotion auditable: <code>feature_schema_version</code> (which features it was trained on),
+<code>training_data_hash</code> (which data) and <code>status</code> (default <code>CANDIDATE</code>). Reviews record
+<code>reviewed_at</code>/<code>reviewed_by</code>/<code>review_note</code>, and the CLI enforces the vocabulary
+<code>APPROVED | REJECTED | RETIRED | ROLLED_BACK</code> (<code>mt5_trader.py journal model-register / model-review</code>).</p>
+
+<h3 id="s18-2-funnel">18.2 The promotion funnel</h3>
+<div class="flow">
+<span class="node adv"><b>CANDIDATE</b>trained / discovered</span><span class="arrow">→</span>
+<span class="node"><b>shadow</b>observes, no orders</span><span class="arrow">→</span>
+<span class="node"><b>paper</b>L1 authority only</span><span class="arrow">→</span>
+<span class="node gate"><b>micro live</b>L2, 0.25% risk</span><span class="arrow">→</span>
+<span class="node"><b>full live</b>L3, operator-signed</span>
+</div>
+<table>
+<thead><tr><th>Barrier</th><th>Module</th><th>Requirement</th></tr></thead>
+<tbody>
+<tr><td>Progressive gates</td><td><span class="file">core/progressive_gates.py</span></td><td>Stage-gated criteria per level</td></tr>
+<tr><td>Promotion package</td><td><span class="file">research/promotion_package.py</span></td><td>Bundles metrics, artifacts and evidence for review</td></tr>
+<tr><td>Auto-promotion (advisory)</td><td><span class="file">research/auto_promotion.py</span></td><td>Computes a recommendation; cannot self-approve live</td></tr>
+<tr><td>Model-family gate</td><td><span class="file">research/model_family_gate.py</span></td><td>Whole-family review instead of per-artifact cherry-picking</td></tr>
+<tr><td>Research-influence gate</td><td><span class="file">operations/research_influence_gate.py</span></td><td>Operator approval per model kind before it may influence parameters</td></tr>
+<tr><td>Live rollout gate</td><td><span class="file">operations/live_rollout_gate.py</span></td><td>Signed rollout manifest id for L3</td></tr>
+</tbody>
+</table>
+<div class="callout bad">
+<strong>The invariant:</strong> the factory may <em>demote</em> its own work, but it can never <em>self-approve</em> live
+authority. Promotion to paper is automatic; promotion to micro/live is a human act recorded in the journal.
+</div>
+
+<h3 id="s18-3-lifecycle">18.3 Strategy lifecycle</h3>
+<table>
+<thead><tr><th>Module</th><th>Responsibility</th></tr></thead>
+<tbody>
+<tr><td><span class="file">operations/strategy_lifecycle.py</span></td><td>State machine over strategies: transitions, freeze, unfreeze, retire, and the evidence each transition requires</td></tr>
+<tr><td><span class="file">operations/strategy_factory.py</span></td><td>Generates candidate strategies (sweeps/sprints) and registers them as candidates</td></tr>
+<tr><td><span class="file">operations/strategy_evaluation.py</span></td><td>Scores live/paper performance against the lifecycle's acceptance criteria</td></tr>
+<tr><td><span class="file">research/setup_registry.py</span>, <code>setup_governance.py</code>, <code>setup_labeling.py</code></td><td>Setup-level registration, governance rules and labels (feeds the setup lifecycle in §05.3)</td></tr>
+<tr><td><code>strategy_registry.json</code></td><td>Declarative strategy catalogue read by the loader</td></tr>
+</tbody>
+</table>
+<p>Operators drive these transitions from the journal CLI (<code>strategy-status</code>, <code>strategy-transition</code>,
+<code>strategy-unfreeze</code>, <code>strategy-retire</code>, <code>strategy-tune</code>,
+<code>strategy-acknowledge</code>) and observe them in the deck's strategy screens.</p>
+
+<h3 id="s18-4-portfolio">18.4 Portfolio governance</h3>
+<p>Beyond per-strategy governance the book is governed as a portfolio:
+<span class="file">core/hierarchical_portfolio.py</span> (layered allocation across sleeves),
+<span class="file">core/portfolio_decorr.py</span> (decorrelating sleeves),
+<span class="file">research/qubo_rebalancer.py</span> and <span class="file">research/risk_parity_engine.py</span> (rebalancing
+objectives), <span class="file">core/alpha_capacity.py</span> (capacity limits), and
+<span class="file">operations/account_growth.py</span> with <span class="file">core/account_sizing.py</span> (capital-growth
+policy). The P8 allocation cap (§05.7) is where this governance touches a single order: it can only reduce volume.</p>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">core/trading_safety.py</span> 248–257</td><td><code>model_registry</code> DDL, uniqueness and index rules</td></tr>
+<tr><td><span class="file">research/auto_promotion.py</span>, <span class="file">research/promotion_package.py</span>, <span class="file">research/model_family_gate.py</span></td><td>Advisory promotion machinery and its evidence bundle</td></tr>
+<tr><td><span class="file">operations/research_influence_gate.py</span>, <span class="file">operations/live_rollout_gate.py</span></td><td>Operator approval per model kind; signed manifest for L3</td></tr>
+<tr><td><span class="file">operations/strategy_lifecycle.py</span>, <span class="file">operations/strategy_factory.py</span>, <span class="file">operations/strategy_evaluation.py</span></td><td>Lifecycle states and the factory/evaluation split</td></tr>
+</tbody>
+</table>
+</div>
+</section>

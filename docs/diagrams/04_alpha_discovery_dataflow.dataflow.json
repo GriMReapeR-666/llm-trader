@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Alpha Factor Discovery & Causal Feature Pipeline",
+    "output": "docs/diagrams/04_alpha_discovery_dataflow.html",
+    "viewBox": [1080, 520],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "mining-path",
+        "label": "Alpha mining path",
+        "focus": ["mkt_bars", "order_flow", "norm_features", "factor_miner", "orthogonalizer", "factor_registry"],
+        "note": "Follow raw market data into AST factor mining, Gram-Schmidt orthogonalization, and registry."
+      },
+      {
+        "id": "causal-guard",
+        "label": "Lookahead guard and causal elimination",
+        "focus": ["norm_features", "lookahead_guard", "causal_filter", "qubo_weights"],
+        "note": "Isolate strict AST lookahead leak prevention and Granger/ABSO causal dependency pruning."
+      },
+      {
+        "id": "allocation-path",
+        "label": "QUBO rebalancing and execution",
+        "focus": ["causal_filter", "orthogonalizer", "qubo_weights", "live_portfolio"],
+        "note": "See quantum-inspired QUBO combinatorial optimization driving live portfolio allocation."
+      }
+    ]
+  },
+  "stages": [
+    { "label": "Sources" },
+    { "label": "Intake" },
+    { "label": "Mining" },
+    { "label": "Validation" },
+    { "label": "Production" }
+  ],
+  "nodes": [
+    { "id": "mkt_bars", "type": "database", "label": "M1/M5 Bars", "sublabel": "OHLCV history", "stage": 0, "row": 0, "tag": "ticks" },
+    { "id": "order_flow", "type": "external", "label": "Order Flow", "sublabel": "VPIN / OFI stream", "stage": 0, "row": 2, "tag": "micro" },
+    { "id": "norm_features", "type": "backend", "label": "Feature Engine", "sublabel": "z-score + fracdiff", "stage": 1, "row": 1, "tag": "pipeline" },
+    { "id": "lookahead_guard", "type": "security", "label": "Lookahead Guard", "sublabel": "AST leakage check", "stage": 2, "row": 0, "tag": "gate" },
+    { "id": "factor_miner", "type": "cloud", "label": "Factor Miner", "sublabel": "Ralph Loop DSL", "stage": 2, "row": 2, "tag": "generator" },
+    { "id": "causal_filter", "type": "security", "label": "Causal Filter", "sublabel": "Granger / ABSO", "stage": 3, "row": 0, "tag": "prune" },
+    { "id": "orthogonalizer", "type": "backend", "label": "Orthogonalizer", "sublabel": "Gram-Schmidt ψ", "stage": 3, "row": 1, "tag": "orthogonal" },
+    { "id": "factor_registry", "type": "database", "label": "Alpha Registry", "sublabel": "IC > 0.03 archive", "stage": 3, "row": 2, "tag": "curated" },
+    { "id": "qubo_weights", "type": "backend", "label": "QUBO Allocator", "sublabel": "Ledoit-Wolf QAOA", "stage": 4, "row": 0, "tag": "optimal" },
+    { "id": "live_portfolio", "type": "backend", "label": "Execution Basket", "sublabel": "multi-asset weights", "stage": 4, "row": 2, "tag": "live" }
+  ],
+  "flows": [
+    { "id": "f-bars", "from": "mkt_bars", "to": "norm_features", "label": "bars", "classification": "market data", "variant": "emphasis", "fromSide": "right", "toSide": "left", "via": [[205, 157], [205, 271]], "labelAt": [204, 190] },
+    { "id": "f-flow", "from": "order_flow", "to": "norm_features", "label": "flow", "classification": "microstructure", "variant": "default", "fromSide": "right", "toSide": "left", "via": [[222, 385], [222, 271]], "labelAt": [220, 342] },
+    { "id": "f-features", "from": "norm_features", "to": "lookahead_guard", "label": "features", "classification": "feature matrix", "variant": "security", "fromSide": "top", "toSide": "left", "via": [[315, 112], [450, 112], [450, 157]], "labelAt": [382, 100] },
+    { "id": "f-primitives", "from": "norm_features", "to": "factor_miner", "label": "primitives", "classification": "syntax ops", "variant": "emphasis", "fromSide": "right", "toSide": "left", "via": [[420, 271], [420, 385]], "labelAt": [438, 324] },
+    { "id": "f-safe-ast", "from": "lookahead_guard", "to": "causal_filter", "label": "safe AST", "classification": "leak-free AST", "variant": "security", "route": "straight", "labelAt": [638, 144] },
+    { "id": "f-candidate", "from": "factor_miner", "to": "orthogonalizer", "label": "candidate alpha", "classification": "raw alpha", "variant": "emphasis", "fromSide": "right", "toSide": "left", "via": [[638, 385], [638, 271]], "labelAt": [638, 326] },
+    { "id": "f-residual", "from": "orthogonalizer", "to": "factor_registry", "label": "residual alpha", "classification": "orthogonalized", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "straight", "labelAt": [745, 326] },
+    { "id": "f-causal-dag", "from": "causal_filter", "to": "qubo_weights", "label": "causal graph", "classification": "directed DAG", "variant": "security", "route": "straight", "labelAt": [852, 144] },
+    { "id": "f-cov-matrix", "from": "orthogonalizer", "to": "qubo_weights", "label": "cov matrix", "classification": "shrinkage cov", "variant": "default", "fromSide": "right", "toSide": "bottom", "via": [[852, 271], [960, 271]], "labelAt": [876, 258] },
+    { "id": "f-alpha-weights", "from": "factor_registry", "to": "live_portfolio", "label": "alpha signals", "classification": "composite alpha", "variant": "dashed", "route": "straight", "labelAt": [852, 372] }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Autonomous Factor Discovery",
+      "items": [
+        "Continuous Ralph Loop mines mathematical factor formulas using AST genetic DSL",
+        "Complexity budget penalizes bloated formulas to eliminate p-hacking",
+        "Only candidate factors exceeding Information Coefficient IC > 0.03 pass to orthogonalization"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Lookahead & Causal Guards",
+      "items": [
+        "Symbolic AST analyzer enforces negative time shift constraints to eliminate future leak",
+        "Granger causality and partial correlation filters remove collinear market noise",
+        "Ensures non-spurious statistical predictive power before capital deployment"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "QUBO Mathematical Allocation",
+      "items": [
+        "Gram-Schmidt orthogonalization strips overlapping variance across active factors",
+        "Ledoit-Wolf shrinkage regularizes empirical asset covariance matrices",
+        "Quadratic Unconstrained Binary Optimization (QUBO) calculates optimal trade weights"
+      ]
+    }
+  ]
+}

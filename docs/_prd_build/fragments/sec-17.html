@@ -1,0 +1,62 @@
+<section id="sec-17">
+<h2 id="ml-rl"><span class="num">17</span> 17. ML / RL Stack: Kronos, PPO, Meta-RL, Bandits &amp; Supervised Models</h2>
+
+<div class="callout warn">
+<strong>One sentence frames this whole section:</strong> no model here can open, close, resize or re-target a position on
+its own. Every output is either an <em>advisory</em> input to the prompt (§05.1) or a <em>reduction-only</em> multiplier
+(§05.5). Updates are additionally gated by <code>_rl_learning_allowed()</code> and
+<code>_research_influence_allowed(kind, paper_mode=…)</code> (§14.3).
+</div>
+
+<h3 id="s17-1-families">17.1 The model families</h3>
+<table>
+<thead><tr><th>Family</th><th>Code</th><th>What it produces</th></tr></thead>
+<tbody>
+<tr><td>Kronos (foundation time-series)</td><td><span class="file">research/kronos_bridge.py</span>, <code>kronos_mt5_adapter.py</code>, <code>kronos_signal_fusion.py</code>, <code>kronos_trading_integrator.py</code>; validator <span class="file">intelligence/kronos_signal_validator.py</span></td><td>Forecast distribution plus a confidence factor mapped to <code>kronos_risk_adjustment_factor</code> (0–1) — a size multiplier and prompt context (<code>_kronos_advisory_snapshot</code> ~1837)</td></tr>
+<tr><td>PPO / policy gradient</td><td><span class="file">research/ppo_trainer.py</span>, <code>advanced_rl_pipeline.py</code>, <code>rl_trainer.py</code>, <code>mt5_finrl_env.py</code>, <code>rl_action_bridge.py</code></td><td>Position-management policy (<code>artifacts/ppo_position_mgmt.json</code>) and RL state features (<code>_build_rl_state</code> ~1874)</td></tr>
+<tr><td>Meta-RL</td><td><span class="file">research/meta_rl_trainer.py</span>, <code>curriculum_scheduler.py</code>, <code>replay_buffer.py</code></td><td>Curriculum/learning policy across regimes, trained on closed-trade replay</td></tr>
+<tr><td>Contextual bandit</td><td><span class="file">research/contextual_bandit.py</span></td><td>Arm selection among candidate setups, updated from realised R</td></tr>
+<tr><td>Supervised</td><td><span class="file">research/supervised_training.py</span>, <code>baseline_research.py</code>, <code>training_orchestrator.py</code></td><td>Direction/score models registered with feature-schema version and training-data hash (§18)</td></tr>
+<tr><td>Meta-labeling</td><td><span class="file">core/meta_labeling.py</span></td><td>Second-stage probability that a primary signal is worth taking</td></tr>
+<tr><td>Forgetting prevention</td><td><span class="file">core/ewc_forgetting_prevention.py</span></td><td>Fisher-weighted constraints so a new regime does not erase old competence</td></tr>
+<tr><td>Evolutionary / GRPO</td><td><span class="file">core/evolutionary_optimizer.py</span>, <span class="file">research/grpo_proposer.py</span> (<code>artifacts/grpo_proposer.json</code>)</td><td>Parameter and prompt <em>proposals</em>, subject to the influence gate</td></tr>
+</tbody>
+</table>
+
+<h3 id="s17-2-weights">17.2 Where weights, policies and metrics live</h3>
+<table>
+<thead><tr><th>Artifact</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>core/rl_model.json</code></td><td>Persisted RL policy and metrics; surfaced by <code>/api/rl-training</code> (§22)</td></tr>
+<tr><td><code>artifacts/ppo_position_mgmt.json</code>, <code>artifacts/grpo_proposer.json</code></td><td>Proposal outputs of the respective trainers</td></tr>
+<tr><td><code>meta_adaptive_state.json</code>, <code>regime_duration_state.json</code></td><td>Regime/adaptation state read by the sizing ladder and validator</td></tr>
+<tr><td><code>artifacts/backtest_results/</code>, <code>research/</code> reports</td><td>Evidence consumed by the §16 gates</td></tr>
+</tbody>
+</table>
+
+<h3 id="s17-3-drift">17.3 Drift, staleness and forgetting</h3>
+<ul>
+<li><strong>Feature drift</strong> — <code>data_drift_status</code>: <code>DRIFT</code> halves size and is a validator
+rejection reason (§05.4, §05.5).</li>
+<li><strong>Model staleness</strong> — <span class="file">core/model_staleness_tracker.py</span> with
+<span class="file">core/meta_adaptive_engine.py</span>; the registry status in §18 carries the operator verdict.</li>
+<li><strong>Catastrophic forgetting</strong> — EWC Fisher penalties plus replay buffers, with
+<span class="file">research/mars_maml_adapter.py</span> and <span class="file">research/laya_checkpoint_parity.py</span>
+covering meta-learning and checkpoint parity.</li>
+<li><strong>Behavioural divergence</strong> — <span class="file">research/divergence_monitor.py</span> and
+<span class="file">operations/degradation_detector.py</span> compare live behaviour to expectations and can demote the
+autonomy level (§20).</li>
+</ul>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">research/kronos_bridge.py</span>, <span class="file">research/ppo_trainer.py</span>, <span class="file">research/meta_rl_trainer.py</span></td><td>Kronos / PPO / meta-RL training and serving entry points</td></tr>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span> 1837, 1874, 3710; <span class="file">core/risk_manager.py</span> 994–1064</td><td>Advisory snapshots, RL state, RL update, and the Kronos/alpha reduction-only multipliers</td></tr>
+<tr><td><span class="file">core/model_staleness_tracker.py</span>, <span class="file">core/ewc_forgetting_prevention.py</span>, <span class="file">operations/degradation_detector.py</span></td><td>Staleness, forgetting protection, degradation detection</td></tr>
+</tbody>
+</table>
+</div>
+</section>

@@ -1,0 +1,112 @@
+﻿<section id="sec-03">
+<h2 id="startup"><span class="num">03</span> 03. Boot, Startup Sequence &amp; Launch Surfaces</h2>
+
+<h3 id="s3-1-surfaces">03.1 How a human starts the system</h3>
+<table>
+<thead><tr><th>Entry</th><th>Command / file</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td>Bare launch (no args)</td><td><code>python mt5_trader.py</code></td><td>Offers the OpenTUI command deck when <code>bun</code> and <code>tui_opentui/</code> exist (<code>LLM_TRADER_PREFER_DECK</code>=auto/1), else falls back to the questionary classic menu / interactive settings. <span class="file">mt5_trader.py</span> ~1263</td></tr>
+<tr><td>Deck</td><td><code>python mt5_trader.py deck</code> Â· <code>START_DECK.bat</code></td><td>React/TypeScript OpenTUI deck on Bun with MCP transport to MT5</td></tr>
+<tr><td>Autonomous trade loop</td><td><code>python mt5_trader.py llm-trade --symbol EURUSD --paper --loops 1</code></td><td>The real system: boot â†’ pulse loop â†’ gates â†’ orders</td></tr>
+<tr><td>Trading batch</td><td><code>START_TRADING.bat</code></td><td>Operator convenience wrapper around the trade loop</td></tr>
+<tr><td>Full build</td><td><code>build.bat</code> Â· <code>python scripts/build.py</code> Â· <code>cd tui_opentui &amp;&amp; bun run build:rtk</code></td><td>Unified build pipeline (per repository AGENTS.md)</td></tr>
+</tbody>
+</table>
+
+<h4>Trading-relevant subcommands (real, from <span class="file">mt5_trader.py</span> argparse)</h4>
+<table>
+<thead><tr><th>Subcommand</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>llm-trade</code></td><td>The autonomous loop: <code>--symbol --timeframe --risk-per-trade --paper|--demo|--live --yes --loops --continuous --strategies --model --tui --api-sync --poll-interval --show-metrics --show-rl-metrics --no-dashboard --no-pipeline-v2 --bounded-autonomy --validate-every</code></td></tr>
+<tr><td><code>data</code>, <code>benchmark</code></td><td>Fetch OHLC + compute indicators; benchmark data and indicator throughput</td></tr>
+<tr><td><code>account-info</code>, <code>positions</code>, <code>orders</code>, <code>history</code></td><td>Read-only broker surfaces</td></tr>
+<tr><td><code>market-order</code> / <code>pending-order</code> / <code>modify-order</code> / <code>cancel-order</code></td><td>Manual order management (legacy, still gated by <code>--live --yes</code>)</td></tr>
+<tr><td><code>broker-preflight</code>, <code>diagnose</code></td><td>Capture symbol/account constraints; terminal diagnostics</td></tr>
+<tr><td><code>backtest</code>, <code>news-gate-backtest</code></td><td>Dual-engine backtest (VectorBT screen + MT5 broker replay) and the news-gate A/B</td></tr>
+<tr><td><code>web-research</code></td><td>Autonomous web/academic research (SSRN, ArXiv, web, Fed)</td></tr>
+<tr><td><code>journal &lt;subcommand&gt;</code></td><td>Operator/audit surface: reconciliation, readiness, security, live approval, backups, model registry, research-influence approval, strategy lifecycle, alerts, housekeeping</td></tr>
+</tbody>
+</table>
+
+<h3 id="s3-2-modes">03.2 Execution modes and the live gate</h3>
+<table>
+<thead><tr><th>Mode</th><th>Flag</th><th>Broker</th><th>Extra requirements</th></tr></thead>
+<tbody>
+<tr><td><span class="badge b-blue">PAPER</span></td><td><code>--paper</code></td><td>None â€” in-process <code>PaperBroker</code></td><td>A market-data session is ensured at boot (<code>_ensure_paper_market_data_session()</code> ~3209); risk state is seeded with positive equity so sizing cannot collapse to zero</td></tr>
+<tr><td><span class="badge b-amber">DEMO</span></td><td><code>--demo</code></td><td>Real MT5 demo account</td><td>No confirmation prompt; the sandbox profile must allow order writes</td></tr>
+<tr><td><span class="badge b-red">LIVE</span></td><td><code>--live</code></td><td>Real MT5 live account</td><td><code>LLM_TRADER_ALLOW_LIVE=true</code> <strong>and</strong> (<code>--yes</code> or interactive <code>confirm_live()</code> ~951) <strong>and</strong> the mounted harness sandbox must reach <code>PermissionLevel.ORDER_WRITE</code> â€” otherwise the process refuses to start (fail-closed, ~3877â€“3894)</td></tr>
+</tbody>
+</table>
+<div class="callout warn">
+<strong>Live is additionally blocked by governance, not only by flags.</strong> Autonomy levels in
+<span class="file">operations/autonomy.py</span> cap an unattended system at L2 (micro live, 0.25&nbsp;% risk); L3
+(full live, 1&nbsp;%) requires an operator-signed rollout manifest id. Research-derived parameters additionally
+require an approved research-influence record. These are intentional fail-closed behaviours.
+</div>
+
+
+<h3 id="s3-3-config">03.3 Configuration resolution order</h3>
+<p><span class="file">mt5_trader.py</span> <code>Config.from_sources()</code> (~617) resolves in this precedence:</p>
+<ol>
+<li><strong>AccountManager</strong> active account (<code>accounts.json</code>) â€” becomes the default credentials source.</li>
+<li><strong><code>config.ini</code></strong> â€” <code>[risk] risk_per_trade</code>, <code>max_drawdown</code>;
+<code>[limits] cooldown_seconds</code>, <code>max_trades_per_hour</code>; <code>[general] log_level</code>;
+<code>[trading] default_volume</code>; <code>[account] login / server / password_env</code>.</li>
+<li><strong>Environment variables override credentials</strong>: <code>MT5_LOGIN</code>, <code>MT5_PASSWORD</code>,
+<code>MT5_SERVER</code> win over both.</li>
+<li>Hard defaults: <code>risk_per_trade=0.01</code>, <code>max_drawdown=0.10</code>,
+<code>default_volume=0.1</code>, <code>cooldown=300</code>&nbsp;s, <code>max_trades_per_hour=5</code>,
+<code>log_level=INFO</code>.</li>
+</ol>
+<p>Environment variables relevant outside credentials include the provider fabric and budgets
+(<code>OPENROUTER_*</code>, <code>TOKENROUTER_*</code>, <code>ROUTESME_*</code>, <code>CEREBRAS_*</code>,
+<code>NVIDIA_*</code>), per-agent routing (<code>TRADER_LLM_PROVIDER|MODEL|FALLBACK</code>, <code>ANALYST_*</code>,
+<code>RISK_*</code>), fail-closed provider policy (<code>LLM_TRADER_ALLOW_PROVIDER_FAILOVER=false</code> by default â‡’
+a provider failure becomes a deterministic HOLD), call timeouts (<code>LLM_ROUTER_TIMEOUT=30</code>,
+<code>LLM_ROUTER_MAX_RATE_WAIT=15</code>), the live opt-in (<code>LLM_TRADER_ALLOW_LIVE=false</code>), broker cost
+calibration (<code>MT5_COMMISSION_PER_VOLUME</code>, <code>MT5_EXPECTED_SLIPPAGE_PRICE</code>,
+<code>MT5_EXPECTED_SWAP_MONEY</code> â€” leaving these unset forces NO_TRADE in the net-R:R gate), the stage pipeline
+flag <code>PIPELINE_V2</code>, and the optional memory mirrors (<code>REMOTE_MIRROR_*</code>,
+<code>LOCAL_MEMORY_*</code>) which never grant execution authority.</p>
+
+<h3 id="s3-4-boot">03.4 The boot sequence, step by step</h3>
+<p>Order matters: several steps exist specifically to prevent a degraded process from reaching the order path.</p>
+<table>
+<thead><tr><th class="num">#</th><th>Step</th><th>Anchor</th><th>Fail behaviour</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td><code>Config.from_sources()</code> + logging setup (<code>TUILogHandler</code> mirrors logs to the deck)</td><td>~1257, <code>setup_logging</code> ~385</td><td>Defaults; never fatal</td></tr>
+<tr><td class="num">2</td><td>Mode selection &amp; journal mode string (<code>PAPER</code>/<code>DEMO</code>/<code>LIVE</code>); account fingerprint hashed (credentials never persisted)</td><td>~3896â€“3900</td><td>â€”</td></tr>
+<tr><td class="num">3</td><td>Harness profile mount â†’ <code>trading_store</code> plugin; fallback inline services create <code>TradingStore("trading_state.db")</code> and migrate JSON state</td><td>~3840â€“3849</td><td>Falls back to inline wiring, logs a warning</td></tr>
+<tr><td class="num">4</td><td><code>RiskManager(balance=initial_balance, â€¦)</code> then explicitly writes balance / peak / daily / weekly equity and <code>save_state()</code></td><td>~3849â€“3869</td><td>Zero/negative equity would break sizing â€” this is why the seed is unconditional</td></tr>
+<tr><td class="num">5</td><td>Live sandbox capability gate: if <code>--live</code> and the profile's default permission level &lt; <code>ORDER_WRITE</code>, refuse to start. If the gate itself raises, still refuse</td><td>~3877â€“3894</td><td><span class="badge b-red">exit</span></td></tr>
+
+<tr><td class="num">9</td><td>Supervisor boot checks: <code>config_loaded</code>, <code>orchestrator_ready</code>, <code>journal_reachable</code>, <code>autonomy_state</code>, <code>secrets_hygiene_warnonly</code>; all-pass â‡’ <code>ready()</code>, else <code>DEGRADED</code> and continue guarded</td><td>~3989â€“4018</td><td>Degraded, not fatal</td></tr>
+<tr><td class="num">10</td><td>Task queue: <code>migrate_from_intervals(DEFAULT_INTERVALS)</code> builds the scheduled-work queue</td><td>~4021â€“4032</td><td>Warning</td></tr>
+<tr><td class="num">11</td><td>Îº compliance audit: hash-chained append-only log</td><td>~4034â€“4041</td><td>Warning</td></tr>
+<tr><td class="num">12</td><td>Crash recovery: unclean-shutdown scan, snapshot restore, <code>atexit</code>/<code>SIGTERM</code> hooks</td><td>~4044â€“4068</td><td>Warning</td></tr>
+<tr><td class="num">13</td><td><strong><code>AutonomousBootstrap.run()</code></strong> â€” prepares the system and returns <code>ready / phase / duration / quality_score</code>. If not ready, each blocker is printed and the process exits</td><td>~4071â€“4102</td><td><span class="badge b-red">exit(1) + blocker list</span></td></tr>
+<tr><td class="num">14</td><td>Startup training pipeline â€” walk-forward validator, CPCV availability, alpha-ensemble warm-up, a 1-generation GA alpha mine (population 15, <code>min_ic_threshold=0.005</code>), progressive gates, training orchestrator, capstone validation (grade / score / ready), automated per-symbol RL + OOS training logging <code>OOS_Sharpe</code> and <code>WFE</code></td><td>~4104â€“4205</td><td>Each stage individually optional (debug-logged skip)</td></tr>
+<tr><td class="num">15</td><td><strong>Î¨ External Guardian starts</strong> â€” after bootstrap so its 120&nbsp;s heartbeat watchdog measures loop liveness rather than multi-minute startup; non-paper runs only</td><td>~4207â€“4216</td><td>Warning (guardian absent is logged)</td></tr>
+<tr><td class="num">16</td><td>Enter the pulse loop: <code>while args.continuous or cycle_count &lt; args.loops</code></td><td>~4218</td><td>â€”</td></tr>
+</tbody>
+</table>
+<div class="callout good">
+<strong>Why this ordering is a safety feature.</strong> Sizing needs a positive equity (step&nbsp;4 precedes any cycle);
+the guardian must not watch a loop that does not exist yet (step&nbsp;15 follows step&nbsp;13); and the bootstrap may
+hard-stop a process that is not capable of trading safely (step&nbsp;13).
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">mt5_trader.py</span> 606â€“676</td><td><code>Config.from_sources()</code> precedence and defaults</td></tr>
+<tr><td><span class="file">mt5_trader.py</span> 3849â€“3946</td><td>Risk seed, harness store, orchestrator construction, wiring</td></tr>
+<tr><td><span class="file">mt5_trader.py</span> 3989â€“4068</td><td>Supervisor boot checks, task queue, Îº audit, crash recovery</td></tr>
+<tr><td><span class="file">mt5_trader.py</span> 4071â€“4216</td><td>Autonomous bootstrap gate, startup training pipeline, Î¨ guardian start</td></tr>
+<tr><td><span class="file">.env.example</span></td><td>Every environment variable, budget ceiling and live opt-in</td></tr>
+</tbody>
+</table>
+</div>
+</section>

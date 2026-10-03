@@ -1,0 +1,508 @@
+================================================================================
+ADDITIONAL MATHEMATICAL MODELS FOR SCALPING & SWING TRADING
+================================================================================
+Supplementary to swing_scalp_math_models_extracted.txt
+================================================================================
+
+--------------------------------------------------------------------------------
+1. ADVANCED VOLATILITY ESTIMATORS (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+1.1 REALIZED VOLATILITY VARIANTS (more efficient than close-to-close)
+  Parkinson (1980) - uses high/low:
+    sigma_P = sqrt( (1 / (4 * ln(2))) * SUM [ (ln(H_i/L_i))^2 ] )
+
+  Garman-Klass (1980) - uses OHLC:
+    sigma_GK = sqrt( SUM [ 0.5*(ln(H_i/L_i))^2 - (2*ln(2)-1)*(ln(C_i/O_i))^2 ] )
+
+  Rogers-Satchell (1991) - drift-independent:
+    sigma_RS = SUM [ ln(H_i/C_i)*ln(H_i/O_i) + ln(L_i/C_i)*ln(L_i/O_i) ]
+
+  Yang-Zhang (2000) - overnight + intraday combined:
+    sigma_YZ = sqrt( sigma_overnight^2 + k*sigma_RS^2 + (1-k)*sigma_close^2 )
+    k = 0.34 / (1.34 + (N+1)/(N-1))
+
+1.2 JUMP-ROBUST ESTIMATORS (Barndorff-Nielsen & Shephyd)
+  Bipower variation: BV = (pi/2) * SUM |r_i| * |r_{i-1}|
+  Tripower variation: TV = (pi/4) * SUM |r_i|^{4/3} * |r_{i-1}|^{4/3} * |r_{i-2}|^{4/3}
+  Jump component: J = max(RV - BV, 0)
+
+1.3 GARCH EXTENSIONS
+  EGARCH (Nelson 1991) - asymmetric/leverage:
+    ln(sigma^2_t) = omega + alpha*(|z_{t-1}| - E|z_{t-1}|) + gamma*z_{t-1} + beta*ln(sigma^2_{t-1})
+    gamma < 0: negative returns increase vol more (leverage effect)
+
+  GJR-GARCH (Glosten-Jagannathan-Runkle):
+    sigma^2_t = omega + (alpha + gamma*I_{epsilon<0})*epsilon^2_{t-1} + beta*sigma^2_{t-1}
+
+  FIGARCH - long memory in volatility:
+    sigma^2_t = omega + beta*sigma^2_{t-1} + [1 - (1-L)^d * (1-beta*L)] * epsilon^2_t
+    d = fractional integration parameter (0 < d < 1)
+
+1.4 VOLATILITY CONE / PERCENTILE FRAMEWORK
+  Compute rolling vol at multiple windows (10d, 20d, 60d, 120d)
+  Current vol percentile = rank(current_vol) / N_observations
+  Regime mapping:
+    < 20th percentile: vol compression -> breakout imminent
+    20th-80th: normal
+    > 80th percentile: vol expansion -> mean reversion / reduce size
+
+1.5 VOLATILITY RISK PREMIUM
+  VRP = IV - RV  (implied minus realized)
+  VRP > 0: options expensive -> sell vol (short strangle, iron condor)
+  VRP < 0: options cheap -> buy vol (long straddle)
+
+--------------------------------------------------------------------------------
+2. ORDER BOOK MICROSTRUCTURE (Scalp)
+--------------------------------------------------------------------------------
+
+2.1 MICRO-PRICE (Better than mid-price)
+  P_micro = p_a * (q_b / (q_b + q_a)) + p_b * (q_a / (q_b + q_a))
+
+2.2 ORDER BOOK SLOPE / DEPTH PROFILE
+  Slope = (q_bid - q_ask) / (q_bid + q_ask) at each level
+  Aggregate slope = weighted sum across levels
+
+2.3 DEPTH IMBALANCE (Multi-level)
+  Imbalance = (SUM w_i * q_bid_i - SUM w_i * q_ask_i) / (SUM w_i * (q_bid_i + q_ask_i))
+  w_i = 1/i (decay by level) or w_i = 1/i^2
+
+2.4 PRICE IMPACT ASYMMETRY
+  Impact_buy != Impact_sell
+  Asymmetry = (Impact_buy - Impact_sell) / (Impact_buy + Impact_sell)
+
+2.5 ORDER FLOW TOXICITY (Amihud Lambda)
+  lambda = |r_t| / DollarVolume_t
+  Rolling lambda: toxic when rising -> adverse selection risk
+
+2.6 LEE-READY TRADE CLASSIFICATION
+  Trade at ask -> buyer-initiated (+1)
+  Trade at bid -> seller-initiated (-1)
+  Trade at mid: tick rule (compare to previous trade)
+  Bulk Volume Classification (BVC):
+    Buy volume = V * Phi((p_t - p_{t-1}) / sigma_Delta)
+    Sell volume = V * (1 - Phi(...))
+
+2.7 GLOSTEN-MILGROM ADVERSE SELECTION
+  Bid-ask spread = 2 * (mu * alpha * sigma_v) / (mu * alpha^2 + (1-mu))
+  mu = fraction informed, alpha = probability of info event
+
+--------------------------------------------------------------------------------
+3. SIGNAL PROCESSING FOR TRADING (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+3.1 HILBERT TRANSFORM CYCLE ESTIMATION (Ehlers)
+  InPhase I = price (delayed 4 bars)
+  Quadrature Q = HT(price)
+  Phase = atan(I/Q)
+  Instantaneous period T = dPhase/dt
+
+3.2 FISHER TRANSFORM
+  Fisher(x) = 0.5 * ln((1+x)/(1-x))
+  x = normalized indicator in [-1, 1]
+  Entry: Fisher > 2.0 (overbought) or < -2.0 (oversold)
+
+3.3 KAUFMAN ADAPTIVE MOVING AVERAGE (KAMA)
+  Efficiency Ratio: ER = |P_t - P_{t-n}| / SUM |P_i - P_{i-1}|
+  Smoothing Constant: SC = [ER * (fast_SC - slow_SC) + slow_SC]^2
+    fast_SC = 2/(2+1), slow_SC = 2/(30+1)
+  KAMA_t = KAMA_{t-1} + SC * (P_t - KAMA_{t-1})
+
+3.4 ZERO-LAG EMA
+  EMA1 = EMA(price, N)
+  EMA2 = EMA(EMA1, N)
+  ZeroLag = EMA1 + (EMA1 - EMA2)
+
+3.5 SUPERSMOOTHER (Ehlers)
+  a = exp(-1.414 * pi / period)
+  b = 2 * a * cos(1.414 * pi / period)
+  c2 = b, c3 = -a^2, c1 = 1 - c2 - c3
+  SuperSmooth = c1 * (price + price_prev)/2 + c2 * SS_prev + c3 * SS_prev2
+
+3.6 WAVELET DECOMPOSITION (Multi-Scale Features)
+  Decompose price into approximation + details at scales 2, 4, 8, 16, 32
+  Energy at scale j: E_j = SUM |d_j|^2
+  Energy ratio E_j / E_total = fraction of variance at that timescale
+
+--------------------------------------------------------------------------------
+4. ADVANCED MEAN REVERSION (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+4.1 THRESHOLD AUTOREGRESSIVE (TAR) MODEL
+  Delta_y = { phi_1 * y_{t-1} + epsilon  if y_{t-1} <= threshold
+            { phi_2 * y_{t-1} + epsilon  if y_{t-1} > threshold
+  Asymmetric mean reversion: different speed above/below mean
+
+4.2 FRACTIONAL COINTEGRATION
+  If spread has Hurst H > 0.5: long-memory mean reversion
+  d = H - 0.5 (fractional integration parameter)
+  Model: (1-L)^d * y_t = epsilon_t
+
+4.3 MARKOV-SWITCHING VECM
+  Delta_y_t = alpha(S_t) * beta' * y_{t-1} + SUM Gamma_i(S_t) * Delta_{t-i} + epsilon_t
+  S_t in {1, 2} (cointegrated vs non-cointegrated regime)
+
+4.4 VARIANCE RATIO TEST (Mean Reversion Detection)
+  VR(q) = Var(r_t(q)) / (q * Var(r_t))
+  VR < 1: mean reversion at horizon q
+  VR > 1: momentum at horizon q
+  z-statistic: (VR-1) / sqrt(2*(2q-1)(q-1)/(3q*N))
+
+4.5 HALF-LIFE ESTIMATION METHODS
+  From OU: t_1/2 = ln(2) / theta
+  From ADF: t_1/2 = -ln(2) / ln(1 + ADF_coeff)
+  From variance ratio: t_1/2 = ln(2) / (1 - VR(q)/q)
+
+--------------------------------------------------------------------------------
+5. ADVANCED MOMENTUM / TREND (Swing)
+--------------------------------------------------------------------------------
+
+5.1 CLENOW MOMENTUM / TREND QUALITY
+  Trend Quality = (price_change) / (sum_of_absolute_daily_changes)
+  = 1 for perfect trend, 0 for perfect chop
+
+5.2 RATE OF CHANGE COMPOSITES (KST - Know Sure Thing)
+  KST = WMA1(ROC1) + WMA2(ROC2) + WMA3(ROC3) + WMA4(ROC4)
+  ROC_i = (P / P_{t-period_i} - 1) * 100
+  Signal: KST crossing its 9-period EMA
+
+5.3 ADAPTIVE MOMENTUM LOOKBACK
+  Use dominant cycle period from Hilbert/Fourier
+  Momentum lookback = T_dominant / 2
+  Trend filter lookback = T_dominant
+
+--------------------------------------------------------------------------------
+6. EXECUTION ALGORITHMS (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+6.1 IMPLEMENTATION SHORTFALL (IS)
+  IS = execution_price - decision_price
+  IS = delay_cost + market_impact + opportunity_cost
+  Minimize: E[IS] + lambda * Var[IS]
+
+6.2 VWAP TRACKING ERROR
+  VWAP = SUM(p_i * q_i) / SUM(q_i)
+  Tracking error = (exec_VWAP - bench_VWAP) / bench_VWAP
+
+6.3 ADAPTIVE ALMGREN-CHRISS
+  Update impact parameters eta, gamma online based on observed vs predicted
+
+6.4 OPTIMAL ORDER PLACEMENT (Limit vs Market)
+  Place limit order if: P_fill * spread_capture > (1 - P_fill) * slippage_cost
+
+6.5 ICEBERG / HIDDEN ORDER SIZING
+  Display size = min(true_size, ADV * participation_rate)
+  Participation rate: 1-5% of ADV for swing, <1% for scalp
+
+6.6 TRANSIENT vs PERMANENT IMPACT DECAY
+  Total impact = permanent + transient
+  Transient decays: g(t) = gamma * exp(-beta * t)
+  Permanent: gamma (constant)
+
+--------------------------------------------------------------------------------
+7. PORTFOLIO & RISK (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+7.1 MULTI-ARMED BANDIT (Strategy Allocation)
+  Thompson sampling: sample from Beta(alpha_i, beta_i) for each strategy
+  alpha_i = 1 + wins_i, beta_i = 1 + losses_i
+  Allocate to strategy with highest sampled value
+
+7.2 ONLINE PORTFOLIO SELECTION
+  Universal Portfolio: weight by historical performance integral
+  Gradient Descent: w_{t+1} = w_t - lr * gradient(loss)
+
+7.3 SEQUENTIAL PROBABILITY RATIO TEST (SPRT)
+  H0: strategy has edge (p = p0) | H1: strategy has no edge (p = p1)
+  Likelihood ratio: LR = prod [ p1^x_i * (1-p1)^{1-x_i} ] / [ p0^x_i * (1-p0)^{1-x_i} ]
+  If LR > (1-beta)/alpha: accept H1 (kill strategy)
+  If LR < beta/(1-alpha): accept H0 (continue)
+
+7.4 BAYESIAN WIN RATE UPDATE
+  Prior: p ~ Beta(alpha, beta)
+  After win: alpha += 1 | After loss: beta += 1
+  Posterior mean: alpha / (alpha + beta)
+
+7.5 CORRELATION BREAKDOWN DETECTION
+  Rolling correlation rho(t) over window w
+  If |rho(t) - rho(t-1)| > k * sigma_rho: flag breakdown
+
+--------------------------------------------------------------------------------
+8. CALENDAR & SEASONAL EFFECTS (Swing/Scalp)
+--------------------------------------------------------------------------------
+
+8.1 INTRADAY VOLATILITY PROFILE (U-Shape)
+  sigma(t) = a + b*t + c*t^2 (quadratic fit to intraday returns)
+  Peak at open and close, trough midday
+
+8.2 DAY-OF-WEEK EFFECTS
+  R_dow = mean return for each weekday
+  t-stat: t_dow = R_dow / (sigma_dow / sqrt(N))
+
+8.3 OVERNIGHT vs INTRADAY DECOMPOSITION
+  Total return = overnight_return + intraday_return
+  Overnight: close to open | Intraday: open to close
+
+8.4 FOMC / MACRO ANNOUNCEMENT WINDOWS
+  Volatility spike: sigma_announce = 3-5x normal sigma
+  Pre-announcement: reduce size by 1/sigma_ratio
+  Post-announcement: mean reversion in first 30 min
+
+8.5 EXPIRATION WEEK EFFECTS
+  Gamma exposure concentrates near expiry
+  Avoid directional trades within 2 days of major OpEx
+
+--------------------------------------------------------------------------------
+9. ADVANCED STATISTICAL TOOLS (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+9.1 PARTICLE FILTER (Non-linear State Estimation)
+  Maintain N particles (hypotheses) with weights
+  Predict: propagate each particle through state transition
+  Update: weight by likelihood of observation
+  Resample: keep high-weight particles
+
+9.2 HIDDEN SEMI-MARKOV MODEL (HSMM)
+  Extension of HMM with explicit state duration distribution
+  Duration ~ Geometric (HMM) vs Duration ~ Poisson/Normal (HSMM)
+  P(duration = d | state = k) = Poisson(d; lambda_k)
+
+9.3 TRANSFER ENTROPY (Causal Flow Detection)
+  TE(X -> Y) = SUM p(y_{t+1}, y_t^k, x_t^l) * log[ p(y_{t+1} | y_t^k, x_t^l) / p(y_{t+1} | y_t^k) ]
+
+9.4 MUTUAL INFORMATION (Non-linear Dependency)
+  I(X;Y) = SUM SUM p(x,y) * log( p(x,y) / (p(x)*p(y)) )
+
+--------------------------------------------------------------------------------
+10. MARKET MAKING EXTENSIONS (Scalp)
+--------------------------------------------------------------------------------
+
+10.1 GUANT-LEHALLE-FERNANDEZ MULTI-ASSET MM
+  Extension of AS to multiple correlated assets
+  Reservation price: r_i = s_i - q_i*gamma*sigma_i^2*(T-t) - gamma*SUM_{j!=i} q_j*sigma_{ij}*(T-t)
+
+10.2 INVENTORY RISK AVERSION ADAPTATION
+  gamma_t = gamma_0 * (1 + |q_t| / q_max)
+
+10.3 ADAPTIVE SPREAD BASED ON VOLATILITY REGIME
+  delta_t = delta_0 * (sigma_t / sigma_0)^alpha
+  alpha = 1: linear vol-scaling | alpha = 2: quadratic
+
+10.4 FUNDING RATE ARBITRAGE (Crypto Scalp)
+  When funding > 0: short perp, long spot
+  Annualized yield = funding_rate * 3 * 365
+
+10.5 LIQUIDATION CASCADE MODEL (Crypto Scalp)
+  When leverage high + price drops -> forced liquidations
+  Detect: open interest dropping + price dropping + funding extreme
+  Trade: fade the cascade (mean reversion after liquidations complete)
+
+--------------------------------------------------------------------------------
+11. FEATURE ENGINEERING (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+11.1 FRACTIONAL DIFFERENTIATION (Author-C)
+  (1-L)^d * x_t = epsilon_t
+  d = 0: non-stationary (price) | d = 1: stationary but no memory (returns)
+  d* in (0,1): stationary WITH memory
+  Find minimum d such that ADF p < 0.05
+
+11.2 ORDER BOOK IMAGE FEATURES (DeepLOB)
+  Represent LOB as image: 10 levels x 2 sides x time steps
+  CNN extracts spatial (depth) and temporal (flow) features
+
+11.3 VOLUME PROFILE FEATURES
+  Volume at price: V(P) = total volume traded at price level
+  Point of Control: P* = argmax V(P)
+  Value Area: [P_low, P_high] where 70% of volume traded
+
+11.4 VWAP BANDS (Scalp)
+  VWAP_band = VWAP +/- k * sigma_VWAP
+  sigma_VWAP = sqrt(SUM (p_i - VWAP)^2 * q_i / SUM q_i)
+
+11.5 TICK-BAR / DOLLAR-BAR / VOLUME-BAR SAMPLING
+  Tick bar: sample every N trades
+  Dollar bar: sample every $N traded
+  Volume bar: sample every N contracts
+
+--------------------------------------------------------------------------------
+12. PERFORMANCE ATTRIBUTION (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+12.1 PnL DECOMPOSITION
+  PnL = directional_pnl + market_making_pnl + hedging_costs + fees
+
+12.2 INFORMATION RATIO DECOMPOSITION
+  IR = IC * sqrt(breadth)
+  IC = information coefficient (signal quality)
+  breadth = number of independent bets per year
+
+12.3 FACTOR ATTRIBUTION
+  R_p = alpha + SUM beta_i * F_i + epsilon
+  Residual alpha = true strategy edge
+
+12.4 TURNOVER & COST BUDGETING
+  Annual turnover = SUM |Delta_w| * 252
+  Cost budget = turnover * cost_per_unit
+  Target: cost < 30% of gross alpha
+
+--------------------------------------------------------------------------------
+13. ADVANCED RISK METRICS (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+13.1 EXPECTED SHORTFALL CONTRIBUTION
+  ES_contribution_i = w_i * dES/dw_i
+
+13.2 MAXIMUM DRAWDOWN PROBABILITY (Analytical)
+  For Gaussian returns with drift mu and vol sigma:
+  P(MDD > x) = 1 - Phi((mu*x + mu^2*T/2)/(sigma*sqrt(x)))
+               + exp(-2*mu*x/sigma^2) * Phi((-mu*x + mu^2*T/2)/(sigma*sqrt(x)))
+
+13.3 RISK-ADJUSTED RETURN ON CAPITAL
+  RAROC = (return - costs - expected_loss) / economic_capital
+  Target: RAROC > 15%
+
+13.4 LEVERAGE CYCLE DETECTION
+  When vol low -> leverage increases -> fragility builds
+  Reduce leverage when vol at historical lows
+
+--------------------------------------------------------------------------------
+14. GAME THEORY & BEHAVIORAL (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+14.1 KYLE'S MODEL EXTENSIONS (Multi-Informed Trader)
+  lambda = sigma_v / (2 * sigma_u) (single informed)
+  With N informed traders: lambda decreases (more competition)
+
+14.2 BEHAVIORAL BIAS QUANTIFICATION
+  Disposition effect: P(sell winner) > P(sell loser)
+  If present: reduce position size (premature profit-taking)
+
+14.3 HERDING DETECTION
+  Cross-sectional standard deviation of returns: CSRD
+  CSRD low = herding | CSRD high = dispersed
+
+--------------------------------------------------------------------------------
+15. STOCHASTIC CONTROL (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+15.1 HAMILTON-JACOBI-BELLMAN (HJB) EQUATION
+  0 = min_u [ cost(u) + dV/dt + drift*dV/dx + 0.5*vol^2*dV^2/dx^2 ]
+
+15.2 MERTON PORTFOLIO PROBLEM
+  Optimal fraction in risky asset: w* = (mu - r) / (gamma * sigma^2)
+  Same as Kelly for log-utility (gamma = 1)
+
+15.3 OPTIMAL STOPPING (When to Exit)
+  Value function: V(x) = max{ exercise(x), continue(x) }
+  exercise(x) = immediate payoff
+  continue(x) = E[V(x_{t+1}) | x_t] / (1 + r)
+
+--------------------------------------------------------------------------------
+16. MACHINE LEARNING FOR SCALP/SWING
+--------------------------------------------------------------------------------
+
+16.1 ONLINE LEARNING (Adaptive Models)
+  theta_t = theta_{t-1} + lr * gradient(loss)
+
+16.2 FEATURE IMPORTANCE STABILITY
+  Compute feature importance (SHAP, permutation) over rolling window
+  Remove unstable features to prevent overfitting
+
+16.3 ENSEMBLE DIVERSIFICATION
+  y_ensemble = SUM w_i * y_i
+  Weights: inverse variance of past predictions
+
+16.4 REGRET BOUNDS (Online Portfolio)
+  Universal portfolio: Regret = O(sqrt(T * log(N)))
+
+--------------------------------------------------------------------------------
+17. CROSS-ASSET & CROSS-VENUE (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+17.1 LEAD-LAG CROSS-CORRELATION
+  CC(tau) = corr(r_A(t), r_B(t + tau))
+  tau* = argmax |CC(tau)|
+  If tau* > 0: A leads B -> use A's signal to trade B
+
+17.2 ETF vs NAV DEVIATION (Arbitrage)
+  Premium = (ETF_price - NAV) / NAV
+  Trade: if premium > cost -> create/redeem
+
+17.3 DISPERSION TRADING
+  Dispersion = sigma_index - weighted_avg(sigma_components)
+  If dispersion > historical: sell index vol, buy component vol
+
+17.4 CORRELATION TRADING
+  If rho > historical_high: sell correlation (pairs trade)
+  If rho < historical_low: buy correlation
+
+--------------------------------------------------------------------------------
+18. INFORMATION THEORY (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+18.1 SHANNON ENTROPY OF RETURNS
+  H = -SUM p_i * log(p_i)
+  Low H: predictable (trending or cycling) | High H: unpredictable (noise)
+
+18.2 KULLBACK-LEIBLER DIVERGENCE (Regime Shift)
+  D_KL(P || Q) = SUM P(x) * log(P(x)/Q(x))
+  D_KL > threshold: regime shift detected
+
+18.3 PERMUTATION ENTROPY (Complexity)
+  h_p = -SUM p(pi) * ln(p(pi)) / ln(m!)
+  h_p -> 0: highly ordered (trend) | h_p -> 1: random (noise)
+
+18.4 SAMPLE ENTROPY (Self-Similarity)
+  SampEn(m, r) = -ln(A/B)
+  Low SampEn: regular/predictable | High SampEn: irregular/unpredictable
+
+--------------------------------------------------------------------------------
+19. PARAMETER OPTIMIZATION (Scalp/Swing)
+--------------------------------------------------------------------------------
+
+19.1 BAYESIAN OPTIMIZATION
+  Surrogate model: Gaussian Process over parameter space
+  Acquisition function: Expected Improvement (EI)
+  EI(x) = E[max(f(x) - f_best, 0)]
+
+19.2 WALK-FORWARD WITH ANCHORED vs ROLLING
+  Anchored: training window grows (more data, older less relevant)
+  Rolling: fixed window (adapts faster, less data)
+
+19.3 PARAMETER STABILITY TEST
+  Compute optimal params over multiple windows
+  If params vary wildly: strategy unstable
+  Metric: coefficient of variation of optimal params < threshold
+
+19.4 DEFLATED SHARPE FOR PARAMETER SELECTION
+  Select params that maximize DSR, not raw Sharpe
+
+--------------------------------------------------------------------------------
+20. PRACTICAL THRESHOLDS (Additional)
+--------------------------------------------------------------------------------
+  | Metric                          | Threshold / Value               |
+  |---------------------------------|---------------------------------|
+  | Fisher transform entry          | > 2.0 or < -2.0                 |
+  | KAMA efficiency ratio (trend)   | > 0.3                           |
+  | KAMA efficiency ratio (chop)    | < 0.1                           |
+  | Volatility cone (low)           | < 20th percentile               |
+  | Volatility cone (high)          | > 80th percentile               |
+  | Variance ratio (MR)             | < 1.0                           |
+  | Variance ratio (momentum)       | > 1.0                           |
+  | ADF p-value (stationarity)      | < 0.05                          |
+  | Hurst H (trend)                 | > 0.5                           |
+  | Hurst H (MR)                    | < 0.5                           |
+  | Permutation entropy (trend)     | < 0.3                           |
+  | Permutation entropy (noise)     | > 0.7                           |
+  | SPRT accept H0                  | LR < beta/(1-alpha)             |
+  | SPRT accept H1                  | LR > (1-beta)/alpha             |
+  | Correlation breakdown           | |Delta_rho| > k*sigma_rho      |
+  | Maximum leverage (retail)       | 2-5x                            |
+  | Cost budget (% of alpha)        | < 30%                           |
+  | Turnover (swing)                | 5-50x annual                    |
+  | Turnover (scalp)                | 100-10000x annual               |
+  | RAROC hurdle                    | > 15%                           |
+  | Information ratio (good)        | > 0.5                           |
+  | Information ratio (great)       | > 1.0                           |
+================================================================================

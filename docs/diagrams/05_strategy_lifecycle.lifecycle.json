@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Strategy Incubation & Lifecycle Governance",
+    "output": "docs/diagrams/05_strategy_lifecycle.html",
+    "viewBox": [980, 680],
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "promotion-rail",
+        "label": "Promotion rail",
+        "focus": ["synthesized", "backtesting", "verifying", "incubating", "production"],
+        "note": "Follow candidate strategy from CreatorEngine synthesis, through CPCV gates, to live production."
+      },
+      {
+        "id": "overfitting-gate",
+        "label": "Overfitting rejection gate",
+        "focus": ["verifying", "pbo_failed", "discarded"],
+        "note": "See statistical deflation and PBO thresholds cleanly eliminate overfit candidates."
+      },
+      {
+        "id": "decay-and-retirement",
+        "label": "Decay monitoring and retirement",
+        "focus": ["production", "decaying", "retired"],
+        "note": "Track post-deployment alpha decay triggers and graceful retirement off the trading book."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "main", "label": "Strategy promotion phases" },
+    { "id": "waiting", "label": "Incubation & decay monitor" },
+    { "id": "recovery", "label": "Evolution & parameter sweep" },
+    { "id": "terminal", "label": "Terminal governance outcomes" }
+  ],
+  "states": [
+    { "id": "synthesized", "type": "start", "label": "Synthesized", "sublabel": "CreatorEngine LLM", "lane": "main", "col": 0, "step": "01", "tag": "candidate" },
+    { "id": "backtesting", "type": "active", "label": "Backtesting", "sublabel": "CPCV + DSR eval", "lane": "main", "col": 1, "step": "02", "tag": "sandboxed" },
+    { "id": "verifying", "type": "decision", "label": "PBO Gating", "sublabel": "PBO < 0.15 threshold", "lane": "main", "col": 2, "step": "03", "tag": "gate" },
+    { "id": "incubating", "type": "waiting", "label": "Incubating", "sublabel": "paper forward test", "lane": "main", "col": 3, "step": "04", "tag": "paper" },
+    { "id": "production", "type": "success", "label": "Production", "sublabel": "active allocation", "lane": "main", "col": 4, "step": "05", "tag": "live" },
+    { "id": "pbo_failed", "type": "waiting", "label": "Overfit Flag", "sublabel": "DSR penalty trip", "lane": "waiting", "col": 0, "tag": "rejected" },
+    { "id": "retuning", "type": "active", "label": "MadEvolve Sweep", "sublabel": "genetic mutation", "lane": "recovery", "col": 1, "tag": "evolution" },
+    { "id": "decaying", "type": "waiting", "label": "Alpha Decayed", "sublabel": "rolling Sharpe < 1.0", "lane": "waiting", "col": 2, "tag": "monitor" },
+    { "id": "discarded", "type": "failure", "label": "Discarded", "sublabel": "spurious curve fit", "lane": "terminal", "col": 0, "tag": "terminal" },
+    { "id": "failed_paper", "type": "failure", "label": "Incubation Fail", "sublabel": "live slippage > 20%", "lane": "terminal", "col": 1, "tag": "terminal" },
+    { "id": "retired", "type": "success", "label": "Retired", "sublabel": "archived to history", "lane": "terminal", "col": 2, "tag": "terminal" }
+  ],
+  "transitions": [
+    { "from": "verifying", "to": "pbo_failed", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "pbo_failed", "to": "discarded", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "incubating", "to": "retuning", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "retuning", "to": "failed_paper", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "production", "to": "decaying", "variant": "dashed", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "decaying", "to": "retired", "variant": "emphasis", "route": "straight", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Strict Promotion Gate",
+      "items": [
+        "Strategies advance through 5 distinct linear gates before production capital access",
+        "Combinatorial Purged Cross-Validation (CPCV) enforces temporal leakage prevention",
+        "Deflated Sharpe Ratio (DSR) penalizes multiple trial testing across strategy space"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Autonomous Quarantine",
+      "items": [
+        "Any strategy with Probability of Backtest Overfitting PBO >= 0.15 is rejected",
+        "Paper forward test validates execution slippage against simulated backtest fills",
+        "Failed forward incubation terminates allocation without risking live firm balance"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Alpha Decay Governance",
+      "items": [
+        "Continuous 30-day rolling Sharpe and CUSUM change-point detection monitors live alpha",
+        "Statistically decayed strategies are demoted into graceful capital reduction",
+        "Complete strategy lineage and genealogical metadata is archived to the research registry"
+      ]
+    }
+  ]
+}

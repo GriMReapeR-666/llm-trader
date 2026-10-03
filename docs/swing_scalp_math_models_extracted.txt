@@ -1,0 +1,240 @@
+================================================================================
+EXTRACTED MATHEMATICAL MODELS FOR SCALPING & SWING TRADING
+================================================================================
+Source: math models for swing and scalp.txt
+Extracted: formulas, parameters, thresholds, trading logic only
+================================================================================
+
+--------------------------------------------------------------------------------
+1. EXPECTED VALUE & POSITION SIZING (UNIVERSAL)
+--------------------------------------------------------------------------------
+
+EV per trade:
+  EV = p * (AvgWin - Costs) - (1-p) * (AvgLoss + Costs)
+
+Breakeven win rate given reward:risk R = Win/Loss:
+  p* = 1 / (1 + R)
+  R=1 -> 50% | R=2 -> 33.3% | R=0.5 -> 66.7% (scalping cost-dominated)
+
+Kelly Criterion:
+  Discrete: f* = (b*p - q) / b    where b = W/L, q = 1-p
+  Continuous: f* = mu / sigma^2
+  Practitioners use 1/4 to 1/2 Kelly
+
+Volatility drag / optimal leverage:
+  g = L*mu - (1/2)*L^2*sigma^2  ->  L* = mu / sigma^2 (Kelly again)
+
+Vol targeting:
+  w = (sigma_target / sigma_realized) * signal * max_leverage
+
+ATR fixed-risk sizing:
+  Units = (Equity * RiskPct) / (k * ATR), k in [1.5, 3]
+
+--------------------------------------------------------------------------------
+2. SCALPING MODELS (Microstructure & High-Frequency)
+--------------------------------------------------------------------------------
+
+2.1 AVELLANEDA-STOIKOV MARKET MAKING
+  Reservation price: r = s - q * gamma * sigma^2 * (T - t)
+  Optimal half-spread: delta = (1/2)*gamma*sigma^2*(T-t) + (1/gamma)*ln(1 + gamma/k)
+  Quote: Bid = r - delta, Ask = r + delta
+  Fill intensity: lambda(delta) = A * exp(-k * delta)
+
+2.2 KYLE'S LAMBDA
+  Delta_P = lambda * (Signed Order Flow)
+  High lambda = illiquid/thin book; scalpers fade high-lambda spikes
+
+2.3 ORDER FLOW IMBALANCE (OFI)
+  OFI = Delta(best bid size) - Delta(best ask size)
+  Delta_P approximately beta * OFI (Cont-Kukanov-Stoikov linear impact)
+
+2.4 HAWKES PROCESS
+  lambda(t) = mu + SUM_i alpha * exp(-beta * (t - t_i))
+  Branching ratio n = alpha / beta
+  n >= 0.85: cascade / contagion -> momentum breakout
+  n < 0.30: Poisson baseline -> market making mode
+
+2.5 ORNSTEIN-UHLENBECK (OU) - Mean Reversion Engine
+  dX = theta * (mu - X) dt + sigma * dW
+  Discrete AR(1): X_{t+1} = c + phi * X_t + epsilon
+  Calibration: theta = -ln(phi) / Delta_t
+  Half-life: t_1/2 = ln(2) / theta
+  Stationary variance: sigma^2 / (2*theta)
+  Trading: enter z = +/-2, exit z = 0, stop z = +/-3
+
+2.6 VPIN
+  VPIN = SUM |V_buy - V_sell| / (N * V)
+  Rising VPIN = adverse selection -> pull quotes / widen spreads
+
+2.7 ROLL MODEL FOR EFFECTIVE SPREAD
+  Delta_p_t = c * Delta_q_t + epsilon_t
+  Cov(Delta_p_t, Delta_p_{t-1}) = -c^2
+  Effective Spread: S = 2 * sqrt(-Cov(Delta_p_t, Delta_p_{t-1}))
+
+2.8 SCALPING ENTRY FILTERS (conjunction rule)
+  Spread < x bps | |OFI| > threshold | Vol regime allows | Fee tier is maker
+
+--------------------------------------------------------------------------------
+3. SWING TRADING MODELS (Hours to Weeks)
+--------------------------------------------------------------------------------
+
+3.1 TIME-SERIES MOMENTUM (TSMOM)
+  Position_t = sign(r_{t-252 -> t-21}) * (sigma_target / sigma_realized)
+
+3.2 CROSS-SECTIONAL MOMENTUM
+  Rank assets by trailing 12-1 month return, long top decile, short bottom
+
+3.3 MEAN REVERSION (OU applied)
+  Pairs: spread = ln(P1) - beta * ln(P2), trade z-score
+  Single: z = (RSI - 50)/sigma_RSI or (Price - Bollinger mid)/band width
+
+3.4 BREAKOUT SYSTEMS
+  Donchian 20/55 channel, Chandelier exit: highest high - 3 * ATR
+
+3.5 VOLATILITY MODELS
+  GARCH(1,1): sigma^2_t = omega + alpha*epsilon^2_{t-1} + beta*sigma^2_{t-1}
+  EWMA: sigma^2_t = lambda * sigma^2_{t-1} + (1-lambda) * epsilon^2_{t-1}, lambda=0.94
+  HAR-RV: RV_{t+1} = beta_d*RV_daily + beta_w*RV_weekly + beta_m*RV_monthly
+
+3.6 HURST EXPONENT
+  E[R/S] ~ c * n^H
+  H > 0.5: trending; H < 0.5: mean-reverting; H = 0.5: random walk
+
+3.7 DAMPED OSCILLATOR
+  m*x'' + c*x' + k*x = F(t)
+  zeta = c / (2*sqrt(m*k)); zeta < 1 -> oscillation (Ehlers' MESA)
+
+3.8 KELLY CRITERION (Swing Sizing)
+  Discrete: f* = (b*p - q) / b | Continuous: f* = mu / sigma^2
+
+3.9 ATR POSITION SIZING
+  Units = (Equity * RiskPct) / (k * ATR), k in [1.5, 3]
+
+--------------------------------------------------------------------------------
+4. PORTFOLIO & EXECUTION MATH
+--------------------------------------------------------------------------------
+
+4.1 ALMGREN-CHRISS OPTIMAL EXECUTION
+  Minimize: E[cost] + lambda * Var[cost]
+  Temporary impact: h(v) = eta * v | Permanent: g(v) = gamma * v
+  Optimal trajectory: x_j = sinh(kappa*(T-t_j)) / sinh(kappa*T) * X_0
+
+4.2 SQUARE-ROOT IMPACT LAW
+  Impact approximately Y * sigma_daily * sqrt(Q / V_daily), Y in [0.5, 1.0]
+
+4.3 COINTEGRATION & STAT-ARB
+  Engle-Granger / Johansen tests
+  Error correction: Delta_y_t = alpha*beta'*y_{t-1} + SUM Gamma_i*Delta_{t-i} + epsilon
+  Kalman filter for time-varying hedge ratio
+
+4.4 PORTFOLIO CONSTRUCTION
+  Markowitz: max w'*mu - (lambda/2)*w'Sigma*w
+  Risk parity: w_i * (Sigma*w)_i = constant -> w_i proportional 1/sigma_i
+  Black-Litterman: blend equilibrium returns with views
+
+--------------------------------------------------------------------------------
+5. REGIME DETECTION
+--------------------------------------------------------------------------------
+
+5.1 HIDDEN MARKOV MODEL (HMM)
+  States s_t in {Trend-up, Chop, Trend-down / Risk-off}
+  Emissions: p(x_t|s_t=i) = N(mu_i, Sigma_i)
+  Training: Baum-Welch (EM) | Decoding: Viterbi
+
+5.2 BAYESIAN ONLINE CHANGE-POINT DETECTION (BOCPD)
+  Posterior over "run length" r_t, fires when data no longer fits regime
+
+5.3 CUSUM
+  S_t = max(0, S_{t-1} + (x_t - mu_0) - k), alarm when S_t > h
+
+5.4 CRITICAL SLOWING DOWN
+  CSD_t = I{dVar/dt > 0 AND Autocorr_1 > rho_crit} = 1
+
+5.5 REGIME GATING LOGIC
+  Trend ON in trend states, MR ON in chop, carry ON in risk-on, de-risk in crisis
+  Scale by regime probability: size = P(trend)*trend_size + P(chop)*mr_size
+
+--------------------------------------------------------------------------------
+6. ALPHA DECAY
+--------------------------------------------------------------------------------
+
+6.1 IC DECAY CURVE
+  IC(h) = corr(signal_t, forward return over h)
+  IC(h) approximately IC_0 * exp(-lambda * h)
+  Signal half-life: t_1/2 = ln(2) / lambda
+
+6.2 EXECUTION DECAY (Latency Alpha)
+  Alpha at fill = alpha_0 * exp(-lambda * latency)
+
+6.3 CROWDING DECAY
+  McLean-Pontiff: post-publication anomaly returns drop 30-60%
+
+6.4 DECAY MANAGEMENT
+  1. Track live IC vs backtest IC weekly
+  2. Down-weight signals with live IC < 50% of backtest IC
+  3. Kill rule: live Sharpe below floor for N weeks -> retire
+  4. Decay-aware weights: w_i proportional IC_i * exp(-lambda_i * holding_period)
+
+--------------------------------------------------------------------------------
+7. PERFORMANCE METRICS
+--------------------------------------------------------------------------------
+
+  Sharpe = (R - rf) / sigma; annualized x sqrt(252) or x sqrt(24*365) crypto
+  Sortino: downside deviation | Calmar = CAGR / MaxDD
+  Profit factor = gross wins / gross losses | Expectancy in R
+  Max DD, DD duration, Ulcer index = sqrt(mean(DD^2))
+
+--------------------------------------------------------------------------------
+8. BACKTEST VALIDATION (Anti-Overfitting)
+--------------------------------------------------------------------------------
+
+  Walk-forward: optimize [t, t+N], test [t+N, t+M], roll forward
+  Purged K-fold CV + embargo (Author-C)
+  Deflated Sharpe Ratio (DSR): corrects for N trials
+  PBO (Probability of Backtest Overfitting) via CSCV
+  White's Reality Check / SPA test
+
+--------------------------------------------------------------------------------
+9. ASSET-CLASS SPECIFICS
+--------------------------------------------------------------------------------
+
+9.1 FOREX
+  Triangular parity: EURJPY = EURUSD * USDJPY
+  CIP: F = S * (1+r_dom)/(1+r_for)
+  Carry trade: borrow low-rate, buy high-rate (negative skew)
+  PPP: z = (ln S - ln PPP)/sigma; half-life ~3-5 years
+
+9.2 COMMODITIES
+  Cost of carry: F = S * exp((r + u - y) * T)
+  Schwartz 2-factor: d ln S = kappa(m - ln S)dt + sigma_1 dW_1
+                     dy = alpha(m_y - y)dt + sigma_2 dW_2
+  Crack spread: 2*RBOB + 2*ULSD - 3*WTI (3-2-1)
+
+9.3 CRYPTO
+  Perpetual funding: annualized = funding_rate * 3 * 365
+  AMM: x*y = k, IL(r) = 2*sqrt(r)/(1+r) - 1
+  Liquidation cascades: Hawkes n ~ 1 during cascades
+
+--------------------------------------------------------------------------------
+KEY THRESHOLDS SUMMARY
+--------------------------------------------------------------------------------
+  | Metric                  | Threshold / Value                    |
+  |-------------------------|--------------------------------------|
+  | Hawkes n (cascade)      | >= 0.85 -> momentum mode             |
+  | Hawkes n (baseline)     | < 0.30 -> market making mode         |
+  | OU z-score entry        | +/- 2.0                              |
+  | OU z-score stop         | +/- 3.5                              |
+  | Kelly fraction (trade)  | 1/4 to 1/2 of full Kelly             |
+  | ATR stop multiplier k   | 1.5 to 3.0                           |
+  | EWMA lambda             | 0.94                                 |
+  | Square-root impact Y    | 0.5 to 1.0                           |
+  | Capacity (ADV)          | <= 5-10% of daily volume             |
+  | DSR deployment floor    | >= 0.95                              |
+  | PBO rejection           | >= 0.10                              |
+  | Walk-forward Sharpe min | 1.8 (purged CV)                      |
+  | Live IC vs backtest     | retire if live IC < 50% of backtest  |
+  | Sortino (production)    | > 1.5 rolling 60d                    |
+  | Crypto taker fee        | 4-10 bps                             |
+  | FX scalp spread max     | < 0.5 pip for majors                 |
+  | Hurst H                 | > 0.5 trend, < 0.5 mean-revert       |
+================================================================================

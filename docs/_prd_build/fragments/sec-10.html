@@ -1,0 +1,65 @@
+<section id="sec-10">
+<h2 id="llm-router"><span class="num">10</span> 10. LLM Provider Fabric &amp; Router</h2>
+
+<h3 id="s10-1-providers">10.1 Providers and their common contract</h3>
+<p><span class="file">data/llm_router.py</span> implements five providers over one base class
+<code>BaseLLMProvider</code> (~58): <code>OpenRouterProvider</code> (~134), <code>TokenRouterProvider</code> (~176),
+<code>RoutesMeProvider</code> (~217), <code>CerebrasProvider</code> (~259), <code>NvidiaNIMProvider</code> (~300).
+Each exposes <code>generate(messages, model, **kwargs)</code> and inherits four behaviours:</p>
+<table>
+<thead><tr><th>Behaviour</th><th>Implementation</th><th>Why it is there</th></tr></thead>
+<tbody>
+<tr><td>Circuit breaker</td><td><code>is_circuit_open()</code> ~83, <code>_record_success()</code> ~86, <code>_record_failure()</code> ~89</td><td>A failing provider is removed from rotation instead of burning the cycle timeout</td></tr>
+<tr><td>Key rotation</td><td><code>_get_next_key()</code> ~95</td><td>Multiple keys per provider (<code>NVIDIA_KEY_1</code>, <code>NVIDIA_KEY_2</code>, …) rotate on failure</td></tr>
+<tr><td>Retry with backoff</td><td><code>_retry_with_backoff(request_fn, …)</code> ~105</td><td>Transient 5xx/rate-limits are retried inside the call budget</td></tr>
+<tr><td>Rate limiting</td><td><code>RateLimiter(rpm, max_wait_seconds)</code> ~26–38 with <code>wait_if_needed()</code></td><td>Per-provider RPM ceiling from <code>.env</code>; a full wait budget yields rather than blocking the pulse thread</td></tr>
+</tbody>
+</table>
+
+<h3 id="s10-2-routing">10.2 Agent routing and failover policy</h3>
+<p><code>LLMRouter</code> (~343) loads configuration from the environment (<code>_load_config_from_env</code> ~355), builds
+providers (<code>_init_providers</code> ~435) and agents (<code>_init_agents</code> ~457), and exposes
+<code>register_agent(name, provider, model, fallback_providers)</code> (~466), <code>get_available_providers()</code> (~476),
+<code>get_available_models()</code> (~479), <code>configure(...)</code> (~510), <code>generate(agent, messages, model)</code>
+(~539), <code>generate_with_tools(...)</code> (~633) and <code>get_status()</code> (~712).</p>
+<p>Three logical agents are configured in <code>.env.example</code>, each with its own provider, model and fallback
+list: <code>TRADER_LLM_*</code>, <code>ANALYST_LLM_*</code>, <code>RISK_LLM_*</code>. The decisive switch is
+<code>LLM_TRADER_ALLOW_PROVIDER_FAILOVER=false</code> by default, documented in the file itself: <em>"Default false: the
+selected provider is authoritative and its failure becomes a deterministic HOLD decision (fail-closed trade safety)."</em>
+Set it to <code>true</code> to use the per-agent <code>*_FALLBACK</code> lists instead.</p>
+
+<h3 id="s10-3-budget">10.3 Budgets, leases and token accounting</h3>
+<table>
+<thead><tr><th>Control</th><th>Where</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td>Per-provider ceilings</td><td><code>OPENROUTER_RPM / RPD / MAX_CONCURRENT / MAX_TOKENS_PER_HOUR / MAX_COST_PER_DAY</code> (and the same shape for TOKENROUTER, ROUTESME, CEREBRAS, NVIDIA)</td><td>Hard caps on request rate, daily requests, concurrency, hourly tokens and daily spend</td></tr>
+<tr><td>Call timeout</td><td><code>LLM_ROUTER_TIMEOUT=30</code>, <code>LLM_ROUTER_MAX_RATE_WAIT=15</code></td><td>A slow or saturated provider cannot freeze the market pulse thread</td></tr>
+<tr><td>Token estimation &amp; budget</td><td><code>estimate_tokens(text)</code> ~755, <code>enforce_token_budget(...)</code> ~760</td><td>Pre-call budget check; oversized prompts are trimmed rather than billed</td></tr>
+<tr><td>Per-cycle budget lease</td><td><span class="file">intelligence/llm_orchestrator.py</span> <code>_llm_provider_and_budget</code> ~883, <code>_normalize_llm_usage</code> ~902, <code>_llm_trace_outcome</code> ~933, <code>finish_llm</code> / <code>fail_task</code> ~6644</td><td>Budget is <span class="badge b-amber">RESERVED</span> before the call and settled on completion or failure, so an interrupted call (including <code>KeyboardInterrupt</code> mid-LLM) cannot strand reserved budget until lease expiry</td></tr>
+</tbody>
+</table>
+
+<h3 id="s10-4-failure">10.4 What total provider failure looks like</h3>
+<div class="flow">
+<span class="node"><b>all providers fail</b></span><span class="arrow">→</span>
+<span class="node adv"><b>deterministic_hold_fallback</b>returns a HOLD decision</span><span class="arrow">→</span>
+<span class="node state"><b>trace recorded</b>provider + error + usage</span><span class="arrow">→</span>
+<span class="node gate"><b>cycle HOLDs</b>no proposal is created</span><span class="arrow">→</span>
+<span class="node"><b>maintenance continues</b>reconciliation, management, schedules</span>
+</div>
+<p>A safety HOLD is explicitly <em>not</em> recorded as a successful provider outcome
+(<span class="file">intelligence/llm_orchestrator.py</span> ~6857): the failure is written to the durable trace so
+repeated failures are visible, while the cycle simply does not trade.</p>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">data/llm_router.py</span> 26–760</td><td>Rate limiter, provider circuit breakers, key rotation, retry, agent routing, status, token budget</td></tr>
+<tr><td><span class="file">.env.example</span> 5–86</td><td>Per-provider budgets, per-agent routing, the fail-closed failover switch, timeouts</td></tr>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span> 883–960, 6840–6870</td><td>Budget lease selection, usage normalisation, trace outcome, safety-HOLD semantics</td></tr>
+</tbody>
+</table>
+</div>
+</section>

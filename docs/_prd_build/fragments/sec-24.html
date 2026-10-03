@@ -1,0 +1,96 @@
+<section id="sec-24">
+<h2 id="traces"><span class="num">24</span> 24. Worked Scenarios: End-to-End Traces</h2>
+
+<p>Five traces from "nothing happened" to "the account was protected", each anchored to the code that produces it.</p>
+
+<h3 id="s24-1-approved">24.1 Trace A — a complete paper trade, candle to journal</h3>
+<div class="formula">t0  pulse N:  autonomy OK · maintenance prefix runs · schedules none due
+     _new_completed_candle() → true                <span class="c"># trigger gate passed</span>
+     claim lease cycle_key = "scalp:EURUSD:&lt;bar&gt;"
+     pre_pulse_macro_ingest() ran once              <span class="c"># hoisted before the strategy pool</span>
+     fetch_data() → ohlc, indicators, tick          <span class="c"># DATA_COLLECT fetching → fetched</span>
+     DataQualityGate.validate(require_live_quote=False) → passed
+     NewsTradingGate.evaluate(...) → allowed
+     feature snapshot + SMC + regime + causal advisory + alpha enrichment
+     get_decision(toon) → {"action":"BUY","confidence":0.82,"entry":…,"stop_loss":…}
+     DeterministicValidator.validate(...) → approved
+         R:R 2.4 ≥ setup_min_rr · confluence 5 ≥ 3 · tick fresh · spread ok
+     risk.calc_position_size(...) → 0.12 lots      <span class="c"># dd × streak × kelly × SPMC × heat</span>
+     arbiter.permit(...) → (True, "")              <span class="c"># open risk, correlated bucket, USD net</span>
+     apply_portfolio_allocation_cap(...) → 0.10     <span class="c"># cap may only reduce</span>
+     _build_execution_plan(...) + margin safety → ok
+     PaperBroker.market_order(..., magic=460002) → retcode 10009, ticket T
+     journal: proposals(approved) · setup_instances → ACCEPTED · broker_execution_reports
+t1  position tick: _initial_risk_for(T) cached; breakeven at +1R; trailing thereafter
+t2  scale-out: 50% at +2R (and &gt; 2×ATR), half of remainder at +3R
+t3  close → trades row · label_closed_trade · reflection graph (slow lane) · causal feedback</div>
+
+<h3 id="s24-2-rejected">24.2 Trace B — a plausible trade that must die at the validator</h3>
+<div class="formula">LLM:  {"action":"SELL","confidence":0.71,"entry":1.0842,"stop_loss":1.0860}
+validator:
+   tick_age = 9,300 ms &gt; max_tick_age_ms 5,000     → "stale tick"
+   spread 4.2 pips &gt; max_spread                    → "spread too wide"
+   confluence 2 &lt; min_confluence 3                 → "insufficient deterministic confluence"
+   walk_forward_wfe = {"n_folds":5,"wfe":0.31}       → WFE below floor
+result: ValidationResult(approved=False, reasons=[...], rule_trace={...})
+orchestrator: decision["action"] = "HOLD"
+            : "Deterministic gate rejected proposal: …"
+journal:    proposals row (approved=0, reasons=…) · setup_instances → REJECTED
+sizing:      never runs — the order is dead before money is discussed</div>
+<div class="callout">
+<strong>Why this is the important trace.</strong> The model was confident and coherent. The system still refused, and the
+refusal is reconstructible from the rule trace months later.
+</div>
+
+<h3 id="s24-3-holiday">24.3 Trace C — a market holiday</h3>
+<div class="formula">pulse: api_manager.is_holiday() → True
+       → "⛔ MARKET HOLIDAY DETECTED. Trading halted; maintenance remains active."
+       → orch.pulse_maintenance(maint_symbol, …)   <span class="c"># reconciliation, health, kill-switch</span>
+       → skip_analysis = True                      <span class="c"># no symbol is invented</span>
+       → cycle_count still increments; the %10 research tick still runs
+inside execute_cycle (if reached): holiday guard → "Market Holiday" HOLD
+       and the completed-candle lease is RELEASED, not consumed</div>
+
+<h3 id="s24-4-outage">24.4 Trace D — provider outage and MT5 disconnect</h3>
+<table>
+<thead><tr><th>Failure</th><th>System response</th><th>What the operator sees</th></tr></thead>
+<tbody>
+<tr><td>All LLM providers fail</td><td><code>deterministic_hold_fallback</code>; provider error recorded; no budget stuck in RESERVED</td><td>HOLD rows with provider errors; <code>/api/llm-providers</code> shows the outage</td></tr>
+<tr><td>Provider slow / saturated</td><td><code>LLM_ROUTER_TIMEOUT</code> (30&nbsp;s) and <code>LLM_ROUTER_MAX_RATE_WAIT</code> (15&nbsp;s) cap the call; the pulse thread is never blocked indefinitely</td><td>Cycle duration rises; the cycle still completes</td></tr>
+<tr><td>MT5 session drops</td><td><code>client.reconnect_if_needed()</code> each pulse; reconciliation compares broker truth to the journal</td><td>Reconnect log; position rows reconciled on recovery</td></tr>
+<tr><td>Stale/zero data</td><td>Data-quality HOLD (§08) — no synthetic fallback exists by design</td><td>HOLD reason enumerates the failed check</td></tr>
+<tr><td>SQLite contention (two strategies)</td><td>WAL mode + <code>order:&lt;symbol&gt;</code> distributed lock; ingest hoisted once per pulse</td><td>Possible <code>lock_timeout</code> result instead of a double order</td></tr>
+<tr><td>Operator Ctrl-C</td><td><code>KeyboardInterrupt</code> is re-raised out of the strategy worker; shutdown hooks write a snapshot</td><td>Clean shutdown with a crash-recovery marker</td></tr>
+</tbody>
+</table>
+
+<h3 id="s24-5-drawdown">24.5 Trace E — drawdown circuit and protective flatten</h3>
+<div class="formula">pulse: evaluate_circuits(risk_snapshot)
+   daily_loss ≥ threshold   → PAUSE_NEW_CYCLES → paused=True
+   drawdown ≥ threshold     → HALT             → halted=True, halt_reason="circuit:…"
+   mild degradation         → DEMOTE           → L2_MICRO → L1_PAPER
+next maintenance prefix:
+   risk.check_daily_drawdown() → pending_flatten_reason()
+   TradeManager.enforce_protective_flatten():
+       for each OWNED position → _authorize_management_action("FULL_CLOSE", …)
+       → _close_position(..., comment="ProtectFlatten:&lt;reason&gt;")
+   clear the request only when nothing owned remains
+journal: CIRCUIT_TRIP · lifecycle FULL_CLOSE · trades row with exit_reason</div>
+<div class="callout good">
+<strong>The property that matters.</strong> The daily-loss limit does not merely block new entries — it flattens open
+risk, and each close is itself authority-checked. Unowned positions are observed, never touched.
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">mt5_trader.py</span> 4222–4279, 4446–4464</td><td>Holiday maintenance, ingest hoist, strategy pool</td></tr>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span> 7134–7360</td><td>Validate → size → arbitrate → cap → plan → margin</td></tr>
+<tr><td><span class="file">core/trade_manager.py</span> 217–267</td><td>Protective flatten with per-action authorization</td></tr>
+<tr><td><span class="file">operations/autonomy.py</span> 202–228</td><td>Circuit evaluation and its four actions</td></tr>
+</tbody>
+</table>
+</div>
+</section>

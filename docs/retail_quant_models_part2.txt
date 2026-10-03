@@ -1,0 +1,168 @@
+================================================================================
+RETAIL QUANTITATIVE TRADING — PART 2: RISK, INFRASTRUCTURE, FAILURE MODES
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 6: RETAIL RISK MANAGEMENT & CIRCUIT BREAKERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6.1 THE UNIVERSAL 1R UNIT
+  1R = Account_Equity * Risk_%
+  Target: 0.5% - 1.0% of account equity per trade
+  Position Size = 1R / |Entry_Price - Stop_Loss_Price|
+
+6.2 PORTFOLIO HEAT & CORRELATION
+  Heat = SUM Risk_i (all active positions)
+  Max Heat <= 3.0R - 4.0R
+  Correlation gate: no more than 3 positions with r > 0.60
+
+6.3 STEP-DOWN CIRCUIT BREAKERS
+  Intraday Level (-3R): Freeze new orders for 24 hours
+  Weekly Level (-6R): Halve all position sizing until +2R recovered
+  Portfolio Level (-15% peak-to-trough): Liquidate all to cash, full post-mortem
+  Rolling Drawdown (-10% equity): Scale all sizing down by 50%
+
+6.4 TIME-BASED STOPS
+  If trade fails to show momentum within X bars: exit at -0.2R
+  OU half-life time stop: close if duration > 2 * lambda
+
+6.5 ASYMMETRIC EXIT ARCHITECTURE
+  Scale-out: 50% at +2.0R (lock in positive expectancy)
+  Trailing runner: behind structural swing points or 20-period MA
+  Result: R_loss < 1.0, R_win > 2.5
+
+6.6 FRACTIONAL KELLY WITH BREAKERS
+  Base: Quarter-Kelly (0.25K*) captures 75% of max growth, cuts drawdown by 80%
+  Step-down: -5% DD → reduce risk by 25%; -10% DD → reduce risk by 50%
+
+6.7 CORRELATION BREAKDOWN DETECTION
+  Rolling correlation rho(t) over window w
+  If |rho(t) - rho(t-1)| > k * sigma_rho: flag breakdown
+  Reduce position sizes when correlations unstable
+
+6.8 BAYESIAN WIN RATE UPDATE
+  Prior: p ~ Beta(alpha, beta)
+  After win: alpha += 1; After loss: beta += 1
+  Posterior mean: alpha / (alpha + beta)
+  Shrink position when credible interval includes breakeven
+
+6.9 SEQUENTIAL PROBABILITY RATIO TEST (SPRT)
+  H0: strategy has edge (p = p0); H1: no edge (p = p1)
+  LR = prod [p1^x_i * (1-p1)^{1-x_i}] / [p0^x_i * (1-p0)^{1-x_i}]
+  If LR > (1-beta)/alpha: accept H1 (kill strategy)
+  If LR < beta/(1-alpha): accept H0 (continue)
+
+6.10 SYNTHETIC STOPS (Client-Side Execution)
+  Keep stop-loss orders in memory inside local execution daemon
+  When live bid/ask breaches invalidation price: fire instant IOC market order
+  Hides liquidity footprint from broker dealer plugins and predatory sweeps
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 7: RETAIL INFRASTRUCTURE & FREE DATA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+7.1 FREE DATA ECOSYSTEM
+  Data Source                  | Provider                    | Frequency
+  Public Order Book & Ticks    | Binance, Bybit, Coinbase    | Tick, 100ms L2
+  Historical Price & Volume    | yfinance, Stooq, Alpha Vant | 1min-Daily
+  Macro & Rates                | FRED API, ECB, Treasury.gov | Daily-Monthly
+  Regulatory & Smart Money     | CFTC COT, SEC EDGAR, FINRA  | Weekly-Quarterly
+  Corporate Fundamentals       | SEC EDGAR, Fin Modeling Prep | Quarterly
+  Alternative & Sentiment      | Wikipedia, Google Trends     | Hourly-Daily
+
+7.2 RETAIL QUANT STACK (Free Open-Source)
+  Data Ingestion: yfinance, Stooq, fredapi, sec-edgar-downloader, CCXT
+  Math & Features: NumPy, Pandas, statsmodels, ta-lib, transformers (FinBERT)
+  Validation: VectorBT Pro, NautilusTrader, Scikit-learn, SciPy
+  Production: Alpaca API, IBKR API, CCXT Async, Docker, SQLite/DuckDB
+
+7.3 RETAIL BROKER APIs
+  Alpaca Markets: Commission-free equity, REST + WebSocket
+  Interactive Brokers: FIX API, native API, global access
+  CCXT: Unified crypto exchange API (100+ exchanges)
+  MT5 Python: Forex/CFD via MetaTrader5 package
+
+7.4 CLOUD/HOSTING (Retail)
+  AWS Free Tier: t2.micro instance (1 year free)
+  VPS: DigitalOcean, Hetzner, Vultr ($5-20/month)
+  Serverless: AWS Lambda for scheduled tasks
+  Database: SQLite (local), DuckDB (columnar), InfluxDB (time-series)
+
+7.5 DATA FREQUENCY CAPABILITIES
+  MFT (Minutes-Hours): OFI, micro-price, sentiment spikes, news drift
+  LFT (Days-Months): Macro regimes, COT positioning, fundamental scoring
+  HFT (Sub-second): NOT viable for retail (infrastructure cost)
+
+7.6 RETAIL ARCHITECTURE (6 Layers)
+  Layer 1: Data Ingestion (MT5/Broker API, tick/bar OHLCV)
+  Layer 2: Regime Detection (Hurst, ATR percentile, ADX)
+  Layer 3: Alpha Routing (Trend engine OR Mean-reversion engine)
+  Layer 4: Sizing & Risk (Vol parity, Quarter-Kelly, Heat cap)
+  Layer 5: Execution (Passive limit at micro-price, state machine)
+  Layer 6: Telemetry (Rolling EV, SQN, CUSUM, kill switches)
+
+7.7 RETAIL TRANSACTION COST ENGINE (Formulas)
+  Dynamic Spread:
+    S_t = S_base * (1 + kappa_vol*(ATR_t/ATR_base - 1) + kappa_liq*(Vol_base/Vol_t - 1)) * M_session
+
+  Almgren-Chriss Impact:
+    Permanent: I_perm = gamma * sigma_daily * P_0 * (Q / V_ADV)
+    Temporary: I_temp = eta * sigma_daily * P_0 * (v / V_ADV)^alpha
+
+  Explicit Costs:
+    Commission = max(min_comm, shares * comm_per_share)
+    SEC Fee = notional * 0.0000278 (sell side only)
+    FINRA TAF = min(shares * 0.000166, 8.30) (sell side only)
+
+  Implementation Shortfall:
+    IS = Side * (P_exec - P_0) * Q + Explicit_Costs
+    IS_bps = (IS / Benchmark_Notional) * 10000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 8: RETAIL FAILURE MODES & UPGRADES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+8.1 CRITICAL FAILURE VULNERABILITIES
+  1. Regime Lag: Rolling Hurst/ADX take 14-50 bars to reflect sudden changes
+  2. Adverse Selection: Passive limits fill only on toxic flow; miss alpha
+  3. Correlation Collapse: Pearson r spikes to 1.0 in crises (tail dependence)
+  4. Broker Asymmetry: B-book slippage, last-look, stop-hunting
+  5. Visible Stops: Pivot stops get hunted by institutional sweeps
+  6. ML Overfitting: Meta-labels decay without online retraining
+
+8.2 UPGRADE 1: Bayesian Online Changepoint Detection (BOCPD)
+  Replace lagging Hurst/ADX with real-time run-length probability
+  Soft weighting: w_trend = P(regime = trend), w_range = P(regime = range)
+  Suppresses whipsaw losses during transitional chop
+
+8.3 UPGRADE 2: Urgency-Based Smart Order Routing
+  High Urgency: Aggressive IOC/Market order (cost of missing < cost of spread)
+  Low Urgency: Passive limit + Quote Fading (cancel if OFI shifts against)
+  Eliminates adverse selection paradox
+
+8.4 UPGRADE 3: Copula Tail-Risk Budgeting
+  Replace Pearson correlation with Gumbel/Clayton Copulas
+  Model lower-tail joint dependency (simultaneous crash probability)
+  Dynamic capital scaling when tail-risk exceeds budget
+
+8.5 UPGRADE 4: Synthetic Stops & DMA
+  Keep stops in local memory, fire IOC when breached
+  Hides liquidity footprint from broker dealer plugins
+  Migrate to DMA brokers (IBKR FIX, Rithmic, CQG)
+
+8.6 UPGRADE 5: Online Adaptive Learning
+  Exponential decay factors on model parameters
+  Real-time CUSUM drift detection
+  Auto-recalibration when drift detected
+
+8.7 RETAIL vs INSTITUTIONAL COMPARISON
+  Component          | Naive Retail      | Robust Specialist
+  Strategy Logic     | Indicator crossovers | ADF/Johansen cointegration
+  Stop Management    | Fixed % stops     | OU half-life time stops
+  Position Sizing    | Fixed lot size    | Vol targeting + Quarter-Kelly
+  Portfolio Sizing   | Equal dollar      | HRP or Inverse Vol parity
+  Validation         | In-sample backtest| CPCV + DSR
+  Rebalancing        | Continuous        | Buffered (+/- 10% threshold)
+  Execution          | Market orders     | Passive limit at micro-price
+
+================================================================================

@@ -1,0 +1,81 @@
+﻿<section id="sec-08">
+<h2 id="data-quality"><span class="num">08</span> 08. Data Quality, Completeness &amp; Feature Building</h2>
+
+<p>If Â§07 is the supply chain, this section is the customs border. Nothing reaches analysis, indicators or the LLM until
+it has passed here, and a rejection is a HOLD with reasons â€” never a best-effort continuation.</p>
+
+<h3 id="s8-1-gate">08.1 The data-quality gate</h3>
+<p><code>DataQualityGate</code> (<span class="file">data/data_quality.py</span> ~18) returns
+<code>DataQualityResult(passed, reasons)</code> from <code>validate(snapshot, require_live_quote=â€¦)</code> (~51).
+Constructor defaults include <code>max_return_zscore=5.0</code> and <code>max_snapshot_age_seconds=5.0</code> (~19).</p>
+<table>
+<thead><tr><th>Class of check</th><th>Representative reasons (verbatim)</th></tr></thead>
+<tbody>
+<tr><td>Snapshot shape</td><td><code>market snapshot context is malformed</code></td></tr>
+<tr><td>Live-data authenticity</td><td><code>live market-data source is not authenticated MT5</code>; <code>â€¦ provider identity is invalid</code>; <code>â€¦ server identity is missing</code>; <code>â€¦ account identity hash is invalid</code>; <code>â€¦ identity contains sensitive fields</code></td></tr>
+<tr><td>Capture time &amp; clock</td><td><code>market snapshot capture time missing</code>; <code>market snapshot clock drift or stale capture</code>; <code>broker tick is stale or local/broker clock skew exceeds threshold</code></td></tr>
+<tr><td>Provider-vs-local time</td><td><code>provider-time observation is missing</code>; <code>provider/local snapshot time differs beyond threshold</code></td></tr>
+<tr><td>OHLC integrity</td><td><code>OHLC container is malformed</code>; <code>insufficient OHLC history for data-quality checks</code>; <code>invalid OHLC consistency at bar N</code>; <code>non-positive close at bar N</code></td></tr>
+<tr><td>Point-in-time discipline</td><td><code>candle revision detected at &lt;time&gt;</code>; <code>candle timestamp is later than snapshot capture; future-data risk</code>; <code>duplicate or out-of-order candle timestamp</code>; <code>abnormal candle timestamp gap</code></td></tr>
+<tr><td>Outlier returns</td><td><code>latest return is a data outlier; require event/manual review</code></td></tr>
+<tr><td>Depth of market</td><td><code>DOM container is malformed</code>; <code>DOM is stale or clock-drifted</code>; <code>DOM unavailable or empty for DOM-required setup</code></td></tr>
+<tr><td>Quote sanity</td><td><code>invalid or absent live bid/ask</code>; <code>invalid live spread</code></td></tr>
+</tbody>
+</table>
+<div class="callout">
+<strong>Look-ahead prevention is enforced, not assumed.</strong> A candle whose timestamp is <em>after</em> the snapshot
+capture, a revised candle, or a duplicate/out-of-order bar all cause rejection. That is what makes the feature snapshot
+in Â§08.3 point-in-time honest â€” and why <code>feature_schema.validate_snapshot(require_ready=True)</code> exists.
+</div>
+
+<h3 id="s8-2-requirements">08.2 Per-setup data requirements</h3>
+<p><code>SetupDataRequirements.evaluate(setup_id, snapshot, calendar_available=â€¦)</code>
+(<span class="file">data/data_requirements.py</span> ~24) applies setup-specific completeness on top of the global gate:
+DOM payloads for DOM-required setups (<code>DOM payload is malformed</code>, <code>DOM unavailable</code>,
+<code>DOM capture timestamp missing</code>) and macro data for macro-required setups
+(<code>cross-market/macro data unavailable for macro-required setup</code>). A setup that declares a requirement it
+cannot satisfy is not downgraded â€” it is not eligible.</p>
+
+<h3 id="s8-3-features">08.3 The feature snapshot: versioned, hashed, point-in-time</h3>
+<table>
+<thead><tr><th>Element</th><th>Value</th><th>Anchor</th></tr></thead>
+<tbody>
+<tr><td>Schema version</td><td><code>FEATURE_SCHEMA_VERSION = "feature_snapshot_v1"</code></td><td><span class="file">intelligence/feature_schema.py</span> 11</td></tr>
+<tr><td>Required feature names</td><td><code>REQUIRED_VALUES</code> tuple; missing names make the snapshot not-ready</td><td>~14</td></tr>
+<tr><td>Schema hash</td><td><code>schema_hash(version, values)</code> + <code>SCHEMA_HASHES</code> registry</td><td>~24â€“29</td></tr>
+<tr><td>Values hash</td><td><code>values_hash(values)</code> â€” binds a payload to its feature set</td><td>~32</td></tr>
+<tr><td>Validation</td><td><code>validate_snapshot(snapshot, require_ready=True)</code> â€” finiteness, timestamps, readiness</td><td>~57</td></tr>
+<tr><td>Construction</td><td><code>build_snapshot(ohlc, indicators, â€¦)</code> with <code>FEATURE_SPEC_VERSION</code> alias</td><td><span class="file">intelligence/feature_builder.py</span> 14, 37</td></tr>
+</tbody>
+</table>
+<p>The snapshot is built from <em>completed</em> bars and carries <code>completed_bar_time</code>. It is consumed by the
+validator, the sizing model, the drift detector and the ML features, which is why the schema hash travels with the data:
+a model trained under one feature schema cannot silently be fed another.</p>
+<p>Numeric features come from <span class="file">core/technical_indicators.py</span> (EMA, RSI, MACD, ATR, ADX) with
+econometric and structure extensions in <span class="file">core/econometric_features.py</span>,
+<span class="file">core/fractional_diff.py</span>, <span class="file">core/session_spread.py</span> and
+<span class="file">core/market_structure_edges.py</span>.</p>
+
+<h3 id="s8-4-mark-quality">08.4 Mark quality and staleness vocabulary</h3>
+<p>Position observations and market ticks carry an explicit quality label (<code>mark_quality</code>, default
+<code>UNKNOWN</code>, added by migration in <span class="file">core/trading_safety.py</span> ~277â€“283, with indexes
+<code>idx_position_observations_quality</code> and <code>idx_market_ticks_quality</code>). Any management or sizing
+decision that depends on a mark reads its quality first; an <code>UNKNOWN</code> mark is not treated as fresh.
+Excursion analysis (<code>excursions(ticket, max_mark_gap_seconds=900)</code> ~632) declares itself
+<code>complete</code> only when gaps between valid marks stay within that bound â€” so MFE/MAE evidence cannot be
+manufactured from sparse sampling.</p>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">data/data_quality.py</span> 13â€“260</td><td>Gate defaults and the complete reason-string vocabulary</td></tr>
+<tr><td><span class="file">data/data_requirements.py</span> 9â€“60</td><td>Per-setup DOM/macro completeness enforcement</td></tr>
+<tr><td><span class="file">intelligence/feature_schema.py</span> 11â€“80</td><td>Schema version, required values, hashes, snapshot validation</td></tr>
+<tr><td><span class="file">intelligence/feature_builder.py</span> 37+</td><td>Point-in-time snapshot construction</td></tr>
+<tr><td><span class="file">core/trading_safety.py</span> 269â€“293, 632â€“650</td><td>Column migrations, quality indexes, excursion completeness</td></tr>
+</tbody>
+</table>
+</div>
+</section>

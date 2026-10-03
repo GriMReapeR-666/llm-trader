@@ -1,0 +1,114 @@
+<section id="sec-04">
+<h2 id="lifecycle"><span class="num">04</span> 04. End-to-End Trading Lifecycle (Start → Finish)</h2>
+
+<p>Everything in the system converges into one loop. The outer loop lives in <span class="file">mt5_trader.py</span>
+<code>main()</code> (~4218+); the inner cycle lives in <span class="file">intelligence/llm_orchestrator.py</span>
+<code>execute_cycle</code> (~5720). Understanding these two functions is understanding the product.</p>
+
+<h3 id="s4-1-outer">04.1 The outer pulse loop (one iteration = one "pulse")</h3>
+<ol>
+<li><strong>Holiday check</strong> — <code>orch.data_provider.api_manager.is_holiday()</code>. On a holiday the loop
+<em>does not exit</em>: it calls <code>orch.pulse_maintenance(...)</code> with a best-effort symbol so reconciliation,
+health, memory and kill-switch schedules keep running, while analysis is skipped (~4222–4279).</li>
+<li><strong>Autonomous research tick</strong> — every 10th cycle (<code>cycle_count % 10 == 0</code>) runs
+<code>operations.autonomous_pipeline.run_pipeline(...)</code> with the lifecycle path, the alert outbox and the task
+queue. It reports discovered / registered / skipped / flagged counts and sits <em>before</em> the holiday gate so
+research progresses 24/7 (~4238–4262).</li>
+<li><strong>Symbol selection</strong> — in AUTO mode <code>MarketScanner.scan(timeframe, limit_to_watchlist)</code>
+ranks opportunities; results are cached to <code>scanner_state.json</code> for the API/deck (~4280–4300).</li>
+<li><strong>Pre-pulse ingest hoisted once</strong> — <code>orch.pre_pulse_macro_ingest(current_symbol, paper_mode)</code>
+runs <em>before</em> the strategy thread pool so calendar/news/FRED ingestion cannot double-ingest and contend on
+SQLite when two strategies run in parallel (~4446–4451).</li>
+<li><strong>Strategy fan-out</strong> — <code>resolve_strategy_cycles(timeframe, strategies)</code> yields
+<code>(strategy, timeframe)</code> pairs (swing / scalp / both). With more than one pair they run in a
+<code>ThreadPoolExecutor</code> with one worker per strategy; with one pair they run inline (~4453–4464).</li>
+<li><strong>Per-strategy isolation</strong> — each worker calls <code>orch.execute_cycle(...)</code> inside
+<code>try/except</code>; a cycle error is logged and the loop continues on the next pulse. <code>KeyboardInterrupt</code>
+is re-raised so an operator can always stop the process (~4410–4444).</li>
+<li><strong>Reconnect</strong> — <code>client.reconnect_if_needed()</code> keeps a dead MT5 session from poisoning the
+next pulse (~4371).</li>
+<li><strong>Pipeline selection</strong> — <code>PIPELINE_V2</code> defaults to on; when enabled the loop calls
+<code>orch.execute_cycle_v2</code> (installed by <code>core/harness/pipeline_v2.install_orchestrator_entrypoint()</code>),
+otherwise the legacy <code>execute_cycle</code> (~4378–4415). <code>--no-pipeline-v2</code> or
+<code>PIPELINE_V2=0</code> forces legacy.</li>
+<li><strong>Circuit evaluation</strong> — <code>_cb_autonomy().evaluate_circuits(_risk_snapshot)</code> re-evaluates
+halt / pause / demote conditions from the live risk snapshot each pulse (~4647).</li>
+<li><strong>Cadence</strong> — the loop waits <code>--poll-interval</code> seconds (default 5) between pulses and
+refreshes dashboard footer/log state.</li>
+</ol>
+
+<div class="callout">
+<strong>Cadence doctrine.</strong> The pulse is <em>not</em> the decision rate. Most pulses end in the maintenance
+prefix plus an early HOLD because no new completed candle exists for that strategy
+(<code>_completed_candle_candidate</code> ~2956). Decision rate is driven by candle closes and events; pulse rate
+drives reconciliation, protective management and telemetry.
+</div>
+
+<h3 id="s4-2-inner">04.2 Inside <code>execute_cycle</code>: the ordered stage chain</h3>
+<table>
+<thead><tr><th class="num">#</th><th>Stage</th><th>Code</th><th>Result on failure</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td>Supervisor heartbeat + Ψ guardian progress + drain operator control queue</td><td>~5736–5748</td><td>Logged; loop continues</td></tr>
+<tr><td class="num">2</td><td>Autonomy gate: <code>autonomy.trading_allowed()</code></td><td>~5749–5752</td><td><code>CYCLE_SKIPPED_AUTONOMY</code> → HOLD</td></tr>
+<tr><td class="num">3</td><td>Metrics export (<code>write_metrics()</code>) + <code>CYCLE_STARTED</code> event</td><td>~5754–5763</td><td>Debug log</td></tr>
+<tr><td class="num">4</td><td><strong>Maintenance prefix</strong> <code>_run_maintenance_prefix</code> — velocity poll, reconcile pending, reconcile open (live only), memory dispatch to the slow lane, protective position tick, worker heartbeat</td><td>~5674–5718</td><td>Each sub-step guarded</td></tr>
+<tr><td class="num">5</td><td>Working-memory context refresh (read-only, 20 items / 6000 chars) persisted under <code>working_memory:&lt;strategy&gt;:&lt;symbol&gt;</code></td><td>~5778–5788</td><td><code>working_memory_pulse_failed</code> warning</td></tr>
+<tr><td class="num">6</td><td>Bounded schedule runner: <code>_run_schedules_bounded</code> → claimed due schedules</td><td>~5792, ~4938</td><td>Logged</td></tr>
+<tr><td class="num">7</td><td><strong>Trigger gate</strong>: completed-candle lease for this strategy</td><td>~5795–5797</td><td>HOLD "No new completed candle"</td></tr>
+<tr><td class="num">8</td><td>Duplicate-trigger suppression via the cycle key</td><td>~5799–5801</td><td>HOLD "Duplicate analysis trigger"</td></tr>
+<tr><td class="num">9</td><td>Holiday guard inside the orchestrator (lease released, not consumed)</td><td>~5822</td><td>HOLD "Market Holiday"</td></tr>
+<tr><td class="num">10</td><td><code>fetch_data</code> — OHLC, indicators, ticks; journals <code>DATA_COLLECT</code> fetching / fetched / error</td><td>~5830–5839</td><td><code>fail_task</code> + raise (isolated by the loop)</td></tr>
+<tr><td class="num">11</td><td>Data-quality gate (<code>DataQualityGate.validate</code>; live quote required when not paper)</td><td>~5841–5865</td><td><span class="badge b-red">HOLD</span> with reasons journaled</td></tr>
+<tr><td class="num">12</td><td>News trading gate + regime-correlation blackout windows</td><td>~5867–5905</td><td>HOLD with news phase / reason</td></tr>
+<tr><td class="num">13</td><td>Feature snapshot, indicators, SMC structure (CHOCH, order blocks, liquidity pools, premium/discount), regime classification, opportunity-bus publication</td><td>~6030–6105</td><td>Optional blocks individually guarded</td></tr>
+<tr><td class="num">14</td><td>Advanced auto-tools, alpha-mining enrichment, causal advisory, intermarket proxy capture, quant-survival audit</td><td>~3184–4499</td><td>Guarded; enriches the payload only</td></tr>
+<tr><td class="num">15</td><td><strong>LLM decision</strong> <code>get_decision(toon)</code> through the provider router under a budget lease</td><td>~6840, ~1147</td><td>Safety HOLD; provider failure recorded</td></tr>
+<tr><td class="num">16</td><td>Execution shield / decision gate (portfolio state, <code>risk_approved</code>)</td><td>~6787–6860</td><td>HOLD with shield reason</td></tr>
+<tr><td class="num">17</td><td>Decision journaling: <code>LLM_DECISION</code> bus event, proposal artifact, task completion</td><td>~6925–6981</td><td>—</td></tr>
+<tr><td class="num">18</td><td>If action is BUY/SELL: <code>_validate_proposal</code> → deterministic validator</td><td>~7134, ~1960</td><td>HOLD "Deterministic gate rejected proposal"</td></tr>
+<tr><td class="num">19</td><td>Risk pre-checks: cooldown, rate limit, active-trade limit, consecutive-loss breaker</td><td>~7179–7210</td><td>HOLD with the specific reason</td></tr>
+<tr><td class="num">20</td><td><strong>Sizing</strong>: <code>risk.calc_position_size(...)</code> (reduction-only multipliers)</td><td>~7221, ~861</td><td>Volume 0 → REJECT + lifecycle event</td></tr>
+<tr><td class="num">21</td><td><strong>Arbiter</strong>: <code>self.arbiter.permit(...)</code> portfolio-level permission</td><td>~7288–7293</td><td>HOLD "Portfolio risk arbiter rejected"</td></tr>
+<tr><td class="num">22</td><td>P8 allocation cap (<code>apply_portfolio_allocation_cap</code>) — may only reduce volume</td><td>~7297–7327</td><td>Cap 0 → <code>zero_volume_rejected</code> → HOLD</td></tr>
+<tr><td class="num">23</td><td>Immutable execution plan + margin preflight</td><td><code>_build_execution_plan</code> ~2830, ~7329</td><td><code>ValueError</code> → HOLD + lifecycle <code>REJECTED</code></td></tr>
+<tr><td class="num">24</td><td>Margin safety gate (MT5-derived snapshots when live)</td><td>~7336–7360</td><td>HOLD listing margin reasons</td></tr>
+<tr><td class="num">25</td><td>Order submission (paper broker or MT5), rejection recording, lifecycle events, telemetry</td><td>see §06</td><td>Rejections journaled with codes</td></tr>
+<tr><td class="num">26</td><td>Display / narrative update; the loop emits <code>CYCLE_COMPLETE</code> with duration</td><td>~7109–7128, ~4425–4431</td><td>—</td></tr>
+</tbody>
+</table>
+
+<h3 id="s4-3-hold">04.3 What a HOLD actually does (and does not do)</h3>
+<div class="grid2">
+<div class="card"><h4>It does</h4>
+<ul>
+<li>Journal the reason with symbol/strategy/timeframe context through <code>operations</code> events and the
+<code>proposals</code> table.</li>
+<li>Complete or fail the leased task so the same candle is not retried forever (<code>complete_task</code> /
+<code>fail_task</code> at ~5838, ~5859, ~6755, ~6763, ~6975).</li>
+<li>Emit a bus/telemetry event so the deck can display <em>why</em> nothing traded.</li>
+<li>Leave the completed-candle lease in a state that lets the next pulse re-evaluate.</li>
+</ul></div>
+<div class="card"><h4>It never does</h4>
+<ul>
+<li>Place, modify or cancel an order.</li>
+<li>Write a trade row (<code>trades</code>) — only executed fills create trades.</li>
+<li>Mutate risk parameters.</li>
+<li>Silently swallow provider budget: the attempt records success/failure so RESERVED budget cannot stick until lease
+expiry.</li>
+</ul></div>
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">mt5_trader.py</span> 4218–4700</td><td>Pulse loop: holiday maintenance, %10 research tick, ingest hoist, strategy pool, reconnect, PIPELINE_V2 selection, circuits</td></tr>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span> 5720–5905</td><td>Autonomy gate, maintenance prefix, working memory, schedules, candle lease, dedup, holiday, fetch_data, data quality, news gate</td></tr>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span> 6030–6105</td><td>Feature snapshot, SMC structure and opportunity-bus publication</td></tr>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span> 6840–7360</td><td>Decision retrieval, shield, validation, sizing, arbiter, allocation cap, execution plan, margin gate</td></tr>
+<tr><td><span class="file">core/harness/pipeline_v2.py</span></td><td>Stage declarations and the skip-token that keeps V2 equivalent to the legacy maintenance body</td></tr>
+</tbody>
+</table>
+</div>
+</section>

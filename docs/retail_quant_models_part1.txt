@@ -1,0 +1,251 @@
+================================================================================
+RETAIL QUANTITATIVE TRADING — COMPLETE MATHEMATICAL MODELS & FRAMEWORK
+================================================================================
+Organized separately from institutional models
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1: RETAIL EXECUTION FRICTION & COST STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1.1 RETAIL EXECUTION CHASM
+  Institutional (Co-located HFT)            Retail Systematic (Cloud/Home)
+  Latency: 500ns - 10us (FPGA)             Latency: 15ms - 150ms (REST)
+  Fees: Negative (Maker Rebate)             Fees: High Taker / Spread
+  Data: Raw L3 ITCH/OUCH Feed               Advantage: Zero Market Impact
+  Size: $10M+ (High Slippage)              Size: $1k-$500k (Agile)
+  Universe: Mega-Cap / Liquid              Universe: Long-Tail/Illiquid
+
+1.2 RETAIL FRICTION THRESHOLD & EFFECTIVE EV
+  EV_retail = mu_gross - (tau * (2*f_tier + S_eff) + c_fixed / A)
+  tau = portfolio turnover, f_tier = exchange fee, S_eff = spread + slippage
+  c_fixed = monthly operational overhead, A = account size
+
+  Minimum Viable Account Size:
+    C_min = c_fixed / (mu_gross - tau*(2*f_tier + S_eff) - Hurdle_min)
+
+1.3 RETAIL COST TABLES BY VENUE
+  Parameter          | FX CFD Broker    | Crypto VIP0       | IBKR Equities
+  Typical Spread     | 0.8-1.5 pips     | 1.0-3.0 bps       | 1 tick (0.5-2 bps)
+  Taker Fee          | Hidden in spread | 4.0-5.0 bps       | $0.005/share
+  Maker Fee          | N/A (B-Book)     | 1.0-2.0 bps       | -$0.002/share (rebate)
+  Execution Latency  | 80-250ms         | 20-80ms           | 15-50ms
+  Adverse Selection  | Extreme (B-Book) | High (CEX toxic)  | Moderate (PFOF)
+
+  Implication: A 5 bps gross gain scalp is impossible for VIP0 retail crypto
+  takers (8 bps round-trip fee) and retail FX traders (10 bps spread), but
+  positive EV for sub-second futures scalpers capturing CME maker rebates.
+
+1.4 RETAIL BROKER ASYMMETRIES
+  B-Book Internalizers:
+    Pass negative slippage to trader, cap positive slippage
+    Stop-losses filled with 50-300ms artificial delays
+    Expected -1.0R loss becomes -1.8R realized
+  Last-Look: Broker rejects favorable fills, re-quotes during volatility
+  Virtual Dealer Plugins: Simulate fills at worse prices, stop-hunting
+
+1.5 SPREAD ANATOMY (Retail Cost Decomposition)
+  Quoted Half-Spread: S_quoted = (P_ask - P_bid) / 2
+  Effective Spread: S_effective = 2 * |P_exec - M_t|
+    M_t = (P_ask + P_bid) / 2 (midpoint at order time)
+  Realized Spread: S_realized = 2 * |P_exec - M_{t+tau}|
+    tau = post-fill time window (e.g., 5 min)
+  Adverse Selection = S_effective - S_realized
+
+1.6 DYNAMIC SPREAD MODEL
+  S_t = S_base * (1 + kappa_vol*(ATR_t/ATR_base - 1) + kappa_liq*(Vol_base/Vol_t - 1)) * M_session
+  kappa_vol = 0.5, kappa_liq = 0.5
+  M_session: 1.0x peak (London/NY), 3.5x rollover (5pm EST)
+
+1.7 SQUARE-ROOT IMPACT LAW
+  Impact = Y * sigma_daily * sqrt(Q / V_ADV), Y in [0.5, 0.7]
+  Rule: If round-trip friction > 10% of 1R budget, strategy suffers severe alpha degradation
+
+1.8 ALMGREN-CHRISS IMPACT (Retail Execution)
+  Permanent: I_perm = gamma * sigma_daily * P_0 * (Q / V_ADV), gamma = 0.314
+  Temporary: I_temp = eta * sigma_daily * P_0 * (v / V_ADV)^alpha, eta = 0.142, alpha = 0.5
+  For linear liquidation over T: average execution captures 1/2 of permanent impact
+
+1.9 IMPLEMENTATION SHORTFALL (Perold, 1988)
+  IS = Side * (P_exec - P_0) * Q + Explicit_Costs
+  IS = Spread_Cost + Permanent_Impact + Temporary_Impact + Commissions
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2: RETAIL ACCOUNT SURVIVAL MECHANICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2.1 GAMBLER'S RUIN (Retail Account Depletion)
+  P(Ruin) = [(1 + sigma/mu)^(C_target/Delta_u) - 1] / [(1 + sigma/mu)^((C_target + C_0)/Delta_u) - 1]
+  Delta_u = minimum trade unit (contract lot size)
+  C_0 = initial capital, C_target = target threshold
+  For even-money with edge a: P(Ruin) ≈ ((1-a)/(1+a))^N, N = capital units
+
+2.2 PROBABILITY OF RUIN CURVES
+  Full Kelly (f* = 1.0): High ruin risk
+  Half Kelly (f* = 0.5): Moderate ruin risk
+  Quarter Kelly (f* = 0.25): Near-zero ruin risk
+  Quarter-Kelly achieves 75% of max growth, cuts drawdown by ~80%
+
+2.3 FORCED OVER-BETTING PROBLEM
+  When minimum contract sizes force Delta_u > f* * C_0:
+  Example: Gold futures 100oz on $5,000 account
+  System experiences forced over-betting → P(Ruin) → 1.0 regardless of Sharpe
+
+2.4 ASYMMETRIC RECOVERY PENALTY
+  Required Gain % = (Loss / (1 - Loss)) * 100
+  50% loss → 100% gain needed; 80% loss → 400% gain needed; 90% loss → 900%
+
+2.5 MAXIMUM LOSING STREAK
+  L_max ≈ ln(N) / ln(1 / P_loss)
+  For 200 trades at 50% win rate: expect 7-8 consecutive losses
+
+2.6 STREAK PROBABILITY
+  P(k consecutive losses) = (1 - P_win)^k
+  At 50% win rate: ~95% probability of 5 consecutive losses over multi-month sample
+
+2.7 RISK OF RUIN (Ralph Vince / Balsara)
+  RoR ≈ ((1 - Edge) / (1 + Edge))^Units
+  Edge = system expectancy per trade unit, Units = 1 / Risk_%
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3: RETAIL-SPECIFIC ALPHA NICHES (Where Retail Wins)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3.1 THE ALPHA-CAPACITY TRADEOFF
+  $10k: Retail Sweet Spot (Sharpe 4.0+)
+    Altcoin Funding/Basis Arb, Microcap Cointegration, Cross-DEX Flash Arb
+  $1M: Transition Zone (Sharpe 2.5)
+  $100M: Institutional Domain (Sharpe 1.5)
+    Multi-Asset Trend, Factor Investing
+  $10B: High-Capacity Macro (Sharpe 0.5)
+
+3.2 MICROCAP/ILLIQUID COINTEGRATION
+  Spreads in small-cap tokens/equities: large mean-reverting deviations
+  Half-life t_1/2 < 10 min, spread width > 2%
+  Institutional accounts (>$50M) cannot trade (Square-Root Slippage > Edge)
+  Retail (<$100k) captures with zero market impact
+
+3.3 PERPETUAL FUNDING RATE ARBITRAGE
+  Delta-neutral long spot vs short perp on high-vol, high-funding mid-caps
+  30-90% non-directional APR on capacities under $500k
+
+3.4 CALENDAR/EVENT QUIRKS
+  Token lockup unlocks, small-cap Russell reconstitution, index rebalance
+  High Information Coefficients (IC > 0.15) at small capacity thresholds
+
+3.5 CFTC COT RETAIL FLOW FADE
+  COT_Position = (Commercial_Net_Long - Commercial_Net_Short) / Total_Open_Interest
+  Z_COT = (COT - rolling_mean) / rolling_std
+  When commercial hedgers > 90th percentile net-long while retail crowded short:
+  Execute swing positions in commodities/FX for macro reversals
+
+3.6 RETAIL SENTIMENT EXTREMES
+  Google Trends + Reddit + Twitter sentiment
+  When retail sentiment > 85% one-sided: veto breakout entries (fade)
+  Sudden +3sigma ticker search spikes + overbought = mean-reversion short
+
+3.7 CROSS-DEX ARBITRAGE (Crypto)
+  Price differences across decentralized exchanges
+  Profit = price_diff - gas_fee - slippage
+  Requires: MEV bots, flashbots, fast mempool monitoring
+
+3.8 ALPHA CAPACITY DECAY CURVE
+  SR(A) = SR_0 * (1 - (A/A_max)^gamma) - (A * sigma_strategy) / (Y * sigma_daily * ADV)
+  SR_0 = unconstrained Sharpe at zero scale
+  A_max = hard capacity ceiling (EV = 0)
+  gamma = [0.5, 2.0] elasticity of market depth depletion
+  tau_i = strategy turnover velocity
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4: RETAIL CAPITAL SCALING & ROUTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4.1 SCALING PIPELINE (4 Tiers)
+  TIER 1: BOOT ($1k-$50k) → Single Asset, REST API, Capacity Edge
+  TIER 2: MID ($50k-$500k) → Multi-Strategy, Async Rust/C++, Factor Sweeps
+  TIER 3: SCALE ($500k-$5M) → Multi-Broker, Cross-Margin, Impact Modeling
+  TIER 4: INST ($5M-$50M+) → Multi-Prime, Co-located DMA, Portfolio Risk
+
+4.2 CAPITAL ROUTING ENGINE
+  High-Turnover Scalping Pool: t_1/2 < 1 min, Hard Cap $100k
+  Medium-Turnover Swing Pool: t_1/2 < 2 days, Hard Cap $2M
+  Low-Turnover Positional Pool: t_1/2 < 3 months, Hard Cap $50M
+  When alpha reaches A_critical: sweep excess to higher-capacity tiers
+
+4.3 OPTIMAL CAPITAL ALLOCATION
+  g(w) = r_f + w'*(mu - r_f*1) - (1/2)*w'*Sigma*w
+         - SUM (kappa_i * w_i^(3/2) * W_t^(1/2) * tau_i^(3/2) / ADV_i^(1/2))
+         - c_t
+  First term: risk-free + excess return
+  Second term: variance drag
+  Third term: market impact cost
+  Fourth term: consumption/withdrawal
+
+4.4 DYNAMIC REINVESTMENT
+  Update dollar 1R value weekly/monthly on high-water equity marks
+  Never increase sizing mid-drawdown
+  Fixed-fractional compounding: lot sizes scale with account growth
+
+4.5 PORTFOLIO HEAT CAP
+  Total simultaneous open risk <= 3.0R - 4.0R
+  Per-asset max: 1.5R
+  Cross-asset correlation gate: if r > 0.30, reduce new trade by 50%
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5: RETAIL STRATEGY LIFECYCLE & GATING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+5.1 STRATEGY REPRODUCTIVE CYCLE
+  HYPOTHESIS → BACKTEST → SIMULATION → CANARY → PRODUCTION → RETIREMENT
+  Each phase has strict mathematical hurdles
+
+5.2 QUANTITATIVE GATING CHECKLIST
+  Phase 1: In-Sample & Cross-Validation
+    DSR > 0.95, PBO < 0.10, Sharpe > 1.8 (Purged K-Fold CV)
+    Failure: Reject hypothesis; terminate model pipeline
+
+  Phase 2: Execution Shadow Simulation (20 days)
+    |Simulated_Slip - Theoretical_Slip| < 0.25 * Spread
+    Failure: Recalibrate Almgren-Chriss impact coefficients
+
+  Phase 3: Fractional Live Canary (30 days, 10% capital)
+    Live_IC >= 0.50 * Backtest_IC
+    Failure: Abort canary; flag data leakage / overfitting
+
+  Phase 4: Full Production Scale (indefinite)
+    Rolling 60d Sortino > 1.5, Max_Drawdown <= VaR_0.99
+    Failure: Throttle allocation; trigger risk review
+
+5.3 ALPHA RETIREMENT WORKFLOW
+  CUSUM Residual Monitor: S_t > H_crit → Cut allocation by 50%
+  Rolling 30d IC Check: IC <= IC_0 / 4 → Decommission
+  Drawdown Duration: > 1.5 * L_max → Take offline
+  Rolling 60d Sharpe < 0.50 → Decommission
+
+5.4 SYSTEM QUALITY NUMBER (SQN)
+  SQN = sqrt(N) * mu_R / sigma_R
+  SQN >= 2.5: Institutional grade
+  SQN < 1.5: Decommission model
+
+5.5 WALK-FORWARD EFFICIENCY
+  WFE = Annualized_Return_OOS / Annualized_Return_IS
+  WFE >= 60%: Strategy passes (not curve-fitted)
+
+5.6 MONTE CARLO VALIDATION
+  10,000 permutations of trade sequence
+  Compute: max drawdown distribution, streak probability at 99% confidence
+  PBO (Probability of Backtest Overfitting) via CSCV
+
+5.7 DEFLATED SHARPE RATIO (DSR)
+  DSR = Phi( (SR - SR_0) / sqrt(1 - gamma_3*SR + (gamma_4-1)/4 * SR^2) * sqrt(T-1) )
+  SR_0 = sqrt(2*ln(N)) * ((1-gamma_Euler)*Phi^{-1}(1-1/N) + gamma_Euler*Phi^{-1}(1-1/(e*N)))
+  If DSR < 0.95: deployment blocked
+
+5.8 INCUBATION PHASES
+  Phase 1: Paper Feed (30-60 days) — live data, no capital
+  Phase 2: Canary (0.25x sizing) — track slippage decay
+    Decay = (Alpha_Theoretical - Alpha_Realized) / Alpha_Theoretical
+    If decay > 20%: halt and optimize execution routing
+  Phase 3: Full Sizing — after 50 live trades confirm parity
+
+================================================================================

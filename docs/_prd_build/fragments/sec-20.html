@@ -1,0 +1,111 @@
+<section id="sec-20">
+<h2 id="autonomy"><span class="num">20</span> 20. Autonomous Operation: Scheduler, Loops, Supervisor, Circuits</h2>
+
+<p>This section answers the question an operator actually asks: <em>what happens when nobody is watching?</em></p>
+
+<h3 id="s20-1-supervisor">20.1 The supervisor kernel</h3>
+<p><span class="file">operations/supervisor.py</span> owns phases and liveness:
+<code>phase()</code> (~96), <code>transition(target, reason)</code> (~100), <code>boot_sequence(checks)</code> (~115),
+<code>ready()</code> (~139), <code>note_component(name, ok, detail)</code> (~147), <code>heartbeat()</code> (~152),
+<code>note_principal(name, ok, detail)</code> (~157) with <code>stale_principals()</code> (~170) and
+<code>principal_freshness()</code> (~185), plus <code>degrade()</code>/<code>recover()</code> (~197/~204), <code>pause()</code>,
+<code>request_shutdown()</code>/<code>complete_shutdown()</code> (~216/~220) and <code>overall_health()</code> (~227).
+The cycle notes principals explicitly — <code>MarketModel</code> when a decision is proposed, <code>RiskController</code>
+when validation passes or fails (<span class="file">intelligence/llm_orchestrator.py</span> ~7140–7151) — so "silence"
+stays distinguishable from "refusal".</p>
+
+<h3 id="s20-2-autonomy">20.2 Autonomy levels and the control plane</h3>
+<div class="formula"><span class="k">LEVELS</span> (<span class="file">operations/autonomy.py</span> :38-43)
+  L0_SHADOW  rank 0  "SHADOW"      max_risk 0.00%  allows_live False
+  L1_PAPER   rank 1  "PAPER"       max_risk 1.00%  allows_live False
+  L2_MICRO   rank 2  "MICRO LIVE"  max_risk 0.25%  allows_live True
+  L3_FULL    rank 3  "FULL LIVE"   max_risk 1.00%  allows_live True   <span class="c"># needs signed rollout manifest</span>
+
+<span class="c">CONTROL_ACTIONS (:26)</span>  pause · resume · flatten · killswitch
+<span class="c">transport</span>            control_plane.jsonl (append → mark consumed → keep last 500)
+<span class="c">defaults</span>              level = L1_PAPER, halted = False, paused = False</div>
+<p><code>trading_allowed()</code> is consulted at the top of every cycle, and the queue is drained at the same point, so
+a pause issued seconds earlier is honoured immediately; each drained record emits <code>CONTROL_EXECUTED</code>.</p>
+
+<h3 id="s20-3-circuits">20.3 Circuits</h3>
+<p><code>CIRCUITS</code> (~189) is a static list of <code>{key, metric, op, threshold, severity, action}</code> evaluated
+by <code>evaluate_circuits(metrics)</code> (~202) against the live risk snapshot. Actions and their effects:</p>
+<table>
+<thead><tr><th>Action</th><th>Effect</th><th>Line</th></tr></thead>
+<tbody>
+<tr><td><code>HALT</code></td><td><code>halted=True</code>, <code>halt_reason="circuit:&lt;key&gt;"</code> — no new cycles until an operator resumes</td><td>215–217</td></tr>
+<tr><td><code>PAUSE_NEW_CYCLES</code></td><td><code>paused=True</code> with reason</td><td>218–220</td></tr>
+<tr><td><code>DEMOTE</code></td><td>Level rank − 1 (e.g. L2 → L1 paper) when above L0</td><td>221–223</td></tr>
+<tr><td><code>DEGRADE_HOLD_ONLY</code></td><td><code>flags.hold_only=True</code> — keep observing and journalling, propose nothing</td><td>225–226</td></tr>
+</tbody>
+</table>
+<p>Every trip records a <code>CIRCUIT_TRIP</code> event with key, severity, action and the observed value, so the deck can
+show <em>why</em> the system stepped down. The loop evaluates circuits every pulse
+(<span class="file">mt5_trader.py</span> ~4647).</p>
+
+<h3 id="s20-4-lanes">20.4 Dual velocity, scheduling and the maintenance prefix</h3>
+<table>
+<thead><tr><th>Lane / job</th><th>Cadence</th><th>Where</th></tr></thead>
+<tbody>
+<tr><td>Fast lane (quotes, indicators, validation)</td><td>Every pulse</td><td><span class="file">operations/dual_velocity.py</span> <code>submit_fast</code> ~75</td></tr>
+<tr><td>Slow lane (memory, research, reviews)</td><td>Hourly key, <code>limit=3</code></td><td><code>submit_slow</code> ~80; <code>BACKPRESSURE</code> on saturation</td></tr>
+<tr><td>Maintenance prefix</td><td>Every pulse, before analysis</td><td><code>_run_maintenance_prefix</code> ~5674: velocity poll → reconcile pending → reconcile open → memory dispatch → position tick → worker heartbeat</td></tr>
+<tr><td>Candle lease</td><td>Per completed bar per strategy</td><td><code>_completed_candle_candidate</code> ~2956 / <code>_new_completed_candle</code> ~2977</td></tr>
+<tr><td>Autonomous research tick</td><td>Every 10th cycle</td><td><span class="file">mt5_trader.py</span> ~4244 → <span class="file">operations/autonomous_pipeline.py</span></td></tr>
+<tr><td>Session / daily / weekly / self-improvement</td><td>Schedule-driven</td><td><code>_process_due_schedules</code> ~4968 → handlers ~5370–5540</td></tr>
+<tr><td>Agent scheduler</td><td>Registered periodic jobs</td><td><span class="file">operations/agent_scheduler.py</span> <code>bootstrap(operations)</code> ~41; leases via <code>agent_task_edges</code></td></tr>
+</tbody>
+</table>
+
+<h3 id="s20-5-health">20.5 Guardians, watchdog and recovery</h3>
+<ul>
+<li><strong>Ψ External Guardian</strong> (<span class="file">core/external_guardian.py</span>) — out of process, polls the
+broker directly, hardcoded thresholds, 120&nbsp;s heartbeat watchdog; started after bootstrap so startup time is not
+mistaken for a hang (<span class="file">mt5_trader.py</span> ~4207).</li>
+<li><strong>Live execution safety supervisor</strong> (<span class="file">core/execution_safety_supervisor.py</span>):
+<code>record_heartbeat</code> (~62), <code>update_equity</code> (~66), <code>validate_pre_trade_safety</code> (~114),
+<code>trip_circuit_breaker</code> (~153) and <code>reset_circuit_breaker(authorization_token)</code> (~160) — clearing a
+breaker requires an explicit token, so it cannot be reset by accident.</li>
+<li><strong>Degradation and health</strong>: <span class="file">operations/degradation_detector.py</span>,
+<span class="file">operations/health_alerts.py</span>, <span class="file">operations/system_doctor.py</span>,
+<span class="file">core/crash_detector.py</span>.</li>
+<li><strong>Crash / restart recovery</strong>: <span class="file">core/crash_recovery.py</span>
+(<code>startup_recovery()</code>, hash-chained checkpoints, <code>atexit</code>/<code>SIGTERM</code> hooks) and
+<span class="file">operations/restart_recovery.py</span>.</li>
+<li><strong>Kill switch</strong>: <span class="file">data/kill_switch_latch.py</span> plus the validator's
+<code>kill switch active</code> rule (§05.4) and the <code>flatten</code>/<code>killswitch</code> control actions.</li>
+</ul>
+
+<h3 id="s20-6-timeline">20.6 One unattended day (paper mode)</h3>
+<div class="formula">00:00  process starts → boot gates → bootstrap → loop begins
+       every 5 s   pulse: autonomy gate · maintenance prefix · schedules · candle lease?
+                    new completed bar → ingest → quality → news → features → LLM → gates
+       every 10th  autonomous research tick (discovery / registration / lifecycle)
+       hourly      slow-lane memory distillation (limit 3) → L1 facts, narratives
+       session end _execute_session_review
+       daily       _execute_daily_review → daily narrative, reconciliation, labels
+       weekly      _execute_weekly_research → weekly narrative, core consolidation, CPCV/WF
+       monthly     memory maintenance + archive of stale candidates
+       continuous  circuits evaluated every pulse; demote / pause / halt as needed
+       on holiday  no analysis; maintenance, health and kill-switch continue</div>
+<div class="callout">
+<strong>What "perfect autonomy" means here.</strong> The process never dies on a transient LLM or MT5 fault; every HOLD and
+rejection is journaled; maintenance runs without a new candle; schedules actually execute and write their
+<code>last_*</code> state; the factory may demote but never self-approve live; and the deck shows the same journal the
+loop writes.
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">operations/autonomy.py</span> 26–43, 188–276</td><td>Levels, control actions, circuits, drain semantics</td></tr>
+<tr><td><span class="file">operations/supervisor.py</span> 96–256</td><td>Phases, boot checks, principal freshness, degradation</td></tr>
+<tr><td><span class="file">operations/dual_velocity.py</span> 44–119</td><td>Fast/slow lanes and backpressure</td></tr>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span> 4938–5718</td><td>Schedule runners, maintenance prefix, heartbeat</td></tr>
+<tr><td><span class="file">mt5_trader.py</span> 4218–4700</td><td>Pulse loop, %10 research tick, circuit evaluation, guardian start</td></tr>
+</tbody>
+</table>
+</div>
+</section>

@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Autonomous Trading System Master Architecture",
+    "output": "docs/diagrams/01_master_architecture.html",
+    "visual_preset": "blueprint",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "tick-to-execution",
+        "label": "Tick to execution hot path",
+        "focus": ["market_feeds", "mt5_gateway", "pipeline_harness", "risk_guardian", "execution_router", "compliance_ledger"],
+        "note": "Follow inbound market ticks through the risk guardian to broker order execution."
+      },
+      {
+        "id": "reasoning-and-context",
+        "label": "Context and deliberative reasoning",
+        "focus": ["pipeline_harness", "trading_context", "deliberative_graph", "state_tensor_db"],
+        "note": "Inspect state binding, LangGraph deliberative loop, and tensor persistence."
+      },
+      {
+        "id": "learning-and-resilience",
+        "label": "Offline learning and crash recovery",
+        "focus": ["state_tensor_db", "meta_rl_sandbox", "crash_recovery", "telemetry_obs"],
+        "note": "See offline Meta-RL policy tuning, crash state recovery, and telemetry."
+      }
+    ]
+  },
+  "components": [
+    { "id": "market_feeds", "type": "external", "label": "Market Feeds", "sublabel": "ticks + depth + news", "pos": [40, 300], "size": [120, 60] },
+    { "id": "mt5_gateway", "type": "security", "label": "MT5 Gateway", "sublabel": "broker bridge", "pos": [220, 300], "size": [120, 60], "tag": "broker edge" },
+    { "id": "pipeline_harness", "type": "backend", "label": "Harness Pipeline", "sublabel": "11-stage tick engine", "pos": [410, 300], "size": [130, 60], "tag": "fast path" },
+    { "id": "risk_guardian", "type": "security", "label": "Risk Guardian (Ψ)", "sublabel": "bounded autonomy", "pos": [630, 170], "size": [136, 62], "tag": "deterministic" },
+    { "id": "trading_context", "type": "backend", "label": "Trading Context", "sublabel": "DI + Disposables", "pos": [630, 300], "size": [136, 60], "tag": "runtime core" },
+    { "id": "deliberative_graph", "type": "backend", "label": "Deliberative Graph", "sublabel": "LangGraph L2 agent", "pos": [630, 430], "size": [136, 62], "tag": "warm path" },
+    { "id": "execution_router", "type": "backend", "label": "Execution Router", "sublabel": "TWAP/VWAP routing", "pos": [850, 170], "size": [136, 62], "tag": "low latency" },
+    { "id": "state_tensor_db", "type": "database", "label": "State Tensor Store", "sublabel": "SQLite / Parquet", "pos": [850, 300], "size": [136, 60], "tag": "persistence" },
+    { "id": "meta_rl_sandbox", "type": "cloud", "label": "Meta-RL Optimizer", "sublabel": "PEARL + RL²-PPO L3", "pos": [850, 430], "size": [136, 62], "tag": "offline compute" },
+    { "id": "compliance_ledger", "type": "database", "label": "Compliance Ledger (κ)", "sublabel": "hash-chained audit", "pos": [1070, 170], "size": [136, 62], "tag": "immutable" },
+    { "id": "crash_recovery", "type": "security", "label": "Crash Recovery", "sublabel": "Logic-Q state replay", "pos": [1070, 300], "size": [136, 60], "tag": "resilience" },
+    { "id": "telemetry_obs", "type": "external", "label": "Telemetry & SRE", "sublabel": "OTLP + Prometheus", "pos": [1070, 430], "size": [136, 62], "tag": "observability" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Autonomous Quant Platform Runtime", "wraps": ["pipeline_harness", "risk_guardian", "trading_context", "deliberative_graph", "execution_router", "state_tensor_db", "meta_rl_sandbox", "compliance_ledger", "crash_recovery", "telemetry_obs"], "pad": 24 },
+    { "kind": "security-group", "label": "Real-Time Execution Boundary (Hot Path)", "wraps": ["pipeline_harness", "risk_guardian", "trading_context", "execution_router"], "pad": 16 }
+  ],
+  "connections": [
+    { "from": "market_feeds", "to": "mt5_gateway", "label": "ticks", "variant": "emphasis" },
+    { "from": "mt5_gateway", "to": "pipeline_harness", "label": "IPC", "variant": "emphasis" },
+    { "from": "pipeline_harness", "to": "risk_guardian", "label": "risk check", "variant": "security", "route": "orthogonal-h", "labelAt": [550, 235] },
+    { "from": "pipeline_harness", "to": "trading_context", "variant": "default" },
+    { "from": "trading_context", "to": "deliberative_graph", "variant": "default", "route": "straight" },
+    { "from": "risk_guardian", "to": "execution_router", "label": "approved", "variant": "emphasis", "route": "straight", "labelDy": -12 },
+    { "from": "execution_router", "to": "compliance_ledger", "label": "audit", "variant": "security", "route": "straight", "labelDy": -12 },
+    { "from": "trading_context", "to": "state_tensor_db", "label": "sync", "variant": "dashed", "route": "straight", "labelDy": -12 },
+    { "from": "state_tensor_db", "to": "crash_recovery", "label": "replay", "variant": "default", "route": "straight", "labelDy": -12 },
+    { "from": "deliberative_graph", "to": "meta_rl_sandbox", "label": "rollout", "variant": "dashed", "route": "straight", "labelDy": -12 },
+    { "from": "meta_rl_sandbox", "to": "telemetry_obs", "label": "metrics", "variant": "dashed", "route": "straight", "labelDy": -12 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Deterministic Safety Boundary",
+      "items": [
+        "External Guardian (Ψ) executes hard-coded circuit breakers outside LLM context",
+        "Stateless LLM proposals are bounded by R ∘ V_LLM ∘ S invariant gates",
+        "Cryptographic ledger (κ) maintains tamper-evident SHA-256 state chain"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Dual-Velocity Execution",
+      "items": [
+        "L1 Hot Path: Sub-millisecond tick processing and order routing",
+        "L2 Warm Path: LangGraph deliberative decision graphs and reflection cycles",
+        "TradingContext provides scoped DI, lifecycle bounds, and sandbox capability tokens"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Self-Improvement & Resilience",
+      "items": [
+        "L3/L4 Cold Path: Offline Meta-RL policy updates with EWC forgetting prevention",
+        "Logic-Q crash recovery reconstructs transactional state tensors post-failure",
+        "Continuous parameter stability sweeps safeguard against overfitting and regime cliffs"
+      ]
+    }
+  ]
+}

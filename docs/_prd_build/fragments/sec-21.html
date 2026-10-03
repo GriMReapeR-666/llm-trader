@@ -1,0 +1,73 @@
+<section id="sec-21">
+<h2 id="operations"><span class="num">21</span> 21. Operations, Audits, Security &amp; Compliance</h2>
+
+<h3 id="s21-1-cli">21.1 The operator CLI: <code>python mt5_trader.py journal &lt;action&gt;</code></h3>
+<p>The journal subparser is the operator control plane. Its action vocabulary
+(<span class="file">mt5_trader.py</span> ~1560–1573) includes, among ~120 actions:</p>
+<table>
+<thead><tr><th>Family</th><th>Representative actions</th></tr></thead>
+<tbody>
+<tr><td>Reconciliation &amp; integrity</td><td><code>journal-audit</code>, <code>reconciliation</code>, <code>reconciliation-run</code> (<code>--start --end --paper</code>), <code>legacy-quarantine</code>, <code>execution-reviews</code>, <code>resolve-execution-review</code></td></tr>
+<tr><td>Readiness &amp; approval</td><td><code>readiness-status</code>, <code>live-approval</code>, <code>auth-status</code>, <code>scope-status</code>/<code>scope-init</code>, <code>research-influence-status</code>/<code>-approve</code>/<code>-revoke</code></td></tr>
+<tr><td>Backups &amp; maintenance</td><td><code>backup-status/create/restore/prune</code>, <code>encrypted-backup-*</code>, <code>db-maintenance</code>, <code>housekeeping</code> (age-gated report pruning)</td></tr>
+<tr><td>Security &amp; compliance</td><td><code>security-status</code>, <code>incident-drills</code>, compliance surfaces</td></tr>
+<tr><td>Research &amp; models</td><td><code>validation-runs</code>, <code>promotion-package</code>, <code>promotion-verify</code>, <code>model-register/review/drift/status</code>, <code>model-family-status</code>, <code>model-activation-status</code></td></tr>
+<tr><td>Memory &amp; knowledge</td><td><code>daily/weekly/monthly-memory</code>, <code>working-memory-*</code>, <code>setup-labels</code>, <code>macro-extraction-status</code></td></tr>
+<tr><td>Alerts</td><td><code>alerts</code>, <code>alerts-enqueue</code>, <code>alerts-status</code>, <code>alerts-claim</code>, <code>alerts-ack</code>, <code>alerts-recover</code>, <code>alerts-deliver</code></td></tr>
+<tr><td>Strategy &amp; policy</td><td><code>strategy-status/transition/unfreeze/retire/tune/evaluate/acknowledge</code>, <code>policy-status/candidate/approve</code>, <code>macro-prune</code></td></tr>
+</tbody>
+</table>
+
+<h3 id="s21-3-backups">21.3 Backups, security and alerts</h3>
+<ul>
+<li><strong>Backups</strong>: <span class="file">operations/journal_backup.py</span> performs AES-256-GCM encrypted
+backups, with restore and prune (<code>--keep-backups</code>, dry-run by default, explicit <code>--apply</code>, and a
+non-root destination guard). Legacy records are quarantined by
+<span class="file">operations/legacy_reconciliation.py</span>.</li>
+<li><strong>Security</strong>: <span class="file">operations/security_audit.py</span> scans for credentials and secrets;
+the result is disk-cached (<code>.security_audit_cache.json</code>) and prefetched asynchronously so paper boot is not
+blocked by a long scan. <span class="file">operations/security_scrub.py</span> and
+<span class="file">operations/secrets_guard.py</span> handle redaction; <span class="file">docs/SECURITY.md</span> is the policy.</li>
+<li><strong>Alerts</strong>: <span class="file">operations/alert_outbox.py</span> + <code>alert_rules.py</code> +
+<code>alert_delivery.py</code> implement enqueue → claim → ack → deliver in <code>alerts_outbox.db</code> (at-least-once;
+unacked alerts are recoverable via <code>alerts-recover</code>).</li>
+<li><strong>Readiness</strong>: <span class="file">operations/readiness_report.py</span> aggregates every gate into a single
+operator verdict; <span class="file">operations/incident_drills.py</span> rehearses the procedures in
+<span class="file">docs/INCIDENT_RUNBOOKS.md</span>.</li>
+<li><strong>Metrics</strong>: <span class="file">operations/metrics_persistence.py</span>,
+<code>metrics_exporter.py</code> and <code>prometheus_exporter.py</code> for observability.</li>
+</ul>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">mt5_trader.py</span> 1560–1600</td><td>The real journal subcommand vocabulary and its flags</td></tr>
+<tr><td><span class="file">operations/journal_audit.py</span> 26–120</td><td>Named integrity checks and their failure details</td></tr>
+<tr><td><span class="file">operations/journal_backup.py</span>, <span class="file">operations/security_audit.py</span></td><td>Encrypted backups, secret scanning and the disk cache</td></tr>
+<tr><td><span class="file">operations/alert_outbox.py</span>, <span class="file">operations/readiness_report.py</span></td><td>Durable alerts and the aggregated readiness verdict</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<h3 id="s21-2-audit">21.2 Journal integrity audit</h3>
+<p><span class="file">operations/journal_audit.py</span> returns
+<code>{"database", "exists", "passed", "checks": [...]}</code>. Verbatim check names include:</p>
+<table>
+<thead><tr><th>Check</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><code>database exists</code> / <code>required tables</code></td><td>The journal is present and complete</td></tr>
+<tr><td><code>unique tickets</code>, <code>unique order intents</code></td><td>No double-recorded fills or intents</td></tr>
+<tr><td><code>labels reference trades</code>, <code>non-trade setup labels are attributable</code>, <code>setup-label review states are valid</code></td><td>Labels are grounded and their review state is legal</td></tr>
+<tr><td><code>all trades tagged</code>, <code>closed trades have outcome</code>, <code>trades have feature payload</code></td><td>Every trade is attributable, closed with an outcome, and reproducible</td></tr>
+<tr><td><code>new proposals carry versioned artifacts</code>, <code>new trades have deterministic setup ID</code></td><td>Evidence and setup identity accompany new work</td></tr>
+<tr><td><code>order intents resolved or reviewable</code></td><td>Nothing is silently stuck</td></tr>
+<tr><td><code>point-in-time snapshots have payload and hash</code></td><td>Features are reconstructible and untampered</td></tr>
+<tr><td><code>verified memories have source links</code></td><td>Beliefs cite their evidence</td></tr>
+<tr><td><code>lifecycle events are attributable</code>, <code>broker execution reports are attributable</code></td><td>Every transition and fill has an actor</td></tr>
+<tr><td><code>position observations have valid marks</code>, <code>new position marks have source and quality</code>, <code>market tick observations preserve quality</code></td><td>Marks are usable for management and MFE/MAE</td></tr>
+<tr><td><code>daily reconciliations are attributable</code>, <code>setup instances have valid deterministic states</code></td><td>Reconciliation and lifecycle state are consistent</td></tr>
+</tbody>
+</table>

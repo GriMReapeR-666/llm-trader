@@ -1,0 +1,109 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "11-Stage High-Velocity Tick Processing Pipeline",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "tick-to-fill",
+        "label": "Tick to fill happy path",
+        "focus": ["raw_ticks", "stage_01_cleanse", "stage_03_indicators", "stage_06_signal", "stage_07_guardian", "stage_08_exec", "stage_09_dispatch", "stage_10_journal"],
+        "note": "Follow market tick from ingestion, through indicator computing and risk validation, to broker fill."
+      },
+      {
+        "id": "risk-circuit",
+        "label": "Risk guardian circuit breaker",
+        "focus": ["stage_06_signal", "stage_07_guardian", "risk_violation"],
+        "note": "Examine deterministic hard-stop interception preventing rogue order dispatch."
+      },
+      {
+        "id": "persistence-telemetry",
+        "label": "Execution dispatch and journal",
+        "focus": ["stage_08_exec", "stage_09_dispatch", "stage_10_journal"],
+        "note": "Inspect transaction journaling, WAL persistence, and telemetry."
+      }
+    ],
+    "output": "docs/diagrams/02_tick_pipeline_v2.html"
+  },
+  "lanes": [
+    { "id": "ingest", "label": "Market & Ingestion" },
+    { "id": "pipeline", "label": "Pipeline V2 Stages" },
+    { "id": "guardian", "label": "Risk Guardian", "variant": "exception" },
+    { "id": "execution", "label": "Execution & Journaling" }
+  ],
+  "phases": [
+    { "id": "maintenance", "label": "Maintenance Stages (01-05)", "fromCol": 0, "toCol": 1 },
+    { "id": "envelope", "label": "Envelope Stages (06-08)", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "finalization", "label": "Finalization Stages (09-11)", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "prep_group", "label": "Feature Preparation", "lane": "pipeline", "fromCol": 1, "toCol": 2, "variant": "emphasis" },
+    { "id": "guardian_group", "label": "Risk Gate", "lane": "guardian", "fromCol": 3, "toCol": 4, "variant": "security" },
+    { "id": "exec_group", "label": "Execution & Audit", "lane": "execution", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": [
+    "raw_ticks",
+    "stage_01_cleanse",
+    "stage_03_indicators",
+    "stage_06_signal",
+    "stage_07_guardian",
+    "stage_08_exec",
+    "stage_09_dispatch",
+    "stage_10_journal"
+  ],
+  "nodes": [
+    { "id": "raw_ticks", "lane": "ingest", "col": 0, "type": "external", "label": "Market Ticks", "sublabel": "MT5 ZeroMQ / IPC", "width": 132 },
+    { "id": "stage_01_cleanse", "lane": "pipeline", "col": 1, "type": "backend", "label": "01. Cleanse", "sublabel": "NaN / Inf scrub", "width": 132 },
+    { "id": "stage_03_indicators", "lane": "pipeline", "col": 2, "type": "backend", "label": "03. Indicators", "sublabel": "EMA / ATR / Vol", "width": 132 },
+    { "id": "stage_04_features", "lane": "ingest", "col": 2, "type": "database", "label": "04. Feature Sync", "sublabel": "Rolling buffer", "width": 132 },
+    { "id": "stage_06_signal", "lane": "pipeline", "col": 3, "type": "backend", "label": "06. Signal Engine", "sublabel": "Quant Workflows", "tag": "alpha", "width": 132 },
+    { "id": "stage_07_guardian", "lane": "guardian", "col": 3, "type": "security", "label": "07. Risk Guardian", "sublabel": "Ψ Invariant Gates", "tag": "hard stop", "width": 132 },
+    { "id": "risk_violation", "lane": "guardian", "col": 4, "type": "security", "label": "Circuit Halt", "sublabel": "Blocked / Alert", "tag": "quarantine", "width": 132 },
+    { "id": "stage_08_exec", "lane": "execution", "col": 4, "type": "backend", "label": "08. Exec Router", "sublabel": "TWAP/VWAP slices", "width": 132 },
+    { "id": "stage_09_dispatch", "lane": "execution", "col": 5, "type": "messagebus", "label": "09. Order Dispatch", "sublabel": "MT5 OrderSend", "width": 132 },
+    { "id": "stage_10_journal", "lane": "pipeline", "col": 5, "type": "database", "label": "10. State Journal", "sublabel": "SQLite WAL Commit", "width": 132 }
+  ],
+  "edges": [
+    { "id": "e-tick-cleanse", "from": "raw_ticks", "to": "stage_01_cleanse", "variant": "default" },
+    { "id": "e-cleanse-indicators", "from": "stage_01_cleanse", "to": "stage_03_indicators", "variant": "emphasis" },
+    { "id": "e-cleanse-features", "from": "stage_01_cleanse", "to": "stage_04_features", "label": "sync", "variant": "dashed" },
+    { "id": "e-indicators-signal", "from": "stage_03_indicators", "to": "stage_06_signal", "variant": "emphasis" },
+    { "id": "e-signal-guardian", "from": "stage_06_signal", "to": "stage_07_guardian", "label": "eval", "variant": "security" },
+    { "id": "e-guardian-exec", "from": "stage_07_guardian", "to": "stage_08_exec", "label": "pass", "variant": "emphasis" },
+    { "id": "e-guardian-reject", "from": "stage_07_guardian", "to": "risk_violation", "label": "halt", "variant": "security", "role": "error" },
+    { "id": "e-exec-dispatch", "from": "stage_08_exec", "to": "stage_09_dispatch", "variant": "emphasis" },
+    { "id": "e-dispatch-journal", "from": "stage_09_dispatch", "to": "stage_10_journal", "label": "commit", "variant": "default" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Maintenance vs Envelope Separation",
+      "items": [
+        "Stages 01-05 maintain deterministic state tensors and rolling feature buffers",
+        "Stages 06-08 evaluate trading logic and enforce non-negotiable risk invariants",
+        "Execution only occurs after explicit passing receipt from Stage 07 Risk Guardian"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Fail-Closed Guardian Invariants",
+      "items": [
+        "Circuit halts immediately on drawdown cliff, stale heartbeat, or margin boundary",
+        "Blocked orders trigger an immediate quarantine event without order dispatch",
+        "Replay journals record both approved and rejected intent for post-incident RCA"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Transactional Persistence",
+      "items": [
+        "Stage 10 executes atomic WAL commit of orders, positions, and cash balance",
+        "Guarantees crash-resilient state recovery upon any unexpected process crash",
+        "Sub-millisecond latency profile preserved through asynchronous telemetry"
+      ]
+    }
+  ]
+}

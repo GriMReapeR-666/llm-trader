@@ -1,0 +1,195 @@
+<section id="sec-05">
+<h2 id="ai-decision-path"><span class="num">05</span> 05. The AI Decision &amp; Permission Path</h2>
+
+<p>This section explains "how the AI trades" — and why the answer is: <em>it does not</em>. The AI emits a proposal; a
+deterministic chain decides. §02.5 listed the vetoes; here we follow one proposal from generation to order.</p>
+
+<h3 id="s5-1-context">05.1 What the model is given</h3>
+<p><code>get_decision(toon)</code> (<span class="file">intelligence/llm_orchestrator.py</span> ~1147) receives the
+"TOON" state payload assembled earlier in the cycle, layered with:</p>
+<table>
+<thead><tr><th>Block</th><th>Producer</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>Market snapshot (OHLC, tick, spread, indicators)</td><td><span class="file">data/market_data_provider.py</span> + <span class="file">core/technical_indicators.py</span></td><td>Price action and derived features</td></tr>
+<tr><td><code>feature_snapshot</code> (values + completed bar time)</td><td><span class="file">intelligence/feature_builder.py</span> / <span class="file">feature_schema.py</span></td><td>Point-in-time, schema-versioned numeric features</td></tr>
+<tr><td><code>smc_structure</code></td><td><span class="file">core/smc_structure.py</span></td><td>CHOCH/BOS events, order blocks, liquidity pools, premium/discount position</td></tr>
+<tr><td>Regime and intermarket state</td><td><span class="file">intelligence/regime_classifier.py</span>, <span class="file">intermarket_regime.py</span>, <code>_capture_intermarket_proxy_returns</code> ~3213</td><td>Cross-market context and regime tag with confidence</td></tr>
+<tr><td>Macro / causal advisory</td><td><span class="file">intelligence/macro_graph.py</span>, <code>_run_causal_advisory</code> ~3184</td><td>Dominant driver, path id, strength, decay</td></tr>
+<tr><td>News + calendar</td><td><span class="file">data/realtime_news_ingest.py</span>, <span class="file">data/mt5_calendar_enhanced.py</span></td><td>Event proximity and headline state</td></tr>
+<tr><td>Knowledge-base context and lessons learned</td><td><code>_get_knowledge_base_context</code> ~1044, <code>_format_lessons_learned</code> ~1032</td><td>Recalled L1–L3 memory for this setup</td></tr>
+<tr><td>Trading session and symbol keywords</td><td><code>_get_market_session</code> ~1057, <code>_get_symbol_keywords</code> ~1012</td><td>Session filtering and news relevance</td></tr>
+<tr><td>Alpha-mining enrichment</td><td><code>_apply_alpha_mining_enrichment</code> ~4399</td><td>Discovered alpha features and IC into the payload</td></tr>
+<tr><td>RL / Kronos advisory snapshot</td><td><code>_kronos_advisory_snapshot</code> ~1837, <code>_build_rl_state</code> ~1874</td><td>Model opinion that may inform, never authorise</td></tr>
+</tbody>
+</table>
+<p>Two budget guards wrap the payload: <code>_round_floats</code> (~1075) bounds float precision, and
+<code>_sanitize_toon_lite_budget</code> (~1088) enforces <code>max_total_chars=60000</code> by trimming the most
+expensive blocks first, so a token-budget failure cannot become a mid-cycle exception.</p>
+
+<h3 id="s5-2-contract">05.2 What the model must return</h3>
+<p>The decision dictionary is read for these keys in code (occurrence counts from
+<span class="file">intelligence/llm_orchestrator.py</span>):</p>
+<table>
+<thead><tr><th>Key</th><th>Used</th><th>Meaning / downstream use</th></tr></thead>
+<tbody>
+<tr><td><code>action</code> (10 uses)</td><td><span class="badge b-red">decisive</span></td><td><code>BUY</code>, <code>SELL</code> or <code>HOLD</code>. Anything other than BUY/SELL skips the permission path entirely and is recorded as a HOLD.</td></tr>
+<tr><td><code>confidence</code> (10)</td><td>input to the sizing ladder and telemetry</td><td>0–1; &lt;0.6 → size 0, &lt;0.75 → ×0.5, otherwise ×1.0 (<span class="file">core/risk_manager.py</span> ~928–931)</td></tr>
+<tr><td><code>entry</code>, <code>stop_loss</code>, <code>take_profit</code></td><td>plan construction</td><td>Prices, validated against symbol stops/freeze levels and R:R before use</td></tr>
+<tr><td><code>reasoning</code> (3)</td><td>operator text</td><td>Always stored; the only free-form part that reaches operators</td></tr>
+<tr><td><code>waiting_for</code></td><td>display only</td><td>What a HOLD is waiting for</td></tr>
+<tr><td><code>conditional_scenarios</code> (2)</td><td><em>advisory only</em></td><td>Logged for review; never a close authority (<span class="file">core/trade_manager.py</span> ~190)</td></tr>
+</tbody>
+</table>
+<div class="callout good">
+<strong>When the provider fabric fails, the system does not improvise.</strong> <span class="file">data/llm_router.py</span>
+exposes <code>deterministic_hold_fallback(agent, errors)</code> (~609): the cycle records a HOLD with the provider errors
+rather than guessing. Combined with <code>LLM_TRADER_ALLOW_PROVIDER_FAILOVER=false</code> by default, a provider outage
+degrades the system to "no new trades", never to "uncontrolled trades".
+</div>
+
+<h3 id="s5-3-proposal">05.3 From decision to <code>TradeProposal</code></h3>
+<p><code>_validate_proposal</code> (~1960) turns a decision plus market context into the immutable
+<code>TradeProposal</code> (<span class="file">core/trading_safety.py</span> ~40) and immediately calls
+<code>validator.validate(proposal, market)</code>. The proposal carries strategy, symbol, side, entry, stop loss, take
+profit, confidence, a feature dict, and a <code>setup_key</code>/<code>setup_id</code> used for deduplication and
+lifecycle tracking (states <code>CANDIDATE → VALIDATED → ACCEPTED | MISSED | INVALIDATED | REJECTED | UNRESOLVED →
+CLOSED</code>, <span class="file">core/trading_safety.py</span> ~382–407). Magic numbers distinguish strategy families:
+<code>460001</code> swing, <code>460002</code> scalp.</p>
+<p>Approved and rejected proposals share the same journal path, which is why rejected ideas stay analysable without
+being re-traded.</p>
+
+<h3 id="s5-4-validator">05.4 The deterministic validator: every rule and every reason string</h3>
+<p><code>DeterministicValidator</code> (<span class="file">core/trading_safety.py</span> ~875) — docstring:
+<em>"Hard rule gate. All unavailable critical data is rejected, never assumed safe."</em> Defaults:
+<code>min_rr=2.0</code>, <code>min_confluence=3</code>, <code>min_net_ev_r=0.0</code>, <code>min_ev_samples=30</code>,
+<code>default_friction_r=0.05</code>, <code>max_changepoint_probability=0.45</code>,
+<code>min_walk_forward_efficiency=0.0</code>. Thresholds are overridable per proposal through the <code>market</code> dict.</p>
+<table>
+<thead><tr><th>Rule</th><th>Reason string emitted</th><th>Line</th></tr></thead>
+<tbody>
+<tr><td>Kill-switch latch</td><td><code>kill switch active</code></td><td>961</td></tr>
+<tr><td>Session / market hours</td><td><code>market not open</code></td><td>962</td></tr>
+<tr><td>Tick freshness (<code>max_tick_age_ms</code>, default 5000)</td><td><code>stale tick</code></td><td>963</td></tr>
+<tr><td>Broker/local clock health</td><td><code>broker/local clock health rejected tick</code></td><td>964</td></tr>
+<tr><td>Symbol tradability</td><td><code>symbol not tradable</code></td><td>965</td></tr>
+<tr><td>Spread ceiling</td><td><code>spread too wide</code></td><td>966</td></tr>
+<tr><td>Session / rollover filter</td><td><code>session/rollover no-trade filter</code></td><td>967</td></tr>
+<tr><td>Liquidity filter</td><td><code>liquidity filter rejected entry</code></td><td>968</td></tr>
+<tr><td>Microstructure filter</td><td><code>microstructure filter rejected entry</code></td><td>969</td></tr>
+<tr><td>Planned-entry drift tolerance</td><td><code>price moved beyond planned-entry tolerance</code></td><td>978</td></tr>
+<tr><td>Trigger presence</td><td><code>no completed-candle/breakout trigger</code></td><td>980</td></tr>
+<tr><td>Minimum stop distance</td><td><code>stop too close</code></td><td>987</td></tr>
+<tr><td>Reward/risk vs <code>setup_min_rr</code></td><td><code>reward/risk below setup minimum</code></td><td>990</td></tr>
+<tr><td>High-impact event window</td><td><code>setup excludes high-impact event window</code></td><td>993</td></tr>
+<tr><td>Deterministic confluence ≥ <code>min_confluence</code></td><td><code>insufficient deterministic confluence</code></td><td>996</td></tr>
+<tr><td>News safety</td><td><code>news data missing or high-impact event</code></td><td>998</td></tr>
+<tr><td>Setup cooldown (<code>setup_cooldown_seconds</code>, default 900)</td><td><code>setup recently considered</code></td><td>1001</td></tr>
+<tr><td>Lifecycle gate on <code>setup_id</code></td><td>lifecycle block reason</td><td>1007</td></tr>
+<tr><td>Causal lag confidence (default floor 0.35)</td><td><code>lag confidence decayed below threshold</code></td><td>1029</td></tr>
+<tr><td>Net EV after friction — enforced only when <code>sample_count ≥ 30</code> (cold start passes)</td><td>net EV below floor</td><td>1045</td></tr>
+<tr><td>Regime changepoint probability ≤ 0.45</td><td><code>regime changepoint probability above veto threshold</code></td><td>1064</td></tr>
+<tr><td>Walk-forward decay state</td><td><code>walk-forward decay DEAD: alpha is harmful, all entries blocked</code></td><td>1074</td></tr>
+<tr><td>Walk-forward efficiency floor (2+ folds)</td><td><code>walk-forward efficiency REJECT: …</code></td><td>1096–1103</td></tr>
+<tr><td>Overfit gate</td><td><code>overfit gate REJECT: risk=…</code></td><td>1115</td></tr>
+<tr><td>Data-drift gate</td><td>live feature distribution drift</td><td>1128</td></tr>
+<tr><td>Selective activation gate</td><td><code>selective_activation_gate: …</code></td><td>1151</td></tr>
+<tr><td>Live health (critical alerts / health score)</td><td><code>live health critical: …</code>, <code>live health score too low: …</code></td><td>1214–1216</td></tr>
+</tbody>
+</table>
+<p>The result also carries a machine-readable <code>rule_trace</code> (e.g. <code>tick_fresh</code>,
+<code>spread_within_limit</code>, <code>stop_distance_valid</code>, <code>deterministic_confluence</code>,
+<code>lag_confidence_ok</code>, <code>walk_forward_efficiency</code>) recording each measured value against its limit —
+a rejection is therefore explainable after the fact, not merely a boolean.</p>
+
+<h3 id="s5-5-sizing">05.5 Position sizing: a stack of reduction-only multipliers</h3>
+<p><code>RiskManager.calc_position_size</code> (<span class="file">core/risk_manager.py</span> ~861) is the only place a volume
+number is produced. Its shape: a 1R risk budget derived from account equity and stop distance, multiplied by a chain of
+scalars, each of which can only <em>reduce</em> (or zero) the size.</p>
+<div class="formula"><span class="k">volume</span> ← f( equity × risk_per_trade , stop_distance , tick_value )
+
+<span class="c">hard rejects first (return 0.0):</span>
+  permanent_halt | equity_floor | daily_drawdown | consecutive_loss_breaker | max_drawdown
+  portfolio heat:  heat_now + 1R  &gt;  max_portfolio_heat_r          <span class="c">→ 0</span>
+  entry == sl                                                 <span class="c">→ 0</span>
+
+<span class="c">multiplicative ladder:</span>
+  size_mult = f(confidence)   <span class="c">&lt;0.60 → 0 ; &lt;0.75 → 0.5 ; else 1.0</span>
+  size_mult *= circuit_multiplier   <span class="c">weekly circuit step-down</span>
+  size_mult *= dd_multiplier       <span class="c">drawdown ladder (0 at ≥20% DD)</span>
+  size_mult *= streak_multiplier   <span class="c">anti-martingale loss streak</span>
+  size_mult *= kelly_multiplier    <span class="c">quarter-Kelly, reduction-only</span>
+  size_mult *= spmc_multiplier     <span class="c">SPMC regime: 1.0 good / 0.25 bad</span>
+  size_mult *= opp_multiplier      <span class="c">opportunity-cost hurdle; 0 → reject</span>
+
+<span class="c">retail-quant overlay (core/retail_quant_models.py):</span>
+  CUSUM breach (k=0.5, h=4.0, ≥20 R-samples)   → ×0.5
+  Bayesian win-rate shrinkage (last 50)        → × p_shrink ≤ 1
+  Correlation-breakdown heat (window 60, k=2.5)→ × mult ≤ 1
+
+<span class="c">volatility &amp; model overlays:</span>
+  ATR targeting:  × clamp(atr_target / atr, 0.5, 2.0)
+  Alpha sizing:   × compute_alpha_sizing(composite, direction, IC, confidence)
+  Alpha risk:     × alpha_risk_profile.sizing_multiplier
+  Kronos:         × kronos_risk_adjustment_factor (0–1)
+
+<span class="c">research health gates (can zero the trade):</span>
+  walk_forward_status = DEAD     → 0        DECAYING → ×0.5
+  WFE (≥2 folds): mean_test_sharpe ≤ 0 → 0 ;  WFE &lt; 0.5 → × max(0.5, WFE)
+  overfit_risk_level = CRITICAL  → 0        HIGH     → ×0.25
+  data_drift_status  = DRIFT     → ×0.5
+  CVaR95 &gt; 2R (≥15 samples)     → × clamp(2 / CVaR_r, 0.20, 1.0)</div>
+<div class="callout">
+<strong>Why the design matters.</strong> Every model-derived input (Kronos, alpha composite, walk-forward state,
+overfit level, drift) can only <em>shrink</em> a position. A hallucinated or over-fit model cannot inflate size: the
+LLM's own <code>confidence</code> field is capped at 1.0, and any zero is a hard reject.
+</div>
+
+<h3 id="s5-6-arbiter">05.6 The portfolio arbiter: the second opinion on aggregate risk</h3>
+<p><code>PortfolioRiskArbiter.permit</code> (<span class="file">core/trading_safety.py</span> ~1223, called at
+<span class="file">intelligence/llm_orchestrator.py</span> ~7288) answers one question: <em>may this new risk be added to
+the book?</em> Constructor limits: <code>max_drawdown_fraction=0.10</code>, <code>max_open_risk_fraction=0.03</code>,
+<code>max_correlated_risk_fraction=0.02</code> (clipped to the open-risk cap), <code>max_net_usd_beta_fraction=0.025</code>,
+<code>max_single_currency_fraction=0.03</code>.</p>
+<table>
+<thead><tr><th>Check</th><th>Rejection reason string</th><th>Line</th></tr></thead>
+<tbody>
+<tr><td>Numeric sanity of risk parameters</td><td><code>invalid non-numeric risk parameters</code> / <code>non-finite risk parameters</code> / <code>out-of-bounds risk parameters</code></td><td>1259–1263</td></tr>
+<tr><td>Drawdown kill switch</td><td><code>maximum drawdown kill switch</code></td><td>1277</td></tr>
+<tr><td>Daily loss fraction</td><td><code>daily loss limit</code></td><td>1281</td></tr>
+<tr><td>Weekly loss fraction</td><td><code>weekly loss limit</code></td><td>1282</td></tr>
+<tr><td>Aggregate open risk</td><td><code>portfolio open-risk limit</code></td><td>1283</td></tr>
+<tr><td>Net USD exposure / beta netting</td><td>netting reason</td><td>1296</td></tr>
+<tr><td>Correlated bucket (side-specific)</td><td><code>correlated bucket risk limit</code></td><td>1301, 1304</td></tr>
+<tr><td>Rolling correlated exposure</td><td><code>rolling correlated exposure risk limit</code></td><td>1302</td></tr>
+</tbody>
+</table>
+<p>The arbiter receives side-specific exposure buckets computed in the cycle
+(<code>exposure_buckets(symbol, "BUY") | exposure_buckets(symbol, "SELL")</code>), so a hedged position is judged as
+<em>netting</em> rather than as a doubling of risk.</p>
+
+<h3 id="s5-7-cap">05.7 The last reductions before the broker: P8 cap, plan, margin</h3>
+<ul>
+<li><strong>P8 allocation cap</strong> (<code>apply_portfolio_allocation_cap</code> ~2685) may only reduce volume. If it
+reduces to zero, the cycle journals <code>zero_volume_rejected</code> and HOLDs.</li>
+<li><strong>Immutable execution plan</strong> (<code>_build_execution_plan</code> ~2830) validates the quote
+(<code>validate_quote(max_tick_age_ms, max_spread)</code>, <span class="file">core/execution_planning.py</span> ~127) and
+the pending-entry geometry (<code>build_pending_entry</code> ~73). A <code>ValueError</code> becomes a HOLD plus a
+lifecycle <code>REJECTED</code> event — the plan is never "fixed up" and sent anyway.</li>
+<li><strong>Margin safety</strong> (<span class="file">core/margin_safety.py</span>) — in live mode
+<code>assess_from_mt5()</code> is used; otherwise <code>assess()</code> with the plan's own snapshot. A refusal lists its
+reasons in the HOLD.</li>
+</ul>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span> 1147–1630, 1960–2685, 7134–7360</td><td>Decision contract, payload budget, proposal construction, and the call sites of every gate in this section</td></tr>
+<tr><td><span class="file">core/trading_safety.py</span> 875–1220 / 1223–1310</td><td>Validator rules and the arbiter's limits</td></tr>
+<tr><td><span class="file">core/risk_manager.py</span> 861–1140</td><td>The sizing ladder and its research-health gates</td></tr>
+<tr><td><span class="file">data/llm_router.py</span> 539–633</td><td>Provider selection and <code>deterministic_hold_fallback</code></td></tr>
+</tbody>
+</table>
+</div>
+</section>

@@ -1,0 +1,69 @@
+<section id="sec-25">
+<h2 id="failure-modes"><span class="num">25</span> 25. Failure Modes, Fail-Closed Doctrine &amp; Known Gaps</h2>
+
+<h3 id="s25-1-failure">25.1 The failure matrix</h3>
+<table>
+<thead><tr><th>Failure</th><th>Detection point</th><th>Behaviour</th><th>Recovery</th></tr></thead>
+<tbody>
+<tr><td>Stale/absent market data</td><td>Data-quality gate (§08.1)</td><td>HOLD with reasons</td><td>Next valid snapshot; no synthetic substitute exists</td></tr>
+<tr><td>Point-in-time violation (revised/future bar)</td><td>Data-quality gate</td><td>HOLD</td><td>Next completed bar</td></tr>
+<tr><td>LLM provider failure</td><td>Router + <code>deterministic_hold_fallback</code></td><td>HOLD</td><td>Next candle, or operator enables failover</td></tr>
+<tr><td>Budget exhaustion</td><td>Router ceilings / leases</td><td>No call; HOLD</td><td>Budget window resets; manual raise</td></tr>
+<tr><td>Validator rejection</td><td><code>DeterministicValidator</code></td><td>Proposal REJECTED in journal</td><td>Analysis of the rule trace</td></tr>
+<tr><td>Sizing → 0</td><td><code>calc_position_size</code></td><td>No order; lifecycle REJECTED</td><td>Automatic once circuits clear</td></tr>
+<tr><td>Arbiter refusal</td><td><code>PortfolioRiskArbiter</code></td><td>HOLD</td><td>Next pulse</td></tr>
+<tr><td>Margin exhaustion</td><td><code>MarginSafetyGate</code></td><td>HOLD with margin reasons</td><td>Position reduction / operator action</td></tr>
+<tr><td>Broker contract change</td><td><code>has_contract_changed</code></td><td>Execution policy invalidated</td><td>Re-run preflight, re-approve policy</td></tr>
+<tr><td>Non-DONE retcode</td><td><code>place_market_order</code></td><td>RuntimeError, lock released, rejection journaled</td><td>Reconciliation; execution-review if unresolved</td></tr>
+<tr><td>MT5 disconnect</td><td>Per-pulse reconnect</td><td>Reconcile; HOLD until truth is known</td><td>Automatic reconnect + reconciliation</td></tr>
+<tr><td>Daily loss / drawdown</td><td>Risk circuits</td><td>PAUSE / HALT + protective flatten</td><td>Operator resume; weekly reset</td></tr>
+<tr><td>Process crash</td><td>Crash detector</td><td>Snapshot + marker</td><td><code>startup_recovery()</code> on next boot</td></tr>
+<tr><td>Guardian silence</td><td>Ψ 120&nbsp;s heartbeat</td><td>Independent flatten authority</td><td>Operator review before resume</td></tr>
+<tr><td>Live attempted without approval</td><td>Sandbox capability gate / L3 manifest</td><td>Refuses to start</td><td>Complete the approvals</td></tr>
+</tbody>
+</table>
+
+<h3 id="s25-2-doctrine">25.2 The doctrine, restated as rules</h3>
+<ol>
+<li><strong>Unknown ≠ safe.</strong> Every gate has a defined value for "unmeasurable", and that value is a refusal.</li>
+<li><strong>Fail closed at the boundary, continue below it.</strong> A data failure blocks analysis but not
+reconciliation, health checks or the kill switch.</li>
+<li><strong>No silent repair.</strong> Execution plans are immutable; a <code>ValueError</code> becomes a HOLD, never a
+patched order.</li>
+<li><strong>No silent skipping.</strong> A missed schedule shows up in its <code>last_*</code> state; a skipped candle
+shows up as a HOLD row.</li>
+<li><strong>No silent authority.</strong> Nothing reaches the broker except through the documented gate chain.</li>
+</ol>
+
+<h3 id="s25-3-gaps">25.3 Known gaps and the drift register</h3>
+<p>Documented honestly, because a source of truth that hides its gaps is not a source of truth.</p>
+<table>
+<thead><tr><th>Gap</th><th>Evidence</th><th>Impact</th></tr></thead>
+<tbody>
+<tr><td>Pipeline V2 analysis is still a single legacy body wrapped as one stage; the declared stage split (data → causal → llm → validate → size → execute) awaits golden-replay comparison</td><td><code>core/harness/pipeline_v2.py</code> (<code>_stage_legacy_body</code>) and the repository's own resume plan (item E3, pending)</td><td>Telemetry granularity, not behaviour: V2 and legacy execute identical work through the maintenance skip-token</td></tr>
+<tr><td>Historical Markdown specs drift from the code (line counts, module inventories, test-count claims)</td><td>Compare <span class="file">docs/SOURCE_OF_TRUTH.md</span> (dated 2026-08-28) with the measured 442 source / 360 test files in §01.2</td><td>Documentation risk only; this document supersedes it for architecture claims</td></tr>
+<tr><td>Some suites hang or are skipped in batch runs (e.g. <code>test_cli_profile_mounting.py</code>, <code>test_graph_engine_facade.py</code>)</td><td>Test-plan records under <code>test_plans/</code> and <span class="file">docs/CONTINUATION_VERIFICATION.md</span></td><td>Coverage blind spots, enumerated in §26</td></tr>
+<tr><td>Unmeasurable heat / zero paper balance once failed open; fixed in the current tree</td><td>Paper balance seed and paper heat provider plus their regression tests (risk-gate fixes in recent history)</td><td>Would have allowed oversized paper positions; retained as a regression watch-item</td></tr>
+<tr><td>Root-state pollution risk during development (JSON vs journal divergence)</td><td>Mitigation: tests use temporary stores; live files stay out of the working directory</td><td>Low; reconciliation resolves direction (§19.3)</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+<strong>How to extend this document.</strong> Edit the relevant fragment in <code>docs/_prd_build/fragments/</code>, then
+run <code>python scripts/build_prd_doc.py --check</code>. The checker rejects unbalanced markup, forbidden tags, missing
+anchors and missing sections — so drift in the <em>document</em> is caught mechanically, while drift in the
+<em>code</em> is caught by the test suite (§26).
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">core/harness/pipeline_v2.py</span> 188–250, 488–520</td><td>Legacy-body wrapper, maintenance skip-token, entrypoint install</td></tr>
+<tr><td><span class="file">data/data_quality.py</span>, <span class="file">core/trading_safety.py</span> 946–1220</td><td>Every fail-closed rule in the matrix above</td></tr>
+<tr><td><span class="file">operations/incident_drills.py</span>, <span class="file">docs/INCIDENT_RUNBOOKS.md</span></td><td>How each row is rehearsed operationally</td></tr>
+</tbody>
+</table>
+</div>
+</section>

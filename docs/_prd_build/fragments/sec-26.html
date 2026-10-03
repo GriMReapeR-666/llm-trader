@@ -1,0 +1,62 @@
+<section id="sec-26">
+<h2 id="tests"><span class="num">26</span> 26. Test &amp; Verification Program</h2>
+
+<h3 id="s26-1-layout">26.1 Layout and scale</h3>
+<table>
+<thead><tr><th>Scope</th><th>Files</th><th>Lines</th></tr></thead>
+<tbody>
+<tr><td>Test suite <span class="file">tests/</span></td><td class="num">360</td><td class="num">51,401</td></tr>
+<tr><td>including <code>tests/components/</code></td><td colspan="2">The modular component matrix that exercises each subsystem against its contract</td></tr>
+</tbody>
+</table>
+<p>Configuration lives in <span class="file">pytest.ini</span>; execution plans and recorded results live in
+<span class="file">test_plans/</span>, <span class="file">docs/SYSTEM_TEST_RESULTS.md</span> and
+<span class="file">docs/CONTINUATION_VERIFICATION.md</span>.</p>
+
+<h3 id="s26-2-running">26.2 Running it</h3>
+<p>The repository standard (AGENTS.md) prefixes verbose commands with <code>rtk</code> for token-efficient output:</p>
+<pre><code>rtk python -m pytest -q
+rtk python -m pytest tests/test_pipeline_v2.py tests/test_autonomous_gates.py -q
+python mt5_trader.py llm-trade --symbol EURUSD --paper --loops 1   <span class="c"># one-shot paper smoke</span></code></pre>
+<p>The one-shot paper run is the highest-value end-to-end check: it must boot with positive equity and journal HOLD or
+REJECT rows rather than raising — a crash there means the boot/permission chain regressed.</p>
+
+<h3 id="s26-3-suites">26.3 What the suites prove</h3>
+<table>
+<thead><tr><th>Suite family</th><th>Proves</th></tr></thead>
+<tbody>
+<tr><td>Component matrix (<code>tests/components/</code>)</td><td>Each module honours its contract in isolation: validator rules, sizing ladder, arbiter limits, plan geometry, memory ladder, gates</td></tr>
+<tr><td>Pipeline V2</td><td>Stage telemetry and equivalence with the legacy maintenance body (skip-token), including abort paths</td></tr>
+<tr><td>Autonomy gates</td><td>Levels, circuits, control-plane drain, supervisor phases and principals</td></tr>
+<tr><td>P0 gate end-to-end</td><td>A proposal from LLM decision through validation, sizing and execution or refusal</td></tr>
+<tr><td>Risk management hardening</td><td>Paper balance seed, heat measurement, fail-closed sizing</td></tr>
+<tr><td>Capstone / self-improvement</td><td>The autonomous success loop: closed trade → reflection → memory → next-cycle behaviour (4/4 green in the recorded plan)</td></tr>
+<tr><td>Journal audit / reconciliation</td><td>Integrity rules in §21.2 actually fire on seeded corruption</td></tr>
+<tr><td>Restart-recovery smoke</td><td>Crash markers, snapshot restore and clean shutdown hooks</td></tr>
+</tbody>
+</table>
+
+<h3 id="s26-4-gaps">26.4 What is not covered</h3>
+<ul>
+<li><strong>Hanging / skipped suites</strong> — <code>test_cli_profile_mounting.py</code> and
+<code>test_graph_engine_facade.py</code> hang when run in batch (tracked as INFRA-004 in the repository's own planning
+notes); they are not part of the green baseline.</li>
+<li><strong>Broker reality</strong> — paper mode cannot prove fills against a live venue; broker-specific behaviour is
+covered by preflight/policy tests and by reconciliation, not by CI.</li>
+<li><strong>Provider behaviour</strong> — LLM providers are mocked in tests; the real contract is the
+<code>deterministic_hold_fallback</code> behaviour, which <em>is</em> tested.</li>
+<li><strong>Golden replay for Pipeline V2 stage split</strong> — pending the E3 work in §25.3.</li>
+</ul>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">pytest.ini</span>, <span class="file">tests/</span>, <span class="file">tests/components/</span></td><td>Suite configuration and the component matrix</td></tr>
+<tr><td><span class="file">test_plans/</span>, <span class="file">docs/SYSTEM_TEST_RESULTS.md</span>, <span class="file">docs/CONTINUATION_VERIFICATION.md</span></td><td>Recorded baselines, phase results and known skips</td></tr>
+<tr><td><span class="file">AGENTS.md</span></td><td>The <code>rtk</code> command convention and build pipeline</td></tr>
+</tbody>
+</table>
+</div>
+</section>

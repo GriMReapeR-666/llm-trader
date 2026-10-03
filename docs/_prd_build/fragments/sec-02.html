@@ -1,0 +1,152 @@
+<section id="sec-02">
+<h2 id="architecture"><span class="num">02</span> 02. Architecture Doctrine, Agent Graph &amp; Layer Map</h2>
+
+<h3 id="s2-1-uqap">02.1 The formal model: Γ<sub>deployed</sub> = (Γ, Ψ)</h3>
+<p>The system is specified as a graph plus an out-of-process guardian:</p>
+<div class="formula"><span class="k">Γ_deployed</span> = ( <span class="p">Γ</span> , <span class="r">Ψ</span> )
+
+  <span class="p">Γ</span> = ( A , E , S , Φ , Θ , T )        <span class="c"># the trading graph</span>
+      A = autonomous agents (stateless stages)
+      E = relational edges (data / permission / feedback)
+      S = authoritative state tensor  (SQLite journal + keyed state store + JSON)
+      Φ = state-transformation functions (deterministic; replayable)
+      Θ = orchestrator scheduling priority
+      T = trigger mechanisms (candle close, event, schedule, circuit)
+
+  <span class="r">Ψ</span> = External Guardian — out-of-process, fail-closed kill authority
+      independent of <span class="p">Γ</span> so that a defect inside <span class="p">Γ</span> cannot silence it</div>
+<p>Two implementation facts make this concrete rather than aspirational:</p>
+<ul>
+<li><strong>Ψ is a separate process.</strong> <code>start_guardian()</code> is launched after bootstrap and before the
+pulse loop, only when the run is not paper mode — see <span class="file">mt5_trader.py</span> ~4207–4216. Its
+thresholds are hardcoded in <span class="file">core/external_guardian.py</span>, not read from the LLM's configuration.</li>
+<li><strong>Φ is deterministic and LLM-free.</strong> Everything in <span class="file">core/</span> that validates,
+sizes, arbitrates, routes or sizes an order can be replayed without an API key — which is why the test suite can
+assert on it.</li>
+</ul>
+
+<h3 id="s2-2-agents">02.2 The stateless agent roster</h3>
+<p>Agents are named by Greek glyph in the event bus emitted by <span class="file">intelligence/llm_orchestrator.py</span>
+and implemented as nodes in <span class="file">intelligence/graph_nodes.py</span> for the LangGraph shadow pipeline.</p>
+<table>
+<thead><tr><th>Glyph</th><th>Agent</th><th>Bus stages observed in code</th><th>Implementation</th></tr></thead>
+<tbody>
+<tr><td class="mono">δ</td><td>DataCollector</td><td><code>DATA_COLLECT</code> (fetching / fetched / error), <code>DATA_QUALITY</code> (checked / rejected)</td><td><span class="file">data/market_data_provider.py</span>, <span class="file">data/data_quality.py</span></td></tr>
+<tr><td class="mono">ω</td><td>MarketModel</td><td><code>NEWS_GATE</code> (checked / blocked), <code>LLM_DECISION</code> (proposal_received)</td><td><span class="file">intelligence/llm_orchestrator.py</span> <code>get_decision</code></td></tr>
+<tr><td class="mono">σ</td><td>TechnicalNet / signal builder</td><td><code>SIGNAL_BUILD</code> (feature_snapshot)</td><td><span class="file">intelligence/feature_builder.py</span>, <span class="file">core/technical_indicators.py</span></td></tr>
+<tr><td class="mono">μ</td><td>RegimeDetector</td><td><code>REGIME_DETECT</code> (regime_classified)</td><td><span class="file">intelligence/regime_classifier.py</span>, <span class="file">intelligence/intermarket_regime.py</span></td></tr>
+<tr><td class="mono">ρ</td><td>RiskController</td><td><code>RISK_CHECK</code> (validated), <code>POSITION_SIZE</code> (sized)</td><td><span class="file">core/trading_safety.py</span>, <span class="file">core/risk_manager.py</span></td></tr>
+<tr><td class="mono">ε</td><td>Execution</td><td><code>ORDER_SUBMIT</code> (order_placed)</td><td><span class="file">core/order_execution.py</span></td></tr>
+<tr><td class="mono">κ</td><td>Audit / journal</td><td><code>AUDIT_LOG_ERROR</code> (audit_log_failed)</td><td><span class="file">core/trading_safety.py</span> <code>TradingStore</code>, <span class="file">operations/journal_audit.py</span></td></tr>
+<tr><td class="mono">α</td><td>AlphaMiner advisor</td><td>alpha/edge lifecycle events, alpha-mining enrichment of the payload</td><td><span class="file">core/alpha_discovery.py</span>, <span class="file">core/alpha_fusion</span>, enrichment at <span class="file">llm_orchestrator.py</span> ~4399</td></tr>
+<tr><td class="mono">β</td><td>PortfolioAgent</td><td>allocation caps, exposure buckets, zero-volume rejections</td><td><span class="file">core/hierarchical_portfolio.py</span>, <span class="file">core/portfolio_decorr.py</span>, <code>apply_portfolio_allocation_cap</code> ~2685</td></tr>
+<tr><td class="mono">ζ</td><td>Self-improvement / meta agent</td><td>code versions (<code>ζ_code_versions.json</code>), improvement pipeline</td><td><span class="file">core/self_improvement_loop.py</span>, <span class="file">operations/improvement_pipeline.py</span></td></tr>
+</tbody>
+</table>
+<div class="callout warn">
+<strong>Scope note.</strong> The glyph bus events documented above are the ones that literally appear in the code
+(grep <code>_bus_emit</code> in <span class="file">intelligence/llm_orchestrator.py</span>). α/β/ζ are used as agent
+identities in state, state files and operations modules rather than as <code>_bus_emit</code> stage names. Treat the
+glyph labels as naming convention, and the <em>bus stage strings</em> as the machine contract.
+</div>
+
+
+<h3 id="s2-3-graphs">02.3 The three graphs</h3>
+<div class="grid3">
+<div class="card"><h4>Trade Graph (authoritative)</h4>
+<p>The real path: <span class="file">mt5_trader.py</span> pulse loop → <code>LLMOrchestrator.execute_cycle</code> →
+gates → order. This is where authority lives and where the journal is written.</p></div>
+<div class="card"><h4>Deliberative Graph (shadow)</h4>
+<p>A LangGraph pipeline that runs an <em>observation-only</em> copy of the reasoning chain each pulse. It writes
+observations, never orders.</p></div>
+<div class="card"><h4>Reflection Graph (post-trade)</h4>
+<p>Runs on closure: equity state update → coach → scenario consolidation → macro feedback. It updates beliefs, not
+positions.</p></div>
+</div>
+
+<h4>Deliberative Graph node sequence</h4>
+<div class="flow">
+<span class="node state"><b>START</b>trigger</span><span class="arrow">→</span>
+<span class="node"><b>technical_net</b>features / structure</span><span class="arrow">→</span>
+<span class="node"><b>macro_analyst</b>macro + Laya BERT</span><span class="arrow">→</span>
+<span class="node"><b>memory_retriever</b>L0–L3 recall</span><span class="arrow">→</span>
+<span class="node"><b>market_model</b>LLM router</span><span class="arrow">→</span>
+<span class="node"><b>signal_arbitrator</b>agreement</span><span class="arrow">→</span>
+<span class="node"><b>debate_protocol</b>bull vs bear</span><span class="arrow">→</span>
+<span class="node gate"><b>risk_controller</b>gate</span><span class="arrow">→</span>
+<span class="node"><b>order_execution</b></span><span class="arrow">or</span>
+<span class="node stop"><b>rejection_sink</b>codes</span><span class="arrow">→</span>
+<span class="node"><b>END</b></span>
+</div>
+<p>Declared in <span class="file">intelligence/deliberative_graph.py</span> lines 65–95: nine nodes, a linear chain
+from <code>technical_net</code> to <code>risk_controller</code>, then a branch to either <code>order_execution</code>
+or <code>rejection_sink</code>. Node implementations live in <span class="file">intelligence/graph_nodes.py</span>
+(<code>TechnicalNetNode</code> 65, <code>MacroAnalystNode</code> 129, <code>MemoryRetrieverNode</code> 534,
+<code>MarketModelNode</code> 568, <code>SignalArbitratorNode</code> 683, <code>DebateProtocolNode</code> 773,
+<code>RiskControllerNode</code> 887, <code>OrderExecutionNode</code> 1105, <code>RejectionSinkNode</code> 1172,
+<code>QuantitativeCoachNode</code> 1247).</p>
+<div class="callout">
+<strong>How the shadow graph is invoked.</strong> In the pulse loop the orchestrator invokes the compiled graph with
+<code>create_initial_trading_cycle_state(...)</code> and discards the result — the comment in
+<span class="file">mt5_trader.py</span> ~4466 states it plainly: <em>"Deliberative Graph shadow cycle (observations
+only)"</em>. This keeps the graph executable and instrumented without granting it authority.
+</div>
+
+<h3 id="s2-4-layers">02.4 Layer map: which directory owns what</h3>
+<table>
+<thead><tr><th>Layer</th><th>Role</th><th>Authority</th><th>Representative modules</th></tr></thead>
+<tbody>
+<tr><td><span class="file">mt5_trader.py</span></td><td>CLI façade, config, MT5 client, pulse loop, boot sequence</td><td><span class="badge b-amber">process owner</span></td><td><code>Config</code> ~606, <code>MT5Client</code> ~680, <code>main()</code> ~1252</td></tr>
+<tr><td><span class="file">core/</span></td><td>Deterministic trading primitives: safety, risk, orders, management, maths, alpha</td><td><span class="badge b-green">hard authority</span></td><td>trading_safety, risk_manager, order_execution, trade_manager, margin_safety</td></tr>
+<tr><td><span class="file">data/</span></td><td>Ingestion, providers, quality, calendars, news, LLM router</td><td><span class="badge b-blue">supply</span></td><td>market_data_provider, api_manager, data_source_pipeline, llm_router</td></tr>
+<tr><td><span class="file">intelligence/</span></td><td>Causal graph, macro, memory, prompt assembly, decision loop, reflection</td><td><span class="badge b-amber">proposes / advises</span></td><td>llm_orchestrator, macro_graph, trading_memory, feature_builder</td></tr>
+<tr><td><span class="file">research/</span></td><td>Backtests, validation, ML/RL training, promotion, model registry</td><td><span class="badge b-purple">zero live authority</span></td><td>alpha_backtest_harness, walk-forward, CPCV, Kronos, PPO/meta-RL, auto_promotion</td></tr>
+
+<h3 id="s2-5-authority">02.5 The authority ladder (who can say no)</h3>
+<p>An order can be vetoed at any of these stages, and each veto is journaled with its reason:</p>
+<table>
+<thead><tr><th class="num">#</th><th>Gate</th><th>Module</th><th>Typical veto</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td>Autonomy gate (halt / pause / circuit)</td><td><span class="file">operations/autonomy.py</span></td><td><code>CYCLE_SKIPPED_AUTONOMY</code> → HOLD</td></tr>
+<tr><td class="num">2</td><td>Trigger gate (completed candle, dedup)</td><td><span class="file">llm_orchestrator.py</span> ~2956–2985</td><td>"No new completed candle" → HOLD</td></tr>
+<tr><td class="num">3</td><td>Holiday / session / blackout</td><td><span class="file">data/mt5_calendar_enhanced.py</span>, orchestrator ~5822</td><td>Market Holiday → HOLD (lease released)</td></tr>
+<tr><td class="num">4</td><td>Data quality + freshness</td><td><span class="file">data/data_quality.py</span></td><td>stale / NaN / zero-volume → HOLD</td></tr>
+<tr><td class="num">5</td><td>News gate</td><td><span class="file">core/news_trading.py</span>, <span class="file">core/news_regime_correlation.py</span></td><td>news phase block → HOLD</td></tr>
+<tr><td class="num">6</td><td>Deterministic validator (R:R, confluence, EV, changepoint, overfit, drift, lag, tick age, spread, stop distance)</td><td><span class="file">core/trading_safety.py</span> ~875–1220</td><td>proposal rejected → HOLD + lifecycle <code>REJECTED</code></td></tr>
+<tr><td class="num">7</td><td>Cooldown / rate limit / active-trade limit / consecutive-loss breaker</td><td><span class="file">core/risk_manager.py</span> ~641–724</td><td>skip → HOLD</td></tr>
+<tr><td class="num">8</td><td>Position sizing (drawdown ladder × streak × quarter-Kelly × SPMC × opportunity cost × retail overlays)</td><td><span class="file">core/risk_manager.py</span> <code>calc_position_size</code> ~861</td><td>size 0 → REJECT</td></tr>
+<tr><td class="num">9</td><td>Portfolio risk arbiter (drawdown, open-risk, correlated bucket, net USD beta, single currency)</td><td><span class="file">core/trading_safety.py</span> <code>PortfolioRiskArbiter</code> ~1223</td><td><code>permit()</code> false → HOLD</td></tr>
+<tr><td class="num">10</td><td>P8 allocation cap</td><td><code>apply_portfolio_allocation_cap</code> ~2685</td><td>cap to 0 → <code>zero_volume_rejected</code></td></tr>
+<tr><td class="num">11</td><td>Execution plan + margin safety</td><td><span class="file">core/execution_planning.py</span>, <span class="file">core/margin_safety.py</span></td><td>plan <code>ValueError</code> / margin refused → HOLD</td></tr>
+<tr><td class="num">12</td><td>Broker preflight &amp; execution policy</td><td><span class="file">core/broker_preflight.py</span>, <span class="file">core/execution_policy.py</span></td><td>contract change / no approved policy → no order</td></tr>
+<tr><td class="num">13</td><td>Live execution safety supervisor</td><td><span class="file">core/execution_safety_supervisor.py</span></td><td>circuit breaker trip → block live submit</td></tr>
+</tbody>
+</table>
+<div class="callout bad">
+<strong>Read this as the security model.</strong> The LLM sits <em>between</em> stage&nbsp;5 and stage&nbsp;6. It can only
+<em>add</em> a proposal; every stage after it is deterministic Python that must affirmatively permit the trade.
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">intelligence/deliberative_graph.py</span> 65–95</td><td>The nine shadow-graph nodes and the risk_controller branch</td></tr>
+<tr><td><span class="file">intelligence/graph_nodes.py</span></td><td>Node classes: TechnicalNet, MacroAnalyst, MemoryRetriever, MarketModel, SignalArbitrator, DebateProtocol, RiskController, OrderExecution, RejectionSink, QuantitativeCoach</td></tr>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span></td><td>Bus agent glyphs: δ data, ω model/news, σ signals, μ regime, ρ risk, ε execution, κ audit</td></tr>
+<tr><td><span class="file">mt5_trader.py</span> ~4207, ~4466</td><td>Ψ Guardian start/before loop; deliberative shadow invocation (observations only)</td></tr>
+<tr><td><span class="file">core/trading_safety.py</span>, <span class="file">core/risk_manager.py</span>, <span class="file">core/order_execution.py</span></td><td>The deterministic veto stages 6–13</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<tr><td><span class="file">operations/</span></td><td>Autonomy kernel, scheduler, audits, reconciliation, backups, security, alerts</td><td><span class="badge b-blue">governance</span></td><td>autonomy, supervisor, journal_audit, live_rollout_gate, readiness_report</td></tr>
+<tr><td><span class="file">strategies/</span></td><td>Strategy implementations and registry glue</td><td><span class="badge b-dim">packaged logic</span></td><td><code>strategy_registry.json</code> + loader</td></tr>
+<tr><td><span class="file">ui/</span>, <span class="file">gui/</span></td><td>FastAPI server, Tkinter terminal, HTML dashboards</td><td><span class="badge b-dim">read + control</span></td><td>gui_api.py, alpha_dashboard.py</td></tr>
+<tr><td><span class="file">tui_opentui/</span></td><td>Canonical interactive terminal deck (React/TypeScript on Bun)</td><td><span class="badge b-dim">read + control</span></td><td><code>src/index.tsx</code>, MCP transport</td></tr>
+<tr><td><span class="file">docs/</span>, <span class="file">graphify-out/</span></td><td>Specifications, audit trails, AST knowledge graph</td><td><span class="badge b-dim">reference</span></td><td>ARCHITECTURE.md, SOURCE_OF_TRUTH.md, GRAPH_REPORT.md</td></tr>
+<tr><td><span class="file">tests/</span></td><td>Verification of every contract above, incl. the component matrix</td><td><span class="badge b-green">proof</span></td><td><code>tests/components/</code>, capstone suite</td></tr>
+</tbody>
+</table>

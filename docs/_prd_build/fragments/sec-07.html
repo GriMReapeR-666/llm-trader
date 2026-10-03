@@ -1,0 +1,191 @@
+<section id="sec-07">
+<h2 id="sec-07-heading"><span class="num">07</span> 07. Data Ingestion &amp; Source Fabric</h2>
+
+<p>Every number the system later reasons about enters through one of exactly four ingestion planes:
+the <strong>MT5 terminal plane</strong> (ticks, OHLC, depth-of-market, account), the
+<strong>HTTP/REST provider plane</strong> (NewsAPI, FRED, SEC EDGAR, Yahoo Finance, OpenBB, Seeking Alpha,
+Portfolio123, EIA, CFTC, Exness, Forex Factory), the <strong>RSS plane</strong>, and the
+<strong>calendar plane</strong> (broker calendar DLL &rarr; wrapper &rarr; structured event rows).
+This section documents how each plane is reached, what is cached, what is written to disk, how
+providers are circuit-broken, and exactly which failures are permitted to reach a trading decision.</p>
+
+<h3 id="s07-doctrine">07.1 Doctrine: no synthetic fallback, no unattributed data</h3>
+
+<p>The governing rule is enforced at the lowest level of the stack and restated at every layer:
+market data is either authenticated broker data, or the cycle does not happen. There is no
+"synthetic candle" path anywhere in <span class="file">data/market_data_provider.py</span>.</p>
+
+<table>
+<thead><tr><th>Condition</th><th>Code response</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td>MetaTrader5 package missing</td><td><code>RuntimeError("MetaTrader5 package is unavailable; refusing external or synthetic market-data fallback")</code></td><td><span class="file">data/market_data_provider.py:185-188</span></td></tr>
+<tr><td>Symbol not on broker</td><td><code>RuntimeError</code> listing similar symbols and BTC/ETH alternatives, plus an AUTO-mode tip</td><td><span class="file">data/market_data_provider.py:194-213</span></td></tr>
+<tr><td>Zero bars returned</td><td><code>RuntimeError("MT5 returned no OHLC bars" | "MT5 terminal is unavailable" &hellip; "refusing external or synthetic fallback")</code></td><td><span class="file">data/market_data_provider.py:227-232</span></td></tr>
+<tr><td>Paper mode, no attached terminal</td><td><code>RuntimeError("paper market data is unavailable; refusing synthetic candles/DOM/news; provide an explicit broker-replay or test fixture")</code></td><td><span class="file">data/market_data_provider.py:1117-1132</span></td></tr>
+<tr><td>Enhanced calendar DLL unavailable</td><td>No trusted substitution: <code>self.calendar = None</code>, log line "no calendar fallback is trusted"</td><td><span class="file">data/market_data_provider.py:737-739</span></td></tr>
+<tr><td>Exness live feed fails</td><td>Returns <code>[]</code> — comment: "No fallback insights — empty is honest"</td><td><span class="file">data/exness_provider.py:137-151</span></td></tr>
+<tr><td>Forex Factory HTTP fails</td><td>Cache read; if cache is empty the built-in <code>FALLBACK_EVENTS</code> are the only content</td><td><span class="file">data/forexfactory_provider.py:40-86, 158-190</span></td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+<p><strong>Divergence worth flagging.</strong> <span class="file">data/forexfactory_provider.py</span>
+ships a hard-coded <code>FALLBACK_EVENTS</code> list dated <code>2026-08-15</code>&hellip;<code>2026-08-18</code>
+(<span class="file">data/forexfactory_provider.py:41-86</span>) and <span class="file">data/exness_provider.py</span>
+ships a hard-coded <code>FALLBACK_INSIGHTS</code> list dated <code>2026-08-14</code>
+(<span class="file">data/exness_provider.py:40-74</span>). The Exness list is dead code (never returned);
+the Forex Factory list <em>is</em> reachable when both network and cache fail. Consumers must treat a
+Forex Factory row whose date is in the past as a stale fixture, not as a live release.</p>
+</div>
+
+<h3 id="s07-mt5-plane">07.2 The MT5 terminal plane</h3>
+
+<p>All terminal access is funnelled through three indirection helpers so a running
+<span class="file">mt5_trader.py</span> session can inject its own initialised module instead of letting
+each module import MetaTrader5 independently (<span class="file">data/market_data_provider.py:78-97</span>):</p>
+
+<pre>_get_mt5()        -> sys.modules["mt5_trader"].mt5   or module-level mt5
+_get_fetch_ohlc() -> sys.modules["mt5_trader"].fetch_ohlc (unless it is this very function)
+_get_tf_const()   -> sys.modules["mt5_trader"].tf_const   (unless it is this very function)</pre>
+
+<p>Timeframes map by name in <code>TIMEFRAME_MAP</code> (M1&hellip;MN1) and resolve via
+<code>getattr(mt5_inst, "TIMEFRAME_" + tf)</code>, raising <code>ValueError(f"Unsupported timeframe {tf}")</code>
+on an unknown label (<span class="file">data/market_data_provider.py:99-117</span>).</p>
+
+<h4>07.2.1 OHLC retrieval</h4>
+<p><code>fetch_ohlc(symbol, timeframe, count=100)</code> (<span class="file">data/market_data_provider.py:183-243</span>)
+performs, in order: terminal probe &rarr; <code>symbol_info</code> lookup &rarr;
+<code>symbol_select(symbol, True)</code> when present but not visible &rarr;
+<code>copy_rates_from_pos(symbol, tf, 0, count)</code> &rarr; DataFrame &rarr;
+<strong>server-timezone correction</strong> &rarr; <code>set_index('time')</code>.</p>
+
+<h4>07.2.2 Broker server-time decoding (the look-ahead trap)</h4>
+<p>MT5 bar epochs are in the <em>broker server's</em> timezone (MetaQuotes demo servers run UTC+3), not
+UTC. Decoding naively makes every completed bar appear hours in the future, so the feature-lineage
+validator rejects every proposal as look-ahead. <code>_server_utc_offset_seconds()</code>
+(<span class="file">data/market_data_provider.py:127-180</span>) probes <code>symbol_info_tick()</code> on
+EURUSD/GBPUSD/XAUUSD, snaps the residual to a 30-minute grid (clamped to &plusmn;14&nbsp;h), discards
+probes with residual &gt;&nbsp;300&nbsp;s (frozen/stale tick), takes the modal offset, and requires either
+2+ agreeing votes or a single vote with residual &le;&nbsp;120&nbsp;s. The result is cached 24&nbsp;h
+(<code>_SERVER_OFFSET_TTL = 24*3600</code>, <span class="file">data/market_data_provider.py:120-124</span>)
+so weekend-closed markets keep the last known offset. Returning <code>0</code> means "no trustworthy
+probe" — the code then deliberately keeps the naive decode rather than guessing wrong.</p>
+
+<h4>07.2.3 Timestamp-preserving serialisation</h4>
+<p><code>ohlc_records(df)</code> exists because <code>DataFrame.to_dict(orient="records")</code> silently
+drops the index, which stripped every bar of its <code>time</code> and made the validator reject every
+proposal with "completed bar timestamp is missing or malformed". The helper resets the index, formats it
+to <code>%Y-%m-%dT%H:%M:%SZ</code>, and renames the column to <code>time</code>
+(<span class="file">data/market_data_provider.py:246-267</span>).</p>
+
+<h4>07.2.4 Depth of market</h4>
+<p><code>DOMCollector</code> wraps <code>market_book_add</code> / <code>market_book_get</code> /
+<code>market_book_release</code> (<span class="file">data/market_data_provider.py:356-406</span>).
+Snapshot fields: <code>captured_at</code>, <code>source="mt5_dom"</code>, <code>available</code>,
+<code>best_bid</code>, <code>best_ask</code>, <code>spread</code>, <code>bid_vol_total</code>,
+<code>ask_vol_total</code>, <code>imbalance</code>,
+<code>dom_depth = min(len(bids), len(asks))</code>, <code>top_bids[0:5]</code>, <code>top_asks[0:5]</code>.
+Unsubscribed or empty books return <code>available: False</code> with no prices — it never fabricates depth.</p>
+<p>Subscription is short-lived and polled, not slept: <code>fetch_data</code> retries
+<code>get_snapshot()</code> up to 5 times with 200&nbsp;ms gaps (1&nbsp;s ceiling) instead of a blind
+<code>sleep(1)</code>, then unsubscribes (<span class="file">data/market_data_provider.py:1172-1181</span>).</p>
+
+<h3 id="s07-rest-plane">07.3 The HTTP/REST provider plane (<span class="file">data/api_manager.py</span>)</h3>
+
+<p><code>APIManager(store=None)</code> is the single façade for keyed HTTP providers
+(<span class="file">data/api_manager.py:53-145</span>). Keys are read from environment variables that accept
+either one key or a <strong>comma-separated rotation pool</strong>:</p>
+
+<table>
+<thead><tr><th>Service</th><th>Env vars (first match wins)</th><th>Pool index</th><th>Client</th></tr></thead>
+<tbody>
+<tr><td>NewsAPI</td><td><code>NEWSAPI_KEYS</code> then <code>NEWSAPI_KEY</code></td><td><code>_newsapi_keys</code> / <code>_newsapi_key_idx</code> (:60-63)</td><td><code>NewsApiClient</code> if <code>newsapi</code> importable (:102-107)</td></tr>
+<tr><td>FRED</td><td><code>FRED_API_KEYS</code> then <code>FRED_API_KEY</code></td><td><code>_fred_keys</code> / <code>_fred_key_idx</code> (:65-68)</td><td><code>fredapi.Fred</code> (:109-114)</td></tr>
+<tr><td>Yahoo Finance</td><td>none — keyless</td><td>—</td><td><code>YahooFinanceProvider()</code> (:116-122)</td></tr>
+<tr><td>OpenBB bridge</td><td>per-provider keys inside the bridge</td><td>—</td><td><code>OpenBBDataBridge(store=store)</code> (:124-130)</td></tr>
+<tr><td>SEC EDGAR</td><td>none — requires only a User-Agent</td><td>—</td><td><code>self.sec = True</code>, CIK map lazy-loaded (:132-134, :179-218)</td></tr>
+<tr><td>Portfolio123</td><td>provider-internal (<code>api_id</code>/<code>api_key</code>)</td><td>—</td><td><code>Portfolio123Provider()</code> (:88-93)</td></tr>
+<tr><td>Seeking Alpha</td><td>provider-internal <code>api_key</code></td><td>—</td><td><code>SeekingAlphaProvider()</code> (:95-100)</td></tr>
+</tbody>
+</table>
+
+<h4>07.3.1 Rate limiting</h4>
+<pre>self.rate_limiter = MultiAPIRateLimiter()
+self.rate_limiter.add_limiter("newsapi", max_requests=100, time_window=60)  # 100/min
+self.rate_limiter.add_limiter("fred",    max_requests=120, time_window=60)  # 120/min
+self.rate_limiter.add_limiter("sec",     max_requests=10,  time_window=1)   # 10/s</pre>
+<p><span class="file">data/api_manager.py:136-140</span>; the limiter module is
+<span class="file">rate_limiter.MultiAPIRateLimiter</span> imported at
+<span class="file">data/api_manager.py:13</span>. Every outbound call is preceded by
+<code>self.rate_limiter.wait_if_needed(&lt;service&gt;)</code> — see
+<span class="file">data/api_manager.py:284</span> (newsapi), <span class="file">:340</span> (hot topics),
+<span class="file">:415</span> (fred, per series), <span class="file">:475</span> (sec).</p>
+
+<h4>07.3.2 Exponential backoff and key rotation</h4>
+<p>Per-service backoff state starts at <code>{"last_429": 0.0, "delay_sec": 10.0}</code> for
+<code>newsapi</code>, <code>fred</code> and <code>seeking_alpha</code>
+(<span class="file">data/api_manager.py:71-75</span>). A 429/quota error calls
+<code>record_rate_limit()</code>, which doubles <code>delay_sec</code> up to a 300&nbsp;s ceiling
+(<span class="file">data/api_manager.py:227-234</span>); <code>is_service_backed_off()</code> suppresses
+further calls until the window elapses (<span class="file">data/api_manager.py:220-225</span>).
+<code>rotate_key()</code> advances the pool index, rebuilds the client, and resets that service's backoff
+window to 10&nbsp;s (<span class="file">data/api_manager.py:236-250</span>). On error paths the caller
+inspects the error string for <code>"429"</code>, <code>"rate"</code> or <code>"too many"</code> before
+rotating (<span class="file">data/api_manager.py:320-323</span> for news, <span class="file">:442-444</span>
+for FRED).</p>
+
+<h4>07.3.3 Response shapes</h4>
+<ul>
+<li><code>get_news(keywords, language, page_size)</code> → list of
+<code>{source, title, description, url, published_at, sentiment}</code> where sentiment comes from the
+local lexical estimator <code>_estimate_sentiment()</code> (<span class="file">data/api_manager.py:265-323, 374-392</span>).</li>
+<li><code>get_fred_data(series_ids)</code> → per-series <code>{value, date, previous, surprise}</code> where
+<code>surprise = latest - previous</code> (<span class="file">data/api_manager.py:393-455</span>).</li>
+<li><code>get_sec_filings(ticker, filing_types=["8-K","10-Q"])</code> → CIK-resolved EDGAR rows; an unresolved
+ticker returns <code>[]</code> with a warning (<span class="file">data/api_manager.py:457-516</span>).</li>
+<li><code>get_status()</code> → the operator-visible source table: <code>OpenBB</code>,
+<code>Portfolio123</code> and <code>Seeking Alpha</code> are reported <code>ONLINE</code>/<code>DEGRADED</code>/<code>OFFLINE</code>;
+Seeking Alpha is <code>DEGRADED</code> when instantiated but <code>is_live</code> is false with a
+<code>_last_error</code> (<span class="file">data/api_manager.py:550-575</span>).</li>
+</ul>
+
+<h3 id="s07-calendar-plane">07.4 The calendar plane</h3>
+
+<p>Calendar access is a three-step cascade. Only steps 1 and 2 produce a source label that the
+deterministic gates accept; a Forex Factory row is an <em>advisory</em> source and the code says so.</p>
+
+<ol>
+<li><strong>Configured enhanced calendar.</strong> <code>MarketDataProvider.__init__</code> locates
+<code>terminal64.dll</code> under <code>terminal_info().path</code> (falling back to
+<code>MQL5/Libraries/terminal64.dll</code>) and calls
+<code>create_enhanced_calendar_wrapper(dll_path=...)</code>; on any failure
+<code>self.calendar = None</code> with the comment "Enhanced calendar unavailable; no calendar fallback is
+trusted" (<span class="file">data/market_data_provider.py:721-739</span>).</li>
+<li><strong>MT5 native calendar.</strong> <code>collect_calendar_event_rows()</code> first asks the wrapper for
+<code>get_events(limit=5, min_importance=2, currencies=["USD","EUR","GBP","JPY"])</code>, labelling the
+source <code>configured_calendar</code> (or <code>ERROR</code> if it raises). If that yields nothing it calls
+<code>mt5.calendar_get(naive_anchor, naive_anchor + 24h)</code>, keeps events with
+<code>importance &gt;= 2</code>, sorts by time, takes the first five, and labels the source
+<code>mt5_calendar</code>. Each row is normalised to
+<code>{time, currency, event, importance, forecast, previous}</code>
+(<span class="file">data/market_data_provider.py:270-325</span>).</li>
+<li><strong>Forex Factory fallback.</strong> <code>collect_calendar_event_rows_with_ff()</code> calls
+<code>ForexFactoryProvider().fetch_calendar(min_impact="HIGH")</code>, takes at most five events, promotes
+<code>impact=="HIGH"</code> to <code>importance=3</code> and everything else to <code>2</code>, and sets
+<code>source="forex_factory"</code> (<span class="file">data/market_data_provider.py:328-353</span>).
+The provider reads <code>https://nfs.faireconomy.media/ff_calendar_thisweek.json</code> with an 8&nbsp;s
+timeout and a cache at <code>artifacts/forexfactory_calendar_cache.json</code>, mapping colour codes
+RED/ORANGE/YELLOW/GRAY onto HIGH/MEDIUM/LOW/HOLIDAY and deriving
+<code>datetime_utc = f"{date}T{time}Z"</code> (<span class="file">data/forexfactory_provider.py:18-19, 96-147, 158-190</span>).</li>
+</ol>
+
+<div class="callout">
+<p><strong>Consumers gate on the label, not on the object.</strong> The orchestrator computes
+<code>calendar_ready = calendar_source in {"configured_calendar", "mt5_calendar"}</code> and passes that
+boolean into per-setup data requirements. A <code>"forex_factory"</code> or <code>"UNAVAILABLE"</code>
+source therefore <em>fails closed</em> for every setup whose requirements demand a calendar
+(<span class="file">intelligence/llm_orchestrator.py:2495-2505</span>).</p>
+</div>
+
+<!--MORE-->
+</section>

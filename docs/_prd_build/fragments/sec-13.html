@@ -1,0 +1,86 @@
+<section id="sec-13">
+<h2 id="orchestration-internals"><span class="num">13</span> 13. Orchestration Internals: State Assembly, Arbitration &amp; Debate</h2>
+
+<h3 id="s13-1-payload">13.1 The state payload ("TOON")</h3>
+<p>The decision payload is a plain-dict state tensor serialised for the model. It is assembled incrementally through the
+cycle (§04.2 stages 10–14) and then hardened before the call:</p>
+<ul>
+<li><code>_round_floats(obj, precision=5)</code> (~1075) bounds float precision recursively so the payload is stable and
+diffable.</li>
+<li><code>_sanitize_toon_lite_budget(toon_lite, max_total_chars=60000)</code> (~1088) drops/compacts the most expensive
+blocks when the payload exceeds budget, rather than letting the provider reject it.</li>
+<li><code>_format_lessons_learned()</code> (~1032) and <code>_get_knowledge_base_context(toon)</code> (~1044) inject
+retrieved memory (§12) as bounded text.</li>
+</ul>
+
+<h3 id="s13-2-bus">13.2 The opportunity bus: many producers, one arbitration point</h3>
+<p><span class="file">intelligence/opportunity_bus.py</span> lets independent producers publish candidate setups:</p>
+<table>
+<thead><tr><th>Function</th><th>Line</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>_lock_authority(payload)</code></td><td>40</td><td>Stamps every candidate with zero execution authority</td></tr>
+<tr><td><code>opportunity_from_scan_row(row, timeframe)</code></td><td>46</td><td>Candidate from the market scanner</td></tr>
+<tr><td><code>opportunity_from_features(...)</code></td><td>72</td><td>Candidate from the feature snapshot (ADX, EMA alignment, volume confirmation, liquidity sweeps, Asian-range breakouts, completed-bar time)</td></tr>
+<tr><td><code>opportunity_from_stat_pass_edge(...)</code> / <code>publish_from_stat_pass_edges(...)</code></td><td>111, 184</td><td>Candidates from statistically validated edges</td></tr>
+<tr><td><code>publish(store, candidates, agent="TechnicalNet")</code></td><td>248</td><td>Writes candidates to the store</td></tr>
+<tr><td><code>load_open(store)</code> / <code>bus_snapshot(store)</code></td><td>293, 357</td><td>Open candidates and bus state for the UI</td></tr>
+<tr><td><code>handoff_for_validation(...)</code></td><td>319</td><td>Hands a candidate to the deterministic validator — the only exit with any authority</td></tr>
+</tbody>
+</table>
+<p><span class="file">intelligence/opportunity_fusion.py</span> then scores agreement with the macro layer:
+<code>is_macro_setup(setup_id)</code> (~23), <code>_edge_sign_agrees(sign, side)</code> (~28),
+<code>_edge_touches_symbol(edge, symbol)</code> (~38), <code>_propagation_agrees(propagation, side)</code> (~74),
+<code>score_opportunity(...)</code> (~98) and <code>fusion_block_reasons(fusion)</code> (~307). Fusion can
+<em>block</em>, never authorise.</p>
+
+<h3 id="s13-3-arbitration">13.3 Signal arbitration</h3>
+<p><span class="file">intelligence/signal_arbitrator.py</span> reduces several candidate signals to one scored view:
+<code>_extract_signals_from_state(state)</code> (~170) pulls signals from the state;
+<code>_direction_agrees(signal_dir, regime_bias)</code> (~68) scores regime alignment;
+<code>_causal_support(signal_side, causal_paths)</code> (~129) scores macro-path support;
+<code>_event_alignment(event_state)</code> (~154) scores event alignment;
+<code>_narrative_decay_state(decisions)</code> (~54) recognises a thesis that has already decayed;
+<code>_score_signal(...)</code> (~292) and <code>arbitrate_signals(...)</code> (~344) produce the final pick.</p>
+
+<h3 id="s13-4-debate">13.4 Debate protocol</h3>
+<p><span class="file">intelligence/debate_protocol.py</span> implements an explicit bull/bear exchange:
+<code>DebateTurn</code> (~85) and <code>DebateVerdict</code> (~101) are the serialisable shapes;
+<code>ApexQuantParliament.conduct_debate(...)</code> (~165, ~182) dispatches to
+<code>_conduct_deterministic_debate(...)</code> (~221) — the reproducible default — or
+<code>_conduct_llm_debate(...)</code> (~446) when a model is available; and <code>as_veto_caller()</code> (~493) exposes
+the result to the permission path as a veto function.</p>
+
+<h3 id="s13-5-ude">13.5 The universal decision engine (advisory)</h3>
+<p><span class="file">intelligence/universal_decision_engine.py</span> evaluates a decision against explicit criteria,
+each producing a <code>PhilosophicalAssessment</code> (~69) inside a <code>UniversalDecision</code> (~81) and a
+<code>DecisionVerdict</code> enum (~56): <code>_assess_epistemic_humility</code> (~149),
+<code>_assess_expected_value</code> (~196), <code>_assess_minimax_regret</code> (~257),
+<code>_assess_catastrophic_tail</code> (~309), <code>_assess_second_order</code> (~360),
+<code>_assess_via_negativa</code> (~408), <code>_assess_compensated_risk</code> (~444),
+<code>_assess_reversibility</code> (~507). It is advisory: its verdict informs operators and the model, but the gates in
+§05 remain the only authority.</p>
+
+<h3 id="s13-6-pipeline">13.6 Pipeline V2: observability without behaviour change</h3>
+<p><span class="file">core/harness/pipeline_v2.py</span> re-expresses the cycle as declared <code>StageSpec</code>s. The
+maintenance prefix is already a real set of stages — <code>velocity.poll</code>, <code>reconcile.pending</code>,
+<code>reconcile.open</code>, <code>memory.dispatch</code>, <code>position.tick</code>, <code>worker.heartbeat</code>
+(lines 228–244) — followed by envelope stages (blackout gate ~158, portfolio consult ~170, legacy cycle body ~188).
+Because the extracted legacy body would otherwise repeat the maintenance work,
+<code>request_skip_maintenance()</code> / <code>consume_skip_maintenance()</code> (~41–45) hand over a skip token so both
+paths perform <em>identical work</em>, with per-stage duration and status emitted as span telemetry.</p>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">intelligence/llm_orchestrator.py</span> 1032–1147</td><td>Float rounding, 60k payload budget, lessons/knowledge context</td></tr>
+<tr><td><span class="file">intelligence/opportunity_bus.py</span> 40–357</td><td>Zero-authority publication, producers, validation handoff, snapshot</td></tr>
+<tr><td><span class="file">intelligence/opportunity_fusion.py</span> 23–307</td><td>Macro/technical agreement scoring and block reasons</td></tr>
+<tr><td><span class="file">intelligence/signal_arbitrator.py</span> 54–344</td><td>Signal extraction, regime/causal/event scoring, arbitration</td></tr>
+<tr><td><span class="file">intelligence/debate_protocol.py</span> 85–493</td><td>Deterministic and LLM debate paths and veto exposure</td></tr>
+<tr><td><span class="file">core/harness/pipeline_v2.py</span> 41–244</td><td>Stage specs, skip-token equivalence, span telemetry</td></tr>
+</tbody>
+</table>
+</div>
+</section>

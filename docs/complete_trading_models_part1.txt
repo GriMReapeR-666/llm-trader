@@ -1,0 +1,250 @@
+================================================================================
+COMPLETE QUANTITATIVE TRADING & INVESTING MATHEMATICAL MODELS — PART 1
+================================================================================
+Ultra-HFT -> Swing | Microstructure -> Momentum -> Market Making
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1: ULTRA-HFT & SUB-SECOND (< 1 SECOND)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1.1 QUEUEING THEORY & ORDER BOOK DYNAMICS
+  Fill probability for position k in queue of depth Q:
+    P_fill(k,Q) = (lambda/(lambda+mu))^k * [1 - (mu/(lambda+mu))^{Q-k+1}]
+    lambda = market order arrival, mu = cancel rate
+
+  First-passage time ~ Inverse Gaussian:
+    f_T(t) = Q/(sqrt(2*pi*sigma_q^2)*t^(3/2)) * exp(-(Q-theta_q*t)^2/(2*sigma_q^2*t))
+    theta_q = lambda - mu (net drift), sigma_q^2 = queue variance
+
+1.2 HAWKES PROCESS (Self-Exciting Intensity)
+  lambda(t) = mu_0 + SUM_{t_i < t} alpha * exp(-beta * (t - t_i))
+  Branching ratio: n = alpha / beta
+    n >= 0.85: cascade / contagion -> momentum breakout mode
+    n < 0.30: Poisson baseline -> market making mode
+    n -> 1: criticality (endogenous crash territory)
+
+1.3 MICRO-PRICE (Weighted Mid)
+  P_micro = p_a * q_a/(q_b+q_a) + p_b * q_b/(q_b+q_a)
+  Better predictor of future mid than raw mid
+
+1.4 ORDER FLOW IMBALANCE (OFI) - Tick Level
+  OFI_t = I{p^b_t >= p^b_{t-1}} * q^b_t - I{p^b_t <= p^b_{t-1}} * q^b_{t-1}
+          - I{p^a_t <= p^a_{t-1}} * q^a_t + I{p^a_t >= p^a_{t-1}} * q^a_{t-1}
+  Linear price impact: Delta_P approximately beta * OFI
+
+1.5 HASBROCK VAR (Vector Autoregression)
+  r_t = SUM alpha_i * r_{t-i} + SUM beta_i * x_{t-i} + epsilon_{1,t}
+  x_t = SUM gamma_i * r_{t-i} + SUM delta_i * x_{t-i} + epsilon_{2,t}
+  r = mid-quote return, x = signed order flow (+1 buy, -1 sell, volume-weighted)
+  Permanent impact: I_inf = SUM_{i=0}^inf Psi_i (cumulative impulse response)
+
+1.6 MAKER REBATE ARBITRAGE
+  EV_maker = rebate * fill_prob - adverse_selection * (1 - fill_prob) - latency_cost
+  Rebate: -0.2 to -0.5 bps (negative = payment to maker)
+  Taker fee: +2.5 to +5.0 bps
+
+1.7 ADVERSE SELECTION MODELS
+  Glosten-Milgrom: Spread = 2 * (mu * alpha * sigma_v) / (mu * alpha^2 + (1 - mu))
+  Easley-O'Hara (PIN): PIN = alpha*mu / (alpha*mu + 2*epsilon_b + 2*epsilon_s)
+
+1.8 LATENCY ARBITRAGE
+  Profit = price_discovery_speed * spread_capture - latency_cost
+  Co-location: 500ns - 10us (FPGA) vs 15-150ms (REST)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2: FAST SCALPING (1 SECOND - 5 MINUTES)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2.1 AVELLANEDA-STOIKOV MARKET MAKING
+  Reservation price: r = s - q * gamma * sigma^2 * (T - t)
+  Optimal half-spread: delta = (1/2)*gamma*sigma^2*(T-t) + (1/gamma)*ln(1 + gamma/k)
+  Quotes: Bid = r - delta, Ask = r + delta
+  Fill intensity: lambda(delta) = A * exp(-k * delta)
+
+  Multi-asset extension (Guéant-Lehalle-Fernandez):
+    r_i = s_i - q_i*gamma*sigma_i^2*(T-t) - gamma*SUM_{j!=i} q_j*sigma_{ij}*(T-t)
+
+2.2 KYLE'S LAMBDA
+  Delta_P = lambda * (Signed Order Flow)
+  Single informed trader: lambda = sigma_v / (2 * sigma_u)
+
+2.3 ORNSTEIN-UHLENBECK (OU) - Fast Mean Reversion
+  dX = theta * (mu - X) dt + sigma * dW
+  Discrete AR(1): X_{t+1} = c + phi * X_t + epsilon
+  Calibration: theta = -ln(phi) / Delta_t
+  Half-life: t_1/2 = ln(2) / theta
+  Stationary variance: sigma^2 / (2*theta)
+  Trading: enter z = +/-2, exit z = 0, stop z = +/-3
+
+2.4 VPIN (Volume-Synchronized Probability of Informed Trading)
+  VPIN = SUM_{tau=1}^N |V^tau_B - V^tau_S| / (N * V)
+  Rising VPIN = adverse selection -> pull quotes / widen spreads
+
+2.5 ROLL MODEL FOR EFFECTIVE SPREAD
+  Delta_p_t = c * Delta_q_t + epsilon_t, q_t in {-1,+1}
+  Cov(Delta_p_t, Delta_p_{t-1}) = -c^2
+  Effective Spread: S = 2 * sqrt(-Cov(Delta_p_t, Delta_p_{t-1}))
+
+2.6 VWAP REVERSION (Scalp)
+  VWAP = SUM(p_i * q_i) / SUM(q_i)
+  VWAP bands: VWAP +/- k * sigma_VWAP
+  Price above upper band -> fade short; below lower -> fade long
+
+2.7 ORDER BOOK SLOPE / DEPTH IMBALANCE
+  Imb = (SUM w_i * q_bid_i - SUM w_i * q_ask_i) / (SUM w_i * (q_bid_i + q_ask_i))
+  w_i = 1/i or 1/i^2 (decay by level)
+
+2.8 LEE-READY TRADE CLASSIFICATION
+  Trade at ask -> buyer-initiated (+1); at bid -> seller-initiated (-1)
+  Bulk Volume Classification (BVC):
+    Buy_vol = V * Phi((p_t - p_{t-1}) / sigma_Delta)
+    Sell_vol = V * (1 - Phi(...))
+
+2.9 SCALPING ENTRY FILTERS (Conjunction)
+  Spread < x bps | |OFI| > threshold | Vol regime allows | Fee tier is maker
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3: SWING TRADING (1 HOUR - 5 DAYS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3.1 TIME-SERIES MOMENTUM (TSMOM)
+  Position_t = sign(r_{t-252 -> t-21}) * (sigma_target / sigma_realized)
+  Moskowitz-Ooi-Pedersen: works across equities, FX, commodities, crypto
+
+3.2 CROSS-SECTIONAL MOMENTUM (Jegadeesh-Titman)
+  Rank assets by trailing 12-1 month return, long top decile, short bottom
+  Skip most recent month (short-term reversal), rebalance monthly
+
+3.3 MEAN REVERSION (OU Applied)
+  Pairs: spread = ln(P1) - beta * ln(P2), trade z-score
+  Single: z = (RSI - 50)/sigma_RSI or (Price - Bollinger mid)/band width
+
+3.4 BREAKOUT SYSTEMS
+  Donchian 20/55 channel (Turtle rules)
+  Chandelier exit: highest high - 3 * ATR
+
+3.5 GARCH(1,1) VOLATILITY
+  sigma^2_t = omega + alpha * epsilon^2_{t-1} + beta * sigma^2_{t-1}
+  Persistence = alpha + beta; long-run vol = omega / (1 - alpha - beta)
+
+3.6 HAR-RV (Heterogeneous Autoregressive Realized Vol)
+  RV_{t+1} = beta_d * RV_daily + beta_w * RV_weekly + beta_m * RV_monthly
+
+3.7 HURST EXPONENT / FRACTALS
+  E[R/S] ~ c * n^H
+  H > 0.5: trending; H < 0.5: mean-reverting; H = 0.5: random walk
+
+3.8 DAMPED OSCILLATOR (Price Cycles)
+  m*x'' + c*x' + k*x = F(t)
+  zeta = c / (2*sqrt(m*k)); zeta < 1 -> oscillation (Ehlers' MESA)
+
+3.9 KELLY CRITERION (Swing Sizing)
+  Discrete: f* = (b*p - q) / b | Continuous: f* = mu / sigma^2
+
+3.10 ATR POSITION SIZING
+  Units = (Equity * RiskPct) / (k * ATR), k in [1.5, 3]
+
+3.11 GEX/VANNA DEALER FLOWS (Swing Gamma)
+  GEX = SUM Gamma_i * OI_i * S^2 * Sign_i * 100
+  VEX = SUM (-sigma * phi(d1) * d2) * OI_i * S * Sign_i
+  CEX = SUM (partial Delta / partial t) * OI_i * S * Sign_i
+  GEX > 0: dealers buy dips/sell rips -> mean-reverting, suppressed vol
+  GEX < 0: dealers sell-offs/buy rallies -> trend-accelerating, vol expansion
+
+3.12 TRIPLE-BARRIER META-LABELING
+  Upper: P_0 + k_1 * ATR; Lower: P_0 - k_2 * ATR; Timeout: t_0 + tau_i
+  ML model: P(win) = P(Upper hit first | features)
+  Scaled signal: S_tilde = D * max(0, 2*(p - 0.5))
+
+3.13 FISHER TRANSFORM
+  Fisher(x) = 0.5 * ln((1+x)/(1-x))
+  Entry: Fisher > 2.0 or < -2.0
+
+3.14 KAUFMAN ADAPTIVE MOVING AVERAGE (KAMA)
+  ER = |P_t - P_{t-n}| / SUM |P_i - P_{i-1}|
+  SC = [ER * (2/(2+1) - 2/(30+1)) + 2/(30+1)]^2
+  KAMA_t = KAMA_{t-1} + SC * (P_t - KAMA_{t-1})
+
+3.15 CLENOW TREND QUALITY
+  TQ = net_path / total_path = price_change / SUM |daily_changes|
+  TQ = 1: perfect trend; TQ = 0: perfect chop
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4: POSITIONAL TRADING (1 WEEK - 3 MONTHS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4.1 CARRY TRADE (FX)
+  Return = (r_quote - r_base) + currency_appreciation
+  Forward premium puzzle: high-rate currencies don't depreciate enough
+
+4.2 COVERED INTEREST PARITY (CIP)
+  F = S * (1 + r_dom * tau) / (1 + r_for * tau)
+  CIP violation = FX swap basis = dollar-stress signal
+
+4.3 PURCHASING POWER PARITY (PPP)
+  z = (ln S - ln PPP_t) / sigma_rolling
+  Half-life ~3-5 years (Rogoff)
+
+4.4 SCHWARTZ 2-FACTOR COMMODITY MODEL
+  d ln S = kappa * (m - ln S) dt + sigma_1 * dW_1
+  dy = alpha * (m_y - y) dt + sigma_2 * dW_2, corr(dW_1, dW_2) = rho
+
+4.5 COST OF CARRY (Commodities)
+  F = S * exp((r + u - y) * T)
+  Roll yield = (F_near - F_far) / F_near
+
+4.6 TAYLOR RULE (Central Bank Policy)
+  i_t = r* + pi_t + alpha_pi*(pi_t - pi*) + alpha_y*(y_t - y*)
+
+4.7 NET GLOBAL LIQUIDITY
+  L_t = Fed_Assets - (TGA + RRP)
+  Delta_ln(Asset) = alpha + beta_1*Delta_ln(L) + beta_2*Delta_CreditSpread
+
+4.8 TERM STRUCTURE MODELS (Nelson-Siegel-Svensson)
+  y(m) = beta_0 + beta_1*(1-exp(-m/tau_1))/(m/tau_1)
+         + beta_2*[(1-exp(-m/tau_1))/(m/tau_1) - exp(-m/tau_1)]
+         + beta_3*[(1-exp(-m/tau_2))/(m/tau_2) - exp(-m/tau_2)]
+
+4.9 CRACK/CRUSH SPREADS
+  3-2-1 Crack: CRK = 2*RBOB + 2*ULSD - 3*WTI
+  Soybean crush: SBM + SBO - SBY
+
+4.10 SEASONALITY MODELS
+  Agricultural: planting/harvest cycles
+  Energy: heating season (winter gas), cooling season (summer electricity)
+
+4.11 INVENTORY MODELS (Commodities)
+  Low inventory -> high convenience yield -> backwardation + high vol
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5: MARKET MAKING (All Horizons)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+5.1 AVELLANEDA-STOIKOV (Canonical)
+  r = s - q*gamma*sigma^2*(T-t)
+  delta = (1/2)*gamma*sigma^2*(T-t) + (1/gamma)*ln(1+gamma/k)
+
+5.2 INVENTORY-ADAPTIVE RISK AVERSION
+  gamma_t = gamma_0 * (1 + |q_t| / q_max)
+
+5.3 VOL-REGIME SPREAD SCALING
+  delta_t = delta_0 * (sigma_t / sigma_0)^alpha
+
+5.4 ADVERSE SELECTION FILTER
+  If VPIN > threshold OR Hawkes n > 0.7: widen spread or pull quotes
+
+5.5 MULTI-ASSET MM (Cross-Asset Hedging)
+  r_i = s_i - q_i*gamma*sigma_i^2*(T-t) - gamma*SUM_{j!=i} q_j*sigma_{ij}*(T-t)
+
+5.6 FUNDING RATE ARBITRAGE (Crypto MM)
+  When funding > 0: short perp, long spot
+  Annualized yield = funding_rate * 3 * 365
+
+5.7 LIQUIDATION CASCADE MODEL
+  High leverage + price drop -> forced liquidations
+  Detect: OI dropping + price dropping + funding extreme
+
+5.8 MAKER REBATE OPTIMIZATION
+  EV = rebate * fill_prob - adverse_selection * (1 - fill_prob) - latency_cost
+================================================================================

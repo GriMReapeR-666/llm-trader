@@ -1,0 +1,82 @@
+<section id="sec-27">
+<h2 id="glossary"><span class="num">27</span> 27. Glossary, Evidence Index &amp; File Map</h2>
+
+<h3 id="s27-1-glossary">27.1 Glossary</h3>
+<table>
+<thead><tr><th>Term</th><th>Meaning in this system</th></tr></thead>
+<tbody>
+<tr><td><strong>Γ / Ψ</strong></td><td>The trading graph and the out-of-process External Guardian (§02.1)</td></tr>
+<tr><td><strong>TOON payload</strong></td><td>The JSON state object assembled for the model: quotes, features, structure, macro, news, memory (§05.1)</td></tr>
+<tr><td><strong>HOLD</strong></td><td>A journaled decision to do nothing, with a reason. Never a silent no-op</td></tr>
+<tr><td><strong>Proposal</strong></td><td>An immutable candidate trade produced by the model and validated deterministically (§05.3)</td></tr>
+<tr><td><strong>1R</strong></td><td>The initial risk unit: entry-to-initial-stop distance × volume. All sizing is expressed in R</td></tr>
+<tr><td><strong>Heat</strong></td><td>Aggregate open risk across the book, measured in R and capped (§05.5)</td></tr>
+<tr><td><strong>Confluence</strong></td><td>Count of independent deterministic conditions supporting the setup; must reach <code>min_confluence</code> (§05.4)</td></tr>
+<tr><td><strong>WFE</strong></td><td>Walk-forward efficiency = mean OOS Sharpe / mean IS Sharpe; below 0.5 shrinks size, ≤ 0 kills it (§16.1)</td></tr>
+<tr><td><strong>PBO / DSR</strong></td><td>Probability of backtest overfitting / deflated Sharpe ratio — multiple-testing corrections (§16.2, §16.4)</td></tr>
+<tr><td><strong>WAL</strong></td><td>SQLite write-ahead logging; the journal runs in WAL mode for concurrent readers (§19.1)</td></tr>
+<tr><td><strong>StoreBackedState</strong></td><td>Mixin that persists a module's JSON state into the journal's <code>state</code> table (§19.3)</td></tr>
+<tr><td><strong>Pulse / cycle</strong></td><td>A loop iteration (≈5 s) / one full analysis+decision+execution pass for one symbol+strategy (§04)</td></tr>
+<tr><td><strong>Candle lease</strong></td><td>The claim that a completed bar has been analysed; prevents duplicate work and is released on holidays (§04.2)</td></tr>
+<tr><td><strong>Circuit</strong></td><td>A threshold trip that halts, pauses, demotes or holds-only (§20.3)</td></tr>
+<tr><td><strong>Autonomy level</strong></td><td>L0 shadow · L1 paper · L2 micro live · L3 full live (§20.2)</td></tr>
+<tr><td><strong>Reflection</strong></td><td>The post-trade slow-lane pipeline that converts outcomes into memory and causal weights (§14)</td></tr>
+<tr><td><strong>Retrieval provenance</strong></td><td>The link from remembered items to the trade they influenced, scored by its outcome (§12, §14.6)</td></tr>
+<tr><td><strong>Advisory</strong></td><td>Any model/research output that may inform or shrink a decision but never authorise one</td></tr>
+<tr><td><strong>Point-in-time</strong></td><td>Using only information available at decision time; enforced by the data-quality gate and feature schema (§08)</td></tr>
+<tr><td><strong>fail-closed</strong></td><td>Unmeasurable, unknown or unauthorised ⇒ refuse, do not assume</td></tr>
+</tbody>
+</table>
+
+<h3 id="s27-2-index">27.2 Evidence index — where each claim family lives</h3>
+<table>
+<thead><tr><th>Claim family</th><th>Primary source</th><th>Section</th></tr></thead>
+<tbody>
+<tr><td>Entrypoint, boot, pulse loop</td><td><span class="file">mt5_trader.py</span> ~606–680, 1252–1600, 3840–4700</td><td>§03, §04</td></tr>
+<tr><td>Decision contract, gates, execution call sites</td><td><span class="file">intelligence/llm_orchestrator.py</span> ~1147–1630, 1960–2685, 4938–6105, 6840–7360</td><td>§04, §05</td></tr>
+<tr><td>Validator, arbiter, journal schema</td><td><span class="file">core/trading_safety.py</span> 40–293, 875–1310</td><td>§05, §19</td></tr>
+<tr><td>Sizing ladder</td><td><span class="file">core/risk_manager.py</span> 861–1140</td><td>§05.5</td></tr>
+<tr><td>Order routing, slippage, audit</td><td><span class="file">core/order_execution.py</span> 40–395</td><td>§06</td></tr>
+<tr><td>Position management</td><td><span class="file">core/trade_manager.py</span> 163–267, 402–624</td><td>§06.5</td></tr>
+<tr><td>Ingestion, quality, features</td><td><span class="file">data/market_data_provider.py</span>, <code>data_quality.py</code>, <span class="file">intelligence/feature_builder.py</span></td><td>§07, §08</td></tr>
+<tr><td>News / macro / alternative data</td><td><span class="file">data/realtime_news_ingest.py</span>, <code>news_triage.py</code>, calendar and macro providers</td><td>§09</td></tr>
+<tr><td>Provider fabric</td><td><span class="file">data/llm_router.py</span> 26–780</td><td>§10</td></tr>
+<tr><td>Causal macro graph</td><td><span class="file">intelligence/macro_graph.py</span>, <code>economic_dynamics_*.py</code></td><td>§11</td></tr>
+<tr><td>Memory L0–L3</td><td><span class="file">intelligence/trading_memory.py</span> 41–1526</td><td>§12, §14.6</td></tr>
+<tr><td>Arbitration, debate, V2 pipeline</td><td><span class="file">intelligence/signal_arbitrator.py</span>, <code>debate_protocol.py</code>, <span class="file">core/harness/pipeline_v2.py</span></td><td>§13</td></tr>
+<tr><td>Alpha mining and factor library</td><td><span class="file">core/alpha_discovery.py</span>, <code>alpha_factors.py</code></td><td>§15</td></tr>
+<tr><td>Validation gates</td><td><span class="file">core/walk_forward_validator.py</span>, <code>cpcv_validation.py</code>, <code>overfit_gate.py</code>, <code>trial_ledger.py</code></td><td>§16</td></tr>
+<tr><td>ML/RL families</td><td><span class="file">research/kronos_*.py</span>, <code>ppo_trainer.py</code>, <code>meta_rl_trainer.py</code></td><td>§17</td></tr>
+<tr><td>Promotion &amp; lifecycle</td><td><span class="file">research/auto_promotion.py</span>, <span class="file">operations/strategy_lifecycle.py</span>, <span class="file">operations/live_rollout_gate.py</span></td><td>§18</td></tr>
+<tr><td>Persistence</td><td><span class="file">core/trading_safety.py</span> DDL, <span class="file">operations/agent_operations.py</span> DDL, <span class="file">core/state_persistence.py</span></td><td>§19</td></tr>
+<tr><td>Autonomy, circuits, loops</td><td><span class="file">operations/autonomy.py</span>, <code>supervisor.py</code>, <code>dual_velocity.py</code></td><td>§20</td></tr>
+<tr><td>Audits, backups, security, CLI</td><td><span class="file">operations/journal_audit.py</span>, <code>journal_backup.py</code>, <code>security_audit.py</code>, <span class="file">mt5_trader.py</span> 1560–1600</td><td>§21</td></tr>
+<tr><td>API &amp; surfaces</td><td><span class="file">gui/gui_api.py</span>, <span class="file">tui_opentui/</span>, <span class="file">ui/</span>, <span class="file">visualizer/</span></td><td>§22</td></tr>
+<tr><td>Configuration &amp; secrets</td><td><span class="file">.env.example</span>, <code>config.ini</code>, <code>accounts.json</code></td><td>§23</td></tr>
+<tr><td>Failure matrix &amp; gaps</td><td>All gate modules; <span class="file">core/harness/pipeline_v2.py</span></td><td>§25</td></tr>
+<tr><td>Verification</td><td><span class="file">pytest.ini</span>, <span class="file">tests/</span>, <code>test_plans/</code></td><td>§26</td></tr>
+</tbody>
+</table>
+
+<h3 id="s27-3-maintain">27.3 Maintaining this document</h3>
+<div class="formula">docs/_prd_build/
+  shell_head.html         <span class="c"># doctype, CSS, sidebar chrome</span>
+  shell_foot.html         <span class="c"># footer + TOC behaviour</span>
+  fragments/sec-01.html … sec-27.html
+scripts/build_prd_doc.py  <span class="c"># stitcher + validator (--check)</span>
+
+<span class="c">workflow</span>
+  edit fragment → python scripts/build_prd_doc.py --check → build
+<span class="c">output</span>
+  docs/SYSTEM_SOURCE_OF_TRUTH_PRD.html   <span class="c"># single self-contained file, no external assets</span></div>
+<p>The validator enforces the conventions this document relies on: exactly one <code>&lt;section&gt;</code> per file, an
+<code>&lt;h2 id&gt;</code> heading, balanced <code>table</code>/<code>div</code>/<code>details</code>/<code>pre</code>
+markup, and the absence of <code>&lt;html&gt;</code>/<code>&lt;script&gt;</code>/<code>&lt;h1&gt;</code> inside fragments.
+Sections 01–27 are all required, so deleting one fails the build rather than silently shrinking the manual.</p>
+
+<div class="callout">
+<strong>Final reminder.</strong> Where this document and the code disagree, the code is authoritative — and the
+disagreement itself is a documentation defect worth fixing with the same care as a trading defect, because the next
+operator will read this file.
+</div>
+</section>

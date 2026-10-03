@@ -1,0 +1,122 @@
+<section id="sec-06">
+<h2 id="execution"><span class="num">06</span> 06. Execution, Broker Routing &amp; Trade Management</h2>
+
+<h3 id="s6-1-broker">06.1 Two venues, one contract</h3>
+<table>
+<thead><tr><th>Path</th><th>Module</th><th>Contract</th></tr></thead>
+<tbody>
+<tr><td>Paper (simulation)</td><td><code>PaperBroker</code> (<span class="file">core/order_execution.py</span> ~40)</td><td>In-memory orders/positions with monotonic tickets from 100000. Refuses to invent positions: a non-finite/non-positive quote or volume returns <code>retcode 10013</code> with <em>"paper quote/volume unavailable; no synthetic position created"</em>. Closes are journaled through a callback into SQLite, so research gates and reconciliation consume paper trades exactly like live ones.</td></tr>
+<tr><td>Live / demo MT5</td><td><code>place_pending_order</code>, <code>place_urgency_routed_order</code>, <code>modify_order_sltp</code>, <code>cancel_pending_order</code>, <code>emergency_market_exit</code></td><td>Validated pending plans and emergency exits only.</td></tr>
+</tbody>
+</table>
+<div class="callout bad">
+<strong>Direct live market entries are disabled by design.</strong> <code>place_market_order()</code> raises
+<code>RuntimeError("direct market entries are disabled; use a validated pending plan or emergency_market_exit for an
+owned position")</code> when called without a paper broker (<span class="file">core/order_execution.py</span> ~290).
+Entries therefore always pass the plan/quote/geometry validation, and the only market-order path that reaches a live
+broker is the emergency exit of a position the system already owns.
+</div>
+
+<h3 id="s6-2-paper-rules">06.2 Paper-broker safety rules (all fail-closed)</h3>
+<ul>
+<li><code>pending_order</code> accepts only <code>buy_limit</code>, <code>sell_limit</code>, <code>buy_stop</code>,
+<code>sell_stop</code>; anything else → <code>10013 invalid paper pending order type</code>.</li>
+<li>Expired pending orders are rejected (<code>paper pending order is already expired</code>).</li>
+<li><code>close_position</code> requires a matching non-zero <code>magic</code>
+(<code>paper position identity/magic ownership mismatch</code> otherwise) and refuses to close more than the position
+holds.</li>
+<li>History is trimmed at 2000 entries (keeps the newest 1000) so a long paper run cannot exhaust memory.</li>
+</ul>
+
+<h3 id="s6-3-live-path">06.3 The live submit path, step by step</h3>
+<ol>
+<li><strong>Parameter validation</strong> — <code>validate_order_params(side, price, sl, tp, atr)</code> (~192).</li>
+<li><strong>Pending geometry</strong> — <code>validate_pending_entry_geometry(otype, entry, bid, ask)</code> (~224),
+reordering a limit that would already be marketable.</li>
+<li><strong>Distributed lock</strong> — an <code>order:&lt;symbol&gt;</code> lock is acquired before submit; failure returns
+<code>{"error": "lock_timeout"}</code> instead of racing (~309–318). This is what makes the parallel strategy pool safe.</li>
+<li><strong>Dynamic deviation</strong> — <code>calculate_dynamic_slippage_deviation</code> (~247):
+<span class="badge b-amber">urgency ≥ 0.70</span> → deviation ≈ 1.5 × spread (accept slippage to avoid requotes);
+<span class="badge b-blue">urgency ≤ 0.30</span> → 0.8 × spread (protect against slippage); otherwise 1.0 ×. Clamped to
+<span class="badge b-dim">[5, 150]</span> points; falls back to a 20-point base when the spread is unknown.</li>
+<li><strong>Filling mode</strong> — <code>_broker_market_filling_mode(symbol)</code> reads the broker's allowed filling
+modes instead of assuming one.</li>
+<li><strong>κ audit</strong> — the result is written to the hash-chained compliance log as
+<code>EventType.ORDER_FILLED</code> or <code>EventType.ORDER_REJECTED</code> with retcode, ticket, SL/TP (~344–358).</li>
+<li><strong>Non-DONE retcode</strong> — raises <code>RuntimeError("Market order failed: retcode=…")</code>, releasing the
+lock; the cycle journals the rejection. There is no retry-on-reject loop that could double-fill.</li>
+<li><strong>Post-execution advisory</strong> — <code>UrgencySmartOrderRouter</code> recomputes urgency from spread,
+order-flow imbalance and depth and returns an <code>execution_routing</code> advisory that is logged for telemetry
+(<em>not</em> a second order) (~367–386).</li>
+</ol>
+
+<h3 id="s6-4-broker-preflight">06.4 Broker contract and execution policy</h3>
+<p>Before any live order, the system needs a verified contract description. <span class="file">core/broker_preflight.py</span>
+captures symbol and account specs (<code>SYMBOL_FIELDS</code> ~16, <code>ACCOUNT_FIELDS</code> ~24, required fields
+including <code>login, server, currency, leverage, trade_allowed, trade_expert</code>), fingerprints them
+(<code>fingerprint</code> ~59) and compares against the stored one (<code>has_contract_changed</code> ~64). A changed
+contract invalidates the stored execution policy.</p>
+<p><span class="file">core/execution_policy.py</span> stores a per-symbol, per-broker-fingerprint policy that must validate
+against <code>REQUIRED</code> fields (~15: version, symbol, broker_fingerprint, max_spread_price, …) and must be
+<em>approved by an operator</em> (<code>approve_for_store</code> ~162). An unapproved policy means no order for that
+symbol — by design.</p>
+
+<h3 id="s6-5-management">06.5 Position management: the ladder of protective actions</h3>
+<p><code>TradeManager.monitor_positions</code> (<span class="file">core/trade_manager.py</span> ~163) runs on every pulse
+for live/demo and paper alike. Its order of operations is deliberate:</p>
+<div class="flow">
+<span class="node stop"><b>1. protective flatten</b>daily-loss limit flattens open risk</span><span class="arrow">→</span>
+<span class="node"><b>2. own positions</b>foreign magic → manual_activity row</span><span class="arrow">→</span>
+<span class="node gate"><b>3. _manage_position</b>breakeven then trailing</span><span class="arrow">→</span>
+<span class="node adv"><b>4. conditions</b>programmatic + LLM scenarios (advisory)</span><span class="arrow">→</span>
+<span class="node"><b>5. synthetic triggers</b>stealth daemon observation</span><span class="arrow">→</span>
+<span class="node"><b>6. scale-out / time-stop / pyramid</b>optional, feature-flagged</span>
+</div>
+<table>
+<thead><tr><th>Mechanism</th><th>Trigger (real constants)</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td>Protective flatten</td><td><code>risk.pending_flatten_reason()</code> set by the daily-drawdown check</td><td>Closes <em>all</em> owned positions after <code>_authorize_management_action("FULL_CLOSE", …)</code>; clears the request only when nothing remains (~217–267)</td></tr>
+<tr><td>Breakeven</td><td>profit &gt; <code>breakeven_r_mult</code> × initial R</td><td>SL → entry ∓ ATR×0.1 buffer, only ever moving protectively (~591–608)</td></tr>
+<tr><td>ATR trailing</td><td>current ± <code>trailing_stop_r_mult</code> × initial R, beyond open price</td><td>Monotonic SL tightening, never loosening (~610–624)</td></tr>
+<tr><td>Scale-out stage 1</td><td>R ≥ <code>scale_out_r_mult</code> (2R) <em>and</em> profit &gt; 2 × ATR</td><td>Close 50% (~420–445)</td></tr>
+<tr><td>Scale-out stage 2</td><td>R ≥ <code>scale_out_two_r_mult</code> (3R)</td><td>Close half of the remainder (~446–450)</td></tr>
+<tr><td>Time stop</td><td>elapsed &gt; <code>time_stop_seconds</code> and R &lt; 0.20</td><td>Exit early to preserve capital (~452–477)</td></tr>
+<tr><td>Pyramiding</td><td>profit &gt; 1.5R and strong trend (ADX &gt; 25)</td><td>Add volume, normalized to broker limits (~626–739)</td></tr>
+<tr><td>Programmatic conditions</td><td>Operator-registered price conditions (<code>trade_conditions.json</code>)</td><td>Evaluate and record; LLM <code>conditional_scenarios</code> are observation-only (~192, ~1097–1168)</td></tr>
+</tbody>
+</table>
+<p>The R basis is captured once per ticket by <code>_initial_risk_for</code> (~402) from the <em>initial</em> stop, before
+any breakeven or trailing move mutates it — otherwise trailing would shrink the R reference each tick. If the initial
+stop is missing it falls back to ATR.</p>
+<div class="callout good">
+<strong>Every management action is authorized, not assumed.</strong> <code>_authorize_management_action</code> (~269) is
+called before each close/modify; a refusal is logged as <code>PARTIAL_CLOSE_REJECTED</code> or
+<code>Protective flatten refused</code> and the manager moves on. Unowned positions (foreign magic) are recorded in
+<code>manual_activity</code> as <code>UNOWNED_POSITION_OBSERVED</code> with action <code>observe_only</code> — the system
+never touches a position it cannot prove it owns.
+</div>
+
+<h3 id="s6-6-reconciliation">06.6 Post-fill and close reconciliation</h3>
+<p>After any fill or close the orchestrator records broker execution reports (fill price, slippage, spread at submit and
+fill, implementation shortfall, requote count, execution latency — columns added by migration in
+<span class="file">core/trading_safety.py</span> ~284–290), position observations with <code>mark_quality</code>, and
+lifecycle events. <code>reconcile_pending_orders</code>, <code>reconcile_open_positions</code> and
+<code>reconcile_daily_broker_history</code>
+(<span class="file">intelligence/llm_orchestrator.py</span> ~4766, ~4538, ~4734) compare broker truth against the journal
+during every maintenance prefix, so a restart or a dropped connection cannot leave the system believing in a position the
+broker no longer holds.</p>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">core/order_execution.py</span> 40–158</td><td>PaperBroker semantics, journal bridge, ownership checks</td></tr>
+<tr><td><span class="file">core/order_execution.py</span> 247–395</td><td>Dynamic slippage deviation, distributed lock, κ audit, retcode failure, SOR advisory</td></tr>
+<tr><td><span class="file">core/trade_manager.py</span> 163–267, 402–624</td><td>Management ladder, R-basis capture, breakeven/trailing/scale-out/time-stop</td></tr>
+<tr><td><span class="file">core/broker_preflight.py</span>, <span class="file">core/execution_policy.py</span></td><td>Broker fingerprinting and the operator-approved per-symbol policy</td></tr>
+<tr><td><span class="file">core/margin_safety.py</span>, <span class="file">core/execution_planning.py</span></td><td>Margin assessment and immutable plan construction</td></tr>
+</tbody>
+</table>
+</div>
+</section>

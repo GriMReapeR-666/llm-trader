@@ -1,0 +1,95 @@
+<section id="sec-19">
+<h2 id="persistence"><span class="num">19</span> 19. Persistence: Databases, Schemas &amp; State Files</h2>
+
+<div class="callout">
+<strong>The doctrine.</strong> <code>trading_state.db</code> is the authoritative journal. Every other database is
+operational (agent tasks, events, alerts), and every JSON state file is a <em>cache or policy</em> that can be rebuilt
+from the journal. Deleting a JSON file loses speed; deleting the journal loses history.
+</div>
+
+<h3 id="s19-1-journal">19.1 The journal: <code>trading_state.db</code></h3>
+<p>Schema created by <code>TradingStore._init_db</code> (<span class="file">core/trading_safety.py</span> ~129–293) with
+<code>PRAGMA journal_mode=WAL</code> and thread-local connections:</p>
+<table>
+<thead><tr><th>Table</th><th>Purpose</th><th>Key indexes</th></tr></thead>
+<tbody>
+<tr><td><code>state</code></td><td>Key/value store for all <code>StoreBackedState</code> modules (risk, autonomy, supervisor, alpha state, …) — the JSON↔SQLite bridge</td><td>PK on <code>key</code></td></tr>
+<tr><td><code>proposals</code></td><td>Every proposal with <code>approved</code> and <code>reasons</code> — accepted and rejected alike</td><td><code>idx_proposals_setup</code>, <code>idx_proposals_symbol_created</code></td></tr>
+<tr><td><code>trades</code></td><td>Fills and closes: ticket, magic, strategy, symbol, side, volume, entry, SL, TP, risk amount, PnL, exit reason, payload</td><td><code>idx_trades_open</code>, <code>idx_trades_symbol_closed</code>, <code>idx_trades_opened_at</code>, <code>idx_trades_setup</code></td></tr>
+<tr><td><code>setup_instances</code></td><td>Per-setup lifecycle state machine (CANDIDATE → … → CLOSED)</td><td>3 indexes on <code>setup_key</code>/<code>setup_id</code>/state</td></tr>
+<tr><td><code>setup_labels</code></td><td>Auto or reviewed labels with <code>label_rule</code> and <code>review_status</code></td><td><code>idx_setup_labels_label</code></td></tr>
+<tr><td><code>manual_activity</code></td><td>Observed but unowned activity (foreign magic, manual trades)</td><td><code>idx_manual_activity_ticket</code></td></tr>
+<tr><td><code>trade_lifecycle_events</code></td><td>Append-only transitions with actor and payload</td><td><code>idx_trade_lifecycle_ticket</code></td></tr>
+<tr><td><code>position_observations</code></td><td>Position marks with source, quote time, tick age, spread, <code>mark_quality</code></td><td><code>idx_position_observations_ticket</code>, <code>_quality</code></td></tr>
+<tr><td><code>market_ticks</code></td><td>Observed ticks with quality classification</td><td><code>idx_market_ticks_lookup</code>, <code>_quality</code></td></tr>
+<tr><td><code>broker_execution_reports</code></td><td>Execution quality: latency, spread at submit/fill, implementation shortfall, requotes</td><td><code>idx_broker_execution_intent</code>, <code>_position</code></td></tr>
+<tr><td><code>daily_reconciliations</code></td><td>Per-period broker-vs-journal reconciliation verdict</td><td><code>idx_daily_reconciliations_status</code></td></tr>
+<tr><td><code>model_registry</code></td><td>Promotion governance (§18)</td><td><code>idx_model_registry_status</code></td></tr>
+<tr><td><code>execution_reviews</code></td><td>Unresolved execution anomalies with severity, retry count, next retry</td><td><code>idx_execution_reviews_status</code></td></tr>
+</tbody>
+</table>
+<p>Columns added by migration (not by destructive re-creation): <code>trades.setup_id</code>, <code>gross_pnl</code>,
+<code>commission</code>, <code>swap</code>, <code>financing</code>; <code>position_observations.source</code>,
+<code>quote_time_msc</code>, <code>tick_age_ms</code>, <code>spread</code>, <code>mark_quality</code>;
+<code>broker_execution_reports.execution_latency_ms</code>, <code>spread_at_submit</code>, <code>spread_at_fill</code>,
+<code>implementation_shortfall</code>, <code>requote_count</code> (~269–293).</p>
+<p><code>TradingMemory</code> adds the cognitive tables to the same database: <code>macro_events</code>,
+<code>playbooks</code>, <code>narratives</code>, <code>trade_labels</code>, <code>setup_labels</code>,
+<code>verified_memories</code>, <code>atomic_facts</code>, <code>scenario_documents</code>, <code>core_memories</code>,
+<code>working_context_items</code>, <code>memory_retrievals</code>, <code>case_study_memories</code>, plus an FTS index for
+retrieval (<span class="file">intelligence/trading_memory.py</span> ~51–170, <code>_init_fts</code> ~170).</p>
+
+<h3 id="s19-2-ops-db">19.2 The operational databases</h3>
+<table>
+<thead><tr><th>Database</th><th>Owner</th><th>Tables / role</th></tr></thead>
+<tbody>
+<tr><td><code>agent_operations.db</code></td><td><span class="file">operations/agent_operations.py</span> (93&nbsp;KB)</td><td>Runtime control plane: <code>agent_runs</code> (~104), <code>operational_events</code> (~109), <code>agent_tasks</code> (~119), <code>agent_task_edges</code> (~125), <code>llm_requests</code> (~132), <code>order_intents</code> (~141), <code>setup_labels</code> (~146), <code>execution_reviews</code> (~152), <code>memory_outbox</code> (~162), <code>data_snapshots</code> (~168), <code>configuration_versions</code> (~178), <code>raw_traces</code> (~187), <code>working_memory</code> (~197), <code>agent_schedules</code> (~208), <code>clock_observations</code> (~213)</td></tr>
+<tr><td><code>agent_events.db</code></td><td>Event bridge (<span class="file">operations/event_bridge.py</span>)</td><td>Append-only event stream for telemetry and replay</td></tr>
+<tr><td><code>alerts_outbox.db</code></td><td><span class="file">operations/alert_outbox.py</span>, <code>alert_delivery.py</code></td><td>Durable alert queue: enqueue → claim → ack → deliver, with at-least-once semantics</td></tr>
+<tr><td><code>meta_corpus.db</code></td><td>Meta-loop / corpus persistence</td><td>Corpus and run artefacts for the meta loop</td></tr>
+<tr><td><code>restart_recovery_smoke.db</code></td><td>Test artefact</td><td>Restart-recovery smoke test fixture (not production state)</td></tr>
+</tbody>
+</table>
+
+<h3 id="s19-3-state">19.3 JSON / JSONL state files</h3>
+<p><code>core/state_persistence.py</code> defines <code>StoreBackedState</code>: modules declare a <code>store_key</code> and their
+state is persisted in the journal's <code>state</code> table, with atomic file writes
+(<code>core/file_utils.safe_atomic_write_json</code>) as the on-disk mirror. <code>state_manager.migrate_json_states_to_store()</code>
+migrates legacy files into the store at boot (<span class="file">mt5_trader.py</span> ~3844–3846).</p>
+<table>
+<thead><tr><th>File</th><th>Written by</th><th>What it drives</th></tr></thead>
+<tbody>
+<tr><td><code>autonomy_state.json</code></td><td><span class="file">operations/autonomy.py</span> (<code>store_key="autonomy_state"</code>)</td><td>Level, halt/pause flags, circuit history (§20)</td></tr>
+<tr><td><code>supervisor_state.json</code></td><td><span class="file">operations/supervisor.py</span></td><td>Phase, component health, principal freshness, degradation</td></tr>
+<tr><td><code>risk_state.json</code> / <code>risk_state_demo.json</code></td><td><span class="file">core/risk_manager.py</span></td><td>Streaks, daily/weekly equity anchors, halt flags — always mirrored to the store</td></tr>
+<tr><td><code>control_plane.jsonl</code></td><td><span class="file">operations/autonomy.py</span> <code>issue_control</code>/<code>drain_controls</code></td><td>Append-only operator command queue (pause/resume/flatten/killswitch); last 500 records retained</td></tr>
+<tr><td><code>walk_forward_state.json</code>, <code>overfit_gate_state.json</code>, <code>alpha_decay_state.json</code>, <code>alpha_discovery_state.json</code>, <code>alpha_rotation_state.json</code></td><td>§15–§16 engines</td><td>Decay status, gate verdicts, discovery/rotation progress</td></tr>
+<tr><td><code>strategy_registry.json</code></td><td>Strategy loader / <span class="file">operations/strategy_factory.py</span></td><td>Declarative strategy catalogue</td></tr>
+<tr><td><code>market_state.json</code>, <code>scanner_state.json</code></td><td>Scanner / market-state cache</td><td>Ranked opportunities for the deck and API</td></tr>
+<tr><td><code>meta_adaptive_state.json</code>, <code>regime_duration_state.json</code>, <code>crash_detector</code> state, <code>self_improvement_state.json</code></td><td>§14, §17</td><td>Adaptation, regime dwell time, crash markers, improvement progress</td></tr>
+<tr><td><code>api_cache.json</code></td><td>Data layer cache</td><td>HTTP provider responses with TTLs</td></tr>
+<tr><td><code>ζ_code_versions.json</code></td><td>ζ self-improvement / compliance</td><td>Versioned code-state snapshots</td></tr>
+<tr><td><code>trade_conditions.json</code>, <code>trade_manager_state.json</code></td><td><span class="file">core/trade_manager.py</span> <code>save_conditions</code>/<code>save_state</code></td><td>Programmatic exit conditions and partial-exit/pyramid state</td></tr>
+</tbody>
+</table>
+<div class="callout warn">
+<strong>Two ledgers, one truth.</strong> The JSON files and the journal can momentarily disagree after a hard kill. The
+system resolves this in a fixed direction: reconciliation compares <em>broker → journal</em> (§06.6), and the JSON
+mirror is refreshed from the store on the next write. If a JSON file is deleted, the state is rebuilt from
+<code>state</code>; if the journal is damaged, <code>operations/journal_audit.py</code> (§21) and the encrypted backups
+(<span class="file">operations/journal_backup.py</span>) are the recovery path.
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">core/trading_safety.py</span> 129–293</td><td>Journal DDL, indexes and additive migrations</td></tr>
+<tr><td><span class="file">operations/agent_operations.py</span> 104–220</td><td>Operational database schema</td></tr>
+<tr><td><span class="file">core/state_persistence.py</span>, <span class="file">state_manager.py</span></td><td>StoreBackedState bridge and JSON→store migration</td></tr>
+<tr><td><span class="file">intelligence/trading_memory.py</span> 41–170</td><td>Memory tables and FTS index inside the journal</td></tr>
+</tbody>
+</table>
+</div>
+</section>

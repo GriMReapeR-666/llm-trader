@@ -1,0 +1,87 @@
+<section id="sec-12">
+<h2 id="memory"><span class="num">12</span> 12. Memory Architecture (L0–L3, Semantic, Local, Remote)</h2>
+
+<p>Memory answers "what did we learn, and may we still trust it?" It is a SQLite model with <em>layers</em>, <em>as-of</em>
+semantics, <em>review gates</em> and <em>telemetry on every retrieval</em> — not a prompt buffer that accumulates text.</p>
+
+<h3 id="s12-1-tables">12.1 The memory store</h3>
+<p><code>TradingMemory</code> (<span class="file">intelligence/trading_memory.py</span> ~26) owns
+<code>trading_state.db</code> in WAL mode ("WAL allows readers (retrieval layers) to proceed while a writer…", ~43) and
+creates these tables in <code>_init()</code>:</p>
+<table>
+<thead><tr><th>Table</th><th>Line</th><th>Role</th></tr></thead>
+<tbody>
+<tr><td><code>macro_events</code></td><td>51</td><td>Raw macro/event observations with importance (<code>_event_importance</code> ~407)</td></tr>
+<tr><td><code>playbooks</code></td><td>54</td><td>Per-symbol playbook from events + technicals (<code>current_playbook</code> ~416)</td></tr>
+<tr><td><code>narratives</code></td><td>56</td><td>Daily/weekly narrative documents (~582, ~609)</td></tr>
+<tr><td><code>trade_labels</code> / <code>setup_labels</code></td><td>60, 62</td><td>Outcome labels per closed trade and per setup instance</td></tr>
+<tr><td><code>verified_memories</code></td><td>68</td><td>Reviewed, approved memories with tags and source ids</td></tr>
+<tr><td><code>atomic_facts</code></td><td>76</td><td><strong>L1</strong> facts — append-only, superseded rather than mutated (<code>record_fact</code> ~324, <code>supersede_fact</code> ~348)</td></tr>
+<tr><td><code>scenario_documents</code></td><td>85</td><td><strong>L2</strong> scenarios built from outcomes <em>and</em> rejected/unresolved setups (<code>rebuild_scenarios</code> ~759)</td></tr>
+<tr><td><code>core_memories</code></td><td>93</td><td><strong>L3</strong> policy memory — review required before any agent sees it (~961, ~978)</td></tr>
+<tr><td><code>working_context_items</code></td><td>102</td><td>Short-horizon working context (<code>compact_working_context(max_active=24)</code> ~1379)</td></tr>
+<tr><td><code>memory_retrievals</code></td><td>110</td><td>Telemetry for <em>every</em> retrieval: layer, tags, result count, latency, prompt estimate, as-of</td></tr>
+<tr><td><code>case_study_memories</code></td><td>118</td><td>Historical case studies linked to setups</td></tr>
+</tbody>
+</table>
+<p>A full-text index is maintained alongside (<code>_init_fts</code> ~170, <code>rebuild_fts</code> ~247) with
+<code>_fts_match_query(tags, max_terms=10)</code> (~261) and per-layer candidate builders for narratives (~477), verified
+memories (~742) and scenarios (~944).</p>
+
+<h3 id="s12-2-layers">12.2 The layer contract</h3>
+<table>
+<thead><tr><th>Layer</th><th>What it stores</th><th>Write path</th><th>Read path</th></tr></thead>
+<tbody>
+<tr><td><strong>L0 episodic</strong></td><td>Trades, events, lifecycle history</td><td>journal (<span class="file">core/trading_safety.py</span>)</td><td>fact and trade-label queries</td></tr>
+<tr><td><strong>L1 atomic facts</strong></td><td>Single declarative claims with confidence and as-of</td><td><code>record_fact</code>, <code>record_events</code></td><td><code>retrieve_facts(fact_keys, limit=20)</code> ~352</td></tr>
+<tr><td><strong>L2 scenarios</strong></td><td>Matched setup playbooks with win/loss balance</td><td><code>rebuild_scenarios()</code></td><td><code>retrieve_scenarios(tags, limit=3)</code> ~899, after <code>review_scenario</code> ~868</td></tr>
+<tr><td><strong>L3 core</strong></td><td>Policy and operating principles</td><td><code>propose_core_memory</code> → <code>review_core_memory</code></td><td><code>retrieve_core_memories(namespaces, limit=12)</code> ~1023</td></tr>
+</tbody>
+</table>
+<div class="callout purple">
+<strong>The review gate is the point.</strong> L2 scenarios must be reviewed before they enter proposal context
+("Require review before an L2 scenario can enter proposal context", ~869) and L3 memory is never returned to an agent
+until reviewed ("Human/operator review is mandatory for L3 policy/personality memory", ~979). Self-improvement can
+<em>propose</em> a policy change, but the system cannot adopt it by itself.
+</div>
+
+<h3 id="s12-3-retrieval">12.3 Retrieval: concurrent, bounded, instrumented</h3>
+<p><code>retrieve_for_proposal(tags, core_namespaces=…)</code> (~1069) runs <em>all seven read-only layers
+concurrently</em> on worker threads, records per-layer telemetry through <code>_record_retrieval(layer, tags, items,
+latency_ms, …)</code> (~1044), and a failing layer degrades to an empty list plus an <code>errors</code> entry — "one
+broken layer can no longer stall or kill proposal assembly" (docstring ~1075–1080).</p>
+<p>Every retrieval honours an <code>as_of</code> timestamp (<code>_normalize_as_of</code> ~302), so a replay or audit can
+reconstruct exactly what the system knew at that moment. Outcomes close the loop:
+<code>link_retrievals_to_trade(retrieval_ids, ticket)</code> (~1337) and <code>resolve_retrieval_outcome(ticket, label)</code>
+(~1346) let the system later measure whether the memories it used actually helped. Retention is explicit:
+<code>prune_retrievals(keep_days=90, keep_linked=True)</code> (~1145) keeps linked retrievals even when pruning.</p>
+
+<h3 id="s12-4-sidecar">12.4 Side memories</h3>
+<ul>
+<li><strong>Semantic memory</strong> (<span class="file">intelligence/semantic_memory.py</span>) — high-dimensional retrieval
+over scenario text, used when exact tag matching is too narrow.</li>
+<li><strong>Local agent memory</strong> (<span class="file">intelligence/local_llm_memory.py</span>,
+<span class="file">local_agent_memory.py</span>) — offline, local-only; controlled by <code>LOCAL_MEMORY_ENABLED</code>
+(default <code>false</code>), <code>LOCAL_MEMORY_PATH</code>, <code>LOCAL_MEMORY_MAX_ACTIVE=5000</code>,
+<code>LOCAL_MEMORY_RETENTION_DAYS=90</code>, <code>LOCAL_MEMORY_COMPACT_KEEP=200</code>.</li>
+<li><strong>Remote mirror</strong> (<span class="file">intelligence/remote_memory_mirror.py</span>) — optional MySQL mirror
+(<code>REMOTE_MIRROR_ENABLED=false</code>, <code>REMOTE_MIRROR_ON_WRITE</code>, table prefix <code>llm_trader_</code>,
+3&nbsp;s connect timeout). The environment file states the rule: <em>"Local SQLite … stays authoritative …
+Never grants execution_authority."</em></li>
+<li><strong>Case-study memory</strong> — <span class="file">intelligence/case_study_library.py</span>,
+<code>case_study_matcher.py</code>, <code>case_study_learner.py</code> connect current setups to historical analogues.</li>
+</ul>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">intelligence/trading_memory.py</span> 26–170</td><td>WAL store and the full table inventory</td></tr>
+<tr><td><span class="file">intelligence/trading_memory.py</span> 324–352, 759–899, 961–1023</td><td>L1 append/supersede, L2 scenario construction and review gate, L3 propose/review/retire</td></tr>
+<tr><td><span class="file">intelligence/trading_memory.py</span> 1044–1150</td><td>Concurrent layered retrieval, telemetry, as-of, pruning</td></tr>
+<tr><td><span class="file">.env.example</span> 118–145</td><td>Remote-mirror and local-memory contracts and the "never grants execution_authority" rule</td></tr>
+</tbody>
+</table>
+</div>
+</section>

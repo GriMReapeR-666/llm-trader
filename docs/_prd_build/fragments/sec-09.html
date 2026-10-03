@@ -1,0 +1,74 @@
+<section id="sec-09">
+<h2 id="news-macro"><span class="num">09</span> 09. News, Macro &amp; Alternative-Data Pipeline</h2>
+
+<h3 id="s9-1-ingest">09.1 Realtime news ingestion</h3>
+<p><span class="file">data/realtime_news_ingest.py</span> turns raw feeds into normalized, claim-carrying rows:</p>
+<table>
+<thead><tr><th>Function</th><th>Line</th><th>Role</th></tr></thead>
+<tbody>
+<tr><td><code>normalize_article(…)</code></td><td>79</td><td>Canonical article shape (title, body, source, publisher, published-at, url, entities)</td></tr>
+<tr><td><code>_parse_rss_bytes(payload, provider, publisher, source_url)</code></td><td>109</td><td>Byte-level RSS parsing with provider attribution</td></tr>
+<tr><td><code>fetch_rss_feed(url, provider, publisher, timeout=8.0)</code></td><td>153</td><td>Bounded-timeout RSS fetch</td></tr>
+<tr><td><code>collect_rss_articles(feeds)</code></td><td>163</td><td>Multi-feed collection</td></tr>
+<tr><td><code>collect_newsapi_articles(api_manager, keywords, limit=5)</code></td><td>177</td><td>NewsAPI path, keyword-filtered</td></tr>
+<tr><td><code>collect_seeking_alpha_articles(api_manager, symbol, limit=5)</code></td><td>201</td><td>Symbol-scoped fundamental/news feed</td></tr>
+<tr><td><code>watch_entities_for_event_class(event_class)</code></td><td>233</td><td>Maps a calendar event class to the entities worth watching (CPI → inflation, labour, rates)</td></tr>
+<tr><td><code>ingest_articles(…)</code></td><td>243</td><td>Persists normalized articles and emits the ingest event</td></tr>
+<tr><td><code>extract_and_persist_claims(…)</code></td><td>343</td><td>Extracts directional claims and persists them for later attribution</td></tr>
+<tr><td><code>run(…)</code></td><td>409</td><td>The cycle entry point</td></tr>
+</tbody>
+</table>
+
+<h3 id="s9-2-triage">09.2 Triage: deterministic first, model-assisted second</h3>
+<p><span class="file">data/news_triage.py</span> is where a headline becomes a tradeable or ignorable object:</p>
+<ul>
+<li><code>dedupe_key_for(url, title)</code> (~254) gives each article a stable identity so the same story cannot be
+counted twice across feeds.</li>
+<li><code>_deterministic_r1</code> (~198) and the deterministic label family (<code>_deterministic_d5a</code> ~518,
+<code>_deterministic_d9</code> ~536, <code>_deterministic_labels</code> ~559) classify an article <em>without</em> a model.</li>
+<li><code>_resolve_action(d0_1, d0_2, d0_3, policy_allowed)</code> (~616) maps labels to an action, and
+<code>policy_allowed</code> can suppress the action regardless of label.</li>
+<li><code>_get_laya()</code> (~459) optionally loads the Laya classifier; <code>_pick_better(qid, raw_answer, det_label,
+laya_probs)</code> (~642) chooses between the deterministic label and the model's probabilities, and
+<code>triage_article</code>/<code>triage_articles</code> (~698, ~841) produce the final verdicts.</li>
+<li><code>TriageGate.apply(rows)</code> (~320) and <code>is_rejected(article)</code> (~329) mark rejected items;
+<code>summarize_cycle_evidence()</code> (~341) records the evidence used in the cycle's decision.</li>
+</ul>
+<div class="callout">
+<strong>Why this matters for trading.</strong> The news gate in §04.2 reads these verdicts. Because a deterministic
+classifier exists and can overrule the model, a hallucinating classifier degrades news handling to "conservative", not
+to "reactive".
+</div>
+
+<h3 id="s9-3-macro">09.3 Macro, calendars and alternative data</h3>
+<table>
+<thead><tr><th>Source module</th><th>Feeds</th></tr></thead>
+<tbody>
+<tr><td><span class="file">data/mt5_calendar_enhanced.py</span>, <span class="file">mt5_calendar_wrapper.py</span>, <span class="file">data/forexfactory_provider.py</span></td><td>Economic calendar, high-impact classification, countdown/blackout windows</td></tr>
+<tr><td><span class="file">data/zero_lag_macro_provider.py</span>, <span class="file">data/global_macro_bridge.py</span></td><td>Zero-lag physical proxies, spreads, liquidity nowcasts</td></tr>
+<tr><td><span class="file">data/data_source_pipeline.py</span>, <span class="file">data/eia_provider.py</span></td><td>FRED/EIA macro series ingestion</td></tr>
+<tr><td><span class="file">data/cftc_cot_provider.py</span></td><td>Commitment-of-traders positioning</td></tr>
+<tr><td><span class="file">data/alternative_data_provider.py</span>, <span class="file">alternative_data_registry.py</span></td><td>Registry-gated alternative data with explicit eligibility</td></tr>
+<tr><td><span class="file">data/openbb_data_bridge.py</span>, <span class="file">openbb_provider_registry.py</span></td><td>Institutional market-data bridge</td></tr>
+<tr><td><span class="file">data/seeking_alpha_provider.py</span>, <span class="file">data/sec_edgar_provider.py</span>, <span class="file">data/portfolio123_provider.py</span>, <span class="file">data/yahoo_finance_provider.py</span></td><td>Fundamentals, filings, factor rankings, quotes</td></tr>
+</tbody>
+</table>
+<p>Macro observations are normalized in <span class="file">intelligence/macro_observations.py</span>, scored in
+<span class="file">intelligence/economic_dynamics_measure.py</span>, and admitted to the trade path only through the
+fusion gate (<span class="file">intelligence/macro_fusion_gate.py</span>) and the opportunity bus (§13). Ingestion is
+hoisted once per pulse in <span class="file">mt5_trader.py</span> ~4446 so two strategies cannot double-fetch the same
+calendar or FRED series and contend on SQLite.</p>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">data/realtime_news_ingest.py</span> 71–409</td><td>Normalisation, RSS/NewsAPI/SeekingAlpha collection, entity watchlists, claim extraction</td></tr>
+<tr><td><span class="file">data/news_triage.py</span> 198–841</td><td>Deterministic labels, policy-aware action resolution, Laya-assisted triage, dedupe</td></tr>
+<tr><td><span class="file">data/</span> calendar &amp; macro providers</td><td>Economic calendar, FRED/EIA, COT, zero-lag proxies, alternative-data registry</td></tr>
+<tr><td><span class="file">intelligence/macro_fusion_gate.py</span>, <span class="file">macro_observations.py</span></td><td>Admission control for macro evidence into the decision path</td></tr>
+</tbody>
+</table>
+</div>
+</section>

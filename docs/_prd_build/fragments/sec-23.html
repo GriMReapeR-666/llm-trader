@@ -1,0 +1,58 @@
+<section id="sec-23">
+<h2 id="configuration"><span class="num">23</span> 23. Configuration, Environment &amp; Secrets</h2>
+
+<h3 id="s23-1-env">23.1 Environment variables</h3>
+<p>Configuration is layered (§03.3): environment → <code>accounts.json</code> → <code>config.ini</code> → hard defaults. The
+variables below are the ones that change system behaviour rather than business logic:</p>
+<table>
+<thead><tr><th>Variable</th><th>Purpose</th><th>Default / effect</th></tr></thead>
+<tbody>
+<tr><td><code>MT5_LOGIN</code>, <code>MT5_PASSWORD</code>, <code>MT5_SERVER</code></td><td>Broker credentials</td><td>Override AccountManager and <code>config.ini</code></td></tr>
+<tr><td><code>LLM_TRADER_ALLOW_LIVE</code></td><td>Live opt-in</td><td><code>false</code> — live cannot start without it</td></tr>
+<tr><td><code>LLM_TRADER_ALLOW_PROVIDER_FAILOVER</code></td><td>Cross-provider failover</td><td><code>false</code> — a provider failure becomes a deterministic HOLD</td></tr>
+<tr><td><code>PIPELINE_V2</code></td><td>Stage-based cycle with span telemetry</td><td><code>1</code> (on); <code>--no-pipeline-v2</code> forces legacy</td></tr>
+<tr><td><code>LLM_TRADER_PREFER_DECK</code></td><td>Bare-launch behaviour</td><td><code>auto</code> (offer the deck when bun is present)</td></tr>
+<tr><td><code>MT5_COMMISSION_PER_VOLUME</code>, <code>MT5_EXPECTED_SLIPPAGE_PRICE</code>, <code>MT5_EXPECTED_SWAP_MONEY</code></td><td>Broker cost calibration</td><td>Unset ⇒ NO_TRADE in the net-R:R gate</td></tr>
+<tr><td><code>OPENROUTER_API_KEY</code> / <code>TOKENROUTER_*</code> / <code>ROUTESME_*</code> / <code>CEREBRAS_API_KEY</code> / <code>NVIDIA_*</code></td><td>Provider keys</td><td>At least one route must be usable or decisions HOLD</td></tr>
+<tr><td><code>OPENROUTER_RPM</code>, <code>_RPD</code>, <code>_MAX_CONCURRENT</code>, <code>_MAX_TOKENS_PER_HOUR</code>, <code>_MAX_COST_PER_DAY</code></td><td>Per-provider ceilings</td><td>Safety budgets, not a target rate — candle/event triggers still gate calls</td></tr>
+<tr><td><code>TRADER_LLM_PROVIDER</code>/<code>MODEL</code>/<code>FALLBACK</code>, <code>ANALYST_*</code>, <code>RISK_*</code></td><td>Per-agent routing</td><td>Each agent may use a different provider/model</td></tr>
+<tr><td><code>LLM_ROUTER_TIMEOUT</code>, <code>LLM_ROUTER_MAX_RATE_WAIT</code></td><td>Blocking caps</td><td>30&nbsp;s and 15&nbsp;s — a slow provider cannot freeze the pulse thread</td></tr>
+<tr><td><code>NEWSAPI_KEY</code>, <code>FRED_API_KEY</code>, <code>NEWSAPI_RATE_LIMIT</code>, <code>FRED_RATE_LIMIT</code>, <code>SEC_RATE_LIMIT</code></td><td>Data providers</td><td>Enable the corresponding feeds; absent keys mean the feed is simply not consulted</td></tr>
+<tr><td><code>REMOTE_MIRROR_*</code>, <code>LOCAL_MEMORY_*</code></td><td>Optional MySQL mirror / offline local memory</td><td>Disabled by default; <em>never</em> grants execution authority</td></tr>
+<tr><td><code>MT5_MCP_COMMAND</code>, <code>MT5_MCP_ARGS</code>, <code>MT5_MCP_AUTOSTART</code>, <code>MT5_PATH</code></td><td>Deck → MT5 bridge</td><td>Used by the OpenTUI deck under <code>TRANSPORT=mcp</code></td></tr>
+<tr><td><code>LOG_LEVEL</code></td><td>Logging</td><td><code>INFO</code></td></tr>
+</tbody>
+</table>
+
+<h3 id="s23-2-config">23.2 Files</h3>
+<table>
+<thead><tr><th>File</th><th>Contents</th></tr></thead>
+<tbody>
+<tr><td><code>config.ini</code></td><td><code>[risk]</code>, <code>[limits]</code>, <code>[general]</code>, <code>[trading]</code>, <code>[account]</code> (see §03.3)</td></tr>
+<tr><td><code>accounts.json</code></td><td>Multi-account catalogue consumed by <code>AccountManager</code>; passwords referenced by env name, not stored</td></tr>
+<tr><td><code>.env</code> / <code>.env.example</code></td><td>Provider keys, budgets, MT5 credentials contract, feature flags</td></tr>
+<tr><td><code>strategy_registry.json</code></td><td>Strategy catalogue (§18)</td></tr>
+<tr><td><code>trade_conditions.json</code></td><td>Programmatic exit conditions (§06.5)</td></tr>
+<tr><td><code>accounts.json</code> + <code>Control Plane</code></td><td>Operator credentials and commands (§22.4)</td></tr>
+</tbody>
+</table>
+<div class="callout bad">
+<strong>Secrets discipline.</strong> Passwords are referenced indirectly (<code>password_env</code> in
+<code>config.ini</code>, env names in <code>accounts.json</code>), account identity is stored as a hash
+(<code>authenticated_account_fingerprint</code>), the security audit scans for leaked credentials, and the data-quality
+gate explicitly rejects a market snapshot whose source identity "contains sensitive fields". A secret reaching the
+journal is treated as an integrity failure, not a cosmetic one.
+</div>
+
+<div class="panel">
+<h4>Evidence index</h4>
+<table>
+<thead><tr><th>Path / lines</th><th>What it proves</th></tr></thead>
+<tbody>
+<tr><td><span class="file">.env.example</span> 1–162</td><td>Every supported variable with its documented default</td></tr>
+<tr><td><span class="file">mt5_trader.py</span> 606–676, 951–964</td><td>Config precedence, live confirmation and account fingerprinting</td></tr>
+<tr><td><span class="file">data/data_quality.py</span> 63–78</td><td>Source-identity checks that reject sensitive fields</td></tr>
+</tbody>
+</table>
+</div>
+</section>
