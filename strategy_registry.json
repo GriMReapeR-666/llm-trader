@@ -1,0 +1,1657 @@
+{
+  "strategies": [
+    {
+      "id": "kronos_h1",
+      "name": "Kronos-Neural H1",
+      "stage": "FULL",
+      "gate_progress": 1.0,
+      "trades": 342,
+      "win_rate": 66.4,
+      "profit_factor": 2.45,
+      "sharpe": 2.14,
+      "max_dd": 3.8,
+      "expectancy_r": 1.84,
+      "recovery_factor": 4.8,
+      "notes": "promoted via ap-0fe824",
+      "promotion_pending": "DONE",
+      "last_eval_ts": 1790402032.075646
+    },
+    {
+      "id": "statarb_eur_chf",
+      "name": "Stat-Arb EUR/CHF",
+      "stage": "FULL",
+      "gate_progress": 0.95,
+      "trades": 218,
+      "win_rate": 59.2,
+      "profit_factor": 1.88,
+      "sharpe": 1.85,
+      "max_dd": 4.5,
+      "expectancy_r": 1.42,
+      "recovery_factor": 3.6,
+      "notes": "Cointegration Reversion · M15 Pairs",
+      "last_eval_ts": 1790402032.0783312
+    },
+    {
+      "id": "macro_nfp_pullback",
+      "name": "Macro NFP Pullback",
+      "stage": "EVALUATION",
+      "gate_progress": 0.8,
+      "trades": 84,
+      "win_rate": 54.1,
+      "profit_factor": 1.65,
+      "sharpe": 1.62,
+      "max_dd": 5.8,
+      "expectancy_r": 1.55,
+      "recovery_factor": 2.9,
+      "notes": "Validation check [EVALUATION -> EVALUATION]",
+      "last_eval_ts": 1790402032.0808926
+    },
+    {
+      "id": "meanrev_bollinger",
+      "name": "Mean-Rev Bollinger",
+      "stage": "FULL",
+      "gate_progress": 1.0,
+      "trades": 412,
+      "win_rate": 61.8,
+      "profit_factor": 1.95,
+      "sharpe": 1.92,
+      "max_dd": 4.1,
+      "expectancy_r": 1.6,
+      "recovery_factor": 4.2,
+      "notes": "Volatility Envelope Reversion · M30 Band Touch",
+      "last_eval_ts": 1790402032.0830534
+    },
+    {
+      "id": "alpha_055_orderflow",
+      "name": "Alpha-055 Orderflow",
+      "stage": "FULL",
+      "gate_progress": 1.0,
+      "trades": 580,
+      "win_rate": 68.2,
+      "profit_factor": 2.6,
+      "sharpe": 2.35,
+      "max_dd": 3.2,
+      "expectancy_r": 2.1,
+      "recovery_factor": 5.5,
+      "notes": "Level-2 Microstructure Imbalance · DOM Delta",
+      "last_eval_ts": 1790402032.085593
+    },
+    {
+      "id": "alpha_098_copula",
+      "name": "Alpha-098 Cross-Asset",
+      "stage": "EVALUATION",
+      "gate_progress": 0.8,
+      "trades": 120,
+      "win_rate": 56.4,
+      "profit_factor": 1.74,
+      "sharpe": 1.7,
+      "max_dd": 4.9,
+      "expectancy_r": 1.35,
+      "recovery_factor": 3.1,
+      "notes": "Clayton Copula Tail Dependency · Cross-Asset",
+      "last_eval_ts": 1790402032.0876162
+    },
+    {
+      "id": "agent_execution_rl",
+      "name": "Agent TWAP/POV RL",
+      "stage": "FULL",
+      "gate_progress": 1.0,
+      "trades": 890,
+      "win_rate": 71.0,
+      "profit_factor": 2.8,
+      "sharpe": 2.4,
+      "max_dd": 2.8,
+      "expectancy_r": 1.95,
+      "recovery_factor": 6.2,
+      "notes": "promoted via ap-9b75a3",
+      "promotion_pending": "DONE",
+      "last_eval_ts": 1790402032.0895555
+    },
+    {
+      "id": "agent_regime_supervisor",
+      "name": "Regime Supervisor",
+      "stage": "FULL",
+      "gate_progress": 1.0,
+      "trades": 250,
+      "win_rate": 64.0,
+      "profit_factor": 2.15,
+      "sharpe": 2.05,
+      "max_dd": 3.5,
+      "expectancy_r": 1.75,
+      "recovery_factor": 4.5,
+      "notes": "Hidden Markov & BOCPD Multi-Regime",
+      "last_eval_ts": 1790402032.091708
+    },
+    {
+      "id": "model_bocpd_changepoint",
+      "name": "Model BOCPD Hazard",
+      "stage": "FULL",
+      "gate_progress": 1.0,
+      "trades": 310,
+      "win_rate": 72.0,
+      "profit_factor": 2.9,
+      "sharpe": 2.45,
+      "max_dd": 2.4,
+      "expectancy_r": 2.2,
+      "recovery_factor": 6.8,
+      "notes": "Bayesian Online Changepoint Detection",
+      "last_eval_ts": 1790402032.0942638
+    },
+    {
+      "id": "model_kalman_filter",
+      "name": "Model Kalman Spread",
+      "stage": "FULL",
+      "gate_progress": 1.0,
+      "trades": 460,
+      "win_rate": 69.5,
+      "profit_factor": 2.5,
+      "sharpe": 2.25,
+      "max_dd": 3.0,
+      "expectancy_r": 1.9,
+      "recovery_factor": 5.9,
+      "notes": "Dynamic Linear Model Residual Tracking",
+      "last_eval_ts": 1790402032.09624
+    },
+    {
+      "id": "gold_momentum_h4",
+      "name": "Gold Momentum H4",
+      "stage": "FULL",
+      "gate_progress": 1.0,
+      "trades": 195,
+      "win_rate": 63.5,
+      "profit_factor": 2.1,
+      "sharpe": 1.98,
+      "max_dd": 4.4,
+      "expectancy_r": 1.68,
+      "recovery_factor": 3.9,
+      "notes": "Trend Following Breakout · XAUUSD Chandelier",
+      "last_eval_ts": 1790402032.0984893
+    },
+    {
+      "id": "spx_volatility_skew",
+      "name": "US500 Skew Arb",
+      "stage": "EVALUATION",
+      "gate_progress": 0.8,
+      "trades": 68,
+      "win_rate": 53.8,
+      "profit_factor": 1.58,
+      "sharpe": 1.55,
+      "max_dd": 5.4,
+      "expectancy_r": 1.3,
+      "recovery_factor": 2.7,
+      "notes": "VIX Surface Dispersion Arb · Delta Hedged",
+      "last_eval_ts": 1790402032.1006548
+    },
+    {
+      "id": "sprt_hypothesis_gate",
+      "name": "SPRT Wald Boundary",
+      "stage": "FULL",
+      "gate_progress": 1.0,
+      "trades": 740,
+      "win_rate": 74.5,
+      "profit_factor": 3.2,
+      "sharpe": 2.6,
+      "max_dd": 1.9,
+      "expectancy_r": 2.4,
+      "recovery_factor": 7.4,
+      "notes": "Sequential Probability Ratio Test · Wald Gate",
+      "last_eval_ts": 1790402032.1030471
+    },
+    {
+      "id": "alpha_14d39f47",
+      "name": "Alpha-1",
+      "expression": "ts_max(close, 5)",
+      "ic_mean": -0.072903,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1789811520.6213894,
+      "metrics": {
+        "ic_mean": -0.07290336234049138,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_6c437514",
+      "name": "Alpha-2",
+      "expression": "subtract(volume, close)",
+      "ic_mean": 0.059494,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1789811520.637135,
+      "metrics": {
+        "ic_mean": 0.05949419002050582,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_6b5a91ce",
+      "name": "Alpha-3",
+      "expression": "negate(volume)",
+      "ic_mean": -0.059286,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1789811520.6480768,
+      "metrics": {
+        "ic_mean": -0.059286320228878045,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_3be65889",
+      "name": "Alpha-4",
+      "expression": "add(volume, volume)",
+      "ic_mean": 0.059286,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1789811520.6590436,
+      "metrics": {
+        "ic_mean": 0.059286320228878045,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_35cbee37",
+      "name": "Alpha-5",
+      "expression": "ts_std(open, 15)",
+      "ic_mean": -0.058125,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1789811520.6712866,
+      "metrics": {
+        "ic_mean": -0.058125240107568185,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_13ea254d",
+      "name": "Alpha-6",
+      "expression": "ts_delta(high, 50)",
+      "ic_mean": -0.052003,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1789811520.6820388,
+      "metrics": {
+        "ic_mean": -0.05200334168755221,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_a270995e",
+      "name": "Alpha-7",
+      "expression": "ts_rank(volume, 15)",
+      "ic_mean": 0.045319,
+      "ic_ir": 0.0,
+      "ic_quality": "significant",
+      "stage": "CANDIDATE",
+      "created_at": 1789811520.6932826,
+      "metrics": {
+        "ic_mean": 0.04531896663038617,
+        "ic_ir": 0.0,
+        "ic_quality": "significant"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_a3615cbd",
+      "name": "Alpha-8",
+      "expression": "square(close)",
+      "ic_mean": -0.041126,
+      "ic_ir": 0.0,
+      "ic_quality": "significant",
+      "stage": "CANDIDATE",
+      "created_at": 1789811520.7043,
+      "metrics": {
+        "ic_mean": -0.041126452494873546,
+        "ic_ir": 0.0,
+        "ic_quality": "significant"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_2fdc1a89",
+      "name": "Alpha-9",
+      "expression": "cs_normalize(close)",
+      "ic_mean": -0.041126,
+      "ic_ir": 0.0,
+      "ic_quality": "significant",
+      "stage": "CANDIDATE",
+      "created_at": 1789811520.7149827,
+      "metrics": {
+        "ic_mean": -0.041126452494873546,
+        "ic_ir": 0.0,
+        "ic_quality": "significant"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_bc964ebf",
+      "name": "Alpha-10",
+      "expression": "multiply(open, high)",
+      "ic_mean": -0.035511,
+      "ic_ir": 0.0,
+      "ic_quality": "significant",
+      "stage": "CANDIDATE",
+      "created_at": 1789811520.7247217,
+      "metrics": {
+        "ic_mean": -0.0355105946684894,
+        "ic_ir": 0.0,
+        "ic_quality": "significant"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_339ff1e4",
+      "name": "Alpha-1",
+      "expression": "cs_rank(high)",
+      "ic_mean": -0.127435,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313659.7743216,
+      "metrics": {
+        "ic_mean": -0.12743498136333675,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_6435dad6",
+      "name": "Alpha-2",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313659.7770624,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_562e93b3",
+      "name": "Alpha-3",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313659.7891278,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_fc3c147e",
+      "name": "Alpha-4",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313659.8004239,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_469775a9",
+      "name": "Alpha-5",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313659.810549,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_de89ade9",
+      "name": "Alpha-6",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313659.8222415,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_418ffe9f",
+      "name": "Alpha-7",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313659.8324964,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_039c79b9",
+      "name": "Alpha-8",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313659.8433948,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_deaf6435",
+      "name": "Alpha-9",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313659.855695,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_53767541",
+      "name": "Alpha-10",
+      "expression": "negate(open)",
+      "ic_mean": 0.097454,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790313659.869258,
+      "metrics": {
+        "ic_mean": 0.09745387893692409,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_5535c389",
+      "name": "Alpha-1",
+      "expression": "cs_rank(high)",
+      "ic_mean": -0.127435,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313833.7006538,
+      "metrics": {
+        "ic_mean": -0.12743498136333675,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_51e1046d",
+      "name": "Alpha-2",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313833.7674892,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_cb505cf6",
+      "name": "Alpha-3",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313833.8748927,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_fa499065",
+      "name": "Alpha-4",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313833.910357,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_14c304fd",
+      "name": "Alpha-5",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313833.9539816,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_e19398ec",
+      "name": "Alpha-6",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313833.9709008,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_020f8f02",
+      "name": "Alpha-7",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313833.9906566,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_f7cf6f32",
+      "name": "Alpha-8",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313834.0105648,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_f25aa19b",
+      "name": "Alpha-9",
+      "expression": "negate(close)",
+      "ic_mean": 0.117876,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790313834.031568,
+      "metrics": {
+        "ic_mean": 0.11787552697000198,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_e7c078a4",
+      "name": "Alpha-10",
+      "expression": "negate(open)",
+      "ic_mean": 0.097454,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790313834.1077945,
+      "metrics": {
+        "ic_mean": 0.09745387893692409,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_362c80e5",
+      "name": "Alpha-1",
+      "expression": "square(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790528935.0599232,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_a6fc0f79",
+      "name": "Alpha-2",
+      "expression": "cs_normalize(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790528935.0928156,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_b27b12a8",
+      "name": "Alpha-3",
+      "expression": "multiply(open, high)",
+      "ic_mean": -0.135612,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790528935.113933,
+      "metrics": {
+        "ic_mean": -0.13561175666438824,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_a3733feb",
+      "name": "Alpha-4",
+      "expression": "abs(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790528935.1360261,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_abae1edb",
+      "name": "Alpha-5",
+      "expression": "log(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790528935.1480587,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_88d08fbf",
+      "name": "Alpha-6",
+      "expression": "sqrt(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790528935.161851,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_8f9ac0c8",
+      "name": "Alpha-7",
+      "expression": "cs_rank(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790528935.1751606,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_17f3222d",
+      "name": "Alpha-8",
+      "expression": "ts_delta(high, 50)",
+      "ic_mean": -0.078643,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790528935.1894727,
+      "metrics": {
+        "ic_mean": -0.07864327485380118,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_c2e76aa1",
+      "name": "Alpha-9",
+      "expression": "ts_min(close, 30)",
+      "ic_mean": -0.063007,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790528935.203765,
+      "metrics": {
+        "ic_mean": -0.06300743520332912,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_61fc1207",
+      "name": "Alpha-10",
+      "expression": "ts_max(close, 5)",
+      "ic_mean": -0.040216,
+      "ic_ir": 0.0,
+      "ic_quality": "significant",
+      "stage": "CANDIDATE",
+      "created_at": 1790528935.2205286,
+      "metrics": {
+        "ic_mean": -0.040215833819247475,
+        "ic_ir": 0.0,
+        "ic_quality": "significant"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_406fcfdd",
+      "name": "Alpha-1",
+      "expression": "square(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529022.4649282,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_1261d757",
+      "name": "Alpha-2",
+      "expression": "cs_normalize(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529022.482047,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_154e4f39",
+      "name": "Alpha-3",
+      "expression": "multiply(open, high)",
+      "ic_mean": -0.135612,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529022.4982812,
+      "metrics": {
+        "ic_mean": -0.13561175666438824,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_811bf5a7",
+      "name": "Alpha-4",
+      "expression": "abs(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529022.5124257,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_b39c2c84",
+      "name": "Alpha-5",
+      "expression": "log(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529022.5271163,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_bdc647e5",
+      "name": "Alpha-6",
+      "expression": "sqrt(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529022.5444677,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_3462f261",
+      "name": "Alpha-7",
+      "expression": "cs_rank(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529022.5623767,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_a72ecaba",
+      "name": "Alpha-8",
+      "expression": "ts_delta(high, 50)",
+      "ic_mean": -0.078643,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790529022.577473,
+      "metrics": {
+        "ic_mean": -0.07864327485380118,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_4e82f4d8",
+      "name": "Alpha-9",
+      "expression": "ts_min(close, 30)",
+      "ic_mean": -0.063007,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790529022.5947537,
+      "metrics": {
+        "ic_mean": -0.06300743520332912,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_a02bceb4",
+      "name": "Alpha-10",
+      "expression": "ts_max(close, 5)",
+      "ic_mean": -0.040216,
+      "ic_ir": 0.0,
+      "ic_quality": "significant",
+      "stage": "CANDIDATE",
+      "created_at": 1790529022.611905,
+      "metrics": {
+        "ic_mean": -0.040215833819247475,
+        "ic_ir": 0.0,
+        "ic_quality": "significant"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_5629e6ff",
+      "name": "Alpha-1",
+      "expression": "square(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529145.3138714,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_32035098",
+      "name": "Alpha-2",
+      "expression": "cs_normalize(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529145.3282268,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_6c87be92",
+      "name": "Alpha-3",
+      "expression": "multiply(open, high)",
+      "ic_mean": -0.135612,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529145.340055,
+      "metrics": {
+        "ic_mean": -0.13561175666438824,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_455c7bcf",
+      "name": "Alpha-4",
+      "expression": "abs(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529145.3542888,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_bea0b016",
+      "name": "Alpha-5",
+      "expression": "log(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529145.3698862,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_e4e4dcc2",
+      "name": "Alpha-6",
+      "expression": "sqrt(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529145.385047,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_87df57f7",
+      "name": "Alpha-7",
+      "expression": "cs_rank(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529145.3977425,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_a7abe540",
+      "name": "Alpha-8",
+      "expression": "ts_delta(high, 50)",
+      "ic_mean": -0.078643,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790529145.411658,
+      "metrics": {
+        "ic_mean": -0.07864327485380118,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_fed9f01b",
+      "name": "Alpha-9",
+      "expression": "ts_min(close, 30)",
+      "ic_mean": -0.063007,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790529145.4238918,
+      "metrics": {
+        "ic_mean": -0.06300743520332912,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_228fc050",
+      "name": "Alpha-10",
+      "expression": "ts_max(close, 5)",
+      "ic_mean": -0.040216,
+      "ic_ir": 0.0,
+      "ic_quality": "significant",
+      "stage": "CANDIDATE",
+      "created_at": 1790529145.4376247,
+      "metrics": {
+        "ic_mean": -0.040215833819247475,
+        "ic_ir": 0.0,
+        "ic_quality": "significant"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_efd90d5f",
+      "name": "Alpha-1",
+      "expression": "square(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529171.1682947,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_e44e86ec",
+      "name": "Alpha-2",
+      "expression": "cs_normalize(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529171.1715922,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_74ca2bd7",
+      "name": "Alpha-3",
+      "expression": "multiply(open, high)",
+      "ic_mean": -0.135612,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529171.186052,
+      "metrics": {
+        "ic_mean": -0.13561175666438824,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_a2dde164",
+      "name": "Alpha-4",
+      "expression": "abs(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529171.1977444,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_e01cf2ac",
+      "name": "Alpha-5",
+      "expression": "log(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529171.212093,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_4e25d4d4",
+      "name": "Alpha-6",
+      "expression": "sqrt(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529171.2254715,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_d5234158",
+      "name": "Alpha-7",
+      "expression": "cs_rank(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529171.2369556,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_3326b59e",
+      "name": "Alpha-8",
+      "expression": "ts_delta(high, 50)",
+      "ic_mean": -0.078643,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790529171.2503357,
+      "metrics": {
+        "ic_mean": -0.07864327485380118,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_cf62165e",
+      "name": "Alpha-9",
+      "expression": "ts_min(close, 30)",
+      "ic_mean": -0.063007,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790529171.2615263,
+      "metrics": {
+        "ic_mean": -0.06300743520332912,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_cdc44963",
+      "name": "Alpha-10",
+      "expression": "ts_max(close, 5)",
+      "ic_mean": -0.040216,
+      "ic_ir": 0.0,
+      "ic_quality": "significant",
+      "stage": "CANDIDATE",
+      "created_at": 1790529171.273066,
+      "metrics": {
+        "ic_mean": -0.040215833819247475,
+        "ic_ir": 0.0,
+        "ic_quality": "significant"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_4314abd8",
+      "name": "Alpha-1",
+      "expression": "square(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529257.6606784,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_85f52476",
+      "name": "Alpha-2",
+      "expression": "cs_normalize(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529257.664115,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_3a053801",
+      "name": "Alpha-3",
+      "expression": "multiply(open, high)",
+      "ic_mean": -0.135612,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529257.6758158,
+      "metrics": {
+        "ic_mean": -0.13561175666438824,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_b1486b54",
+      "name": "Alpha-4",
+      "expression": "abs(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529257.6891341,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_b2a31369",
+      "name": "Alpha-5",
+      "expression": "log(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529257.7004685,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_68d37051",
+      "name": "Alpha-6",
+      "expression": "sqrt(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529257.7136986,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_f6fb77c1",
+      "name": "Alpha-7",
+      "expression": "cs_rank(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529257.7251976,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_e51d73bb",
+      "name": "Alpha-8",
+      "expression": "ts_delta(high, 50)",
+      "ic_mean": -0.078643,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790529257.737173,
+      "metrics": {
+        "ic_mean": -0.07864327485380118,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_5daa13a1",
+      "name": "Alpha-9",
+      "expression": "ts_min(close, 30)",
+      "ic_mean": -0.063007,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790529257.748715,
+      "metrics": {
+        "ic_mean": -0.06300743520332912,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_3012a523",
+      "name": "Alpha-10",
+      "expression": "ts_max(close, 5)",
+      "ic_mean": -0.040216,
+      "ic_ir": 0.0,
+      "ic_quality": "significant",
+      "stage": "CANDIDATE",
+      "created_at": 1790529257.7646914,
+      "metrics": {
+        "ic_mean": -0.040215833819247475,
+        "ic_ir": 0.0,
+        "ic_quality": "significant"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_cd3ae5c8",
+      "name": "Alpha-1",
+      "expression": "square(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529281.1874993,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_7ea1f6a9",
+      "name": "Alpha-2",
+      "expression": "cs_normalize(close)",
+      "ic_mean": -0.137148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529281.1918862,
+      "metrics": {
+        "ic_mean": -0.13714832535885169,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_0583406a",
+      "name": "Alpha-3",
+      "expression": "multiply(open, high)",
+      "ic_mean": -0.135612,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529281.2045894,
+      "metrics": {
+        "ic_mean": -0.13561175666438824,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_935aa949",
+      "name": "Alpha-4",
+      "expression": "abs(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529281.2162838,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_e82e3922",
+      "name": "Alpha-5",
+      "expression": "log(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529281.2292857,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_c9ac95e5",
+      "name": "Alpha-6",
+      "expression": "sqrt(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529281.2424092,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_b2e554c9",
+      "name": "Alpha-7",
+      "expression": "cs_rank(open)",
+      "ic_mean": -0.128148,
+      "ic_ir": 0.0,
+      "ic_quality": "strong",
+      "stage": "CANDIDATE",
+      "created_at": 1790529281.254183,
+      "metrics": {
+        "ic_mean": -0.1281476418318524,
+        "ic_ir": 0.0,
+        "ic_quality": "strong"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_7c865b1d",
+      "name": "Alpha-8",
+      "expression": "ts_delta(high, 50)",
+      "ic_mean": -0.078643,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790529281.267404,
+      "metrics": {
+        "ic_mean": -0.07864327485380118,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_9c70ccca",
+      "name": "Alpha-9",
+      "expression": "ts_min(close, 30)",
+      "ic_mean": -0.063007,
+      "ic_ir": 0.0,
+      "ic_quality": "good",
+      "stage": "CANDIDATE",
+      "created_at": 1790529281.2789364,
+      "metrics": {
+        "ic_mean": -0.06300743520332912,
+        "ic_ir": 0.0,
+        "ic_quality": "good"
+      },
+      "source": "alpha_mining"
+    },
+    {
+      "id": "alpha_8e17a2d8",
+      "name": "Alpha-10",
+      "expression": "ts_max(close, 5)",
+      "ic_mean": -0.040216,
+      "ic_ir": 0.0,
+      "ic_quality": "significant",
+      "stage": "CANDIDATE",
+      "created_at": 1790529281.2929165,
+      "metrics": {
+        "ic_mean": -0.040215833819247475,
+        "ic_ir": 0.0,
+        "ic_quality": "significant"
+      },
+      "source": "alpha_mining"
+    }
+  ],
+  "_EVIDENCE_INVALID": {
+    "verdict": "promoted_metrics_unbacked",
+    "strategy_count": 103,
+    "stages": {
+      "FULL": 10,
+      "EVALUATION": 3,
+      "CANDIDATE": 90
+    },
+    "why": [
+      "None of the 103 entries has a code pointer, so none can be run to reproduce its own numbers.",
+      "The 10 FULL entries carry hand-written metrics ('promoted via ap-0fe824') with no gate evaluation recorded against them.",
+      "kronos_h1 records sharpe 2.14 over 342 trades; backtest_report.json records 31.82 over 324 for the same pipeline. The registry holds the plausible-looking figure, which is the one that gets trusted.",
+      "core/autonomous_bootstrap.py and operations/strategy_factory.py both load this file, so these numbers reach the runtime and the UI."
+    ],
+    "action": "treat every stage as unvalidated; promotion must go through research/auto_promotion.py against broker-reconciled evidence (see tests/test_no_research_live_authority.py)"
+  }
+}
