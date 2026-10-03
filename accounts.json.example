@@ -1,0 +1,11 @@
+{
+  "accounts": {
+    "demo": {
+      "login": 12345678,
+      "password_env": "MT5_DEMO_PASSWORD",
+      "server": "MetaQuotes-Demo",
+      "type": "demo"
+    }
+  },
+  "default": "demo"
+}

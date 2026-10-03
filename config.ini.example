@@ -1,0 +1,20 @@
+[mt5]
+# MetaTrader 5 account credentials (or configure via environment variables / accounts.json)
+login = 0
+password = your_password_here
+server = MetaQuotes-Demo
+path = C:\Program Files\MetaTrader 5\terminal64.exe
+
+[trading]
+default_symbol = EURUSD
+default_timeframe = M15
+default_volume = 0.01
+
+[risk]
+max_risk_per_trade = 0.01
+max_drawdown = 0.10
+cooldown_seconds = 300
+max_trades_per_hour = 5
+
+[logging]
+log_level = INFO

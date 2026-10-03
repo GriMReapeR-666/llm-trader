@@ -1,0 +1,120 @@
+# ==============================================================================
+# SECRETS & CREDENTIALS (NEVER COMMIT)
+# ==============================================================================
+.env
+.env.*
+!.env.example
+accounts.json
+!accounts.json.example
+config.ini
+!config.ini.example
+.secure_store.*
+*.key
+*.pem
+*.enc
+
+# ==============================================================================
+# DATABASES & LOCAL RUNTIME STATE (NEVER COMMIT)
+# ==============================================================================
+*.db
+*.db-*
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.lock
+*.bak
+*.bak*
+backups/
+trading_state.db*
+local_agent_memory.db*
+compliance_audit.db*
+guardian_alerts.db*
+restart_recovery_smoke.db*
+meta_corpus.db*
+agent_events.db*
+alerts_outbox.db*
+knowledge_graph.kuzu/
+
+# Runtime state dumps & journals
+*_state.json
+*_state.db
+trading_rewards.json
+rl_model.json
+risk_state.json
+risk_state_demo.json
+trade_manager_state.json
+trade_conditions.json
+trading_session.json
+api_cache.json
+journal_audit.json
+promotion_package_current.json
+cross_market_benchmark.json
+event_windows.json
+guardian_audit.jsonl
+lessons.jsonl
+approvals_outbox.jsonl
+.security_audit_cache.json
+data/state/
+
+# ==============================================================================
+# HEAVY BINARIES, MODELS & CACHES (NEVER COMMIT)
+# ==============================================================================
+models/
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+*.prof
+
+# Artifacts, test plans & sweeps (historical run outputs)
+artifacts/
+graphify-out/
+scratch/
+test_plans/
+
+# Node / Web dependencies & builds
+node_modules/
+*/node_modules/
+**/node_modules/
+gui/dist/
+gui/build/
+tui_opentui/dist/
+tui_opentui/build/
+
+# Python caches & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.pytest_tmp/
+.ruff_cache/
+venv/
+.venv/
+env/
+
+# IDE & agent tooling
+.kilo/
+.opencode/
+.freebuff/
+.cursor/
+
+# System & logs
+*.log
+*.log.*
+.DS_Store
+Thumbs.db
+
+# ==============================================================================
+# GENERATED DOCS OUTPUT (sources stay tracked)
+# ==============================================================================
+# Rendered PRD: rebuild with `python scripts/build_prd_doc.py`
+# NOTE: only the stitched output is ignored. The fragments in docs/_prd_build/
+# are committed SOURCES -- do not ignore that directory.
+docs/SYSTEM_SOURCE_OF_TRUTH_PRD.html
+
+# Extracted knowledge corpus: 2.4MB derived artifact, zero code references
+docs/knowledge/extracted_knowledge_base.md
