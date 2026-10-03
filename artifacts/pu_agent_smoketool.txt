@@ -1,0 +1,6 @@
+success: True
+verdict: GREEN
+exit_code: 0
+steps: 8
+AGENT-TOOL-OK
+END-MARKER-PU-0086

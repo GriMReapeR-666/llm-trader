@@ -1,0 +1,14 @@
+QKF root: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework
+agents_at_import: []
+explicit_config_none: True
+lazy_config_none: False
+lazy_kb_files: 0
+lazy_is_cached: True
+unknown_attr_raised: True
+agent_gone_after_reset: True
+fresh_after_reset: True
+SUBPROC-OK
+
+subprocess exit: 0
+LAZY-DONE
+END-MARKER-PU-0075

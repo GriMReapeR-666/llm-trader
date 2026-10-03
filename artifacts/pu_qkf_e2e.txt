@@ -1,0 +1,61 @@
+======================================================================
+SECTION 1: CLI subprocesses (real user entry points)
+======================================================================
+PASS CLI stats exits 0 | 0.41s
+PASS CLI stats prints per-topic counts
+  parsed stats: {'01_Regime_Detection': 41, '02_Strategy_Development': 83, '03_Portfolio_Management': 55, '04_Order_Execution': 39, '05_Quant_Utilities': 190, '99_Archive_Unsorted': 514}
+PASS CLI search exits 0 | 0.37s
+PASS CLI search returns hits | 3 hits
+PASS CLI search empty query exits 0
+PASS CLI search empty query returns 0
+PASS CLI --help lists all 8 commands
+PASS CLI agent shell session exits 0 | 4.90s
+PASS agent shell lists 18 tools
+PASS agent shell exec returns EV 0.65
+PASS agent shell chain succeeds
+======================================================================
+SECTION 2: Agent battery over the real KB (in-process)
+======================================================================
+PASS agent discovers 18 tools | 18
+PASS knowledge.search volatility | 158 hits
+PASS knowledge.search AND query | 3 hits
+PASS knowledge.classify topic | 01_Regime_Detection
+PASS knowledge.list_topics has 6 topics | ['01_Regime_Detection', '02_Strategy_Development', '03_Portfolio_Management', '04_Order_Execution', '05_Quant_Utilities', '99_Archive_Unsorted']
+PASS knowledge.get_content reads real file | 540 chars
+PASS hurst trending >0.55 via agent | H=0.787
+PASS hurst random walk ~0.5 via agent | H=0.500
+PASS hmm classify auto-fit labels | label=high_vol conf=1.00
+PASS kelly golden via agent | kelly=0.3333 p_half=0.00781
+PASS hrp 3 iid near-equal via agent | [0.354, 0.325, 0.321]
+PASS r_multiple dollar_profit=10
+PASS drawdown golden via agent
+PASS almgren-chriss positive impact
+PASS dsr rejects small edge among 1000 trials | dsr=0.048 sr0=0.205
+PASS triple barrier TP exit
+PASS wfo flags noise as not robust
+======================================================================
+SECTION 3: Data integrity + pipeline artifacts
+======================================================================
+PASS index.json has 6 topics | ['01_Regime_Detection', '02_Strategy_Development', '03_Portfolio_Management', '04_Order_Execution', '05_Quant_Utilities', '99_Archive_Unsorted']
+PASS every index.json path exists on disk | 0 missing
+PASS index.json counts match disk | {'01_Regime_Detection': 41, '02_Strategy_Development': 83, '03_Portfolio_Management': 55, '04_Order_Execution': 39, '05_Quant_Utilities': 190, '99_Archive_Unsorted': 514}
+PASS search_index.json doc_list matches disk set | 922 docs indexed
+PASS stats CLI total matches index.json total | stats=922 index=922
+PASS transcriptions dir drained (idempotence state)
+PASS classify stage rerun is flagged no-op
+PASS classify rerun keeps index fresh
+Reclassifying 514 archive files...
+
+Reclassified 0 files
+PASS CLI reclassify (sandbox copy) exits 0 | rc=0
+======================================================================
+SECTION 4: Test suite
+======================================================================
+PASS full test suite green | 143 passed in 9.15s
+======================================================================
+SUMMARY
+======================================================================
+PASS: 38  WARN: 0  FAIL: 0
+E2E-VERDICT: GREEN
+E2E-DONE
+END-MARKER-PU-0079

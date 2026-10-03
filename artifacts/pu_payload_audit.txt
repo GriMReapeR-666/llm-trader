@@ -1,0 +1,21 @@
+llm_requests_7d_count: 38
+payload_chars_min_avg_p95_max: 84 / 84 / 84 / 84
+payload_tokens_est_avg: 21
+response_chars_avg: 1509
+status_dist: {'ERROR': 22, 'SUCCESS': 16}
+models: {'mistralai/mistral-7b-instruct-v0.2': 38}
+
+newest payload at 2026-09-28T11:18:44.111414+00:00: top-level chars=90
+top sections by chars (newest payload):
+       78  UNKNOWN  budget
+unknown top-level keys: ['budget']
+known sections absent from newest payload: ['account', 'recent_performance', 'multi_timeframe', 'indicators', 'alpha_ensemble', 'alpha_decay_health', 'alpha_rotation', 'regime_allocation', 'regime_duration', 'auto_quant_tools', 'cpcv_escalation', 'meta_adaptive_override', 'evolutionary_suggestions', 'cross_market_robustness', 'alpha_discovery_enrichment']
+
+raw_traces_7d_count: 66
+raw_traces_chars_avg_p95_max: 75560 / 267294 / 287319
+
+working_memory_ACTIVE_by_namespace: [('trading:event:EURUSD', 1, 17745), ('trading:event:GBPUSD', 1, 8553), ('trading:event:NONE', 1, 11444), ('trading:event:XAUUSD', 1, 7652)]
+working_memory_total_ACTIVE: 4 items, avg 11348 chars/item
+
+PROBE-DONE
+END-MARKER-PU-0093

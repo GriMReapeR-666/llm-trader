@@ -1,0 +1,16 @@
+=== done=True rc=0 ===
+--- MainThread | daemon=False
+    File "<stdin>", line 22, in <module>
+--- Thread-1 (_worker) | daemon=True
+    File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1014, in _bootstrap
+        self._bootstrap_inner()
+    File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1043, in _bootstrap_inner
+        self.run()
+    File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 994, in run
+        self._target(*self._args, **self._kwargs)
+    File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\ui\web_dashboard_adapter.py", line 24, in _worker
+        item = self._queue.get()
+    File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\queue.py", line 202, in get
+        self.not_empty.wait()
+    File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 359, in wait
+        waiter.acquire()

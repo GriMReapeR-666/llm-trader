@@ -1,0 +1,18 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-8.4.1, pluggy-1.6.0 -- C:\Users\User\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity
+configfile: pytest.ini
+plugins: anyio-4.9.0, dash-3.2.0, langsmith-0.4.59, asyncio-1.2.0, cov-7.0.0, xdist-3.8.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 18 items
+
+tests/test_pipeline_v2_e3.py::test_mark_and_pop_analysis_stage_handoff_roundtrip PASSED [  5%]
+tests/test_pipeline_v2_e3.py::test_replay_recorder_receives_seam_marks PASSED [ 11%]
+tests/test_pipeline_v2_e3.py::test_seam_marks_are_noops_without_recorder PASSED [ 16%]
+tests/test_pipeline_v2_e3.py::test_stage_fns_manage_handoff_protocol PASSED [ 22%]
+tests/test_pipeline_v2_e3.py::test_analysis_stage_keys_declared PASSED   [ 27%]
+tests/test_pipeline_v2_e3.py::test_envelope_stages_default_is_staged_with_kill_switch PASSED [ 33%]
+tests/test_pipeline_v2_e3.py::test_record_cycle_intents_read_only_and_empty_safe PASSED [ 38%]
+tests/test_pipeline_v2_e3.py::test_golden_replay_identical_intents[clean_hold] PASSED [ 44%]
+tests/test_pipeline_v2_e3.py::test_golden_replay_identical_intents[clean_buy] 

@@ -1,0 +1,6 @@
+..................................F..................................... [ 61%]
+..............................................                           [100%]
+================================== FAILURES ===================================
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\operations\agent_operations.py:1442: sqlite3.OperationalError: no such table: harness_events
+=========================== short test summary info ===========================
+FAILED tests/test_agent_operations.py::test_retention_status_is_read_only_and_fail_safe

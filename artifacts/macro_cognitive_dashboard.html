@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autonomous Macro-Cognitive Decision System & RLCD Flywheel</title>
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-card: #131b2e;
+      --bg-elevated: #1a253c;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #23304b;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-yellow: #f59e0b;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-purple: #8b5cf6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg-primary); color: var(--text-main); padding: 24px; line-height: 1.5; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+    .header h1 { font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .badge-advisory { background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow); border: 1px solid rgba(245, 158, 11, 0.3); padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+    .badge-live { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .card h2 { font-size: 15px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+    .col-4 { grid-column: span 4; }
+    .col-6 { grid-column: span 6; }
+    .col-8 { grid-column: span 8; }
+    .col-12 { grid-column: span 12; }
+    
+    /* Decision Matrix Table */
+    .decision-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .decision-table th { text-align: left; padding: 8px 10px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+    .decision-table td { padding: 9px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 11px; }
+    .tag-pass { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+    .tag-veto { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+    .tag-warn { background: rgba(245, 158, 11, 0.2); color: var(--accent-yellow); }
+    .tag-neutral { background: rgba(148, 163, 184, 0.2); color: var(--text-muted); }
+
+    /* Narrative Card */
+    .narrative-title { font-size: 17px; font-weight: 600; margin-bottom: 8px; color: var(--accent-cyan); }
+    .narrative-meta { display: flex; gap: 20px; font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+    .evidence-list { list-style: none; font-size: 13px; }
+    .evidence-list li { padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+    .evidence-plus { color: var(--accent-green); font-weight: bold; }
+    .evidence-minus { color: var(--accent-red); font-weight: bold; }
+    .tripwire-box { margin-top: 14px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px; padding: 10px; font-size: 12px; }
+
+    /* Causal Attribution */
+    .fingerprint-stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
+    .stat-val { font-family: monospace; font-weight: 600; }
+
+    /* Flywheel Metrics */
+    .metric-gauge { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
+    .progress-bar { width: 120px; height: 8px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent-blue); }
+
+    /* Arbitration Feed */
+    .arb-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg-elevated); border-radius: 6px; margin-bottom: 8px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>🧠 Autonomous Macro-Cognitive Decision System & RLCD Flywheel</h1>
+      <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+        Point-in-Time 7-Layer Evaluation • Causal Attribution • Narrative State • Autonomous Pair Miner
+      </p>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <span class="badge-advisory">Advisory Engine (authority=False)</span>
+      <span class="badge-live">Live Model: ModernBERT-421M</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- 1. The 7-Layer Decision Stack -->
+    <div class="card col-8">
+      <h2>Canonical 7-Layer Decision Stack (D0 - D13) <span style="font-size: 12px; color: var(--accent-green);">100% Deterministic Safety Active</span></h2>
+      <table class="decision-table">
+        <thead>
+          <tr>
+            <th>Layer</th>
+            <th>Decision ID</th>
+            <th>Selected Option</th>
+            <th>Source / Safety Rule</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Layer 0</td>
+            <td><strong>D0.1 Source Credibility</strong></td>
+            <td><code>TRUSTED_OFFICIAL</code></td>
+            <td>Bureau of Labor Statistics API (Credibility: 1.0)</td>
+            <td><span class="tag tag-pass">VERIFIED</span></td>
+          </tr>
+          <tr>
+            <td>Layer 1</td>
+            <td><strong>D1 Economic Surprise</strong></td>
+            <td><code>EXTREME_HAWKISH</code></td>
+            <td>Z = +2.45σ (Threshold ≥ +2.0 enforced)</td>
+            <td><span class="tag tag-pass">ANCHORED</span></td>
+          </tr>
+          <tr>
+            <td>Layer 1</td>
+            <td><strong>D2 Blackout Execution Gate</strong></td>
+            <td><code>BLACKOUT_FREEZE</code></td>
+            <td>T-0.5m Release Window (Freeze Active)</td>
+            <td><span class="tag tag-veto">FROZEN</span></td>
+          </tr>
+          <tr>
+            <td>Layer 1b</td>
+            <td><strong>D9 Emergency Kill-Switch</strong></td>
+            <td><code>NORMAL_OPERATION</code></td>
+            <td>VIX=21.5, Pegs Intact, Book Spreads Normal</td>
+            <td><span class="tag tag-pass">CLEAR</span></td>
+          </tr>
+          <tr>
+            <td>Layer 2</td>
+            <td><strong>D3 Global Macro Regime</strong></td>
+            <td><code>NORMAL_RISK_OFF</code></td>
+            <td>VIX 21.5, HY OAS 120 bps</td>
+            <td><span class="tag tag-neutral">DEFENSIVE</span></td>
+          </tr>
+          <tr>
+            <td>Layer 2</td>
+            <td><strong>D4 US Net Liquidity Stance</strong></td>
+            <td><code>NEUTRAL_LIQUIDITY</code></td>
+            <td>ΔNetLiq = +$12B/30d, SOFR = 5.30%</td>
+            <td><span class="tag tag-neutral">BALANCED</span></td>
+          </tr>
+          <tr>
+            <td>Layer 3</td>
+            <td><strong>D5 Commodity Supply Shock</strong></td>
+            <td><code>SUPPLY_DEFICIT_BULLISH</code></td>
+            <td>Crude +6.2% 5d, Tanker Delay Verified</td>
+            <td><span class="tag tag-warn">SHOCK</span></td>
+          </tr>
+          <tr>
+            <td>Layer 3</td>
+            <td><strong>D6 Yield Curve Divergence</strong></td>
+            <td><code>DOLLAR_DOMINANCE</code></td>
+            <td>10Y Yield +18 bps, DXY +0.85%</td>
+            <td><span class="tag tag-pass">TREND</span></td>
+          </tr>
+          <tr>
+            <td>Layer 4</td>
+            <td><strong>D10 COT Positioning Extreme</strong></td>
+            <td><code>CROWDED_LONG</code></td>
+            <td>COT Percentile = 91% (Squeeze Risk)</td>
+            <td><span class="tag tag-warn">CROWDED</span></td>
+          </tr>
+          <tr>
+            <td>Layer 6</td>
+            <td><strong>D8 Opportunity Arbitration</strong></td>
+            <td><code>BLACKOUT_POSTPONE</code></td>
+            <td>Release window active; order deferred</td>
+            <td><span class="tag tag-veto">POSTPONED</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 2. Real-Time Narrative State Machine -->
+    <div class="card col-4">
+      <h2>Real-Time Narrative Machine <span style="font-size: 11px; color: var(--accent-cyan);">ID: NAR_2026_041</span></h2>
+      <div class="narrative-title">Disinflationary Normalization with Selective Divergence</div>
+      <div class="narrative-meta">
+        <span>Age: <strong>14.2 days</strong></span>
+        <span>Decay: <strong>0.627</strong></span>
+        <span>Conviction: <strong>72.5%</strong></span>
+      </div>
+      
+      <h3 style="font-size: 12px; margin-bottom: 6px; text-transform: uppercase; color: var(--text-muted);">Corroborating Evidence:</h3>
+      <ul class="evidence-list">
+        <li><span class="evidence-plus">+</span> Core CPI trending 2.4% annualized</li>
+        <li><span class="evidence-plus">+</span> Central bank forward guidance aligned</li>
+      </ul>
+
+      <h3 style="font-size: 12px; margin-top: 10px; margin-bottom: 6px; text-transform: uppercase; color: var(--text-muted);">Refuting Evidence:</h3>
+      <ul class="evidence-list">
+        <li><span class="evidence-minus">-</span> Energy commodity impulse +6.2% 5d</li>
+      </ul>
+
+      <div class="tripwire-box">
+        <strong>⚡ Armed Falsification Tripwires:</strong><br>
+        • TW1: VIX ≥ 30.0 (Current: 21.5) [ARMED]<br>
+        • TW2: HY OAS ≥ 380 bps (Current: 120) [ARMED]<br>
+        • TW3: SOFR ≥ 5.60% (Current: 5.30%) [ARMED]
+      </div>
+    </div>
+
+    <!-- 3. Causal Attribution Engine -->
+    <div class="card col-4">
+      <h2>Causal Move Attribution (Q1-Q7)</h2>
+      <div class="fingerprint-stat">
+        <span style="color: var(--text-muted);">Q1 Primary Driver:</span>
+        <span class="stat-val" style="color: var(--accent-cyan);">MACRO_DATA (CPI)</span>
+      </div>
+      <div class="fingerprint-stat">
+        <span style="color: var(--text-muted);">Q5 Move Quality:</span>
+        <span class="stat-val" style="color: var(--accent-green);">FUNDAMENTAL_REPRICING</span>
+      </div>
+      <div class="fingerprint-stat">
+        <span style="color: var(--text-muted);">Q7 Candlestick Signature:</span>
+        <span class="stat-val">IMPULSIVE_BREAK (Body: 78%)</span>
+      </div>
+      <div class="fingerprint-stat">
+        <span style="color: var(--text-muted);">Volume Z-Score:</span>
+        <span class="stat-val" style="color: var(--accent-green);">+2.84σ</span>
+      </div>
+      <div class="fingerprint-stat">
+        <span style="color: var(--text-muted);">Move Speed:</span>
+        <span class="stat-val">3.8 pips / min</span>
+      </div>
+      <div class="fingerprint-stat">
+        <span style="color: var(--text-muted);">Cross-Asset Fingerprint:</span>
+        <span class="stat-val">DXY (+0.85%), 10Y (+18 bps)</span>
+      </div>
+    </div>
+
+    <!-- 4. OpportunityBus Arbitration Feed -->
+    <div class="card col-4">
+      <h2>OpportunityBus Arbitration Feed</h2>
+      <div class="arb-item">
+        <div>
+          <strong>BUY EURUSD</strong> <span style="color: var(--text-muted); font-size: 11px;">(Technical Breakout)</span><br>
+          <span style="font-size: 11px; color: var(--accent-red);">Conflict: Opposes US CPI Hot Shock</span>
+        </div>
+        <span class="tag tag-veto">REJECT_CONFLICT</span>
+      </div>
+      <div class="arb-item">
+        <div>
+          <strong>SELL EURUSD</strong> <span style="color: var(--text-muted); font-size: 11px;">(Trend Continuation)</span><br>
+          <span style="font-size: 11px; color: var(--accent-yellow);">Blackout: CPI Release Window (T-0.5m)</span>
+        </div>
+        <span class="tag tag-warn">BLACKOUT_POSTPONE</span>
+      </div>
+      <div class="arb-item">
+        <div>
+          <strong>BUY XAUUSD</strong> <span style="color: var(--text-muted); font-size: 11px;">(Geopolitical Hedge)</span><br>
+          <span style="font-size: 11px; color: var(--accent-green);">Aligned with Commodity Shock D5</span>
+        </div>
+        <span class="tag tag-pass">STRONG_PROCEED (1.0x)</span>
+      </div>
+    </div>
+
+    <!-- 5. Autonomous RLCD Flywheel Telemetry -->
+    <div class="card col-4">
+      <h2>RLCD Autonomous Flywheel</h2>
+      <div class="metric-gauge">
+        <span>Contrastive Pairs Mined:</span>
+        <strong>1,482 pairs</strong>
+      </div>
+      <div class="metric-gauge">
+        <span>Safety Veto Pairs (5x Weight):</span>
+        <strong style="color: var(--accent-red);">214 pairs (100% recall)</strong>
+      </div>
+      <div class="metric-gauge">
+        <span>Hard Boundary Pairs (±0.35σ):</span>
+        <strong>430 pairs</strong>
+      </div>
+      <div class="metric-gauge">
+        <span>Auto-Mined Epoch Drift Cap:</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="progress-bar"><div class="progress-fill" style="width: 18%;"></div></div>
+          <span>18% / 20% max</span>
+        </div>
+      </div>
+      <div class="metric-gauge">
+        <span>Calibration Error (ECE):</span>
+        <strong style="color: var(--accent-green);">0.038 (&lt; 0.05 Target)</strong>
+      </div>
+      <div style="margin-top: 12px; padding: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; font-size: 12px; text-align: center;">
+        ✅ <strong>Incumbent Model Promoted:</strong> Passed Crisis, Boundary & Cascade Gates
+      </div>
+    </div>
+  </div>
+</body>
+</html>

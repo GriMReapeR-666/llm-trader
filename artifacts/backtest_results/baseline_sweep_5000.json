@@ -1,0 +1,102 @@
+{
+ "symbol": "EURUSD",
+ "timeframe": "H1",
+ "bars": 5000,
+ "friction": {
+  "spread_pips": 1.5,
+  "slippage_pips": 0.5,
+  "costx2": {
+   "spread_pips": 3.0,
+   "slippage_pips": 1.0
+  }
+ },
+ "seed": 42,
+ "runs": [
+  {
+   "baseline": "baseline_buy_hold_long",
+   "sl_pips": 1000000.0,
+   "tp_pips": 1000000000.0,
+   "seconds": 0.0,
+   "sharpe_ratio": 0.0,
+   "total_trades": 1,
+   "win_rate": 0.0,
+   "profit_factor": 0.0,
+   "expectancy_r": -0.0005,
+   "max_drawdown_pct": 0.0
+  },
+  {
+   "baseline": "baseline_buy_hold_short",
+   "sl_pips": 1000000.0,
+   "tp_pips": 1000000000.0,
+   "seconds": 0.0,
+   "sharpe_ratio": 0.0,
+   "total_trades": 1,
+   "win_rate": 100.0,
+   "profit_factor": 452800000000.0,
+   "expectancy_r": 0.0005,
+   "max_drawdown_pct": 0.0
+  },
+  {
+   "baseline": "baseline_trend_50_200",
+   "sl_pips": 30.0,
+   "tp_pips": 60.0,
+   "seconds": 0.01,
+   "sharpe_ratio": -4.06,
+   "total_trades": 31,
+   "win_rate": 22.58,
+   "profit_factor": 0.59,
+   "expectancy_r": -0.322,
+   "max_drawdown_pct": 1003.33
+  },
+  {
+   "baseline": "baseline_random_null_seed42",
+   "sl_pips": 30.0,
+   "tp_pips": 60.0,
+   "seconds": 0.0,
+   "sharpe_ratio": -0.29,
+   "total_trades": 77,
+   "win_rate": 32.47,
+   "profit_factor": 0.96,
+   "expectancy_r": -0.0253,
+   "max_drawdown_pct": 1305.0
+  },
+  {
+   "baseline": "baseline_trend_50_200_costx2",
+   "sl_pips": 30.0,
+   "tp_pips": 60.0,
+   "seconds": 0.0,
+   "sharpe_ratio": -4.33,
+   "total_trades": 32,
+   "win_rate": 21.88,
+   "profit_factor": 0.56,
+   "expectancy_r": -0.3417,
+   "max_drawdown_pct": 1103.33
+  },
+  {
+   "baseline": "baseline_random_null_seed42_costx2",
+   "sl_pips": 30.0,
+   "tp_pips": 60.0,
+   "seconds": 0.0,
+   "sharpe_ratio": -0.73,
+   "total_trades": 77,
+   "win_rate": 31.17,
+   "profit_factor": 0.91,
+   "expectancy_r": -0.0645,
+   "max_drawdown_pct": 1413.33
+  }
+ ],
+ "comparison": {
+  "source": "deep_sweep_5000.json",
+  "labels": 14,
+  "labels_sharpe": -4.3,
+  "beaten_on_sharpe": {
+   "baseline_buy_hold_long": 14,
+   "baseline_buy_hold_short": 14,
+   "baseline_trend_50_200": 14,
+   "baseline_random_null_seed42": 14,
+   "baseline_trend_50_200_costx2": 0,
+   "baseline_random_null_seed42_costx2": 14
+  },
+  "labels_sharpe_all_identical": true
+ }
+}

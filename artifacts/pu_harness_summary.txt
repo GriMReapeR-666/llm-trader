@@ -1,0 +1,31 @@
+# PU-0129..0136 compact-context preflight harness evidence (harness dir deleted; logs excerpted)
+=== s1.log
+[STUB-PROBE] real probe run
+CTX-PROBE-VERDICT: RED
+ [X] PREFLIGHT: compact-context probe RED - aborting launch. See artifacts\ctx_probe.txt
+=== s2.log
+[STUB-PROBE] real probe run
+CTX-PROBE-VERDICT: GREEN
+ [OK] PREFLIGHT: compact-context probe GREEN.
+=== s3.log
+=== s4.log
+  LLM TRADER - AUTONOMOUS HEADLESS TRADING ENGINE
+[HEADLESS AUTO-MODE] Launching EURUSD AUTO (Paper Mode, Continuous)
+[PREFLIGHT] Compact-context probe running (LLM_TRADER_COMPACT_CONTEXT=1)...
+[STUB-PROBE] real probe run
+CTX-PROBE-VERDICT: RED
+[PREFLIGHT] Compact-context probe RED - aborting launch. See artifacts\ctx_probe.txt
+=== s5.log
+  LLM TRADER - AUTONOMOUS HEADLESS TRADING ENGINE
+[HEADLESS AUTO-MODE] Launching EURUSD AUTO (Paper Mode, Continuous)
+[PREFLIGHT] Compact-context probe running (LLM_TRADER_COMPACT_CONTEXT=1)...
+[STUB-PROBE] real probe run
+CTX-PROBE-VERDICT: GREEN
+[PREFLIGHT] Compact-context probe GREEN.
+[STUB-PYTHON] -u mt5_trader.py llm-trade --paper --symbol EURUSD --timeframe AUTO --model mistralai/mistral-7b-instruct-v0.2 --risk-per-trade 1.0 --continuous
+=== s6.log
+  LLM TRADER - AUTONOMOUS HEADLESS TRADING ENGINE
+[HEADLESS AUTO-MODE] Launching EURUSD AUTO with options: --loops 3
+[STUB-PYTHON] -u mt5_trader.py llm-trade --paper --symbol EURUSD --timeframe AUTO --model mistralai/mistral-7b-instruct-v0.2 --risk-per-trade 1.0 --loops 3
+exit=0
+END-MARKER-PU-0137

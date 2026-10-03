@@ -1,0 +1,5 @@
+checkpoint loaded: LayaDecisionModel
+corpus: 8 unique articles (incl. spoofs)
+done 4/8 src=laya 145871ms
+done 5/8 src=laya 200493ms
+done 6/8 src=laya 113178ms

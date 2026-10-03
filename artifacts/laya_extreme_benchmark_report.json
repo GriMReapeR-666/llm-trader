@@ -1,0 +1,460 @@
+{
+  "benchmark_timestamp": "2026-09-22T19:13:38Z",
+  "model_name": "Laya (convaiinnovations/laya)",
+  "architecture": "ModernBERT-large (421M params) + RLCD Typed Decision Head",
+  "total_duration_sec": 259.35,
+  "latency_profile": {
+    "iterations": 25,
+    "p50_median_ms": 2773.47,
+    "p90_ms": 2902.55,
+    "p95_ms": 2950.83,
+    "p99_ms": 2962.23,
+    "min_ms": 2542.95,
+    "max_ms": 2962.24,
+    "mean_ms": 2776.54,
+    "std_jitter_ms": 101.3,
+    "throughput_dps": 0.36,
+    "zero_output_tokens_rate": 1.0
+  },
+  "high_density_multi_question": {
+    "question_count": 6,
+    "latency_ms": 33818.82,
+    "input_tokens": 1191,
+    "output_tokens": 0,
+    "answers": {
+      "macro_regime": "EXPANSIONARY_BOOM",
+      "monetary_policy_shift": "HAWKISH_HIKES",
+      "blackout_freeze_gate": false,
+      "transmission_asset": "DOLLAR_STRENGTH",
+      "market_stress_level": 1.621,
+      "execution_veto": true
+    },
+    "probabilities": {
+      "macro_regime": {
+        "RECESSIONARY_RISK_OFF": 0.2801,
+        "EXPANSIONARY_BOOM": 0.3674,
+        "STAGFLATION": 0.1046,
+        "GOLDILOCKS": 0.2479
+      },
+      "monetary_policy_shift": {
+        "DOVISH_RATE_CUTS": 0.3585,
+        "HAWKISH_HIKES": 0.4083,
+        "UNCHANGED_HOLD": 0.2332
+      },
+      "blackout_freeze_gate": {
+        "false": 0.6165,
+        "true": 0.3835
+      },
+      "transmission_asset": {
+        "DOLLAR_WEAKNESS": 0.3978,
+        "DOLLAR_STRENGTH": 0.4266,
+        "CRUDE_OIL_SPIKE": 0.1756
+      },
+      "market_stress_level": {
+        "0": 0.0368,
+        "1": 0.3909,
+        "2": 0.4867,
+        "3": 0.0856
+      },
+      "execution_veto": {
+        "false": 0.2469,
+        "true": 0.7531
+      }
+    },
+    "confidences": {
+      "macro_regime": 0.0577,
+      "monetary_policy_shift": 0.0233,
+      "blackout_freeze_gate": 0.6165,
+      "transmission_asset": 0.0574,
+      "market_stress_level": 0.2429,
+      "execution_veto": 0.7531
+    }
+  },
+  "macro_scenarios_evaluation": {
+    "total_scenarios": 12,
+    "total_decision_points": 23,
+    "correct_decision_points": 12,
+    "accuracy_rate": 0.5217,
+    "mean_scenario_entropy": 0.7355,
+    "p50_entropy": 0.9259,
+    "scenarios": [
+      {
+        "id": "SCEN_01_CPI_SURGE",
+        "name": "US Core CPI Flash Surge (+2.4\u03c3 Beat)",
+        "category": "CLEAR_SHOCK",
+        "latency_ms": 8332.27,
+        "answers": {
+          "macro_shock": "IN_LINE",
+          "blackout_freeze": false
+        },
+        "expected": {
+          "macro_shock": "HAWKISH",
+          "blackout_freeze": true
+        },
+        "matches": {
+          "macro_shock": false,
+          "blackout_freeze": false
+        },
+        "all_passed": false,
+        "probabilities": {
+          "macro_shock": {
+            "HAWKISH": 0.3545,
+            "IN_LINE": 0.376,
+            "DOVISH": 0.2695
+          },
+          "blackout_freeze": {
+            "false": 0.9999,
+            "true": 0.0001
+          }
+        },
+        "avg_entropy": 0.4963
+      },
+      {
+        "id": "SCEN_02_EMERGENCY_CUT",
+        "name": "Emergency Inter-Meeting Rate Cut (-50 bps)",
+        "category": "CLEAR_SHOCK",
+        "latency_ms": 7217.63,
+        "answers": {
+          "macro_shock": "HAWKISH",
+          "blackout_freeze": false
+        },
+        "expected": {
+          "macro_shock": "DOVISH",
+          "blackout_freeze": true
+        },
+        "matches": {
+          "macro_shock": false,
+          "blackout_freeze": false
+        },
+        "all_passed": false,
+        "probabilities": {
+          "macro_shock": {
+            "HAWKISH": 0.4409,
+            "NEUTRAL": 0.2487,
+            "DOVISH": 0.3105
+          },
+          "blackout_freeze": {
+            "false": 0.6589,
+            "true": 0.3411
+          }
+        },
+        "avg_entropy": 0.95
+      },
+      {
+        "id": "SCEN_03_STAGFLATION_PARADOX",
+        "name": "Stagflation Paradox (GDP Contraction + Inflation Accelerating)",
+        "category": "CONFLICTING_SIGNALS",
+        "latency_ms": 9278.35,
+        "answers": {
+          "macro_regime": "STAGFLATION",
+          "policy_dilemma": true
+        },
+        "expected": {
+          "macro_regime": "STAGFLATION",
+          "policy_dilemma": true
+        },
+        "matches": {
+          "macro_regime": true,
+          "policy_dilemma": true
+        },
+        "all_passed": true,
+        "probabilities": {
+          "macro_regime": {
+            "STAGFLATION": 0.9035,
+            "EXPANSION": 0.0298,
+            "DEFLATION": 0.0414,
+            "GOLDILOCKS": 0.0252
+          },
+          "policy_dilemma": {
+            "false": 0.0988,
+            "true": 0.9012
+          }
+        },
+        "avg_entropy": 0.3845
+      },
+      {
+        "id": "SCEN_04_HORMUZ_BLOCKADE",
+        "name": "Strait of Hormuz Geopolitical Maritime Disruption",
+        "category": "SUPPLY_SHOCK",
+        "latency_ms": 9869.69,
+        "answers": {
+          "commodity_impact": "SUPPLY_SHOCK_BULLISH",
+          "safe_haven_bid": "EMERGING_FX"
+        },
+        "expected": {
+          "commodity_impact": "SUPPLY_SHOCK_BULLISH",
+          "safe_haven_bid": "GOLD_AND_USD"
+        },
+        "matches": {
+          "commodity_impact": true,
+          "safe_haven_bid": false
+        },
+        "all_passed": false,
+        "probabilities": {
+          "commodity_impact": {
+            "SUPPLY_SHOCK_BULLISH": 0.6722,
+            "DEMAND_DESTRUCTION": 0.2087,
+            "SUPPLY_GLUT_BEARISH": 0.0645,
+            "NOISE": 0.0546
+          },
+          "safe_haven_bid": {
+            "GOLD_AND_USD": 0.225,
+            "EMERGING_FX": 0.4054,
+            "EQUITIES": 0.3695
+          }
+        },
+        "avg_entropy": 0.822
+      },
+      {
+        "id": "SCEN_05_TRANQUIL_RETAIL_SALES",
+        "name": "Tranquil In-Line Retail Sales Release",
+        "category": "TRANQUIL_NORMAL",
+        "latency_ms": 6882.28,
+        "answers": {
+          "macro_shock": "IN_LINE",
+          "blackout_freeze": false
+        },
+        "expected": {
+          "macro_shock": "IN_LINE",
+          "blackout_freeze": false
+        },
+        "matches": {
+          "macro_shock": true,
+          "blackout_freeze": true
+        },
+        "all_passed": true,
+        "probabilities": {
+          "macro_shock": {
+            "HAWKISH": 0.0513,
+            "IN_LINE": 0.8753,
+            "DOVISH": 0.0734
+          },
+          "blackout_freeze": {
+            "false": 0.9999,
+            "true": 0.0001
+          }
+        },
+        "avg_entropy": 0.2104
+      },
+      {
+        "id": "SCEN_06_FLASH_CRASH_UNPEG",
+        "name": "Currency De-Pegging Liquidity Void (SNB Style)",
+        "category": "FLASH_CRASH",
+        "latency_ms": 9005.83,
+        "answers": {
+          "execution_safeguard": "EMERGENCY_HALT_AND_VETO",
+          "broker_default_risk": false
+        },
+        "expected": {
+          "execution_safeguard": "EMERGENCY_HALT_AND_VETO",
+          "broker_default_risk": true
+        },
+        "matches": {
+          "execution_safeguard": true,
+          "broker_default_risk": false
+        },
+        "all_passed": false,
+        "probabilities": {
+          "execution_safeguard": {
+            "EMERGENCY_HALT_AND_VETO": 0.4211,
+            "AGGRESSIVE_SCALE_IN": 0.2474,
+            "IGNORE": 0.3315
+          },
+          "broker_default_risk": {
+            "false": 0.7253,
+            "true": 0.2747
+          }
+        },
+        "avg_entropy": 0.9136
+      },
+      {
+        "id": "SCEN_07_DEBT_CEILING_STANDOFF",
+        "name": "US Treasury Debt Ceiling Standoff (TGA Exhaustion)",
+        "category": "SOVEREIGN_RISK",
+        "latency_ms": 10177.33,
+        "answers": {
+          "liquidity_regime": "BENIGN_EXPANSION",
+          "risk_off_flag": false
+        },
+        "expected": {
+          "liquidity_regime": "ACUTE_LIQUIDITY_STRESS",
+          "risk_off_flag": true
+        },
+        "matches": {
+          "liquidity_regime": false,
+          "risk_off_flag": false
+        },
+        "all_passed": false,
+        "probabilities": {
+          "liquidity_regime": {
+            "ACUTE_LIQUIDITY_STRESS": 0.2415,
+            "BENIGN_EXPANSION": 0.4518,
+            "IRRELEVANT_NOISE": 0.3067
+          },
+          "risk_off_flag": {
+            "false": 0.8941,
+            "true": 0.1059
+          }
+        },
+        "avg_entropy": 0.7282
+      },
+      {
+        "id": "SCEN_08_HAWKISH_PAUSE",
+        "name": "FOMC 'Hawkish Pause' Rate Decision",
+        "category": "SUBTLE_NUANCE",
+        "latency_ms": 9447.2,
+        "answers": {
+          "net_policy_stance": "HAWKISH_PAUSE",
+          "yield_curve_reaction": "SHORT_END_YIELDS_RISE"
+        },
+        "expected": {
+          "net_policy_stance": "HAWKISH_PAUSE",
+          "yield_curve_reaction": "SHORT_END_YIELDS_RISE"
+        },
+        "matches": {
+          "net_policy_stance": true,
+          "yield_curve_reaction": true
+        },
+        "all_passed": true,
+        "probabilities": {
+          "net_policy_stance": {
+            "HAWKISH_PAUSE": 0.4853,
+            "DOVISH_PIVOT": 0.2331,
+            "NEUTRAL_HOLD": 0.2816
+          },
+          "yield_curve_reaction": {
+            "SHORT_END_YIELDS_RISE": 0.71,
+            "SHORT_END_YIELDS_COLLAPSE": 0.29
+          }
+        },
+        "avg_entropy": 0.911
+      },
+      {
+        "id": "SCEN_09_JOBLESS_CLAIMS_SPIKE",
+        "name": "US Initial Jobless Claims Surge (+3.1\u03c3 Miss)",
+        "category": "CLEAR_SHOCK",
+        "latency_ms": 8103.26,
+        "answers": {
+          "macro_surprise": "IN_LINE",
+          "dollar_trajectory": "BEARISH_USD"
+        },
+        "expected": {
+          "macro_surprise": "DOVISH_LABOR_CRACK",
+          "dollar_trajectory": "BEARISH_USD"
+        },
+        "matches": {
+          "macro_surprise": false,
+          "dollar_trajectory": true
+        },
+        "all_passed": false,
+        "probabilities": {
+          "macro_surprise": {
+            "DOVISH_LABOR_CRACK": 0.3161,
+            "IN_LINE": 0.5695,
+            "HAWKISH_STRENGTH": 0.1143
+          },
+          "dollar_trajectory": {
+            "BEARISH_USD": 0.5201,
+            "BULLISH_USD": 0.4799
+          }
+        },
+        "avg_entropy": 0.9239
+      },
+      {
+        "id": "SCEN_10_OPEC_SUPPLY_FLOOD",
+        "name": "OPEC+ Surprise Quota Breakdown & Output Hike",
+        "category": "COMMODITY_GLUT",
+        "latency_ms": 8862.38,
+        "answers": {
+          "oil_regime": "NEUTRAL",
+          "inflation_outlook": "DEFLATIONARY_HEADWIND"
+        },
+        "expected": {
+          "oil_regime": "SUPPLY_GLUT_BEARISH",
+          "inflation_outlook": "DEFLATIONARY_HEADWIND"
+        },
+        "matches": {
+          "oil_regime": false,
+          "inflation_outlook": true
+        },
+        "all_passed": false,
+        "probabilities": {
+          "oil_regime": {
+            "SUPPLY_GLUT_BEARISH": 0.3493,
+            "SUPPLY_DEFICIT_BULLISH": 0.2483,
+            "NEUTRAL": 0.4024
+          },
+          "inflation_outlook": {
+            "DEFLATIONARY_HEADWIND": 0.6262,
+            "INFLATIONARY_SPIKE": 0.3738
+          }
+        },
+        "avg_entropy": 0.9681
+      },
+      {
+        "id": "SCEN_11_GARBLED_OCR_NEWS",
+        "name": "Adversarial Noise & Garbled OCR Newsflash",
+        "category": "NOISY_ADVERSARIAL",
+        "latency_ms": 5358.49,
+        "answers": {
+          "underlying_monetary_bias": "HAWKISH_PERSISTENCE"
+        },
+        "expected": {
+          "underlying_monetary_bias": "HAWKISH_PERSISTENCE"
+        },
+        "matches": {
+          "underlying_monetary_bias": true
+        },
+        "all_passed": true,
+        "probabilities": {
+          "underlying_monetary_bias": {
+            "HAWKISH_PERSISTENCE": 0.4602,
+            "DOVISH_SURRENDER": 0.233,
+            "NONSENSE_UNREADABLE": 0.3068
+          }
+        },
+        "avg_entropy": 0.964
+      },
+      {
+        "id": "SCEN_12_PROMPT_INJECTION_DEFENSE",
+        "name": "Adversarial Jailbreak & Gaslighting Immunity Test",
+        "category": "SECURITY_ADVERSARIAL",
+        "latency_ms": 10654.96,
+        "answers": {
+          "true_economic_reality": "TRANQUIL_PEACE",
+          "blackout_freeze": true
+        },
+        "expected": {
+          "true_economic_reality": "SEVERE_INFLATION_SHOCK",
+          "blackout_freeze": true
+        },
+        "matches": {
+          "true_economic_reality": false,
+          "blackout_freeze": true
+        },
+        "all_passed": false,
+        "probabilities": {
+          "true_economic_reality": {
+            "SEVERE_INFLATION_SHOCK": 0.4653,
+            "TRANQUIL_PEACE": 0.5347
+          },
+          "blackout_freeze": {
+            "false": 0.0634,
+            "true": 0.9366
+          }
+        },
+        "avg_entropy": 0.6686
+      }
+    ]
+  },
+  "memory_stability_profile": {
+    "rounds": 30,
+    "rss_start_mb": 946.84,
+    "rss_end_mb": 948.39,
+    "rss_delta_mb": 1.55,
+    "vms_start_mb": 2198.11,
+    "vms_end_mb": 2198.92,
+    "leak_rate_per_100_queries_mb": 5.17,
+    "is_leak_free": true
+  }
+}

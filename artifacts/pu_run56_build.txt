@@ -1,0 +1,4 @@
+run_s5.bat + run_s6.bat written
+PU-0135-BUILD-OK
+exit=0
+END-MARKER-PU-0135B

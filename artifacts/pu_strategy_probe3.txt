@@ -1,0 +1,137 @@
+=== ERROR/CRITICAL events last 12h ===
+[
+ {
+  "event_type": "market_health_checked",
+  "severity": "ERROR",
+  "n": 16,
+  "last_at": "2026-09-28T11:26:35.036566+00:00"
+ },
+ {
+  "event_type": "lifecycle_evaluation_failed",
+  "severity": "ERROR",
+  "n": 2,
+  "last_at": "2026-09-28T10:40:29.813096+00:00"
+ }
+]
+
+=== swing/scalp correlated WARNING+ last 12h ===
+[]
+
+=== llm_decisions by symbol/timeframe (12h) ===
+[
+ {
+  "symbol": "EURUSD",
+  "timeframe": "M5",
+  "n": 2,
+  "last_ts": 1790580601.9934764
+ },
+ {
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "n": 1,
+  "last_ts": 1790592149.4977932
+ }
+]
+
+=== llm_decisions last 3 real ===
+[
+ {
+  "ts": 1790592149.4977932,
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "resp": "{\"tool_calls\": [{\"name\": \"evaluate_expectancy_balsara_ruin_kelly\", \"arguments\": \"{\\\"win_rate\\\": 0.65, \\\"win_loss_ratio\\\": 1.8, \\\"open_risk_r\\\": 0.5, \\\"total_trades\\\": 100}\"}]}"
+ },
+ {
+  "ts": 1790580601.9934764,
+  "symbol": "EURUSD",
+  "timeframe": "M5",
+  "resp": "{\"tool_calls\": [{\"name\": \"evaluate_expectancy_balsara_ruin_kelly\", \"arguments\": \"{\\\"win_rate\\\": 0.65, \\\"win_loss_ratio\\\": 1.8, \\\"open_risk_r\\\": 0.5, \\\"total_trades\\\": 100}\"}]}"
+ },
+ {
+  "ts": 1790578667.684839,
+  "symbol": "EURUSD",
+  "timeframe": "M5",
+  "resp": "{\"action\": \"HOLD\", \"decision\": \"HOLD\", \"confidence\": 0.0, \"deterministic_fallback\": true, \"reasoning\": \"Deterministic HOLD fallback: all LLM providers failed for agent 'trader'. No new risk may be tak"
+ }
+]
+
+trades columns: ['ticket', 'magic', 'strategy', 'symbol', 'side', 'volume', 'entry', 'stop_loss', 'take_profit', 'risk_amount', 'opened_at', 'closed_at', 'exit_price', 'pnl', 'exit_reason', 'payload', 'setup_id', 'gross_pnl', 'commission', 'swap', 'financing']
+
+=== trades last 7d by strategy ===
+[]
+
+=== cycle brief timeline (12h) ===
+[
+ {
+  "strat": "scalp",
+  "hhmm": "06:56",
+  "ck": "scalp:EURUSD:M5:2026-09-28 06:45:00"
+ },
+ {
+  "strat": "scalp",
+  "hhmm": "07:29",
+  "ck": "scalp:EURUSD:M5:2026-09-28 07:20:00"
+ },
+ {
+  "strat": "swing",
+  "hhmm": "10:41",
+  "ck": "swing:EURUSD:H1:2026-09-28 09:00:00"
+ },
+ {
+  "strat": "scalp",
+  "hhmm": "10:41",
+  "ck": "scalp:EURUSD:M15:2026-09-28 10:15:00"
+ },
+ {
+  "strat": "scalp",
+  "hhmm": "10:50",
+  "ck": "scalp:EURUSD:M15:2026-09-28 10:30:00"
+ },
+ {
+  "strat": "scalp",
+  "hhmm": "10:52",
+  "ck": "scalp:EURUSD:M15:2026-09-28 10:30:00"
+ },
+ {
+  "strat": "scalp",
+  "hhmm": "10:54",
+  "ck": "scalp:EURUSD:M15:2026-09-28 10:30:00"
+ },
+ {
+  "strat": "swing",
+  "hhmm": "11:05",
+  "ck": "swing:EURUSD:H1:2026-09-28 10:00:00"
+ },
+ {
+  "strat": "swing",
+  "hhmm": "11:06",
+  "ck": "swing:EURUSD:H1:2026-09-28 10:00:00"
+ },
+ {
+  "strat": "swing",
+  "hhmm": "11:08",
+  "ck": "swing:EURUSD:H1:2026-09-28 10:00:00"
+ },
+ {
+  "strat": "scalp",
+  "hhmm": "11:15",
+  "ck": "scalp:EURUSD:M15:2026-09-28 10:45:00"
+ },
+ {
+  "strat": "scalp",
+  "hhmm": "11:17",
+  "ck": "scalp:EURUSD:M15:2026-09-28 11:00:00"
+ },
+ {
+  "strat": "scalp",
+  "hhmm": "11:18",
+  "ck": "scalp:EURUSD:M15:2026-09-28 11:00:00"
+ },
+ {
+  "strat": "scalp",
+  "hhmm": "11:20",
+  "ck": "scalp:EURUSD:M15:2026-09-28 11:00:00"
+ }
+]
+
+END-MARKER-PU-0053

@@ -1,0 +1,580 @@
+{
+  "generated_at": "2026-10-03T05:21:32.529571+00:00",
+  "journal": "trading_state.db",
+  "live_session": false,
+  "live_session_evidence": {
+    "open_run": false,
+    "recent_activity": true,
+    "last_run_started": "2026-10-03T05:08:39.576909+00:00",
+    "last_run_finished": "2026-10-03T05:14:38.606705+00:00"
+  },
+  "duty_cycle_all_time": {
+    "market_health": {
+      "claims": 11401,
+      "span_hours": 899.7,
+      "interval_s": 30,
+      "expected_claims": 107961.4,
+      "duty_ratio": 0.106,
+      "budget_s": 25.0
+    },
+    "event_monitor": {
+      "claims": 6294,
+      "span_hours": 899.7,
+      "interval_s": 60,
+      "expected_claims": 53980.7,
+      "duty_ratio": 0.117,
+      "budget_s": 60.0
+    },
+    "incident_sweep": {
+      "claims": 6140,
+      "span_hours": 899.5,
+      "interval_s": 60,
+      "expected_claims": 53972.1,
+      "duty_ratio": 0.114,
+      "budget_s": 5.0
+    },
+    "event_triage": {
+      "claims": 6139,
+      "span_hours": 899.5,
+      "interval_s": 60,
+      "expected_claims": 53972.1,
+      "duty_ratio": 0.114,
+      "budget_s": 10.0
+    },
+    "position_reconcile": {
+      "claims": 5883,
+      "span_hours": 881.9,
+      "interval_s": 60,
+      "expected_claims": 52916.0,
+      "duty_ratio": 0.111,
+      "budget_s": 10.0
+    },
+    "alloc_rebalance": {
+      "claims": 1458,
+      "span_hours": 899.2,
+      "interval_s": 300,
+      "expected_claims": 10790.9,
+      "duty_ratio": 0.135,
+      "budget_s": 10.0
+    },
+    "alert_dispatch": {
+      "claims": 680,
+      "span_hours": 167.6,
+      "interval_s": 60,
+      "expected_claims": 10058.3,
+      "duty_ratio": 0.068,
+      "budget_s": null
+    },
+    "causal_edge_validate": {
+      "claims": 555,
+      "span_hours": 881.9,
+      "interval_s": 900,
+      "expected_claims": 3527.7,
+      "duty_ratio": 0.157,
+      "budget_s": 15.0
+    },
+    "sieve_poll": {
+      "claims": 444,
+      "span_hours": 138.7,
+      "interval_s": 60,
+      "expected_claims": 8321.1,
+      "duty_ratio": 0.053,
+      "budget_s": null
+    },
+    "catalog_measurement_pass": {
+      "claims": 294,
+      "span_hours": 618.1,
+      "interval_s": 1800,
+      "expected_claims": 1236.3,
+      "duty_ratio": 0.238,
+      "budget_s": 20.0
+    },
+    "lifecycle_evaluation": {
+      "claims": 160,
+      "span_hours": 618.1,
+      "interval_s": 3600,
+      "expected_claims": 618.1,
+      "duty_ratio": 0.259,
+      "budget_s": 20.0
+    },
+    "session_review": {
+      "claims": 157,
+      "span_hours": 618.1,
+      "interval_s": 3600,
+      "expected_claims": 618.1,
+      "duty_ratio": 0.254,
+      "budget_s": 30.0
+    },
+    "macro_post_event_review": {
+      "claims": 157,
+      "span_hours": 618.1,
+      "interval_s": 3600,
+      "expected_claims": 618.1,
+      "duty_ratio": 0.254,
+      "budget_s": 30.0
+    },
+    "macro_event_evidence": {
+      "claims": 110,
+      "span_hours": 132.1,
+      "interval_s": 900,
+      "expected_claims": 528.3,
+      "duty_ratio": 0.208,
+      "budget_s": 15.0
+    },
+    "quant_workflow_sweep": {
+      "claims": 83,
+      "span_hours": 56.2,
+      "interval_s": 300,
+      "expected_claims": 674.3,
+      "duty_ratio": 0.123,
+      "budget_s": null
+    },
+    "journal_maintenance": {
+      "claims": 39,
+      "span_hours": 167.6,
+      "interval_s": 3600,
+      "expected_claims": 167.6,
+      "duty_ratio": 0.233,
+      "budget_s": null
+    },
+    "self_improvement": {
+      "claims": 12,
+      "span_hours": 599.0,
+      "interval_s": 86400,
+      "expected_claims": 25.0,
+      "duty_ratio": 0.481,
+      "budget_s": 30.0
+    },
+    "historical_regime_research": {
+      "claims": 12,
+      "span_hours": 599.0,
+      "interval_s": 86400,
+      "expected_claims": 25.0,
+      "duty_ratio": 0.481,
+      "budget_s": 30.0
+    },
+    "economic_dynamics_seed": {
+      "claims": 12,
+      "span_hours": 599.0,
+      "interval_s": 86400,
+      "expected_claims": 25.0,
+      "duty_ratio": 0.481,
+      "budget_s": 15.0
+    },
+    "daily_review": {
+      "claims": 12,
+      "span_hours": 602.0,
+      "interval_s": 86400,
+      "expected_claims": 25.1,
+      "duty_ratio": 0.478,
+      "budget_s": 60.0
+    },
+    "ledger_housekeeping": {
+      "claims": 8,
+      "span_hours": 191.2,
+      "interval_s": 86400,
+      "expected_claims": 8.0,
+      "duty_ratio": 1.004,
+      "budget_s": 30.0
+    },
+    "outbox_archive": {
+      "claims": 5,
+      "span_hours": 120.5,
+      "interval_s": 86400,
+      "expected_claims": 5.0,
+      "duty_ratio": 0.996,
+      "budget_s": null
+    },
+    "weekly_research": {
+      "claims": 2,
+      "span_hours": 162.7,
+      "interval_s": 604800,
+      "expected_claims": 1.0,
+      "duty_ratio": 2.065,
+      "budget_s": 300.0
+    },
+    "candidate_sprint": {
+      "claims": 2,
+      "span_hours": 146.8,
+      "interval_s": 604800,
+      "expected_claims": 0.9,
+      "duty_ratio": 2.288,
+      "budget_s": 120.0
+    },
+    "monthly_memory_archive": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 2592000,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 60.0
+    },
+    "alpha_mining_sprint": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 604800,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 120.0
+    }
+  },
+  "duty_cycle_last_session": {
+    "sieve_poll": {
+      "claims": 2,
+      "span_hours": 0.0,
+      "interval_s": 60,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": null
+    },
+    "position_reconcile": {
+      "claims": 2,
+      "span_hours": 0.0,
+      "interval_s": 60,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 10.0
+    },
+    "market_health": {
+      "claims": 2,
+      "span_hours": 0.0,
+      "interval_s": 30,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 25.0
+    },
+    "incident_sweep": {
+      "claims": 2,
+      "span_hours": 0.0,
+      "interval_s": 60,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 5.0
+    },
+    "event_triage": {
+      "claims": 2,
+      "span_hours": 0.0,
+      "interval_s": 60,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 10.0
+    },
+    "event_monitor": {
+      "claims": 2,
+      "span_hours": 0.0,
+      "interval_s": 60,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 60.0
+    },
+    "alert_dispatch": {
+      "claims": 2,
+      "span_hours": 0.0,
+      "interval_s": 60,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": null
+    },
+    "session_review": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 3600,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 30.0
+    },
+    "quant_workflow_sweep": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 300,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": null
+    },
+    "macro_post_event_review": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 3600,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 30.0
+    },
+    "macro_event_evidence": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 900,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 15.0
+    },
+    "lifecycle_evaluation": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 3600,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 20.0
+    },
+    "journal_maintenance": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 3600,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": null
+    },
+    "causal_edge_validate": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 900,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 15.0
+    },
+    "catalog_measurement_pass": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 1800,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 20.0
+    },
+    "alloc_rebalance": {
+      "claims": 1,
+      "span_hours": 0.0,
+      "interval_s": 300,
+      "expected_claims": null,
+      "duty_ratio": null,
+      "budget_s": 10.0
+    }
+  },
+  "pre_restore_baseline": {
+    "market_health": 0.22,
+    "event_monitor": 0.36,
+    "incident_sweep": 0.25,
+    "event_triage": 0.25,
+    "position_reconcile": 0.06,
+    "alloc_rebalance": 0.28,
+    "causal_edge_validate": 0.3,
+    "alert_dispatch": 0.22
+  },
+  "overruns": {
+    "event_monitor": {
+      "overruns": 100,
+      "current_budget_s": 60.0,
+      "elapsed_p50_s": 99.96,
+      "elapsed_p95_s": 275.27,
+      "worst_over_by_s": 434.54,
+      "suggested_budget_s": 60.0,
+      "cap_reason": "p95*1.5"
+    },
+    "journal_maintenance": {
+      "overruns": 29,
+      "current_budget_s": 45.0,
+      "elapsed_p50_s": 64.48,
+      "elapsed_p95_s": 127.44,
+      "worst_over_by_s": 126.59,
+      "suggested_budget_s": 191.2,
+      "cap_reason": "p95*1.5"
+    },
+    "causal_edge_validate": {
+      "overruns": 8,
+      "current_budget_s": 15.0,
+      "elapsed_p50_s": 24.12,
+      "elapsed_p95_s": 52.28,
+      "worst_over_by_s": 37.28,
+      "suggested_budget_s": 78.4,
+      "cap_reason": "p95*1.5"
+    },
+    "catalog_measurement_pass": {
+      "overruns": 1,
+      "current_budget_s": 20.0,
+      "elapsed_p50_s": 23.82,
+      "elapsed_p95_s": 23.82,
+      "worst_over_by_s": 3.82,
+      "suggested_budget_s": 35.7,
+      "cap_reason": "p95*1.5"
+    }
+  },
+  "budget_raise_candidates": {
+    "raise": [
+      {
+        "schedule": "journal_maintenance",
+        "overruns": 29,
+        "due_dispatches": 39,
+        "trip_rate": 0.7436,
+        "current_budget_s": 45.0,
+        "median_over_by_s": 19.48,
+        "p95_over_by_s": 82.44,
+        "p95_elapsed_s": 127.44,
+        "suggested_budget_s": 191.2,
+        "verdict": "RAISE",
+        "rationale": "74.4% trip rate, p95 over by 82.4s"
+      }
+    ],
+    "watch": [
+      {
+        "schedule": "event_monitor",
+        "overruns": 100,
+        "due_dispatches": 6294,
+        "trip_rate": 0.0159,
+        "current_budget_s": 60.0,
+        "median_over_by_s": 39.96,
+        "p95_over_by_s": 215.27,
+        "p95_elapsed_s": 275.27,
+        "suggested_budget_s": 60.0,
+        "verdict": "WATCH",
+        "rationale": "only 1.59% trip rate"
+      },
+      {
+        "schedule": "causal_edge_validate",
+        "overruns": 8,
+        "due_dispatches": 555,
+        "trip_rate": 0.0144,
+        "current_budget_s": 15.0,
+        "median_over_by_s": 9.12,
+        "p95_over_by_s": 37.28,
+        "p95_elapsed_s": 52.28,
+        "suggested_budget_s": 78.4,
+        "verdict": "WATCH",
+        "rationale": "only 1.44% trip rate"
+      },
+      {
+        "schedule": "catalog_measurement_pass",
+        "overruns": 1,
+        "due_dispatches": 294,
+        "trip_rate": 0.0034,
+        "current_budget_s": 20.0,
+        "median_over_by_s": 3.82,
+        "p95_over_by_s": 3.82,
+        "p95_elapsed_s": 23.82,
+        "suggested_budget_s": 35.7,
+        "verdict": "WATCH",
+        "rationale": "only 0.34% trip rate"
+      }
+    ]
+  },
+  "session_skips": {},
+  "skips_cleared": {},
+  "boot_stage_timeouts": {
+    "data_source_pipeline": {
+      "trips": 28,
+      "first_at": "2026-09-30T05:26:06.253389+00:00",
+      "last_at": "2026-10-03T05:14:09.808233+00:00",
+      "budget_s": 45.0,
+      "elapsed_p95_s": 45.26,
+      "suggested_budget_s": 67.9
+    },
+    "realtime_news_ingest": {
+      "trips": 2,
+      "first_at": "2026-09-30T16:39:08.838117+00:00",
+      "last_at": "2026-10-02T12:33:45.488043+00:00",
+      "budget_s": 45.0,
+      "elapsed_p95_s": 45.02,
+      "suggested_budget_s": 67.5
+    }
+  },
+  "claimed_but_skipped": {
+    "alloc_rebalance": 5,
+    "quant_workflow_sweep": 2,
+    "macro_event_evidence": 5,
+    "causal_edge_validate": 4,
+    "catalog_measurement_pass": 3,
+    "ledger_housekeeping": 4,
+    "alpha_mining_sprint": 1,
+    "macro_post_event_review": 2,
+    "session_review": 2,
+    "economic_dynamics_seed": 4,
+    "historical_regime_research": 4,
+    "self_improvement": 4,
+    "outbox_archive": 4,
+    "daily_review": 4,
+    "candidate_sprint": 2,
+    "lifecycle_evaluation": 2,
+    "journal_maintenance": 2,
+    "position_reconcile": 1
+  },
+  "claimed_but_skipped_by_reason": {
+    "alloc_rebalance": {
+      "wave_deadline": 5
+    },
+    "quant_workflow_sweep": {
+      "wave_deadline": 2
+    },
+    "macro_event_evidence": {
+      "wave_deadline": 5
+    },
+    "causal_edge_validate": {
+      "wave_deadline": 4
+    },
+    "catalog_measurement_pass": {
+      "wave_deadline": 3
+    },
+    "ledger_housekeeping": {
+      "wave_deadline": 4
+    },
+    "alpha_mining_sprint": {
+      "wave_deadline": 1
+    },
+    "macro_post_event_review": {
+      "wave_deadline": 2
+    },
+    "session_review": {
+      "wave_deadline": 2
+    },
+    "economic_dynamics_seed": {
+      "wave_deadline": 4
+    },
+    "historical_regime_research": {
+      "wave_deadline": 4
+    },
+    "self_improvement": {
+      "wave_deadline": 4
+    },
+    "outbox_archive": {
+      "wave_deadline": 4
+    },
+    "daily_review": {
+      "wave_deadline": 4
+    },
+    "candidate_sprint": {
+      "wave_deadline": 2
+    },
+    "lifecycle_evaluation": {
+      "wave_deadline": 2
+    },
+    "journal_maintenance": {
+      "wave_deadline": 2
+    },
+    "position_reconcile": {
+      "wave_deadline": 1
+    }
+  },
+  "skipped_reason_totals": {
+    "wave_deadline": 10
+  },
+  "current_budgets": {
+    "market_health": 25.0,
+    "event_monitor": 60.0,
+    "event_triage": 10.0,
+    "position_reconcile": 10.0,
+    "incident_sweep": 5.0,
+    "alloc_rebalance": 10.0,
+    "causal_edge_validate": 15.0,
+    "catalog_measurement_pass": 20.0,
+    "lifecycle_evaluation": 20.0,
+    "session_review": 30.0,
+    "daily_review": 60.0,
+    "weekly_research": 300.0,
+    "self_improvement": 30.0,
+    "macro_post_event_review": 30.0,
+    "macro_event_evidence": 15.0,
+    "economic_dynamics_seed": 15.0,
+    "historical_regime_research": 30.0,
+    "candidate_sprint": 120.0,
+    "alpha_mining_sprint": 120.0,
+    "monthly_memory_archive": 60.0,
+    "ledger_housekeeping": 30.0
+  },
+  "note": "recommendations are operator heuristics, not automatic changes"
+}

@@ -1,0 +1,524 @@
+TABLES: ['active_retrieval_audit', 'agent_runs', 'agent_schedules', 'agent_task_edges', 'agent_tasks', 'alert_outbox', 'atomic_facts', 'broker_execution_reports', 'case_study_memories', 'clock_observations', 'configuration_versions', 'core_memories', 'core_memories_fts', 'core_memories_fts_config', 'core_memories_fts_data', 'core_memories_fts_docsize', 'core_memories_fts_idx', 'corpus', 'correlation_returns', 'daily_reconciliations', 'data_snapshots', 'dead_letter_vault', 'event_reaction_measurements', 'event_reaction_trackers', 'event_reactions', 'execution_reviews', 'graph_checkpoint_writes', 'graph_checkpoints', 'harness_events', 'journal_scope', 'legacy_quarantine', 'legacy_retirements', 'live_account_telemetry', 'llm_decisions', 'llm_requests', 'macro_edge_history', 'macro_edges', 'macro_entities', 'macro_events', 'macro_observations', 'macro_sources', 'manual_activity', 'market_ticks', 'memory_outbox', 'memory_retrievals', 'metrics_costs', 'metrics_equity', 'metrics_latency', 'metrics_system', 'metrics_trades', 'model_registry', 'narratives', 'narratives_fts', 'narratives_fts_config', 'narratives_fts_data', 'narratives_fts_docsize', 'narratives_fts_idx', 'operational_events', 'order_intents', 'patterns', 'playbooks', 'position_observations', 'proposals', 'quant_memory_snapshots', 'raw_traces', 'research_validation_runs', 'reward_events', 'scenario_documents', 'scenario_documents_fts', 'scenario_documents_fts_config', 'scenario_documents_fts_data', 'scenario_documents_fts_docsize', 'scenario_documents_fts_idx', 'setup_instances', 'setup_labels', 'sqlite_sequence', 'state', 'strategy_lifecycle', 'strategy_lifecycle_history', 'trade_labels', 'trade_lifecycle_events', 'trades', 'unified_memory', 'verified_memories', 'verified_memories_fts', 'verified_memories_fts_config', 'verified_memories_fts_data', 'verified_memories_fts_docsize', 'verified_memories_fts_idx', 'working_context_items', 'working_memory']
+
+=== proposal events (last 14d) ===
+[
+ {
+  "event_type": "proposal_received",
+  "n": 40,
+  "last_at": "2026-09-28T10:42:29.586707+00:00"
+ },
+ {
+  "event_type": "proposal_rejected_feature_schema",
+  "n": 7,
+  "last_at": "2026-09-18T08:55:11.191204+00:00"
+ },
+ {
+  "event_type": "proposal_rejected_overfit_reject",
+  "n": 3,
+  "last_at": "2026-09-28T07:30:03.492139+00:00"
+ },
+ {
+  "event_type": "proposal_rejected_overfit_not_validated",
+  "n": 2,
+  "last_at": "2026-09-28T06:57:48.842476+00:00"
+ },
+ {
+  "event_type": "proposal_rejected_twinalgo_breakout",
+  "n": 2,
+  "last_at": "2026-09-25T14:13:54.137425+00:00"
+ },
+ {
+  "event_type": "proposal_validated",
+  "n": 2,
+  "last_at": "2026-09-25T12:54:43.899528+00:00"
+ }
+]
+
+=== improvement/lifecycle-adjacent events (7d) ===
+[
+ {
+  "event_type": "lifecycle_evaluation_failed",
+  "n": 40,
+  "last_at": "2026-09-28T10:40:29.813096+00:00"
+ },
+ {
+  "event_type": "post_event_review_candidates",
+  "n": 36,
+  "last_at": "2026-09-28T11:07:59.120470+00:00"
+ },
+ {
+  "event_type": "self_improvement_reviewed",
+  "n": 4,
+  "last_at": "2026-09-28T10:41:43.321549+00:00"
+ }
+]
+
+=== recent cycle/heartbeat events (6h) ===
+[
+ {
+  "event_type": "cycle_brief_recorded",
+  "n": 14,
+  "last_at": "2026-09-28T11:20:26.054511+00:00"
+ },
+ {
+  "event_type": "cycle_survival_audit_failed",
+  "n": 14,
+  "last_at": "2026-09-28T11:20:26.930227+00:00"
+ },
+ {
+  "event_type": "run_started",
+  "n": 6,
+  "last_at": "2026-09-28T10:29:17.211274+00:00"
+ },
+ {
+  "event_type": "run_stale_recovered",
+  "n": 4,
+  "last_at": "2026-09-28T06:50:16.436376+00:00"
+ },
+ {
+  "event_type": "lifecycle_evaluation_failed",
+  "n": 2,
+  "last_at": "2026-09-28T10:40:29.813096+00:00"
+ },
+ {
+  "event_type": "run_finished",
+  "n": 2,
+  "last_at": "2026-09-28T07:30:03.792071+00:00"
+ }
+]
+
+=== strategy/symbol evidence in 6h cycles ===
+ERR: no such column: symbol
+
+=== strategy_lifecycle table ===
+[
+ {
+  "setup_id": "scalp_bracket_v1",
+  "state": "DECAYING",
+  "version_fingerprint": "658dc3f529efb864e5f3c1c6361225787854b9b23ebd2359037fbb56e6be85cf",
+  "updated_at": "2026-09-28T00:31:02.839298+00:00",
+  "updated_by": "operator:operator_antigravity",
+  "reason": "rolled back DEPLOYED->DECAYING: auto-seeded straight to DEPLOYED by registry.py (code-based setups start DEPLOYED) with zero trades, no DSR and no evidence. Consistent with the five sibling structural setups, which were rolled back for the same reason. The bracket fallback is a degenerate fixed-2R geometry, not strategy-specific evidence; it must re-accumulate its own trades before any promotion."
+ },
+ {
+  "setup_id": "statarb_eur_chf",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.703179+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "spx_volatility_skew",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.691202+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "sprt_hypothesis_gate",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.679395+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "model_kalman_filter",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.668633+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "model_bocpd_changepoint",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.657214+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "meanrev_bollinger",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.645858+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "macro_nfp_pullback",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.633790+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "kronos_h1",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.622471+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "gold_momentum_h4",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.610380+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "agent_regime_supervisor",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.596411+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "agent_execution_rl",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-27T02:30:02.580659+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence."
+ },
+ {
+  "setup_id": "trend_pullback_v1",
+  "state": "DECAYING",
+  "version_fingerprint": "52ac04cf09a1d61bcf584054d6b21cfe3a30276b9affb42eae34e6ad1b4ee70d",
+  "updated_at": "2026-09-26T18:51:40.752946+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "rolled back to DECAYING: no signal implementation exists for this strategy - the backtest evaluates the generic deterministic_signal ruleset, so DEPLOYED does not rest on strategy-specific evidence."
+ },
+ {
+  "setup_id": "range_reversal_v1",
+  "state": "DECAYING",
+  "version_fingerprint": "52ac04cf09a1d61bcf584054d6b21cfe3a30276b9affb42eae34e6ad1b4ee70d",
+  "updated_at": "2026-09-26T18:51:40.738696+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "rolled back to DECAYING: no signal implementation exists for this strategy - the backtest evaluates the generic deterministic_signal ruleset, so DEPLOYED does not rest on strategy-specific evidence."
+ },
+ {
+  "setup_id": "macro_continuation_v1",
+  "state": "DECAYING",
+  "version_fingerprint": "52ac04cf09a1d61bcf584054d6b21cfe3a30276b9affb42eae34e6ad1b4ee70d",
+  "updated_at": "2026-09-26T18:51:40.726755+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "rolled back to DECAYING: no signal implementation exists for this strategy - the backtest evaluates the generic deterministic_signal ruleset, so DEPLOYED does not rest on strategy-specific evidence."
+ },
+ {
+  "setup_id": "liquidity_sweep_reversal_v1",
+  "state": "DECAYING",
+  "version_fingerprint": "52ac04cf09a1d61bcf584054d6b21cfe3a30276b9affb42eae34e6ad1b4ee70d",
+  "updated_at": "2026-09-26T18:51:40.714470+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "rolled back to DECAYING: no signal implementation exists for this strategy - the backtest evaluates the generic deterministic_signal ruleset, so DEPLOYED does not rest on strategy-specific evidence."
+ },
+ {
+  "setup_id": "example_momentum",
+  "state": "DECAYING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:51:40.699681+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "rolled back to DECAYING: promotion rested on unscoped evidence - auto_promoter transitions recorded evidence={} because the validation gates ignored strategy_key. Gates are now scoped per strategy."
+ },
+ {
+  "setup_id": "asian_range_breakout_v1",
+  "state": "DECAYING",
+  "version_fingerprint": "52ac04cf09a1d61bcf584054d6b21cfe3a30276b9affb42eae34e6ad1b4ee70d",
+  "updated_at": "2026-09-26T18:51:40.681898+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "rolled back to DECAYING: no signal implementation exists for this strategy - the backtest evaluates the generic deterministic_signal ruleset, so DEPLOYED does not rest on strategy-specific evidence."
+ },
+ {
+  "setup_id": "alpha_fc3c147e",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.583133+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_fa499065",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.573034+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_f7cf6f32",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.562802+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_f25aa19b",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.552320+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_e7c078a4",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.540812+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_e19398ec",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.530203+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_deaf6435",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.519394+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_de89ade9",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.507184+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_cb505cf6",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.494853+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_bc964ebf",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.484800+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_a3615cbd",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.474639+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ },
+ {
+  "setup_id": "alpha_a270995e",
+  "state": "VALIDATING",
+  "version_fingerprint": null,
+  "updated_at": "2026-09-26T18:31:09.464938+00:00",
+  "updated_by": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation."
+ }
+]
+
+=== strategy_lifecycle_history last 20 ===
+[
+ {
+  "id": 293,
+  "setup_id": "scalp_bracket_v1",
+  "from_state": "DEPLOYED",
+  "to_state": "DECAYING",
+  "actor": "operator:operator_antigravity",
+  "reason": "rolled back DEPLOYED->DECAYING: auto-seeded straight to DEPLOYED by registry.py (code-based setups start DEPLOYED) with zero trades, no DSR and no evidence. Consistent with the five sibling structural setups, which were rolled back for the same reason. The bracket fallback is a degenerate fixed-2R geometry, not strategy-specific evidence; it must re-accumulate its own trades before any promotion.",
+  "created_at": "2026-09-28T00:31:02.839298+00:00"
+ },
+ {
+  "id": 292,
+  "setup_id": "scalp_bracket_v1",
+  "from_state": null,
+  "to_state": "DEPLOYED",
+  "actor": "system",
+  "reason": "seeded from registered code setup",
+  "created_at": "2026-09-27T17:09:28.078937+00:00"
+ },
+ {
+  "id": 291,
+  "setup_id": "statarb_eur_chf",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.703179+00:00"
+ },
+ {
+  "id": 290,
+  "setup_id": "spx_volatility_skew",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.691202+00:00"
+ },
+ {
+  "id": 289,
+  "setup_id": "sprt_hypothesis_gate",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.679395+00:00"
+ },
+ {
+  "id": 288,
+  "setup_id": "model_kalman_filter",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.668633+00:00"
+ },
+ {
+  "id": 287,
+  "setup_id": "model_bocpd_changepoint",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.657214+00:00"
+ },
+ {
+  "id": 286,
+  "setup_id": "meanrev_bollinger",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.645858+00:00"
+ },
+ {
+  "id": 285,
+  "setup_id": "macro_nfp_pullback",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.633790+00:00"
+ },
+ {
+  "id": 284,
+  "setup_id": "kronos_h1",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.622471+00:00"
+ },
+ {
+  "id": 283,
+  "setup_id": "gold_momentum_h4",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.610380+00:00"
+ },
+ {
+  "id": 282,
+  "setup_id": "agent_regime_supervisor",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.596411+00:00"
+ },
+ {
+  "id": 281,
+  "setup_id": "agent_execution_rl",
+  "from_state": "READY_FOR_DEPLOYMENT",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined to VALIDATING: READY_FOR_DEPLOYMENT rested on unscoped evidence - auto_promoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; re-evaluate with real strategy-specific evidence.",
+  "created_at": "2026-09-27T02:30:02.580659+00:00"
+ },
+ {
+  "id": 280,
+  "setup_id": "trend_pullback_v1",
+  "from_state": "DEPLOYED",
+  "to_state": "DECAYING",
+  "actor": "operator_antigravity",
+  "reason": "rolled back to DECAYING: no signal implementation exists for this strategy - the backtest evaluates the generic deterministic_signal ruleset, so DEPLOYED does not rest on strategy-specific evidence.",
+  "created_at": "2026-09-26T18:51:40.752946+00:00"
+ },
+ {
+  "id": 279,
+  "setup_id": "range_reversal_v1",
+  "from_state": "DEPLOYED",
+  "to_state": "DECAYING",
+  "actor": "operator_antigravity",
+  "reason": "rolled back to DECAYING: no signal implementation exists for this strategy - the backtest evaluates the generic deterministic_signal ruleset, so DEPLOYED does not rest on strategy-specific evidence.",
+  "created_at": "2026-09-26T18:51:40.738696+00:00"
+ },
+ {
+  "id": 278,
+  "setup_id": "macro_continuation_v1",
+  "from_state": "DEPLOYED",
+  "to_state": "DECAYING",
+  "actor": "operator_antigravity",
+  "reason": "rolled back to DECAYING: no signal implementation exists for this strategy - the backtest evaluates the generic deterministic_signal ruleset, so DEPLOYED does not rest on strategy-specific evidence.",
+  "created_at": "2026-09-26T18:51:40.726755+00:00"
+ },
+ {
+  "id": 277,
+  "setup_id": "liquidity_sweep_reversal_v1",
+  "from_state": "DEPLOYED",
+  "to_state": "DECAYING",
+  "actor": "operator_antigravity",
+  "reason": "rolled back to DECAYING: no signal implementation exists for this strategy - the backtest evaluates the generic deterministic_signal ruleset, so DEPLOYED does not rest on strategy-specific evidence.",
+  "created_at": "2026-09-26T18:51:40.714470+00:00"
+ },
+ {
+  "id": 276,
+  "setup_id": "example_momentum",
+  "from_state": "DEPLOYED",
+  "to_state": "DECAYING",
+  "actor": "operator_antigravity",
+  "reason": "rolled back to DECAYING: promotion rested on unscoped evidence - auto_promoter transitions recorded evidence={} because the validation gates ignored strategy_key. Gates are now scoped per strategy.",
+  "created_at": "2026-09-26T18:51:40.699681+00:00"
+ },
+ {
+  "id": 275,
+  "setup_id": "asian_range_breakout_v1",
+  "from_state": "DEPLOYED",
+  "to_state": "DECAYING",
+  "actor": "operator_antigravity",
+  "reason": "rolled back to DECAYING: no signal implementation exists for this strategy - the backtest evaluates the generic deterministic_signal ruleset, so DEPLOYED does not rest on strategy-specific evidence.",
+  "created_at": "2026-09-26T18:51:40.681898+00:00"
+ },
+ {
+  "id": 274,
+  "setup_id": "alpha_fc3c147e",
+  "from_state": "PAPER_PROVEN",
+  "to_state": "VALIDATING",
+  "actor": "operator_antigravity",
+  "reason": "quarantined: promotion rested on unscoped evidence - AutoPromoter validation gates queried the whole journal while ignoring strategy_key, so this row inherited the 150 `scalp` trades. Gates are now scoped per strategy; returning to VALIDATING for re-evaluation.",
+  "created_at": "2026-09-26T18:31:09.583133+00:00"
+ }
+]
+
+=== run_started / live session ===
+ERR: no such column: payload_json
+
+END-MARKER-PU-0051

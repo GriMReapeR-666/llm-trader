@@ -1,0 +1,1129 @@
+diff --git a/intelligence/llm_orchestrator.py b/intelligence/llm_orchestrator.py
+index b4fbc9e..81a8b36 100644
+--- a/intelligence/llm_orchestrator.py
++++ b/intelligence/llm_orchestrator.py
+@@ -40,6 +40,17 @@ from datetime import datetime, timedelta, timezone
+ import numpy as np
+ import pandas as pd
+ 
++# Both spellings are used in this module; neither was ever bound at module
++# scope, so every call site below raised NameError at runtime instead of
++# logging. `wire_trade_manager` is the worst offender: its bare `logger.*`
++# calls fired while attaching the paper broker, and the resulting NameError
++# was swallowed and recorded as the provider-circuit "last_error"
++# ("name 'logger' is not defined"), downgrading the tier-4 router to
++# deterministic-only and silently disabling the LLM. Bind both names to the
++# same logger this module already uses inline via getLogger().
++log = logging.getLogger("LLMOrchestrator")
++logger = log
++
+ try:
+     from dotenv import load_dotenv
+     load_dotenv()
+@@ -93,6 +104,8 @@ from journal_audit import audit as audit_journal, baseline_metrics, qualified_me
+ from journal_migration import migrate as migrate_legacy_journal
+ from agent_operations import AgentOperations
+ from local_llm_memory import process_outbox as process_local_memory_outbox
++from boot_fetch_watchdog import run_stage_with_deadline, stage_budgets
++from boot_datasheet import boot_datasheet_enabled, get_datasheet
+ try:
+     from research_validation import promotion_gate as research_promotion_gate, labelled_dataset
+ except ImportError:
+@@ -740,13 +753,16 @@ class LLMOrchestrator:
+         self.perf.rl_update_callback = self.update_rl_from_trade
+         self._rl_updated_tickets = set()
+ 
+-        # Memory / Context Buffer
+-        try:
+-            from brain.memory import ContextBuffer
+-            self.memory = ContextBuffer(max_messages=10)
+-        except (ImportError, Exception) as _mem_err:
+-            self.memory = None
+-            logging.getLogger("LLMOrchestrator").warning("ContextBuffer not available (%s). Using stateless mode.", _mem_err)
++        # Memory / Context Buffer - one per strategy, not one per orchestrator.
++        # See _cycle_key: mt5_trader.py runs every strategy cycle in a thread
++        # pool against this one object.
++        # Note: with LLM_TRADER_COMPACT_CONTEXT=1 (R1 payload audit) the buffer
++        # itself keeps only the last decision cycles + short summaries; see
++        # brain/memory.py. Unset = legacy full-replay behavior.
++        self._cycle_state_lock = threading.Lock()
++        self._cycle_local = threading.local()
++        self._memory_by_strategy = {}
++        self._trace_by_strategy = {}
+ 
+         # Lesson Distiller — extracts lessons from closed trades
+         try:
+@@ -1010,15 +1026,25 @@ class LLMOrchestrator:
+         started = time.perf_counter()
+         try:
+             result = process_local_memory_outbox(self.operations, self.trade_memory, self.llm, self.model_name, run_id=self.run_id, limit=limit)
++            failures = int(result.get("failed", 0) or 0) + int(result.get("fallback_saved", 0) or 0)
++            outage_failed = int(result.get("outage_failed", 0) or 0)
++            if failures and outage_failed == failures and not result.get("fallback_saved"):
++                error = ("memory batch blocked by provider outage; items left queued for retry")
++            elif result.get("fallback_saved"):
++                error = "memory batch items parked FAILED after retry budget; deterministic fallback narratives saved"
++            elif result.get("failed"):
++                error = "memory batch contained failed items; left queued for retry"
++            else:
++                error = ""
+             self.operations.finish_llm(
+-                request_id, success=not bool(result.get("failed")),
++                request_id, success=not failures,
+                 latency_ms=(time.perf_counter() - started) * 1000,
+                 prompt_hash=str(result.get("prompt_hash", "")),
+                 response_hash=str(result.get("response_hash", "")),
+                 attempt_count=int(result.get("attempt_count", 0) or 0),
+                 parse_status=str(result.get("parse_status", "")),
+                 response_chars=int(result.get("response_chars", 0) or 0),
+-                error=("memory batch contained failed items" if result.get("failed") else ""),
++                error=error,
+             )
+             return result
+         except Exception as exc:
+@@ -1134,6 +1160,17 @@ class LLMOrchestrator:
+                 for ep in toon_lite["event_playbooks"][:3]
+             ]
+ 
++        # 1b. R5 (payload-flow audit 2026-09-30): collapse the long tail of
++        # minor sections into one compact summary blob.  Live payloads carry
++        # ~73 sections where 48 of them together contribute only ~3% of
++        # characters; each still costs prompt-structure overhead.
++        try:
++            tail_limit = max(0, int(os.getenv("LLM_TRADER_TAIL_COLLAPSE_CHARS", "600")))
++            if tail_limit:
++                toon_lite = cls._collapse_tail_sections(toon_lite, tail_limit)
++        except Exception:
++            pass
++
+         # Check serialized size
+         try:
+             serialized = json.dumps(toon_lite, default=str)
+@@ -1148,7 +1185,13 @@ class LLMOrchestrator:
+             "multimodal_patterns", "evolutionary_suggestions", "meta_adaptive_override",
+             "rl_analytics", "grpo_train", "ppo_train", "regime_autocorr", "meta_loop",
+             "zero_lag_macro", "causal_filter_report", "scenario_memory", "learned_patterns",
+-            "reviewed_core_memory", "working_memory", "playbook", "macro_causal_context_regime"
++            "reviewed_core_memory", "working_memory", "playbook", "macro_causal_context_regime",
++            # R4 (payload-flow audit 2026-09-29): advisory keys observed live but
++            # missing from the prunable list.  All advisory-only research
++            # context; execution_authority lives in the gated allowlist
++            # projections above and is never dropped by pruning.
++            "live_advisory_hub", "hierarchical_advisory", "meta_label_advisory",
++            "advisory_regime", "quant_audit"
+         ]
+         for key in prunable_keys:
+             if key in toon_lite:
+@@ -1157,6 +1200,15 @@ class LLMOrchestrator:
+                     toon_lite[key] = {"status": val.get("status", "TRUNCATED_FOR_BUDGET")}
+                 elif isinstance(val, list):
+                     toon_lite[key] = val[:1]
++            # R5: the tail blob sits behind every named research key so it is
++            # also dropped first under extreme budget pressure.
++            if "minor_context_summary" in toon_lite:
++                del toon_lite["minor_context_summary"]
++                try:
++                    if len(json.dumps(toon_lite, default=str)) <= max_total_chars:
++                        break
++                except Exception:
++                    pass
+             try:
+                 if len(json.dumps(toon_lite, default=str)) <= max_total_chars:
+                     break
+@@ -1165,6 +1217,146 @@ class LLMOrchestrator:
+ 
+         return toon_lite
+ 
++    @classmethod
++    def _collapse_tail_sections(
++        cls,
++        toon_lite: Dict[str, Any],
++        tail_limit: int = 600,
++    ) -> Dict[str, Any]:
++        """R5: fold minor sections into one compact summary blob.
++
++        Sections whose serialized form is at most ``tail_limit`` chars — and
++        that are neither large nor protected — are removed and represented by
++        a single ``minor_context_summary`` entry of ``key: head-slice`` lines
++        (one line per section, head clipped to 80 chars).
++
++        Never collapsed:
++        - any section already larger than ``tail_limit`` chars (its size is
++          the point),
++        - any dict with ``execution_authority`` or ``status`` (gated
++          projections / advisory state the prompt doctrine references),
++        - single-entry payloads (nothing to compact),
++        - structural/context keys in ``_TAIL_PROTECTED_KEYS`` (account,
++          positions, working memory, knowledge context, journal correlation).
++        """
++        if not isinstance(toon_lite, dict) or len(toon_lite) <= 1:
++            return toon_lite
++        collapsed: Dict[str, str] = {}
++        for key in list(toon_lite.keys()):
++            if key in cls._TAIL_PROTECTED_KEYS:
++                continue
++            try:
++                size = len(json.dumps(toon_lite[key], default=str))
++            except Exception:
++                continue
++            if size > tail_limit:
++                continue
++            val = toon_lite[key]
++            if isinstance(val, dict) and (
++                "execution_authority" in val or "status" in val
++            ):
++                continue
++            if isinstance(val, str):
++                head = " ".join(val.split())[:80]
++            elif isinstance(val, list):
++                head = f"list[{len(val)}]: " + " ".join(
++                    json.dumps(v, default=str) for v in val[:1]
++                )[:72]
++            elif isinstance(val, dict):
++                head = "; ".join(f"{k}={json.dumps(v, default=str)[:24]}" for k, v in list(val.items())[:3])[:80]
++            else:
++                head = str(val)[:80]
++            collapsed[key] = head
++            del toon_lite[key]
++        if collapsed:
++            toon_lite["minor_context_summary"] = {
++                "collapsed_sections": len(collapsed),
++                "detail": " | ".join(f"{k}: {v}" for k, v in sorted(collapsed.items())),
++            }
++        return toon_lite
++
++    _TAIL_PROTECTED_KEYS = frozenset({
++        "account", "open_positions", "session_info", "journal_context",
++        "working_memory", "reviewed_core_memory", "knowledge_base_context",
++        "recent_performance", "multi_timeframe", "indicators",
++        "news_events", "api_news", "hot_topics", "event_playbooks",
++        "minor_context_summary",
++    })
++
++    @classmethod
++    def _enforce_request_char_budget(
++        cls,
++        messages: List[Dict[str, Any]],
++        max_total_chars: int = 96000,
++    ) -> List[Dict[str, Any]]:
++        """R2 (payload-flow audit 2026-09-29): enforce the character budget
++        over the WHOLE request — system prompt + replayed history + current
++        payload — instead of only the current ``toon_lite``.
++
++        Never touches the first system message (role/doctrine/lessons) or the
++        last user message (live market data).  Older history turns are
++        halved largest-first until the request fits, and are marked with an
++        explicit ``[truncated for request budget]`` note so a truncated turn
++        can never be mistaken for a complete one.  Best-effort: returns the
++        original list on any serialization problem."""
++        if not isinstance(messages, list) or len(messages) <= 2:
++            return messages
++
++        def estimate(msgs: List[Dict[str, Any]]) -> Dict[str, int]:
++            sizes: Dict[str, int] = {}
++            total = 0
++            for idx, msg in enumerate(msgs):
++                try:
++                    length = len(str(msg.get("content", "")))
++                except Exception:
++                    length = 0
++                sizes[str(idx)] = length
++                total += length
++            sizes["total_chars"] = total
++            return sizes
++
++        try:
++            sizes = estimate(messages)
++            if sizes.get("total_chars", 0) <= max_total_chars:
++                return messages
++
++            work = [dict(m) for m in messages]
++            first_system = next(
++                (i for i, m in enumerate(work) if m.get("role") == "system"), None
++            )
++            # Indices that may be trimmed: everything except the first system
++            # message and the final user message (live data).
++            last_user = max(
++                (i for i, m in enumerate(work) if m.get("role") == "user"),
++                default=None,
++            )
++            trimmable = [
++                i for i in range(len(work))
++                if i != first_system and i != last_user and work[i].get("content")
++            ]
++            if not trimmable:
++                return messages
++
++            # Re-measure once so repeated calls don't stack markers.
++            sizes = estimate(work)
++            marker = "\n[truncated for request budget]"
++            while sizes.get("total_chars", 0) > max_total_chars and trimmable:
++                biggest_idx = max(trimmable, key=lambda i: sizes[str(i)])
++                current_len = sizes[str(biggest_idx)]
++                if current_len <= 500:
++                    trimmable.remove(biggest_idx)
++                    continue
++                target = max(240, current_len // 2)
++                content = str(work[biggest_idx].get("content", ""))
++                base = content.split(marker, 1)[0]
++                trimmed = base[:target].rstrip() + marker
++                work[biggest_idx]["content"] = trimmed
++                sizes["total_chars"] += len(trimmed) - sizes[str(biggest_idx)]
++                sizes[str(biggest_idx)] = len(trimmed)
++            return work
++        except Exception:
++            return messages
++
+     def get_decision(self, toon: Dict[str, Any]) -> Dict[str, Any]:
+         # Real LLM Call
+         import json
+@@ -1311,6 +1503,10 @@ class LLMOrchestrator:
+             } if isinstance(toon.get("macro_state_vector"), dict) else {
+                 "status": "UNAVAILABLE", "execution_authority": False,
+             },
++            "laya_decision_bundle": toon.get("laya_decision_bundle") or {
++                "status": "UNAVAILABLE", "reason": "not_attached",
++                "execution_authority": False, "source": "laya_decision_bundle",
++            },
+             "macro_opportunity_bus": {
+                 k: (toon.get("macro_opportunity_bus") or {}).get(k)
+                 for k in ("status", "published", "skipped", "candidate_ids", "execution_authority", "source_filter")
+@@ -1414,6 +1610,12 @@ class LLMOrchestrator:
+                 )
+             except Exception:
+                 pass
++            # --- Whole-request budget (R2, payload-flow audit): the 60K
++            # toon_lite budget alone doesn't bound replayed history. ---
++            try:
++                messages = self._enforce_request_char_budget(messages)
++            except Exception:
++                pass
+             self.operations.record_raw_trace(
+                 "llm_prompt",
+                 {"model": self.model_name, "messages": messages},
+@@ -1476,7 +1678,26 @@ class LLMOrchestrator:
+                      time.sleep(1)
+ 
+             if self.memory and response_content:
+-                self.memory.add_message("assistant", response_content)
++                # R1 compact mode: tag deterministic-fallback replies so the
++                # buffer records them as failed cycles instead of replaying
++                # dead-weight HOLDs in the rolling window.  Router fallback
++                # payloads arrive as plain strings containing the marker, so
++                # sniff the content too (same signal alpha_discovery checks).
++                _is_fallback = (
++                    '"deterministic_fallback": true' in response_content
++                    or self._last_llm_trace.get("parse_status") == "ERROR"
++                )
++                self.memory.add_message(
++                    "assistant",
++                    response_content,
++                    metadata={"deterministic_fallback": _is_fallback},
++                )
++                if _is_fallback and hasattr(self.memory, "discard_failed_cycle"):
++                    # R3: failed cycles become short notes, not replay pairs.
++                    try:
++                        self.memory.discard_failed_cycle()
++                    except Exception:
++                        pass
+             
+             # Never silently change models for an order decision.  Different
+             # models have different behaviours, prompts and calibration.  A
+@@ -2864,8 +3085,86 @@ class LLMOrchestrator:
+             result["error"] = str(exc)[:200]
+             return result
+ 
++    # ------------------------------------------------------------------
++    # Live-trading lockout (2026-09-28): absence of --paper is not an
++    # operator decision, so live order placement additionally requires an
++    # explicit env confirmation: REQUIRE_LIVE_CONFIRMATION in
++    # {1,true,yes,on} AND LIVE_CONFIRMATION_TOKEN set to the exact token
++    # below (a two-step "type the sentence" acknowledgment). The gate sits
++    # at the START of _build_execution_plan's live branch — before ANY
++    # live-broker call (quote fetch, margin, policy load) — and raises the
++    # same ValueError the pre-submit path already converts into an auditable
++    # HOLD + REJECTED lifecycle row. Emergency exits / risk-reducing actions
++    # live outside this file and are NOT gated: the lockout blocks NEW risk
++    # only.
++    # ------------------------------------------------------------------
++    LIVE_CONFIRMATION_ENV = "REQUIRE_LIVE_CONFIRMATION"
++    _LIVE_CONFIRMATION_VALUES = frozenset({"1", "true", "yes", "on"})
++    LIVE_CONFIRMATION_TOKEN_ENV = "LIVE_CONFIRMATION_TOKEN"
++    LIVE_CONFIRMATION_TOKEN_VALUE = "I_UNDERSTAND_LIVE_ORDERS_WILL_BE_PLACED"
++
++    def _live_orders_authorized(self) -> Tuple[bool, str]:
++        """Operator intent gate for live order placement (env-level).
++
++        Returns (True, "") only when BOTH the confirmation flag is enabled
++        AND the acknowledgment token matches exactly. Fail-closed: unset,
++        malformed, or partially-configured environments are all lockouts.
++        Read at call time so an operator can flip it without a restart.
++        """
++        raw = str(os.getenv(self.LIVE_CONFIRMATION_ENV, "") or "").strip().lower()
++        if raw not in self._LIVE_CONFIRMATION_VALUES:
++            return False, (
++                f"{self.LIVE_CONFIRMATION_ENV} is not enabled (set it to one of "
++                f"{sorted(self._LIVE_CONFIRMATION_VALUES)} to confirm live trading)")
++        token = str(os.getenv(self.LIVE_CONFIRMATION_TOKEN_ENV, "") or "").strip()
++        if token != self.LIVE_CONFIRMATION_TOKEN_VALUE:
++            # SECURITY: the reason must NOT contain the literal token — it is
++            # persisted into journal/lifecycle rows and operator logs. Point
++            # at the constant instead of quoting it.
++            return False, (
++                f"{self.LIVE_CONFIRMATION_ENV} is enabled but "
++                f"{self.LIVE_CONFIRMATION_TOKEN_ENV} is missing or incorrect "
++                "(set it to the exact acknowledgment sentence documented in "
++                "LIVE_CONFIRMATION_TOKEN_VALUE, intelligence/llm_orchestrator.py)")
++        return True, ""
++
++    @staticmethod
++    def _live_order_lockout_notice(reason: str) -> Dict[str, Any]:
++        """Audit payload for a lockout rejection (journal + lifecycle row)."""
++        return {
++            "reason": str(reason)[:300],
++            "env_flag": LLMOrchestrator.LIVE_CONFIRMATION_ENV,
++            "token_env": LLMOrchestrator.LIVE_CONFIRMATION_TOKEN_ENV,
++            "execution_authority": False,
++            "paper_mode": True,
++        }
++
+     def _build_execution_plan(self, proposal: TradeProposal, toon: Dict[str, Any], paper_mode: bool, volume: float):
+         """Revalidate the broker quote and freeze a pending-entry plan before send."""
++        if not paper_mode:
++            # Live-trading lockout: the env gate fires BEFORE any live-broker
++            # call. The ValueError is converted by the pre-submit caller into
++            # an auditable HOLD/REJECTED and the cycle continues in safety.
++            authorized, lockout_reason = self._live_orders_authorized()
++            if not authorized:
++                notice = self._live_order_lockout_notice(lockout_reason)
++                try:
++                    self.store.log_lifecycle_event(
++                        None, proposal.setup_key(), "REJECTED",
++                        "live_order_lockout", notice)
++                except Exception as lifecycle_exc:
++                    logging.getLogger("LLMOrchestrator").debug(
++                        "live lockout lifecycle row failed: %s", lifecycle_exc)
++                try:
++                    self.operations.event(
++                        "RiskController", "live_order_lockout", notice,
++                        run_id=self.run_id, severity="WARNING")
++                except Exception as event_exc:
++                    logging.getLogger("LLMOrchestrator").debug(
++                        "live lockout event failed: %s", event_exc)
++                logging.getLogger("LLMOrchestrator").warning(
++                    "LIVE ORDER LOCKOUT engaged: %s", lockout_reason)
++                raise ValueError(f"live order lockout: {lockout_reason}")
+         indicators = toon.get("indicators", {})
+         point_features = toon.get("feature_snapshot", {}).get("values", {})
+         atr = point_features.get("atr_14", (indicators.get("atr_14") or [0])[-2] if len(indicators.get("atr_14") or []) >= 2 else 0)
+@@ -3019,13 +3318,54 @@ class LLMOrchestrator:
+         self.store.set_state(f"last_closed_bar:{strategy}:{symbol}:{timeframe}", closed_bar)
+         return True
+ 
++    def _emit_boot_event(self, event_type: str, payload: Dict[str, Any],
++                         *, severity: str = "WARNING") -> None:
++        """Journal a boot-watchdog outcome (best-effort; never fatal)."""
++        try:
++            self.operations.event(
++                "orchestrator", event_type, payload, severity=severity)
++        except Exception:
++            logging.getLogger("LLMOrchestrator").debug(
++                "boot watchdog event emit failed: %s", event_type)
++
++    def _emit_provider_scorecard(self) -> None:
++        """Journal the per-boot provider scorecard (trend vs previous boot).
++
++        Best-effort: scorecard/trend/journal failures degrade to a debug log,
++        never a boot failure.
++        """
++        log = logging.getLogger("LLMOrchestrator")
++        try:
++            from provider_scorecard import (
++                KNOWN_API_SOURCES, build_event, load_recent_summaries,
++                render, scorecard, trend_vs_previous)
++            current = scorecard(
++                get_datasheet().records(), known_sources=KNOWN_API_SOURCES)
++            previous = None
++            con_factory = getattr(getattr(self, "operations", None), "_con", None)
++            if callable(con_factory):
++                with con_factory() as con:
++                    recent = load_recent_summaries(con, limit=2)
++                if recent:
++                    previous = recent[0].get("summary")
++            trend = trend_vs_previous(current, previous)
++            severity, payload = build_event(current, trend)
++            self._emit_boot_event("provider_scorecard", payload, severity=severity)
++            log.info("provider scorecard:\n%s", render(current, trend))
++        except Exception:
++            log.debug("provider scorecard failed", exc_info=True)
++
+     def pre_pulse_macro_ingest(self, symbol: str, paper_mode: bool = False) -> Dict[str, Any]:
+         """Hoist calendar / FRED / news ingestion once per pulse before parallel strategy execution.
+ 
+         Caches the result in self._pulse_macro_cache[symbol] so concurrent strategy
+         threads reuse the ingested graph observations and avoid SQLite WAL lock contention.
++        Every fetch stage runs under a per-source deadline (boot_fetch_watchdog):
++        a hung provider is abandoned at its budget and the pulse proceeds on
++        degraded data instead of stalling the first cycle (fail-open).
+         """
+         import time as _time
++        boot_budgets = stage_budgets()
+         cache_entry: Dict[str, Any] = {
+             "ts": _time.time(),
+             "symbol": symbol,
+@@ -3035,24 +3375,31 @@ class LLMOrchestrator:
+             "data_source_pipeline": {},
+             "macro_observations_ingest": {},
+             "realtime_news_ingest": {},
++            "boot_stage_outcomes": {},
+         }
+         try:
+             # 1. Collect calendar news events from data_provider if available
++            # (bounded by the boot-fetch watchdog; hung calendar bridge fails open)
+             news_events: list = []
+             if hasattr(self, "data_provider") and self.data_provider is not None:
+-                try:
++                def _collect_calendar() -> list:
+                     from data.market_data_provider import collect_calendar_event_rows
+                     calendar = getattr(self.data_provider, "calendar", None)
+                     client = getattr(self, "client", None) or getattr(self.data_provider, "client", None)
+                     event_rows, _ = collect_calendar_event_rows(calendar, client)
+-                    if event_rows:
+-                        news_events = [e for e in event_rows if isinstance(e, dict)]
+-                except Exception as _cal_exc:
+-                    logging.getLogger("LLMOrchestrator").debug("Pre-pulse calendar collection fallback: %s", _cal_exc)
++                    return event_rows or []
++
++                outcome = run_stage_with_deadline(
++                    "calendar_collect", _collect_calendar,
++                    budgets=boot_budgets, emit_event=self._emit_boot_event)
++                cache_entry["boot_stage_outcomes"]["calendar_collect"] = {
++                    k: outcome[k] for k in ("ok", "timed_out", "elapsed_s", "budget_s")}
++                if outcome["ok"] and outcome["result"]:
++                    news_events = [e for e in outcome["result"] if isinstance(e, dict)]
+ 
+-            # 2. Bulk ingest calendar events into macro graph
++            # 2. Bulk ingest calendar events into macro graph (bounded)
+             if news_events and getattr(self, "macro_graph", None) is not None:
+-                try:
++                def _bulk_ingest() -> list:
+                     bulk_items = [
+                         {
+                             "title": str(event.get("event") or event.get("title") or "").strip() or "calendar event",
+@@ -3064,18 +3411,27 @@ class LLMOrchestrator:
+                         }
+                         for event in news_events
+                     ]
+-                    source_ids = self.macro_graph.ingest_sources_bulk(bulk_items)
++                    # Coerce to a plain list inside the bounded worker so a
++                    # non-iterable result is contained as a stage failure
++                    # instead of crashing the fold below.
++                    return list(self.macro_graph.ingest_sources_bulk(bulk_items) or [])
++
++                outcome = run_stage_with_deadline(
++                    "bulk_calendar_ingest", _bulk_ingest,
++                    budgets=boot_budgets, emit_event=self._emit_boot_event)
++                cache_entry["boot_stage_outcomes"]["bulk_calendar_ingest"] = {
++                    k: outcome[k] for k in ("ok", "timed_out", "elapsed_s", "budget_s")}
++                if outcome["ok"] and outcome["result"]:
++                    source_ids = outcome["result"]
+                     cache_entry["macro_source_ids"] = source_ids
+                     cache_entry["macro_event_sources"] = list(zip(source_ids, news_events))
+                     for _sid, event in cache_entry["macro_event_sources"]:
+                         if isinstance(event, dict) and event.get("currency"):
+                             cache_entry["macro_entities"].append(str(event["currency"]))
+-                except Exception as _bulk_exc:
+-                    logging.getLogger("LLMOrchestrator").debug("Pre-pulse bulk calendar ingest skipped: %s", _bulk_exc)
+ 
+-            # 3. Process cycle data sources (FRED, NewsAPI)
++            # 3. Process cycle data sources (FRED, NewsAPI) — bounded
+             if getattr(self, "macro_graph", None) is not None:
+-                try:
++                def _run_pipeline() -> Dict[str, Any]:
+                     api_mgr = getattr(self.data_provider, "api_manager", None) if hasattr(self, "data_provider") else None
+                     pipeline = process_cycle_data_sources(
+                         macro_graph=self.macro_graph,
+@@ -3089,21 +3445,32 @@ class LLMOrchestrator:
+                         observed_at="",
+                         include_optional_providers=(not paper_mode),
+                     )
+-                    cache_entry["data_source_pipeline"] = pipeline
+-                    cache_entry["macro_observations_ingest"] = pipeline.get("observations") or {}
+-                    for entity in pipeline.get("macro_entities_extra") or []:
+-                        if entity and entity not in cache_entry["macro_entities"]:
+-                            cache_entry["macro_entities"].append(str(entity))
++                    return {"pipeline": pipeline, "api_manager": api_mgr}
++
++                outcome = run_stage_with_deadline(
++                    "data_source_pipeline", _run_pipeline,
++                    budgets=boot_budgets, emit_event=self._emit_boot_event)
++                cache_entry["boot_stage_outcomes"]["data_source_pipeline"] = {
++                    k: outcome[k] for k in ("ok", "timed_out", "elapsed_s", "budget_s")}
++                if outcome["ok"] and outcome["result"]:
+                     try:
+-                        self._emit_datasource_refresh(api_manager=api_mgr, pipeline=pipeline)
+-                    except Exception:
+-                        pass
+-                except Exception as _pipe_exc:
+-                    logging.getLogger("LLMOrchestrator").debug("Pre-pulse data sources skipped: %s", _pipe_exc)
++                        pipeline = outcome["result"]["pipeline"]
++                        api_mgr = outcome["result"]["api_manager"]
++                        cache_entry["data_source_pipeline"] = pipeline
++                        cache_entry["macro_observations_ingest"] = pipeline.get("observations") or {}
++                        for entity in pipeline.get("macro_entities_extra") or []:
++                            if entity and entity not in cache_entry["macro_entities"]:
++                                cache_entry["macro_entities"].append(str(entity))
++                        try:
++                            self._emit_datasource_refresh(api_manager=api_mgr, pipeline=pipeline)
++                        except Exception:
++                            pass
++                    except Exception as _pipe_exc:
++                        logging.getLogger("LLMOrchestrator").debug("Pre-pulse data sources skipped: %s", _pipe_exc)
+ 
+-            # 4. Realtime news ingest
++            # 4. Realtime news ingest (bounded)
+             if getattr(self, "macro_graph", None) is not None:
+-                try:
++                def _run_realtime_news() -> Dict[str, Any]:
+                     api_mgr = getattr(self.data_provider, "api_manager", None) if hasattr(self, "data_provider") else None
+                     news_ingest = run_realtime_news_ingest(
+                         graph=self.macro_graph,
+@@ -3115,16 +3482,38 @@ class LLMOrchestrator:
+                         include_rss=False,
+                         extract_claims=False,
+                     )
++                    return {"news_ingest": news_ingest, "api_manager": api_mgr}
++
++                outcome = run_stage_with_deadline(
++                    "realtime_news_ingest", _run_realtime_news,
++                    budgets=boot_budgets, emit_event=self._emit_boot_event)
++                cache_entry["boot_stage_outcomes"]["realtime_news_ingest"] = {
++                    k: outcome[k] for k in ("ok", "timed_out", "elapsed_s", "budget_s")}
++                if outcome["ok"] and outcome["result"]:
++                    news_ingest = outcome["result"]["news_ingest"]
+                     cache_entry["realtime_news_ingest"] = news_ingest
+                     for entity in (news_ingest.get("macro_entities_extra") or []):
+                         if entity and entity not in cache_entry["macro_entities"]:
+                             cache_entry["macro_entities"].append(str(entity))
+-                except Exception as _news_exc:
+-                    logging.getLogger("LLMOrchestrator").debug("Pre-pulse realtime news skipped: %s", _news_exc)
+ 
+         except Exception as _p_exc:
+             logging.getLogger("LLMOrchestrator").warning("Pre-pulse macro ingest failed: %s", _p_exc)
+ 
++        # Boot datasheet: fold the watchdog outcomes into the single boot-
++        # health table (bootstrap steps + provider degradation markers are
++        # already recorded) and render it exactly once, at the first pulse.
++        # The first render also fires the per-boot provider scorecard event
++        # (fresh/stale/no-data verdicts + trend vs the previous boot).
++        if boot_datasheet_enabled():
++            _sheet = get_datasheet()
++            for _stage, _out in (cache_entry.get("boot_stage_outcomes") or {}).items():
++                _sheet.record_pulse_stage(_stage, _out)
++            _table = _sheet.maybe_render_once(
++                emit_event=lambda _et, _p: self._emit_boot_event(
++                    _et, _p, severity="INFO"))
++            if _table is not None:
++                self._emit_provider_scorecard()
++
+         if not hasattr(self, "_pulse_macro_cache"):
+             self._pulse_macro_cache = {}
+         self._pulse_macro_cache[symbol] = cache_entry
+@@ -5106,6 +5495,179 @@ class LLMOrchestrator:
+         if _err:
+             _log.warning("schedule batch failed: %s", _err[0])
+ 
++    def _fast_lane_order(
++            self, claimed_batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
++        """Dispatch order for a claimed wave: cheapest cadence first.
++
++        The wave deadline (``_SCHEDULE_TIMEOUT``) defers whatever is still
++        undispatched when it trips, so dispatch order decides WHICH claims
++        eat the deferral. Claim order can list heavy, slow-cadence handlers
++        ahead of the 60s fast lanes (the profiler's CLAIM_ORDER_TAIL), and a
++        deadline hit then defers exactly the schedules that lose the most
++        catch-up time per missed turn. Ordering the wave ascending by
++        registry interval (fallback: handler budget, then claim order — the
++        sort is stable) puts the fast lanes at the front, where the deadline
++        cannot cut them off. Pure reordering of the dispatch queue: claims,
++        leases, and due points are untouched, and the batch-end release is
++        set-based, so bookkeeping stays order-independent.
++        """
++        if len(claimed_batch) < 2:
++            return list(claimed_batch)
++        intervals: Dict[str, float] = {}
++        try:
++            intervals = {
++                str(item.get("schedule_name")):
++                    float(item.get("interval_seconds") or 0)
++                for item in (self.operations.list_schedules() or [])
++                if item.get("schedule_name")
++            }
++        except Exception:
++            intervals = {}
++        budgets = self._SCHEDULE_HANDLER_BUDGETS
++        default_budget = float(self._SCHEDULE_DEFAULT_HANDLER_BUDGET)
++
++        def _lane(item: Dict[str, Any], idx: int) -> Tuple[float, float, int]:
++            name = str(item.get("schedule_name") or "")
++            interval = intervals.get(name) or 0.0
++            if interval <= 0:
++                # Unregistered/malformed rows ride the handler-budget lane
++                # instead of jumping the queue ahead of known cadences.
++                interval = float(budgets.get(name, default_budget))
++            return (interval, float(budgets.get(name, default_budget)), idx)
++
++        return [item for _, item in
++                sorted(enumerate(claimed_batch),
++                       key=lambda pair: _lane(pair[1], pair[0]))]
++
++    # ------------------------------------------------------------------
++    # Laya DecisionBundle → cycle prompts (2026-09-28): the MacroAnalyst
++    # graph node publishes its typed-decision bundle (regime D3, liquidity
++    # D4, arbitration D8, kill switch D9, narrative decay D12, …) to the
++    # shared ui_state; project a compact advisory view onto the cycle toon
++    # so the scalp/swing candle engines see macro state DIRECTLY instead of
++    # inferring it from causal edges. Read-only mirror of advisory context:
++    # never grants order permission (execution_authority stays False), never
++    # gates risk (RiskController keeps its own blackout/kill-switch gates),
++    # and every failure path degrades to "UNAVAILABLE" without breaking the
++    # cycle.
++    # ------------------------------------------------------------------
++    _BUNDLE_DECISION_IDS = (
++        "D1_economic_surprise", "D2_blackout_gate", "D3_macro_regime",
++        "D4_liquidity_stance", "D5a_escalation_ladder", "D8_opportunity_arbitration",
++        "D9_emergency_kill_switch", "D12_narrative_decay",
++    )
++    _BUNDLE_MAX_HEAD_PROB_ENTRIES = 4
++
++    @classmethod
++    def _project_decision_bundle(cls, bundle_dict: Any) -> Optional[Dict[str, Any]]:
++        """Compact advisory projection of a DecisionBundle.to_dict() payload.
++
++        Emits per-head selected_option + top-k probability entries + confidence,
++        plus the bundle-level arbitration verdict and risk multiplier. All
++        string values are hard-truncated to keep the prompt budget tight.
++        Returns None when the payload is missing/malformed.
++        """
++        if not isinstance(bundle_dict, dict):
++            return None
++        decisions_in = bundle_dict.get("decisions")
++        if not isinstance(decisions_in, dict):
++            return None
++        heads: Dict[str, Any] = {}
++        for qid in cls._BUNDLE_DECISION_IDS:
++            rec = decisions_in.get(qid)
++            if not isinstance(rec, dict):
++                continue
++            probs_raw = rec.get("probabilities")
++            probs: Dict[str, float] = {}
++            if isinstance(probs_raw, dict):
++                try:
++                    pairs = sorted(
++                        ((str(k), float(v)) for k, v in probs_raw.items()
++                         if isinstance(v, (int, float))),
++                        key=lambda kv: kv[1], reverse=True,
++                    )[:cls._BUNDLE_MAX_HEAD_PROB_ENTRIES]
++                    probs = {k: round(v, 4) for k, v in pairs}
++                except Exception:
++                    probs = {}
++            try:
++                conf = float(rec.get("confidence") or rec.get("entropy") or 0.0)
++            except (TypeError, ValueError):
++                conf = 0.0
++            heads[qid] = {
++                "selected_option": str(rec.get("selected_option") or "")[:60],
++                "probabilities": probs,
++                "confidence": round(conf, 4),
++                "is_veto": bool(rec.get("is_veto")),
++            }
++        if not heads:
++            return None
++        try:
++            risk_mult = float(bundle_dict.get("risk_multiplier") or 0.0)
++        except (TypeError, ValueError):
++            risk_mult = 0.0
++        return {
++            "bundle_id": str(bundle_dict.get("bundle_id") or "")[:40],
++            "bundle_timestamp": str(bundle_dict.get("timestamp") or "")[:32],
++            "heads": heads,
++            "arbitration_verdict": str(bundle_dict.get("arbitration_verdict") or "")[:40],
++            "risk_multiplier": risk_mult,
++            "veto_enforced": bool(bundle_dict.get("veto_enforced")),
++            "execution_authority": False,
++            "source": "laya_decision_bundle",
++        }
++
++    @classmethod
++    def _attach_decision_bundle_advisory(cls, toon: Dict[str, Any]) -> None:
++        """Attach the Laya bundle advisory to the cycle toon (fail-soft).
++
++        Staleness policy: the bundle is a per-cycle artifact; one older than
++        10 minutes is treated as stale and surfaced as UNAVAILABLE rather
++        than presented as current macro state.
++        """
++        UNAVAILABLE = {
++            "status": "UNAVAILABLE", "reason": "no bundle published this session",
++            "execution_authority": False, "source": "laya_decision_bundle",
++        }
++        try:
++            from core.shared_state import ui_state
++        except Exception:
++            toon["laya_decision_bundle"] = dict(UNAVAILABLE, reason="shared_state_unavailable")
++            return
++        try:
++            bundle = getattr(ui_state, "last_decision_bundle", None)
++        except Exception:
++            toon["laya_decision_bundle"] = dict(UNAVAILABLE, reason="ui_state_unavailable")
++            return
++        if not isinstance(bundle, dict) or not bundle.get("decisions"):
++            toon["laya_decision_bundle"] = UNAVAILABLE
++            return
++        try:
++            from datetime import datetime as _dt
++            ts_raw = str(bundle.get("timestamp") or "")
++            if not ts_raw:
++                raise ValueError("missing timestamp")
++            ts = _dt.fromisoformat(ts_raw.replace("Z", "+00:00"))
++            if ts.tzinfo is None:
++                # Producers stamp UTC; a naive stamp is interpreted as UTC.
++                ts = ts.replace(tzinfo=timezone.utc)
++            age_s = (datetime.now(timezone.utc) - ts).total_seconds()
++        except Exception:
++            age_s = None
++        if age_s is not None and age_s > 600:
++            toon["laya_decision_bundle"] = {
++                "status": "UNAVAILABLE", "reason": "stale_bundle",
++                "bundle_age_s": int(age_s), "bundle_id": str(bundle.get("bundle_id") or "")[:40],
++                "execution_authority": False, "source": "laya_decision_bundle",
++            }
++            return
++        projection = cls._project_decision_bundle(bundle)
++        if projection is None:
++            toon["laya_decision_bundle"] = dict(UNAVAILABLE, reason="malformed_bundle")
++            return
++        projection["bundle_age_s"] = int(age_s) if age_s is not None else None
++        projection["status"] = "AVAILABLE"
++        toon["laya_decision_bundle"] = projection
++
+     def _process_due_schedules(self, symbol: str, paper_mode: bool) -> None:
+         """Run restart-safe maintenance schedules on every pulse.
+ 
+@@ -5124,6 +5686,12 @@ class LLMOrchestrator:
+         handlers are deferred — their pre-claim due points restored so the
+         next wave re-claims them.
+ 
++        Dispatch is fast-lane ordered (2026-09-28): the claimed wave runs
++        shortest-cadence-first (registry interval, then handler budget, then
++        claim order), so a wave-deadline hit defers the SLOWEST-cadence
++        handlers — never the cheap 60s schedules that lose the most catch-up
++        time per deferral (the 2026-09-26 audit's CLAIM_ORDER_TAIL).
++
+         Per-handler overruns are persisted as ``schedule_handler_overrun``
+         operational events — recorded at the next loop turn and at batch end
+         (so a wave-ending overrun is not silently dropped) — and rolled up
+@@ -5147,6 +5715,9 @@ class LLMOrchestrator:
+         # at an abandonment point is the whole claim minus what actually
+         # dispatched.
+         claimed_batch = list(self.operations.claim_due_schedules())
++        # Fast lane: dispatch cheapest-cadence claims first so a wave-deadline
++        # deferral lands on the slow cadences, not the 60s handlers.
++        claimed_batch = self._fast_lane_order(claimed_batch)
+         claimed_names = [str(item["schedule_name"]) for item in claimed_batch]
+         dispatched_names: List[str] = []
+ 
+@@ -5331,68 +5902,137 @@ class LLMOrchestrator:
+                                                   {"error": str(exc)[:300]}, run_id=self.run_id,
+                                                   correlation_id=schedule_name, severity="WARNING")
+                     status = "AVAILABLE" if event_rows else ("UNAVAILABLE" if error else "EMPTY")
+-                    # Also refresh FRED/NewsAPI/optional providers into graph on the monitor pulse.
+-                    try:
+-                        manager = getattr(self.data_provider, "api_manager", None)
+-                        fred = {}
+-                        api_news = []
+-                        hot_topics = []
+-                        if manager is not None:
+-                            try:
+-                                fred = manager.get_fred_data(catalog_fred_series()) or {}
+-                            except Exception:
++                    # Sub-cadence gate (2026-09-28): the heavy pipeline block
++                    # (FRED + news + hot topics + graph ingest + realtime
++                    # news) cost 60-281s per dispatch in the 09-27 live
++                    # session (37 overruns, all dispatches) because it polls
++                    # sources FASTER than they update (NewsAPI free tier
++                    # refreshes per 15min, FRED per day) against a 229k-row
++                    # macro graph. Calendar fetch + ingest above stay on the
++                    # 60s cadence (blackout gating freshness); the heavy
++                    # block runs every EVENT_MONITOR_FULL_PIPELINE_MIN_S
++                    # (default 300s). Budget raise is not an option: the
++                    # applier caps at interval/2 = 30s < 60s (AT_CAP).
++                    _em_full_every_s = float(os.getenv(
++                        "EVENT_MONITOR_FULL_PIPELINE_MIN_S", "300"))
++                    _em_now = time.time()
++                    _em_last = float(getattr(self, "_event_monitor_last_full_ts", 0.0) or 0.0)
++                    _em_run_full = (_em_now - _em_last) >= _em_full_every_s
++                    # Alternating-window split (2026-09-28 NEXT LEVER, default
++                    # OFF): EVENT_MONITOR_SPLIT_WINDOWS=1 halves the heavy
++                    # block - even windows run the graph pipeline (FRED + news
++                    # + hot topics + ingest), odd windows run realtime-news+RSS
++                    # - so a full pass costs ~half and each window lands inside
++                    # the 60s budget. _event_monitor_window_no advances ONLY
++                    # when a window ran, so a failed/deferred window retries
++                    # its parity; on restart the counter resets and the first
++                    # window is the pipeline half (mirrors the stamp reset).
++                    _em_split = os.getenv("EVENT_MONITOR_SPLIT_WINDOWS", "") in {
++                        "1", "true", "yes", "on"}
++                    _em_rn_window = False
++                    if _em_run_full:
++                        _em_window_no = int(getattr(self, "_event_monitor_window_no", 0) or 0)
++                        _em_rn_window = bool(_em_split and _em_window_no % 2 == 1)
++                    if _em_run_full:
++                        try:
++                            manager = getattr(self.data_provider, "api_manager", None)
++                            if not _em_rn_window:
+                                 fred = {}
+-                            try:
+-                                hot_topics = manager.get_hot_topics(limit=5) or []
+-                            except Exception:
+-                                hot_topics = []
+-                            try:
+-                                api_news = manager.get_news(
+-                                    self._get_symbol_keywords(symbol), page_size=5,
+-                                ) or []
+-                            except Exception:
+                                 api_news = []
+-                        pipeline = process_cycle_data_sources(
+-                            macro_graph=self.macro_graph,
+-                            journal_path=str(getattr(self.store, "path", None) or "trading_state.db"),
+-                            symbol=symbol,
+-                            calendar_events=event_rows,
+-                            api_news=api_news,
+-                            hot_topics=hot_topics,
+-                            macro_data=fred,
+-                            api_manager=manager,
+-                            # Optional providers (SeekingAlpha, OpenBB, Portfolio123)
+-                            # make external HTTP calls that can block for 60+s on
+-                            # retries/backoff.  Skip them in paper mode so the
+-                            # maintenance pulse never hangs on unauthenticated feeds.
+-                            include_optional_providers=not paper_mode,
+-                        )
+-                        extract_llm = getattr(self, "llm", None)
+-                        extract_claims = os.getenv("TRADING_REALTIME_NEWS_EXTRACT", "false").lower() in {
+-                            "1", "true", "yes",
+-                        }
+-                        realtime_news = run_realtime_news_ingest(
+-                            graph=self.macro_graph,
+-                            api_manager=manager,
+-                            memory=self.trade_memory,
+-                            llm=extract_llm if extract_claims else None,
+-                            symbol=symbol,
+-                            keywords=self._get_symbol_keywords(symbol),
+-                            # RSS feeds make blocking HTTP calls that can stall
+-                            # the maintenance pulse.  Skip in paper mode where
+-                            # external news has no execution value.
+-                            include_rss=not paper_mode,
+-                            extract_claims=extract_claims,
+-                        )
+-                    except Exception as pipe_exc:
++                                hot_topics = []
++                                if manager is not None:
++                                    try:
++                                        fred = manager.get_fred_data(catalog_fred_series()) or {}
++                                    except Exception:
++                                        fred = {}
++                                    try:
++                                        hot_topics = manager.get_hot_topics(limit=5) or []
++                                    except Exception:
++                                        hot_topics = []
++                                    try:
++                                        api_news = manager.get_news(
++                                            self._get_symbol_keywords(symbol), page_size=5,
++                                        ) or []
++                                    except Exception:
++                                        api_news = []
++                                pipeline = process_cycle_data_sources(
++                                    macro_graph=self.macro_graph,
++                                    journal_path=str(getattr(self.store, "path", None) or "trading_state.db"),
++                                    symbol=symbol,
++                                    calendar_events=event_rows,
++                                    api_news=api_news,
++                                    hot_topics=hot_topics,
++                                    macro_data=fred,
++                                    api_manager=manager,
++                                    # Optional providers (SeekingAlpha, OpenBB, Portfolio123)
++                                    # make external HTTP calls that can block for 60+s on
++                                    # retries/backoff.  Skip them in paper mode so the
++                                    # maintenance pulse never hangs on unauthenticated feeds.
++                                    include_optional_providers=not paper_mode,
++                                )
++                            extract_llm = getattr(self, "llm", None)
++                            extract_claims = os.getenv("TRADING_REALTIME_NEWS_EXTRACT", "false").lower() in {
++                                "1", "true", "yes",
++                            }
++                            if _em_split and not _em_rn_window:
++                                realtime_news = {
++                                    "status": "DEFERRED",
++                                    "pipeline_mode": "realtime_deferred",
++                                    "reason": "split_windows",
++                                    "execution_authority": False,
++                                }
++                            else:
++                                realtime_news = run_realtime_news_ingest(
++                                    graph=self.macro_graph,
++                                    api_manager=manager,
++                                    memory=self.trade_memory,
++                                    llm=extract_llm if extract_claims else None,
++                                    symbol=symbol,
++                                    keywords=self._get_symbol_keywords(symbol),
++                                    # RSS feeds make blocking HTTP calls that can stall
++                                    # the maintenance pulse.  Skip in paper mode where
++                                    # external news has no execution value.
++                                    include_rss=not paper_mode,
++                                    extract_claims=extract_claims,
++                                )
++                                if _em_split and isinstance(realtime_news, dict):
++                                    realtime_news.setdefault("pipeline_mode", "realtime_window")
++                                    realtime_news.setdefault("split_windows", True)
++                            # Stamp ONLY on a full pass that returned (a network
++                            # error leaves it unstamped so the next dispatch
++                            # retries the heavy block instead of waiting).
++                            self._event_monitor_last_full_ts = _em_now
++                            if _em_split:
++                                self._event_monitor_window_no = _em_window_no + 1
++                        except Exception as pipe_exc:
++                            pipeline = {
++                                "status": "ERROR",
++                                "error": str(pipe_exc)[:300],
++                                "execution_authority": False,
++                            }
++                            realtime_news = {
++                                "status": "ERROR",
++                                "error": str(pipe_exc)[:300],
++                                "execution_authority": False,
++                            }
++                        else:
++                            pipeline["pipeline_mode"] = (
++                                "realtime_window" if _em_rn_window
++                                else ("pipeline_window" if _em_split else "full"))
++                            pipeline["split_windows"] = bool(_em_split)
++                            pipeline["full_every_s"] = _em_full_every_s
++                    else:
++                        _em_wait = max(0.0, _em_full_every_s - (_em_now - _em_last))
+                         pipeline = {
+-                            "status": "ERROR",
+-                            "error": str(pipe_exc)[:300],
++                            "status": "DEFERRED", "pipeline_mode": "calendar_only",
++                            "reason": "sub_cadence_sources_poll_faster_than_they_update",
++                            "next_full_in_s": round(_em_wait, 1),
++                            "full_every_s": _em_full_every_s,
+                             "execution_authority": False,
+                         }
+                         realtime_news = {
+-                            "status": "ERROR",
+-                            "error": str(pipe_exc)[:300],
++                            "status": "DEFERRED", "pipeline_mode": "calendar_only",
++                            "reason": "sub_cadence",
+                             "execution_authority": False,
+                         }
+                 except Exception as exc:
+@@ -6378,7 +7018,66 @@ class LLMOrchestrator:
+         except Exception:
+             pass
+ 
++    _CYCLE_STATE_UNSET = object()
++
++    def _cycle_key(self) -> str:
++        """Which strategy owns the state of the calling thread.
++
++        Set at the top of execute_cycle. Anything running outside a cycle
++        (startup, the main thread) shares one "_default" slot, which is the
++        old single-buffer behaviour rather than a new hazard.
++        """
++        return getattr(self._cycle_local, "strategy", None) or "_default"
++
++    def _new_context_buffer(self):
++        try:
++            from brain.memory import ContextBuffer
++            return ContextBuffer(max_messages=10)
++        except (ImportError, Exception) as _mem_err:
++            logging.getLogger("LLMOrchestrator").warning(
++                "ContextBuffer not available (%s). Using stateless mode.", _mem_err)
++            return None
++
++    @property
++    def memory(self):
++        """The ContextBuffer for the running strategy, created on first use."""
++        key = self._cycle_key()
++        with self._cycle_state_lock:
++            buf = self._memory_by_strategy.get(key, self._CYCLE_STATE_UNSET)
++            if buf is self._CYCLE_STATE_UNSET:
++                buf = self._new_context_buffer()
++                self._memory_by_strategy[key] = buf
++            return buf
++
++    @memory.setter
++    def memory(self, value) -> None:
++        with self._cycle_state_lock:
++            self._memory_by_strategy[self._cycle_key()] = value
++
++    @property
++    def _last_llm_trace(self) -> Dict[str, Any]:
++        """The usage/parse trace for the running strategy.
++
++        Callers mutate the returned dict in place, so the getter must hand
++        back the stored object rather than a copy.
++        """
++        key = self._cycle_key()
++        with self._cycle_state_lock:
++            trace = self._trace_by_strategy.get(key)
++            if trace is None:
++                trace = {}
++                self._trace_by_strategy[key] = trace
++            return trace
++
++    @_last_llm_trace.setter
++    def _last_llm_trace(self, value) -> None:
++        with self._cycle_state_lock:
++            self._trace_by_strategy[self._cycle_key()] = value
++
+     def execute_cycle(self, symbol: str, timeframe: str, cycle_num: int, total_cycles: int, paper_mode: bool = True, display_instance=None, strategy: str = "scalp"):
++        # Claim this thread's per-strategy state before anything reads
++        # self.memory or self._last_llm_trace.
++        self._cycle_local.strategy = strategy
+         # Cycle Separator for CLI
+         if not display_instance:
+             timestamp = datetime.now().strftime("%H:%M:%S")
+@@ -7157,6 +7856,15 @@ class LLMOrchestrator:
+                 "error": str(msv_exc)[:300],
+                 "execution_authority": False,
+             }
++        # Laya DecisionBundle advisory: regime/liquidity/kill-switch context
++        # from the MacroAnalyst graph node, projected onto the cycle prompt.
++        try:
++            self._attach_decision_bundle_advisory(toon)
++        except Exception as bundle_exc:  # noqa: BLE001 - advisory must never break the cycle
++            toon["laya_decision_bundle"] = {
++                "status": "ERROR", "error": str(bundle_exc)[:300],
++                "execution_authority": False, "source": "laya_decision_bundle",
++            }
+         # One auditable CycleBrief per pulse (never grants order permission).
+         try:
+             try:
+@@ -7513,7 +8221,16 @@ class LLMOrchestrator:
+             self._guardian_progress("post_llm_decision")
+             # GAP-11: fill missing continuous params from RL bridge (advisory only).
+             # If Bounded Autonomy is active, Proposition 1 Monotone Exposure forbids RL mutation/origination!
+-            if not getattr(self, "enable_bounded_autonomy", False):
++            # A provider outage means there is NO model judgement at all. Letting
++            # the RL suggestion stand in for it would open new risk with nothing in
++            # the loop, which is exactly what deterministic_hold_fallback forbids.
++            # The safety HOLD must stay absolute.
++            provider_outage = bool(decision.get("deterministic_fallback"))
++            if provider_outage:
++                logger.warning(
++                    "RL bridge suppressed: LLM providers are down and the decision "
++                    "is a deterministic safety HOLD; no new risk may be taken")
++            if not getattr(self, "enable_bounded_autonomy", False) and not provider_outage:
+                 bridged_payload = toon.get("rl_bridged_params") or {}
+                 if bridged_payload.get("action") in {"BUY", "SELL"}:
+                     from rl_action_bridge import BridgedExecutionParams

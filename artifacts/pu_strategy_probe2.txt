@@ -1,0 +1,178 @@
+operational_events columns: ['id', 'created_at', 'run_id', 'actor', 'event_type', 'correlation_id', 'severity', 'payload', 'payload_hash']
+
+llm_decisions columns: ['id', 'ts', 'model', 'prompt_text', 'response_text', 'latency_ms', 'symbol', 'timeframe', 'outcome', 'trade_ticket']
+
+=== lifecycle_evaluation_failed last 6 ===
+[
+ {
+  "created_at": "2026-09-28T10:40:29.813096+00:00",
+  "event_type": "lifecycle_evaluation_failed",
+  "p": "{\"error\":\"QuantitativeCoach is not permitted to perform evaluate_strategy_lifecycle\"}"
+ },
+ {
+  "created_at": "2026-09-28T06:54:38.731085+00:00",
+  "event_type": "lifecycle_evaluation_failed",
+  "p": "{\"error\":\"QuantitativeCoach is not permitted to perform evaluate_strategy_lifecycle\"}"
+ },
+ {
+  "created_at": "2026-09-27T23:27:51.047663+00:00",
+  "event_type": "lifecycle_evaluation_failed",
+  "p": "{\"error\":\"QuantitativeCoach is not permitted to perform evaluate_strategy_lifecycle\"}"
+ },
+ {
+  "created_at": "2026-09-27T22:27:52.127822+00:00",
+  "event_type": "lifecycle_evaluation_failed",
+  "p": "{\"error\":\"QuantitativeCoach is not permitted to perform evaluate_strategy_lifecycle\"}"
+ },
+ {
+  "created_at": "2026-09-27T21:28:37.751020+00:00",
+  "event_type": "lifecycle_evaluation_failed",
+  "p": "{\"error\":\"QuantitativeCoach is not permitted to perform evaluate_strategy_lifecycle\"}"
+ },
+ {
+  "created_at": "2026-09-27T20:28:19.163579+00:00",
+  "event_type": "lifecycle_evaluation_failed",
+  "p": "{\"error\":\"QuantitativeCoach is not permitted to perform evaluate_strategy_lifecycle\"}"
+ }
+]
+
+=== cycle_survival_audit_failed last 4 ===
+[
+ {
+  "created_at": "2026-09-28T11:20:26.930227+00:00",
+  "p": "{\"error\":\"QuantitativeCoach is not permitted to perform quant_survival_audit\"}"
+ },
+ {
+  "created_at": "2026-09-28T11:18:44.084525+00:00",
+  "p": "{\"error\":\"QuantitativeCoach is not permitted to perform quant_survival_audit\"}"
+ },
+ {
+  "created_at": "2026-09-28T11:17:34.205301+00:00",
+  "p": "{\"error\":\"QuantitativeCoach is not permitted to perform quant_survival_audit\"}"
+ },
+ {
+  "created_at": "2026-09-28T11:15:31.928054+00:00",
+  "p": "{\"error\":\"QuantitativeCoach is not permitted to perform quant_survival_audit\"}"
+ }
+]
+
+=== cycle_brief_recorded by strategy (12h) ===
+[
+ {
+  "strat": "scalp",
+  "n": 10,
+  "last_at": "2026-09-28T11:20:26.054511+00:00"
+ },
+ {
+  "strat": "swing",
+  "n": 4,
+  "last_at": "2026-09-28T11:08:59.849026+00:00"
+ }
+]
+
+=== cycle_brief samples (last 4) ===
+[
+ {
+  "created_at": "2026-09-28T11:20:26.054511+00:00",
+  "p": "{\"cycle_key\":\"scalp:EURUSD:M15:2026-09-28 11:00:00\",\"execution_authority\":false,\"regime_id\":\"EASY_MONEY\",\"strategy\":\"scalp\",\"symbol\":\"EURUSD\"}"
+ },
+ {
+  "created_at": "2026-09-28T11:18:43.233713+00:00",
+  "p": "{\"cycle_key\":\"scalp:EURUSD:M15:2026-09-28 11:00:00\",\"execution_authority\":false,\"regime_id\":\"EASY_MONEY\",\"strategy\":\"scalp\",\"symbol\":\"EURUSD\"}"
+ },
+ {
+  "created_at": "2026-09-28T11:17:33.206789+00:00",
+  "p": "{\"cycle_key\":\"scalp:EURUSD:M15:2026-09-28 11:00:00\",\"execution_authority\":false,\"regime_id\":\"EASY_MONEY\",\"strategy\":\"scalp\",\"symbol\":\"EURUSD\"}"
+ },
+ {
+  "created_at": "2026-09-28T11:15:30.755291+00:00",
+  "p": "{\"cycle_key\":\"scalp:EURUSD:M15:2026-09-28 10:45:00\",\"execution_authority\":false,\"regime_id\":\"EASY_MONEY\",\"strategy\":\"scalp\",\"symbol\":\"EURUSD\"}"
+ }
+]
+
+=== heartbeats by strategy (6h) ===
+[]
+
+=== proposal_received by strategy (7d) ===
+[
+ {
+  "strat": null,
+  "n": 29,
+  "last_at": "2026-09-28T10:42:29.586707+00:00"
+ }
+]
+
+=== proposal_received samples (last 3) ===
+[
+ {
+  "created_at": "2026-09-28T10:42:29.586707+00:00",
+  "p": "{\"action\":\"HOLD\",\"confidence\":0.5}"
+ },
+ {
+  "created_at": "2026-09-28T07:30:02.390064+00:00",
+  "p": "{\"action\":\"BUY\",\"confidence\":0.5}"
+ },
+ {
+  "created_at": "2026-09-28T06:57:48.013549+00:00",
+  "p": "{\"action\":\"BUY\",\"confidence\":0.0}"
+ }
+]
+
+=== proposal_validated + overfit rejects (7d, payload) ===
+[
+ {
+  "event_type": "proposal_rejected_overfit_reject",
+  "created_at": "2026-09-28T07:30:03.492139+00:00",
+  "p": "{\"grade\":\"F\",\"risk_level\":\"CRITICAL\",\"strategy\":\"scalp\",\"symbol\":\"EURUSD\"}"
+ },
+ {
+  "event_type": "proposal_rejected_overfit_reject",
+  "created_at": "2026-09-25T14:14:04.072111+00:00",
+  "p": "{\"grade\":\"F\",\"risk_level\":\"CRITICAL\",\"strategy\":\"swing\",\"symbol\":\"EURUSD\"}"
+ },
+ {
+  "event_type": "proposal_rejected_overfit_reject",
+  "created_at": "2026-09-25T13:07:12.806009+00:00",
+  "p": "{\"grade\":\"F\",\"risk_level\":\"CRITICAL\",\"strategy\":\"swing\",\"symbol\":\"EURUSD\"}"
+ },
+ {
+  "event_type": "proposal_validated",
+  "created_at": "2026-09-25T12:54:43.899528+00:00",
+  "p": "{\"approved\":false,\"confluence_score\":5,\"reasons\":[\"microstructure filter rejected entry\",\"calendar/news source unavailable for this setup\",\"quote/DOM gap exceeds threshold\",\"setup excludes high-impact event window\",\"news data missing or high-impact event\",\"regime changepoint probability above veto threshold\",\"selective_activation_gate: mean_reversion_disabled_in_strong_trend: adx_42.1_above_32\"],\""
+ },
+ {
+  "event_type": "proposal_validated",
+  "created_at": "2026-09-25T12:09:20.952773+00:00",
+  "p": "{\"approved\":false,\"confluence_score\":5,\"reasons\":[\"calendar/news source unavailable for this setup\",\"setup excludes high-impact event window\",\"news data missing or high-impact event\",\"regime changepoint probability above veto threshold\",\"selective_activation_gate: mean_reversion_disabled_in_strong_trend: adx_43.0_above_32\"],\"setup_key\":\"13b713b4b5031fef8c702136\",\"strategy\":\"scalp\",\"symbol\":\"EURUSD"
+ }
+]
+
+=== llm_decisions recent (6h) by strategy if col exists ===
+[
+ {
+  "id": 406,
+  "ts": 1790598261.7725468,
+  "model": "mistralai/mistral-7b-instruct-v0.2",
+  "prompt_text": "Market Data JSON:\n{\"account\":{\"equity\":10000.0,\"balance\":10000.0},\"recent_performance\":[],\"multi_timeframe\":{},\"indicators\":{\"atr_14\":0.0012,\"adx_14\":25.0,\"ema_50\":1.08,\"close\":1.0805},\"alpha_ensemble\":null,\"alpha_decay_health\":{},\"alpha_rotation\":{},\"regime_allocation\":{},\"regime_duration\":{},\"auto_quant_tools\":{},\"cpcv_escalation\":{},\"meta_adaptive_override\":{},\"evolutionary_suggestions\":{},\"cross_market_robustness\":{},\"cross_market_hold_bias\":false,\"alpha_discovery_enrichment\":{},\"multimodal_patterns\":{},\"self_improvement_entry_threshold\":null,\"crash_detector_signal\":{},\"crash_detector_hold_bias\":false,\"causal_filter_report\":{},\"walk_forward_decay\":{},\"walk_forward_hold_bias\":false,\"optimal_execution_cost\":{},\"execution_cost_hold_bias\":false,\"ewc_forgetting_status\":{},\"alpha_stability\":{},\"canonical_mastery\":{},\"rl_analytics\":{},\"grpo_train\":{},\"ppo_train\":{},\"regime_autocorr\":{},\"meta_loop\":{},\"zero_lag_macro\":{},\"alpha_mining_results\":{\"active_alpha_strategies\":[{\"id\":\"alpha_14d39f47\",\"name\":\"Alpha-1\",\"expression\":\"ts_max(close, 5)\",\"ic_mean\":-0.0729,\"ic_ir\":0.0,\"ic_quality\":\"good\",\"stage\":\"CANDIDATE\",\"created_at\":1789811520.62139,\"metrics\":{\"ic_mean\":-0.0729,\"ic_ir\":0.0,\"ic_quality\":\"good\"}},{\"id\":\"alpha_6c437514\",\"name\":\"Alpha-2\",\"expression\":\"subtract(volume, close)\",\"ic_mean\":0.05949,\"ic_ir\":0.0,\"ic_quality\":\"good\",\"stage\":\"CANDIDATE\",\"created_at\":1789811520.63714,\"metrics\":{\"ic_mean\":0.05949,\"ic_ir\":0.0,\"ic_quality\":\"good\"}},{\"id\":\"alpha_6b5a91ce\",\"name\":\"Alpha-3\",\"expression\":\"negate(volume)\",\"ic_mean\":-0.05929,\"ic_ir\":0.0,\"ic_quality\":\"good\",\"stage\":\"CANDIDATE\",\"created_at\":1789811520.64808,\"metrics\":{\"ic_mean\":-0.05929,\"ic_ir\":0.0,\"ic_quality\":\"good\"}},{\"id\":\"alpha_3be65889\",\"name\":\"Alpha-4\",\"expression\":\"add(volume, volume)\",\"ic_mean\":0.05929,\"ic_ir\":0.0,\"ic_quality\":\"good\",\"stage\":\"CANDIDATE\",\"created_at\":1789811520.65904,\"metrics\":{\"ic_mean\":0.05929,\"ic_ir\":0.0,\"ic_quality\":\"good\"}},{\"id\":\"alpha_35cbee37\",\"name\":\"Alpha-5\",\"expression\":\"ts_std(open, 1",
+  "response_text": "{\"action\": \"BUY\", \"confidence\": 0.8, \"reasoning\": \"replay scenario envelope_decision\", \"entry\": 1.085, \"stop_loss\": 1.083, \"take_profit\": 1.09, \"position_size\": 0.01}",
+  "latency_ms": 0.0,
+  "symbol": "",
+  "timeframe": "",
+  "outcome": null,
+  "trade_ticket": null
+ },
+ {
+  "id": 405,
+  "ts": 1790598208.9182153,
+  "model": "mistralai/mistral-7b-instruct-v0.2",
+  "prompt_text": "Market Data JSON:\n{\"account\":{\"equity\":10000.0,\"balance\":10000.0},\"recent_performance\":[],\"multi_timeframe\":{},\"indicators\":{\"atr_14\":0.0012,\"adx_14\":25.0,\"ema_50\":1.08,\"close\":1.0805},\"alpha_ensemble\":null,\"alpha_decay_health\":{},\"alpha_rotation\":{},\"regime_allocation\":{},\"regime_duration\":{},\"auto_quant_tools\":{},\"cpcv_escalation\":{},\"meta_adaptive_override\":{},\"evolutionary_suggestions\":{},\"cross_market_robustness\":{},\"cross_market_hold_bias\":false,\"alpha_discovery_enrichment\":{},\"multimodal_patterns\":{},\"self_improvement_entry_threshold\":null,\"crash_detector_signal\":{},\"crash_detector_hold_bias\":false,\"causal_filter_report\":{},\"walk_forward_decay\":{},\"walk_forward_hold_bias\":false,\"optimal_execution_cost\":{},\"execution_cost_hold_bias\":false,\"ewc_forgetting_status\":{},\"alpha_stability\":{},\"canonical_mastery\":{},\"rl_analytics\":{},\"grpo_train\":{},\"ppo_train\":{},\"regime_autocorr\":{},\"meta_loop\":{},\"zero_lag_macro\":{},\"alpha_mining_results\":{\"active_alpha_strategies\":[{\"id\":\"alpha_14d39f47\",\"name\":\"Alpha-1\",\"expression\":\"ts_max(close, 5)\",\"ic_mean\":-0.0729,\"ic_ir\":0.0,\"ic_quality\":\"good\",\"stage\":\"CANDIDATE\",\"created_at\":1789811520.62139,\"metrics\":{\"ic_mean\":-0.0729,\"ic_ir\":0.0,\"ic_quality\":\"good\"}},{\"id\":\"alpha_6c437514\",\"name\":\"Alpha-2\",\"expression\":\"subtract(volume, close)\",\"ic_mean\":0.05949,\"ic_ir\":0.0,\"ic_quality\":\"good\",\"stage\":\"CANDIDATE\",\"created_at\":1789811520.63714,\"metrics\":{\"ic_mean\":0.05949,\"ic_ir\":0.0,\"ic_quality\":\"good\"}},{\"id\":\"alpha_6b5a91ce\",\"name\":\"Alpha-3\",\"expression\":\"negate(volume)\",\"ic_mean\":-0.05929,\"ic_ir\":0.0,\"ic_quality\":\"good\",\"stage\":\"CANDIDATE\",\"created_at\":1789811520.64808,\"metrics\":{\"ic_mean\":-0.05929,\"ic_ir\":0.0,\"ic_quality\":\"good\"}},{\"id\":\"alpha_3be65889\",\"name\":\"Alpha-4\",\"expression\":\"add(volume, volume)\",\"ic_mean\":0.05929,\"ic_ir\":0.0,\"ic_quality\":\"good\",\"stage\":\"CANDIDATE\",\"created_at\":1789811520.65904,\"metrics\":{\"ic_mean\":0.05929,\"ic_ir\":0.0,\"ic_quality\":\"good\"}},{\"id\":\"alpha_35cbee37\",\"name\":\"Alpha-5\",\"expression\":\"ts_std(open, 1",
+  "response_text": "{\"action\": \"HOLD\", \"confidence\": 0.8, \"reasoning\": \"replay scenario maint_once\"}",
+  "latency_ms": 0.0,
+  "symbol": "",
+  "timeframe": "",
+  "outcome": null,
+  "trade_ticket": null
+ }
+]
+
+END-MARKER-PU-0052

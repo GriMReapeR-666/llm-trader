@@ -1,0 +1,13 @@
+{
+  "now_utc": "2026-09-30T04:28:36+00:00",
+  "newest_completed_m15": "2026-09-30 04:00",
+  "newest_completed_h1": "2026-09-30 03:00",
+  "max_llm_request_at": "2026-09-29T22:52:32.221380+00:00",
+  "newest_analyzed_candle": "2026-09-29 22:30",
+  "analyzed_source": "operational_events.correlation_id",
+  "fresh_m15_available": true,
+  "fresh_h1_available": true
+}
+PU-0139-OK
+exit=0
+END-MARKER-PU-0139R

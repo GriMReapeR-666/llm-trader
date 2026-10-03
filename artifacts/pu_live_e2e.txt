@@ -1,0 +1,9 @@
+== Real pipeline, 6 cycles x 30K payloads + real system prompt ==
+BEFORE (legacy buffer, no R2/R3): 134,473 chars (~33,618 tok), user_turns=4
+AFTER  (compact R1 + R2 budget):  44,392 chars (~11,098 tok), user_turns=1
+AFTER  + failed last cycle (R3):  14,351 chars (~3,587 tok), user_turns=0
+audit live baseline: avg 143,189 chars (~35.8K tok), max 287,319; ERROR-heavy (22/38)
+reduction: 3.03x smaller; post-fix requests within the 96K R2 ceiling
+PU-0109-OK
+exit=0
+END-MARKER-PU-0109

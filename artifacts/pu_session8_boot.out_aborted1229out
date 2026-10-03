@@ -1,0 +1,3 @@
+2026-10-01T12:29:07+00:00 armed: bar 1.50GB, window 10.0h, poll 30s, free 1.79GB
+2026-10-01T12:29:08+00:00 PREFLIGHT PASS: 1.79GB >= 1.50GB and fresh M15 candle - launching bounded accumulation boot
+2026-10-01T12:29:08+00:00 boot spawned (pid 5552); meta written; watcher exits

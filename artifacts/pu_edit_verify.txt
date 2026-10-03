@@ -1,0 +1,13 @@
+COMPILE-OK operations/agent_contracts.py (10190 chars)
+COMPILE-OK tests/test_agent_contracts.py (1760 chars)
+QC-BLOCK-EXCERPT: "QuantitativeCoach": AgentContract(
+        "QuantitativeCoach", _items("closed_trades", "labels", "metrics", "research_snapshots", "macro_events"),
+        _items("trade_label", "scenario_candidate", "core_memory_candidate", "research_report"),
+        _items("label_trade", "review_session", "run_research",
+               "evaluate_strategy_lifecycle", "quant_survival_audit"),
+        notes="Writes retrospective/rev
+PIN-EXCERPT: itativeCoach", "review_session", "research_report"),
+    ("QuantitativeCoach", "run_research", "research_report"),
+    ("QuantitativeCoach", "evaluate_strategy_lifecycle", "research_report"),
+    ("QuantitativeCoach", "quant_survival_audit", "research_report")
+END-MARKER-PU-0062

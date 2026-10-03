@@ -1,0 +1,29 @@
+=== market_health_checked last 3 payloads ===
+[
+ {
+  "created_at": "2026-09-28T11:26:35.036566+00:00",
+  "p": "{\"alert_outbox\":{\"count\":0,\"duplicates\":[\"082cc55d9ab7dc5b4ca39de1dc50cdb62eba82c38abded1c20369cd66f57d303\",\"64d7d95cc632fcbf1b0ef70a529d840fd668d5e2ee663d90d38d49a02e210173\",\"c72ade2e303c8ea617567506dad03d54e42c8b01461db0170d8bbbb10215aa56\"],\"execution_authority\":false,\"inserted\":[],\"transport\":\"NONE\"},\"alerts\":{\"alerts\":[{\"code\":\"STALE_AGENT_HEARTBEATS\",\"count\":1,\"first_response\":\"Agent run heartbeat lost \\u2014 confirm the process, recover stale leases, restart the agent.\",\"runbook\":\"Universal first response\",\"severity\":\"CRITICAL\"},{\"code\":\"EXPIRED_AGENT_TASK_LEASES\",\"count\":4,\"first_respon"
+ },
+ {
+  "created_at": "2026-09-28T11:20:27.101485+00:00",
+  "p": "{\"alert_outbox\":{\"count\":0,\"duplicates\":[\"082cc55d9ab7dc5b4ca39de1dc50cdb62eba82c38abded1c20369cd66f57d303\",\"64d7d95cc632fcbf1b0ef70a529d840fd668d5e2ee663d90d38d49a02e210173\",\"c72ade2e303c8ea617567506dad03d54e42c8b01461db0170d8bbbb10215aa56\"],\"execution_authority\":false,\"inserted\":[],\"transport\":\"NONE\"},\"alerts\":{\"alerts\":[{\"code\":\"STALE_AGENT_HEARTBEATS\",\"count\":1,\"first_response\":\"Agent run heartbeat lost \\u2014 confirm the process, recover stale leases, restart the agent.\",\"runbook\":\"Universal first response\",\"severity\":\"CRITICAL\"},{\"code\":\"EXPIRED_AGENT_TASK_LEASES\",\"count\":4,\"first_respon"
+ },
+ {
+  "created_at": "2026-09-28T11:18:46.233467+00:00",
+  "p": "{\"alert_outbox\":{\"count\":0,\"duplicates\":[\"082cc55d9ab7dc5b4ca39de1dc50cdb62eba82c38abded1c20369cd66f57d303\",\"64d7d95cc632fcbf1b0ef70a529d840fd668d5e2ee663d90d38d49a02e210173\",\"c72ade2e303c8ea617567506dad03d54e42c8b01461db0170d8bbbb10215aa56\"],\"execution_authority\":false,\"inserted\":[],\"transport\":\"NONE\"},\"alerts\":{\"alerts\":[{\"code\":\"STALE_AGENT_HEARTBEATS\",\"count\":1,\"first_response\":\"Agent run heartbeat lost \\u2014 confirm the process, recover stale leases, restart the agent.\",\"runbook\":\"Universal first response\",\"severity\":\"CRITICAL\"},{\"code\":\"EXPIRED_AGENT_TASK_LEASES\",\"count\":4,\"first_respon"
+ }
+]
+
+=== market_health all severities 12h ===
+[
+ {
+  "severity": "ERROR",
+  "n": 16
+ },
+ {
+  "severity": "INFO",
+  "n": 3
+ }
+]
+
+END-MARKER-PU-0054

@@ -1,0 +1,4 @@
+remaining python processes:
+  27516 : python -m metatrader5_mcp.main
+  26992 : python -m kronos_mcp.main
+exit=0

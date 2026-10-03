@@ -1,0 +1,18 @@
+{
+  "llm_requests_7d": {
+    "total": 38,
+    "error": 22,
+    "success": 16
+  },
+  "prompts_7d": {
+    "count": 38,
+    "avg_chars": 129820,
+    "max_chars": 287319
+  },
+  "watermark_llm_requests": "2026-09-28T11:18:44.111414+00:00",
+  "watermark_raw_traces": "2026-09-28T11:18:44.263648+00:00",
+  "watermark_operational_events": "2026-09-29T19:03:37.682873+00:00"
+}
+PU-0105-OK
+exit=0
+END-MARKER-PU-0105

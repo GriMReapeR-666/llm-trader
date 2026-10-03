@@ -1,0 +1,354 @@
+C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\numpy\_core\_methods.py:219: RuntimeWarning: Degrees of freedom <= 0 for slice
+  ret = _var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\numpy\_core\_methods.py:178: RuntimeWarning: invalid value encountered in divide
+  arrmean = um.true_divide(arrmean, div, out=arrmean,
+C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\numpy\_core\_methods.py:211: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+=== registry_tools ===
+{
+ "count": 0,
+ "names": []
+}
+=== hurst_results ===
+{
+ "trending": {
+  "hurst_exponent": 4.273367121014187e-15,
+  "interpretation": "mean_reverting",
+  "confidence": 1.0
+ },
+ "mean_reverting": {
+  "hurst_exponent": 4.273367121014187e-15,
+  "interpretation": "mean_reverting",
+  "confidence": 1.0
+ }
+}
+=== hmm_unfitted ===
+{
+ "RAISED": "NotFittedError(\"This GaussianHMM instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.\")"
+}
+=== expectancy ===
+{
+ "ev": 0.7999999999999999,
+ "ev_per_dollar": 0.7999999999999999,
+ "profitable": true,
+ "win_rate": 0.6,
+ "avg_win_r": 2.0,
+ "avg_loss_r": 1.0
+}
+=== kelly ===
+{
+ "kelly_fraction": 0.33333333333333326,
+ "applied_fraction": 0.08333333333333331,
+ "max_drawdown_estimate": 0.4
+}
+=== r_multiple ===
+{
+ "r_multiple": 2.0,
+ "dollar_profit": 2.0
+}
+=== hrp_correlated_inputs ===
+{
+ "weights": [
+  0.3333333333333333,
+  0.3333333333333333,
+  0.3333333333333333
+ ],
+ "portfolio_volatility": 0.008459198353608182
+}
+=== wfo ===
+{
+ "wfe": -5.710280134499216,
+ "is_sharpe": 0.07437081649126535,
+ "oos_sharpe": -0.42467819599655926,
+ "robust": false,
+ "windows": 14
+}
+=== dsr ===
+{
+ "dsr": 7.830514169817674,
+ "p_value": 0.0,
+ "significant": true,
+ "z_score": 23.76446927663229
+}
+=== triple_barrier_tp ===
+{
+ "label": 0,
+ "return": 0.03799999999999997,
+ "exit_bar": 19
+}
+=== spread_stress ===
+{
+ "dynamic_spread_bps": 2.2125000000000004,
+ "half_spread_cost": 1.1062500000000002
+}
+=== almgren ===
+{
+ "permanent_impact": 0.00628,
+ "temporary_impact": 0.07931688344860757,
+ "total_impact_bps": 8.559688344860756,
+ "participation_ratio": 0.01
+}
+=== agent_search ===
+{
+ "success": true,
+ "tool_name": "knowledge.search",
+ "result": [
+  "data\\knowledge_base\\01_Regime_Detection\\0KRzDyEqIVY_Quant Radio Centaur Trading vs AI Only Models in Regime Shifts.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\1fSo7xmrVb8_Quant Radio Transfer Learning for Portfolio Optimization.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\1tk0IySPFgA.en.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\67Tvctn-OzA.en.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\7iqXICDW60Q.en.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\cG8hGjwPang_Tom Sosnoff on Options Trading Entrepreneurship AI  Risk Management  AlphaMinds .txt",
+  "data\\knowledge_base\\01_Regime_Detection\\D0FV5uaYqn0_Quant Radio Rethinking Cross Sectional Asset Pricing.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0111_Factor-Models.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0365_Volatility.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0601_Simulations.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0623_Simulations.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0631_Simulations.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0639_Simulations.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0647_Is-Volatility-in-Fed-Sentiment-a-Useful-Signal.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0661_Investigation.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0662_h1centerMomentumcenterh1.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0664_Buy-and-Hold-without-Vol-1984-2009.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\extracted_0711_Simulations.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\HAN7v7wMZcI.en.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\hCcOTnjLTwk.en.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\H_C9P-nAuKc.en.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\lxIfiCau85I.en.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\otI62O4Z73A_Quant Radio The Changing Signal in Options Markets.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\pzfPthvvqBM.en.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\rfOoHkhYs_0_Alpha Minds FinTech Leaders with Dr Thomas Wiecki and Camilo Saldarriaga Finance.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\ZHIrE_r_9HY_Quant Radio Machine Learning and the Probability of Bouncing Back.txt",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0006_Quant_Radio_The_Changing_Signal_in_Options_Markets.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0010_Quant_Radio_The_Dynamics_of_Value_and_Growth.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0011_Agentic_AI_in_Trading_The_Evolution_of_Trading_Bots_with_Ire.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0012_Quant_Radio_The_Factor_Mirage.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0013_Quant_Radio_Regime-Aware_Universal_Portfolios.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0016_Quant_Radio_Centaur_Trading_vs_AI_Only_Models_in_Regime_Shif.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0017_Systematic_Investing_and_AI_with_Benjamin_Paul_Rollert__Alph.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0019_Quant_Radio_The_Return_of_the_Stock_Split.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0026_Alpha_Minds_FinTech_Leaders_with_Dr._Thomas_Wiecki_and_Camil.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0028_Quant_Radio_Can_Disagreement_Between_Models_Predict_Market_A.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0035_Quant_Radio_Short-Term_Correlated_Stress_Reversal_Trading.md",
+  "data\\knowledge_base\\01_Regime_Detection\\qkb_code_0036_Quant_Radio_Machine_Learning_and_the_Probability_of_Bouncing.md",
+  "data\\knowledge_base\\02_Strategy_Development\\0DI5bkBeQwQ_Quant Radio Scaled PCA for Factor Investing.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\1ne_RZCE7aM.en.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\3JEP4olw6EI_Quant Radio Transforming Empirical Asset Pricing.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\b-yToymn6uQ.en.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\dt0LctyMniQ.en.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\ERA2kPdHhIM_Quant Radio Understanding Analyst Silence and Its Impact.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\EwoOo_o0zCM_Quant Radio Generative AI in Financial Economics.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\extracted_0104_Ledoit-Wolf-Estimator.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\extracted_0309_Leverage-in-an-algorithm.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\extracted_0480_Issues-with-Backtesting.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\extracted_0603_Backtesting-on-real-market-data.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\extracted_0625_Backtesting-on-real-market-data.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\extracted_0633_Backtesting-on-real-market-data.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\extracted_0641_Backtesting-on-real-market-data.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\extracted_0659_Optimal-Stop-Losses-and-Rebounds.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\extracted_0713_Backtesting-on-real-market-data.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\FZLcsfXruWI.en.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\iitvZA0tpUU_Quant Radio Political Uncertainty and Commodity Markets.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\k3IB8KG5Jds_Quant Radio The Factor Mirage.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\m4BFOSaos7M.en.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\puq_4dtDHGk_Quant Radio Can Dividend-Price Ratio Predict Stock Return.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\Quh_F5xRMkY_Quant Radio Modeling Jump Risk in Crypto Markets.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\QwHf7yDHQjc_Quant Radio The Magic of Drawdowns.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\research_algorithmic_trading_guide.txt",
+  "data\\knowledge_base\\02_Strategy_Development\\_N30LmTYewY_Small Value or SmallValue.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\-0j5Vw7d7ro_Quant Radio Practical Beta Hedging Implementation.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\63ZI4bzfiT4_Causal Portfolio Optimization with Alejandro Rodriguez Dom\u00ednguez.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\9mpN7n2wJkM_Towards a Free Lunch Quantifying Diversification with Dr Tom Starke.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\a--feNgBwFo.en.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\extracted_0033_References.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\extracted_0037_CAPM-Assumptions.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\extracted_0203_A-brief-foray-into-linear-algebra.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\extracted_0483_Lecture-Link.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\extracted_0580_Hedging-Beta-and-Sector-Risk-is-Good-for-Allocators-Which-is-Good-for-You.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\extracted_0621_This-is-what-the-data-looks-like.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\extracted_0646_Value-Added-by-Employee-as-a-Trading-Signal.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\extracted_0709_Conclusion.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\fiWX7xpRPmY_Quant Radio Measuring Volatility in Heavy Tailed Markets.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\JgGOtCskLRg_Generative AI for Trading and Asset Management with Dr Hamlet Medina and Dr Erne.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\LXTMp3PlFxE_Quant Radio Understanding Long Run Asset Returns.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\NqgPvPma78k_Quant Radio The Drivers of Interest Rates and Equity Valuations.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\OTfNrOpAjaE_Quant Radio Seemingly Virtuous Complexity in Return Prediction.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\Q9xuLDFoqGY.en.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\research_hierarchical_signal_policy.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\U0P5dX27gDo_Quant Radio Is the Best Dividend Strategy to Avoid Them.txt",
+  "data\\knowledge_base\\03_Portfolio_Management\\_HIxNscoMfc_Quant Radio What Should You Do When You Dont Know What to Do.txt",
+  "data\\knowledge_base\\04_Order_Execution\\BcRAmctBy2c_Quant Radio Interest Rates and Short Term Currency Crash Risk.txt",
+  "data\\knowledge_base\\04_Order_Execution\\cKORAo-bI5I_Quant Radio MA Outlook for 2025.txt",
+  "data\\knowledge_base\\04_Order_Execution\\El7E57pAKbw_Quant Radio Regime-Aware Universal Portfolios.txt",
+  "data\\knowledge_base\\04_Order_Execution\\extracted_0300_Liquidity-vs-Volume.txt",
+  "data\\knowledge_base\\04_Order_Execution\\extracted_0360_Intro-to-Transaction-Costs.txt",
+  "data\\knowledge_base\\04_Order_Execution\\extracted_0366_Bid-Ask-Spread.txt",
+  "data\\knowledge_base\\04_Order_Execution\\extracted_0367_Quantifying-Market-Impact.txt",
+  "data\\knowledge_base\\04_Order_Execution\\extracted_0368_The-JP-Morgan-Market-Impact-Model.txt",
+  "data\\knowledge_base\\04_Order_Execution\\extracted_0370_Conclusions.txt",
+  "data\\knowledge_base\\04_Order_Execution\\extracted_0371_References.txt",
+  "data\\knowledge_base\\04_Order_Execution\\extracted_0749_Extraction-Completeness-Audit.txt",
+  "data\\knowledge_base\\04_Order_Execution\\z545N47um5g_Quant Radio Arbitrage in Perpetual Crypto Contracts.txt",
+  "data\\knowledge_base\\04_Order_Execution\\z9AEa-MNrU0_The Predictive Edge with Dr Alejandro Lopez-Lira.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\DIQdd21CoIQ.en.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0027_Arbitrage.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0032_Predicting-the-Future-How-to-actually-use-what-weve-done.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0099_d-Newey-West-Correction.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0165_c-Predicting-2016-Temperatures.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0239_a-Summary.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0240_pandas-Data-Structures.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0310_Risk-Adjusted-Returns.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0484_Lecture-Link.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0511_Sometimes-Factors-are-Just-Other-Factors.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0529_d-Rolling-Skew.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0594_Enter-your-backtest-ID.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0649_TLT.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0691_Notebook-Contents.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0693_Notebook-Contents.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0694_Notebook-Contents.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0695_Notebook-Contents.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0696_Notebook-Contents.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0697_Notebook-Contents.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0698_Notebook-Contents.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0699_Notebook-Contents.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0704_Going-forward.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0721_Percent-Above-260-Day-Low.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0725_Conditional-probability.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\extracted_0747_MemLabs-Complete-Actionable-Code-Module-Index.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\IS-EDw_dLwI_Quant Radio Music Royalties vs the Stock Market.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\rCM-mRfdYhY.en.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\Z4bt9NF2Xlw_Quant Radio Revisiting Momentum with Deep Learning.txt",
+  "data\\knowledge_base\\05_Quant_Utilities\\qkb_code_0002_Quant_Radio_Measuring_Volatility_in_Heavy_Tailed_Markets.md",
+  "data\\knowledge_base\\05_Quant_Utilities\\qkb_code_0004_Quant_Radio_Can_AI_Do_Financial_Research.md",
+  "data\\knowledge_base\\05_Quant_Utilities\\qkb_code_0009_Quant_Radio_The_Drivers_of_Interest_Rates_and_Equity_Valuati.md",
+  "data\\knowledge_base\\05_Quant_Utilities\\qkb_code_0015_Quant_Radio_Interest_Rates_and_Short_Term_Currency_Crash_Ris.md",
+  "data\\knowledge_base\\05_Quant_Utilities\\qkb_code_0020_Quant_Radio_Music_Royalties_vs._the_Stock_Market.md",
+  "data\\knowledge_base\\05_Quant_Utilities\\qkb_code_0022_Causal_Portfolio_Optimization_with_Alejandro_Rodriguez_Dom\u00edn.md",
+  "data\\knowledge_base\\05_Quant_Utilities\\qkb_code_0025_Quant_Radio_Understanding_Analyst_Silence_and_Its_Impact.md",
+  "data\\knowledge_base\\05_Quant_Utilities\\qkb_code_0030_Quant_Radio_Seemingly_Virtuous_Complexity_in_Return_Predicti.md",
+  "data\\knowledge_base\\05_Quant_Utilities\\qkb_code_0031_Quant_Radio_The_Magic_of_Drawdowns.md",
+  "data\\knowledge_base\\05_Quant_Utilities\\qkb_code_0032_Quant_Radio_Political_Uncertainty_and_Commodity_Markets.md",
+  "data\\knowledge_base\\99_Archive_Unsorted\\complete_quant_knowledge.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0005_Structure-of-repository.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0006_Tools-and-frameworks-hammer_and_wrench.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0009_Resources-rocket.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0011_Author-bust_in_silhouette.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0012_Challenge-Description.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0013_Resources.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0100_Measuring-Volatility.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0122_Continuous-Futures.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0308_How-do-I-get-leverage.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0524_Lecture-Link.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0531_Lecture-Link.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0545_b-Dividend-1500-Sector-Composition.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0613_Monthly-trading-competitions-win-and-well-invest-100k-you-keep-all-the-profits.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0648_GLD.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0663_TSMOM-Volatility-Scaled-1984-2009-Same-as-MOP-paper.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0730_Simulations.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\extracted_0746_MemLabs-External-Video-Transcriptions.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\kGfeAD53U3M.en.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\options_summary.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\vOefn5zRjOM.en.txt",
+  "data\\knowledge_base\\99_Archive_Unsorted\\volatility_summary.txt"
+ ],
+ "error": null
+}
+=== agent_classify ===
+{
+ "success": true,
+ "tool_name": "knowledge.classify",
+ "result": {
+  "topic": "03_Portfolio_Management",
+  "confidence": 1.0,
+  "keywords": [
+   "risk of ruin",
+   "kelly",
+   "kelly criterion",
+   "quarter kelly"
+  ]
+ },
+ "error": null
+}
+=== agent_list_topics ===
+{
+ "success": true,
+ "tool_name": "knowledge.list_topics",
+ "result": {
+  "topics": [
+   "01_Regime_Detection",
+   "02_Strategy_Development",
+   "03_Portfolio_Management",
+   "04_Order_Execution",
+   "05_Quant_Utilities",
+   "99_Archive_Unsorted"
+  ]
+ },
+ "error": null
+}
+=== agent_chain ===
+{
+ "pipeline_results": [
+  {
+   "step": 0,
+   "tool": "knowledge.list_topics",
+   "result": {
+    "success": true,
+    "tool_name": "knowledge.list_topics",
+    "result": {
+     "topics": [
+      "01_Regime_Detection",
+      "02_Strategy_Development",
+      "03_Portfolio_Management",
+      "04_Order_Execution",
+      "05_Quant_Utilities",
+      "99_Archive_Unsorted"
+     ]
+    },
+    "error": null
+   }
+  },
+  {
+   "step": 1,
+   "tool": "knowledge.search",
+   "result": {
+    "success": true,
+    "tool_name": "knowledge.search",
+    "result": [
+     "data\\knowledge_base\\02_Strategy_Development\\research_algorithmic_trading_guide.txt",
+     "data\\knowledge_base\\03_Portfolio_Management\\extracted_0621_This-is-what-the-data-looks-like.txt",
+     "data\\knowledge_base\\03_Portfolio_Management\\extracted_0709_Conclusion.txt",
+     "data\\knowledge_base\\03_Portfolio_Management\\OTfNrOpAjaE_Quant Radio Seemingly Virtuous Complexity in Return Prediction.txt",
+     "data\\knowledge_base\\03_Portfolio_Management\\research_principal_portfolios.txt",
+     "data\\knowledge_base\\05_Quant_Utilities\\extracted_0599_Def-Moving-Average.txt",
+     "data\\knowledge_base\\05_Quant_Utilities\\extracted_0605_Next-steps.txt",
+     "data\\knowledge_base\\05_Quant_Utilities\\extracted_0612_Def-Moving-Average.txt",
+     "data\\knowledge_base\\05_Quant_Utilities\\extracted_0627_Next-steps.txt",
+     "data\\knowledge_base\\05_Quant_Utilities\\extracted_0629_NUMBER-OF-OBSERVATIONS.txt",
+     "data\\knowledge_base\\05_Quant_Utilities\\extracted_0635_Next-steps.txt",
+     "data\\knowledge_base\\05_Quant_Utilities\\extracted_0643_Next-steps.txt",
+     "data\\knowledge_base\\05_Quant_Utilities\\extracted_0715_Next-steps.txt",
+     "data\\knowledge_base\\99_Archive_Unsorted\\complete_quant_knowledge.txt"
+    ],
+    "error": null
+   }
+  }
+ ],
+ "final_context": {
+  "topics": {
+   "success": true,
+   "tool_name": "knowledge.list_topics",
+   "result": {
+    "topics": [
+     "01_Regime_Detection",
+     "02_Strategy_Development",
+     "03_Portfolio_Management",
+     "04_Order_Execution",
+     "05_Quant_Utilities",
+     "99_Archive_Unsorted"
+    ]
+   },
+   "error": null
+  }
+ }
+}
+END-MARKER-PU-0063

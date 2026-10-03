@@ -1,0 +1,30 @@
+=== PU-0144 provider probes @ 2026-09-30T02:45:47Z UTC ===
+
+--- NVIDIA NIM (integrate.api.nvidia.com) ---
+keys loaded: ['NVIDIA_KEY_1', 'NVIDIA_KEY_2', 'NVIDIA_KEY_3', 'NVIDIA_KEY_4', 'NVIDIA_KEY_5']
+[NVIDIA_KEY_1=nvap...ld88(len=70)] GET /models status=200 -> {"models_count": 81, "first_ids": ["01-ai/yi-large", "adept/fuyu-8b", "ai21labs/jamba-1.5-large-instruct"]}
+[NVIDIA_KEY_2=nvap...eOJu(len=70)] GET /models status=200 -> {"models_count": 81, "first_ids": ["01-ai/yi-large", "adept/fuyu-8b", "ai21labs/jamba-1.5-large-instruct"]}
+[NVIDIA_KEY_3=nvap...FJqx(len=70)] GET /models status=200 -> {"models_count": 81, "first_ids": ["01-ai/yi-large", "adept/fuyu-8b", "ai21labs/jamba-1.5-large-instruct"]}
+[NVIDIA_KEY_4=nvap...yU8n(len=70)] GET /models status=200 -> {"models_count": 81, "first_ids": ["01-ai/yi-large", "adept/fuyu-8b", "ai21labs/jamba-1.5-large-instruct"]}
+[NVIDIA_KEY_5=nvap...3gbP(len=70)] GET /models status=200 -> {"models_count": 81, "first_ids": ["01-ai/yi-large", "adept/fuyu-8b", "ai21labs/jamba-1.5-large-instruct"]}
+[nvidia/NVIDIA_KEY_1] chat status=200 model=meta/llama-3.2-11b-vision-instruct
+  body: "{\"id\":\"chatcmpl-f46205888f874cada1bc8603a76038eb\",\"object\":\"chat.completion\",\"created\":1790736349,\"model\":\"meta/llama-3.2-11b-vision-instruct\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Your\",\"refusal\":null,\"annotations\":null,\"audio\":null,\"function_call\":null,\"tool_calls\":[],\"reasoning_content\":null},\"logprobs\":null,\"finish_reason\":\"length\",\"stop_reason\":null}],\"service_tier\":n"
+
+--- Cerebras (api.cerebras.ai) ---
+key: csk-...692c(len=52)
+GET /models status=403 -> "error code: 1010\n"
+[cerebras] chat status=403 model=qwen-3.8-27b
+  body: "error code: 1010\n"
+
+--- OpenRouter (openrouter.ai) ---
+key: sk-o...8f3e(len=73)
+[openrouter] chat status=200 model=nvidia/nemotron-3-super-120b-a12b:free
+  body: "\n         \n{\"id\":\"gen-1790736350-IAYRh03j2O2gnK83aISX\",\"object\":\"chat.completion\",\"created\":1790736350,\"model\":\"nvidia/nemotron-3-super-120b-a12b:free\",\"provider\":\"Nvidia\",\"system_fingerprint\":null,\"service_tier\":null,\"choices\":[{\"index\":0,\"logprobs\":null,\"finish_reason\":\"length\",\"native_finish_reason\":\"length\",\"message\":{\"role\":\"assistant\",\"content\":\"Okay\",\"refusal\":null,\"reasoning\":\"Okay\",\"reaso"
+
+--- TokenRouter (base_url=openrouter.ai/api/v1, TOKENROUTER_KEY) ---
+key: sk-k...KeCh(len=51)
+GET /models status=200 -> {"models_count": 464, "first_ids": ["openai/gpt-6.1-sol-pro", "openai/gpt-6.1-sol-pro:batch", "openai/gpt-6.1-sol"]}
+
+PU-0144-OK
+exit=0
+END-MARKER-PU-0144

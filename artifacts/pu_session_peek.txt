@@ -1,0 +1,17 @@
+UTC now: 2026-09-28T10:45:54+00:00
+trader: [(1672, 2394)]
+events since 10:29Z: 82
+-- schedule_due claims since 10:29Z (top 8) --
+   ('sieve_poll', 3)
+   ('position_reconcile', 3)
+   ('market_health', 3)
+   ('event_monitor', 3)
+   ('alert_dispatch', 3)
+   ('incident_sweep', 2)
+   ('event_triage', 2)
+   ('session_review', 1)
+-- overruns since 10:29Z --
+[('event_monitor', 125.181, 60.0, '2026-09-28T10:40:22.211210+00:00'), ('journal_maintenance', 60.096, 45.0, '2026-09-28T10:41:30.130535+00:00')]
+store pipeline_mode: calendar_only | status: DEFERRED | full_every_s: 300.0 | next_full_in_s: 50.9
+store captured_at: 2026-09-28T10:42:30.613258+00:00
+END-MARKER-PU-0042

@@ -1,0 +1,6 @@
+2026-10-02T07:32:00+00:00 waiter armed (boot window 16h, run cap 5h, ablation run)
+2026-10-02T07:56:00+00:00 boot detected at 2026-10-02T07:55:32.753437+00:00 - waiting out grace period
+2026-10-02T13:01:46+00:00 run cap 5h hit - proceeding with report on bounded window
+2026-10-02T13:02:06+00:00 running PU-0150 report (window start 2026-10-02T07:55:32.753437+00:00)
+2026-10-02T13:02:08+00:00 report exit=0 -> artifacts/pu_session10_report.txt
+END-MARKER-PU-0157

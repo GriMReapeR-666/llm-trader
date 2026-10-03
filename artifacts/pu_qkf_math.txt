@@ -1,0 +1,44 @@
+=== HRP: correlated pair + independent third ===
+weights: [0.2544, 0.2656, 0.48] sum: 1.0
+port_vol: 0.0068
+
+=== HRP: near-identical pair + independent same-vol third (analytic ~ [.25,.25,.50]) ===
+weights: [0.2559, 0.2559, 0.4882]
+
+=== HRP: vol matters (asset A vol 1%, B vol 5%, independent) ===
+weights: [0.96, 0.04] (old equal-weight would be [0.5, 0.5])
+
+=== HRP: 3 iid assets -> near equal ===
+weights: [0.3305, 0.3239, 0.3456]
+
+=== HRP: guards ===
+1 asset: {'error': 'At least 2 assets required'}
+2 obs: {'error': 'At least 3 observations per asset required'}
+
+=== DSR: report's overconfidence case SR=1.5, n=252, trials=100 (old printed dsr=7.83) ===
+{'dsr': 1.0, 'p_value': 0.0, 'significant': True, 'expected_max_sr': 0.15973, 'sr_variance_used': 0.003984}
+
+=== DSR: small edge, many trials: SR=0.10, n=252, trials=1000 ===
+{'dsr': 0.047791, 'p_value': 0.952209, 'significant': False, 'expected_max_sr': 0.205461, 'sr_variance_used': 0.003984}
+
+=== DSR: skew/kurtosis penalty (SR=0.30, n=252, trials=10000) ===
+gaussian moments: 0.808616  sig: False
+skew -1, kurt 8 : 0.770061  sig: False
+
+=== DSR: trials monotonicity (SR=0.30, n=252) ===
+trials=    10 dsr=0.999062 sr0=0.099388
+trials=   100 dsr=0.985144 sr0=0.159730
+trials= 10000 dsr=0.808616 sr0=0.243683
+
+=== DSR: sr_variance override ===
+default var: 0.985144 4x var: 0.381478
+
+=== DSR: scipy cross-check of SR=0.10 case ===
+scipy expected: 0.04737827 got: 0.04779081 diff: 0.00041254006402945825
+
+=== DSR: guards ===
+n=2: {'error': 'Insufficient observations'}
+kurtosis=0: {'error': 'kurtosis must be >= 1'}
+trials=0: {'error': 'trials must be >= 1'}
+MATH-DONE
+END-MARKER-PU-0069

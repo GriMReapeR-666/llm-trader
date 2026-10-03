@@ -1,0 +1,490 @@
+{
+ "symbol": "EURUSD",
+ "timeframe": "H1",
+ "bars": 5000,
+ "stress": {
+  "cost_stress": true,
+  "stress_spread_multiplier": 2.0,
+  "stress_event_spread_multiplier": 3.0,
+  "stress_swap_per_lot_per_night": -2.5,
+  "stress_triple_swap_weekday": 2
+ },
+ "runs": [
+  {
+   "strategy": "kronos_h1",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 10.7
+  },
+  {
+   "strategy": "statarb_eur_chf",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "macro_nfp_pullback",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "meanrev_bollinger",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 1.1
+  },
+  {
+   "strategy": "alpha_055_orderflow",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "alpha_098_copula",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "agent_execution_rl",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "agent_regime_supervisor",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "model_bocpd_changepoint",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "model_kalman_filter",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "gold_momentum_h4",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "spx_volatility_skew",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "sprt_hypothesis_gate",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 0.9
+  },
+  {
+   "strategy": "default",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "deterministic_signal",
+    "sharpe": -6.92,
+    "total_trades": 129,
+    "expectancy_r": -0.5817,
+    "total_cost": 3395.26,
+    "total_swap_cost": -1437.775
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "seconds": 1.0
+  }
+ ],
+ "random_null_stress": {
+  "sharpe": -15.5249,
+  "trades": 101,
+  "pf": 0.3414,
+  "expectancy_r": -0.6678,
+  "total_swap_cost": -1815.875,
+  "seconds": 0.2
+ },
+ "diff_vs_deep_sweep": {
+  "unstressed_labels_sharpe": -4.3,
+  "labels_all_identical_unstressed": true,
+  "unstressed_null_sharpe": -0.29,
+  "unstressed_null_pf": 0.96
+ }
+}

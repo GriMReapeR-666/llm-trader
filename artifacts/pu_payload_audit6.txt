@@ -1,0 +1,35 @@
+across 5 recent prompts:
+  total content chars:      715944
+  replayed-history chars:   565041 (78.9%)
+  current-payload chars:    150903 (21.1%)
+  avg per-prompt: 143189 chars, of which current ~30181
+
+current user message: 28812 chars, JSON 29735 chars, 73 sections:
+     6641   22.3%  multi_timeframe
+     3047   10.2%  live_advisory_hub
+     2806    9.4%  alpha_mining_results
+     2424    8.2%  completed_feature_snapshot
+     1847    6.2%  news_trading_context
+     1454    4.9%  indicators
+     1407    4.7%  macro
+     1171    3.9%  regime_duration
+      967    3.3%  auto_quant_tools
+      923    3.1%  hierarchical_advisory
+      915    3.1%  event_playbooks
+      856    2.9%  regime_allocation
+      694    2.3%  news_events
+      661    2.2%  meta_label_advisory
+      400    1.3%  macro_state_vector
+      370    1.2%  microstructure
+      338    1.1%  advisory_regime
+      327    1.1%  intermarket_regime
+      319    1.1%  quant_audit
+      259    0.9%  opportunity_fusion
+      229    0.8%  working_memory
+      223    0.7%  playbook
+      196    0.7%  learned_patterns
+      158    0.5%  event_state
+      142    0.5%  macro_opportunity_bus
+      961  (remaining 48 sections)
+PROBE-DONE
+END-MARKER-PU-0098

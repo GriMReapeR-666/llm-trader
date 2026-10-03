@@ -1,0 +1,41 @@
+{
+  "benchmark_timestamp": "2026-09-23T04:11:34Z",
+  "model_under_test": "Laya (ModernBERT-421M) + Deterministic Post-Validator",
+  "note": "Parts 2-4 from checkpointed resume (research/_mcb_resume.py); Part 1 captured in artifacts/mcb_out.txt",
+  "boundary_precision": {
+    "test_pair": "+2.10\u03c3 vs +1.75\u03c3",
+    "passed": false,
+    "pos_answer": "MODERATE_HAWKISH",
+    "neg_answer": "MODERATE_HAWKISH",
+    "confounder_answer": "MODERATE_DOVISH"
+  },
+  "crisis_freeze_recall": {
+    "tested_scenarios": 4,
+    "recalled_freezes": 4,
+    "recall_pct": 100.0,
+    "target_met": true,
+    "detail": [
+      {
+        "id": "SCEN_01_CPI_SURGE",
+        "freeze_recalled": true
+      },
+      {
+        "id": "SCEN_02_EMERGENCY_CUT",
+        "freeze_recalled": true
+      },
+      {
+        "id": "SCEN_06_FLASH_CRASH_UNPEG",
+        "freeze_recalled": true
+      },
+      {
+        "id": "SCEN_12_PROMPT_INJECTION_DEFENSE",
+        "freeze_recalled": true
+      }
+    ]
+  },
+  "cascade_consistency": {
+    "tested_link": "D1 Surprise -> D6 Yield -> D8 Arbitration",
+    "passed": true,
+    "arbitration_verdict": "BLACKOUT_POSTPONE"
+  }
+}

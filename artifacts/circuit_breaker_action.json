@@ -1,0 +1,9 @@
+{
+  "action": "REDUCE",
+  "reason": "Win rate 0.0% below 35% floor",
+  "severity": "WARNING",
+  "details": {
+    "win_rate": 0.0,
+    "threshold": 0.35
+  }
+}

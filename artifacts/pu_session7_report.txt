@@ -1,0 +1,281 @@
+{
+  "report": "PU-0150",
+  "window_start": "2026-10-01T09:00:12.897881+00:00",
+  "llm_requests": [
+    {
+      "created_at": "2026-10-01T09:06:32.562223+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "PARTIAL_FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 894
+    },
+    {
+      "created_at": "2026-10-01T09:15:36.513155+00:00",
+      "strategy": "swing",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 811
+    },
+    {
+      "created_at": "2026-10-01T09:16:44.322875+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 1628
+    },
+    {
+      "created_at": "2026-10-01T09:22:51.670205+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 477
+    },
+    {
+      "created_at": "2026-10-01T09:39:21.843363+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 850
+    },
+    {
+      "created_at": "2026-10-01T09:49:51.079549+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 850
+    },
+    {
+      "created_at": "2026-10-01T10:03:45.630093+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 477
+    },
+    {
+      "created_at": "2026-10-01T10:09:46.570915+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 850
+    },
+    {
+      "created_at": "2026-10-01T10:10:12.915178+00:00",
+      "strategy": "swing",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 700
+    },
+    {
+      "created_at": "2026-10-01T10:14:27.470154+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 496
+    },
+    {
+      "created_at": "2026-10-01T10:21:29.546905+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 850
+    },
+    {
+      "created_at": "2026-10-01T10:31:41.566565+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 850
+    }
+  ],
+  "trader_summary": {
+    "n": 8,
+    "errors": 7,
+    "successes": 1,
+    "error_rate": 0.875,
+    "baseline_error_rate": 0.579
+  },
+  "by_strategy": {
+    "swing": {
+      "n": 2,
+      "errors": 2,
+      "successes": 0
+    },
+    "scalp": {
+      "n": 6,
+      "errors": 5,
+      "successes": 1
+    }
+  },
+  "errors_detail": [
+    {
+      "at": "2026-10-01T09:15:36.513155+00:00",
+      "strategy": "swing",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-10-01T09:39:21.843363+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-10-01T09:49:51.079549+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-10-01T10:09:46.570915+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-10-01T10:10:12.915178+00:00",
+      "strategy": "swing",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-10-01T10:21:29.546905+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-10-01T10:31:41.566565+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    }
+  ],
+  "prompt_join": [
+    {
+      "at": "2026-10-01T09:15:36.513155+00:00",
+      "strategy": "swing",
+      "status": "ERROR",
+      "prompt_chars": 57279
+    },
+    {
+      "at": "2026-10-01T09:16:44.322875+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 47770
+    },
+    {
+      "at": "2026-10-01T09:39:21.843363+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 84188
+    },
+    {
+      "at": "2026-10-01T09:49:51.079549+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 49477
+    },
+    {
+      "at": "2026-10-01T10:09:46.570915+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 49822
+    },
+    {
+      "at": "2026-10-01T10:10:12.915178+00:00",
+      "strategy": "swing",
+      "status": "ERROR",
+      "prompt_chars": 49494
+    },
+    {
+      "at": "2026-10-01T10:21:29.546905+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 49816
+    },
+    {
+      "at": "2026-10-01T10:31:41.566565+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 49797
+    }
+  ],
+  "prompt_stats": {
+    "n": 8,
+    "min": 47770,
+    "max": 84188,
+    "avg": 54705,
+    "over_96k": 0,
+    "baseline_avg": 129820,
+    "baseline_max": 287319
+  },
+  "memory_summary": {
+    "n": 4,
+    "errors": 4,
+    "parse_status_counts": {
+      "PARTIAL_FAILURE": 1,
+      "FAILURE": 3
+    },
+    "error_strings": [
+      "memory batch contained failed items; left queued for retry"
+    ]
+  },
+  "operational_event_counts": {
+    "distillation_failed": 11,
+    "distilled_locally": 1,
+    "schedule_handler_overrun": 6
+  },
+  "memory_outbox_status": {
+    "PENDING": 6,
+    "SENT": 14
+  }
+}
+PU-0150-OK

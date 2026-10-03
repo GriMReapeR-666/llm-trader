@@ -1,0 +1,25 @@
+{
+  "booted_at_utc": "2026-09-30T05:07:14.773763+00:00",
+  "pid": 28896,
+  "free_gb_at_boot": 1.57,
+  "cmd": [
+    "C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "-X",
+    "utf8",
+    "-u",
+    "mt5_trader.py",
+    "llm-trade",
+    "--paper",
+    "--symbol",
+    "EURUSD",
+    "--timeframe",
+    "AUTO",
+    "--model",
+    "mistralai/mistral-7b-instruct-v0.2",
+    "--risk-per-trade",
+    "1.0",
+    "--loops",
+    "8",
+    "--no-dashboard"
+  ]
+}

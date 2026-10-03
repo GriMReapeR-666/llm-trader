@@ -1,0 +1,46 @@
+{
+  "probe": "event_monitor_steps",
+  "ran_at": "2026-09-28T05:55:00.160351+00:00",
+  "symbol": "EURUSD",
+  "total_seconds": 20.13,
+  "budget_s": 60.0,
+  "steps": [
+    {
+      "step": "1 collect_calendar_event_rows(None,None)",
+      "seconds": 0.0,
+      "status": "OK",
+      "detail": "([], 'UNAVAILABLE')"
+    },
+    {
+      "step": "2 get_fred_data(catalog)",
+      "seconds": 0.0,
+      "status": "OK",
+      "detail": "{}"
+    },
+    {
+      "step": "3 get_hot_topics(5)",
+      "seconds": 0.0,
+      "status": "OK",
+      "detail": "[]"
+    },
+    {
+      "step": "4 get_news(keywords, 5)",
+      "seconds": 0.0,
+      "status": "OK",
+      "detail": "[]"
+    },
+    {
+      "step": "5 process_cycle_data_sources(paper)",
+      "seconds": 11.66,
+      "status": "OK",
+      "detail": "{'status': 'PROCESSED', 'captured_at': '2026-09-28T05:54:40.032326+00:00', 'symbol': 'EURUSD', 'observations': {'fred': {'status': 'SKIPPED', 'inserted': 0, 'reason': 'empty macro_"
+    },
+    {
+      "step": "6 run_realtime_news_ingest(include_rss=True)",
+      "seconds": 8.47,
+      "status": "OK",
+      "detail": "{'status': 'PROCESSED', 'captured_at': '2026-09-28T05:55:00.159570+00:00', 'article_count': 80, 'ingest': {'status': 'INGESTED', 'ingested': 60, 'skipped': 20, 'triage': {'status':"
+    }
+  ],
+  "note": "throwaway graph DB; MT5-terminal calendar path not measured"
+}

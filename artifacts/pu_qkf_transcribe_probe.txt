@@ -1,0 +1,20 @@
+PASS run1 harvested 3 - {'subtitles_parsed': 1}
+PASS run1 parsed only vidB srt - {'srt': 1, 'vtt': 0}
+PASS run1 no media / no whisper 
+PASS run1 dest names - ['chan1_vidA.txt', 'chan1_vidB.txt', 'chan2_vidC.txt']
+PASS vidB transcript created next to srt 
+PASS run1 success, no errors 
+PASS run2 no reparse - {'srt': 1, 'vtt': 0}
+PASS run2 already_collected 3, nothing reprocessed - {'already_collected': 3}
+PASS classify moved 3, dir drained - {'moved': 3, 'dups': None}
+PASS run3 no re-harvest after classify - {'already_classified': 3}
+PASS run3 no reparse - {'srt': 1, 'vtt': 0}
+PASS run4 reparsed stale srt exactly once - (1, {'srt': 2, 'vtt': 0})
+PASS run4 no re-harvest (identical content) - {'subtitles_parsed': 1, 'already_classified': 3}
+PASS run4b reparse + re-harvest on changed content - {'subtitles_parsed': 1, 'already_classified': 2}
+PASS run5 media detected - {'already_collected': 1, 'already_classified': 2, 'media_files': 1}
+PASS run5 whisper output collected once - ({'already_collected': 1, 'already_classified': 2, 'media_files': 1}, [])
+PASS run5b fresh media output skipped on rerun - {'already_collected': 1, 'already_classified': 2, 'media_files': 1, 'media_skipped': 1}
+{"parse_calls": {"srt": 4, "vtt": 0}, "all_pass": true, "n": 17}
+PROBE-DONE
+END-MARKER-PU-0081

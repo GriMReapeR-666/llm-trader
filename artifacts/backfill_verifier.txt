@@ -1,0 +1,41 @@
+journal: trading_state.db (read-only)
+now:     2026-09-27T04:33:50.875463+00:00
+
+== session ==
+last journal event: 2026-09-26T13:32:28.494597+00:00
+schedule_due in last 6h: 0 -> live session NOT detected
+
+== schedule registration ==
+macro_event_evidence: NOT REGISTERED (registers on next trader boot)
+
+== evidence tables ==
+macro_events:            41 (max captured_at 2026-09-27T04:27:11.060588+00:00)
+event_reaction_trackers: 41
+  status COMPLETE: 39
+  status TRACKING: 2
+event_reactions:         39 (max observed_at 2026-09-27T04:27:10.967858+00:00)
+  EURUSD: 39 reactions
+  quality BACKFILL_FRED_LEVEL_RELEASE: 39
+
+== backfilled evidence ==
+backfilled sources:   41
+backfilled trackers:  41
+backfilled reactions: 39 (of 39 total)
+
+== stage telemetry ==
+macro_event_evidence_updated: 0
+macro_event_evidence_failed: 0
+macro_event_record_failed: 0
+pulses that recorded >=1 macro_event: 0
+pulses that scheduled >=1 tracker:    0
+
+== supporting chain ==
+macro_sources from evidence stage: 0 (max captured_at None)
+atomic_facts macro_event keys (exactly-once gate): 41
+schedule_skipped events naming macro_event_evidence: 0
+
+== gained since last run_started ==
+session start: 2026-09-26T13:28:27.552226+00:00
+  macro_events +41, trackers +0, reactions +39
+
+RESULT: EVIDENCE PRESENT (backfill era) - live-session accumulation still pending; start the trader and re-run after a session.

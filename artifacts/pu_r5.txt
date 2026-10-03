@@ -1,0 +1,30 @@
+compile-exit=0
+bringing up nodes...
+bringing up nodes...
+
+...........................................F.F....F..                    [100%]
+================================== FAILURES ===================================
+_______________________ test_r4_no_pruning_under_budget _______________________
+[gw1] win32 -- Python 3.13.5 C:\Users\User\AppData\Local\Programs\Python\Python313\python.exe
+tests\test_request_budget.py:113: in test_r4_no_pruning_under_budget
+    assert out["advisory_regime"]["regime"] == "RISK_ON"
+           ^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'advisory_regime'
+________________ test_r5_small_sections_collapse_into_one_blob ________________
+[gw1] win32 -- Python 3.13.5 C:\Users\User\AppData\Local\Programs\Python\Python313\python.exe
+tests\test_request_budget.py:139: in test_r5_small_sections_collapse_into_one_blob
+    blob_len = len(json.dumps(out["minor_context_summary"]))
+                   ^^^^
+E   NameError: name 'json' is not defined. Did you forget to import 'json'?
+____________ test_r5_tail_blob_dropped_first_under_prune_pressure _____________
+[gw1] win32 -- Python 3.13.5 C:\Users\User\AppData\Local\Programs\Python\Python313\python.exe
+tests\test_request_budget.py:188: in test_r5_tail_blob_dropped_first_under_prune_pressure
+    assert len(json.dumps(out, default=str)) <= 60_000
+               ^^^^
+E   NameError: name 'json' is not defined. Did you forget to import 'json'?
+=========================== short test summary info ===========================
+FAILED tests/test_request_budget.py::test_r4_no_pruning_under_budget - KeyErr...
+FAILED tests/test_request_budget.py::test_r5_small_sections_collapse_into_one_blob
+FAILED tests/test_request_budget.py::test_r5_tail_blob_dropped_first_under_prune_pressure
+pytest-exit=1
+END-MARKER-PU-0118

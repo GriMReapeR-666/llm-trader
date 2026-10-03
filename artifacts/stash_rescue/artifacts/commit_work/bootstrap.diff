@@ -1,0 +1,550 @@
+diff --git a/core/autonomous_bootstrap.py b/core/autonomous_bootstrap.py
+index ca7f880..a1de274 100644
+--- a/core/autonomous_bootstrap.py
++++ b/core/autonomous_bootstrap.py
+@@ -17,7 +17,10 @@ import os
+ import time
+ from dataclasses import dataclass, field
+ from pathlib import Path
+-from typing import Any, Dict, List, Optional
++from typing import Any, Callable, Dict, List, Optional
++
++from boot_fetch_watchdog import run_stage_with_deadline
++from boot_datasheet import boot_datasheet_enabled, get_datasheet
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -57,6 +60,102 @@ def _safe(fn, label: str, *args, **kwargs):
+         return {"status": "ERROR", "error": str(exc)[:500]}
+ 
+ 
++_PREPARE_STEP_DETAILS = {
++    "2a_data_sources": "data_sources", "2b_macro_seed": "macro_graph",
++    "2c_news": "news_ingest", "2c2_macro_bridge": "global_macro_bridge",
++    "2c3_alt_data": "alternative_data", "2c4_yahoo": "yahoo_finance",
++    "2c5_cot": "cftc_cot", "2c6_eia": "eia_petroleum",
++    "2c7_forexfactory": "forexfactory", "2c8_exness": "exness",
++}
++_PREPARE_STEP_WARNING_TOKEN = {
++    "2a_data_sources": "Data source init", "2b_macro_seed": "Macro graph",
++    "2c_news": "News", "2c2_macro_bridge": "GlobalMacroBridge",
++    "2c3_alt_data": "AltData", "2c4_yahoo": "YahooFinance",
++    "2c5_cot": "CFTC", "2c6_eia": "EIA",
++    "2c7_forexfactory": "ForexFactory", "2c8_exness": "Exness",
++}
++
++
++def record_prepare_rows(details: Dict[str, Any], step_elapsed: Dict[str, float],
++                        warnings: List[str]) -> None:
++    """Record one datasheet row per PREPARE step (status + elapsed + note).
++
++    Bounded-stage timeouts surface in ``warnings`` (``details`` only keeps a
++    bare SKIPPED marker), so each warning is matched back to its step for the
++    note and an honest TIMEOUT status.
++    """
++    if not boot_datasheet_enabled():
++        return
++    _sheet = get_datasheet()
++    for _sname, _sel in sorted(step_elapsed.items()):
++        _det = details.get(_PREPARE_STEP_DETAILS.get(_sname, ""), {})
++        _status = _det.get("status", "?") if isinstance(_det, dict) else "?"
++        if _status == "INITIALIZED":
++            _status = "OK"
++        _note_parts: List[str] = []
++        if isinstance(_det, dict):
++            for _k in ("entities", "articles", "events", "reports",
++                       "fred_series", "indices", "live_observations",
++                       "total_observations"):
++                if _k in _det:
++                    _note_parts.append("%s=%s" % (_k, _det[_k]))
++            if _det.get("error"):
++                _note_parts.append(str(_det["error"]))
++        _tok = _PREPARE_STEP_WARNING_TOKEN.get(_sname)
++        for _w in warnings:
++            if _tok and _w.startswith(_tok + ":"):
++                # Strip the redundant "Token:" prefix — the row already
++                # names the step — so the reason fits the note column.
++                _note_parts.append(_w[len(_tok) + 1:])
++                if "budget" in _w:
++                    _status = "TIMEOUT"
++                break
++        _sheet.record_step(_sname, _sel, _status, "; ".join(_note_parts))
++
++
++def _boot_stage(stage: str, fn: Callable[[], Any], budget_s: float) -> Any:
++    """Run a PREPARE fetch stage under a deadline; fail open on timeout.
++
++    A provider that hangs (e.g. requests with no effective timeout inside a
++    third-party client) is abandoned at ``budget_s`` seconds and the stage
++    returns a degraded marker instead of silently eating minutes of boot.
++    Threads are not killed (impossible in Python) — the budget bounds waiting.
++    """
++    outcome = run_stage_with_deadline(stage, fn, budgets={stage: budget_s})
++    if outcome["ok"]:
++        return outcome["result"]
++    if outcome["timed_out"]:
++        logger.warning(
++            "Bootstrap %s exceeded %.0fs budget; failing open (hung provider?)",
++            stage, budget_s)
++        return {"status": "TIMEOUT", "error": str(outcome["error"])[:200]}
++    logger.warning("Bootstrap %s failed: %s", stage, outcome["error"])
++    return {"status": "ERROR", "error": str(outcome["error"])[:200]}
++
++
++def _has_measured_evidence(strategy: Dict[str, Any]) -> bool:
++    """True only when a registry entry carries a measured return series.
++
++    A win_rate / profit_factor / sharpe triple in a JSON file is a claim, not a
++    measurement, and the journal's own order-intent and broker-execution tables
++    are the independent record. Entries without a return series are refused
++    rather than scored.
++    """
++    if not isinstance(strategy, dict):
++        return False
++    if str(strategy.get("metrics_provenance", "")).strip().lower() == "measured":
++        return True
++    returns = strategy.get("returns")
++    if isinstance(returns, (list, tuple)) and len([r for r in returns if r is not None]) >= 30:
++        return True
++    metrics = strategy.get("metrics")
++    if isinstance(metrics, dict):
++        inner = metrics.get("returns")
++        if isinstance(inner, (list, tuple)) and len([r for r in inner if r is not None]) >= 30:
++            return True
++    return False
++
++
+ def _load_strategy_registry() -> List[Dict[str, Any]]:
+     """Load strategies from strategy_registry.json."""
+     registry_path = os.path.join(os.path.dirname(__file__), "..", "strategy_registry.json")
+@@ -206,11 +305,16 @@ def _phase_validate(
+                     timeframe="H1",
+                     bars=500,
+                 )
+-                backtest_results[strat_id] = {
+-                    "passed": result.get("verdict", {}).get("passed", False) if isinstance(result, dict) else False,
+-                    "sharpe": result.get("stages", {}).get("backtest", {}).get("sharpe", 0) if isinstance(result, dict) else 0,
+-                    "max_dd": result.get("stages", {}).get("backtest", {}).get("max_drawdown_pct", 0) if isinstance(result, dict) else 0,
+-                }
++            backtest_results[strat_id] = {
++                "passed": result.get("verdict", {}).get("passed", False) if isinstance(result, dict) else False,
++                "sharpe": result.get("stages", {}).get("backtest", {}).get("sharpe", 0) if isinstance(result, dict) else 0,
++                "max_dd": result.get("stages", {}).get("backtest", {}).get("max_drawdown_pct", 0) if isinstance(result, dict) else 0,
++                # Measured per-bar returns, so the WFE / overfit gates below can
++                # validate evidence rather than a series synthesised from the
++                # Sharpe claim. None -> those gates report NOT_VALIDATED.
++                "returns": result.get("stages", {}).get("backtest", {}).get("returns") if isinstance(result, dict) else None,
++            }
++
+         except Exception as exc:
+             logger.warning("Backtest pipeline skipped: %s", exc)
+     details["backtest"] = backtest_results
+@@ -227,11 +331,21 @@ def _phase_validate(
+                 logger.info("  Skipping WFE for %s (backtest failed)", strat_id)
+                 wfe_results[strat_id] = {"status": "SKIPPED", "reason": "backtest_failed"}
+                 continue
+-            # Generate synthetic returns from backtest metrics for WFE check
+-            n_obs = 200
+-            sharpe = bt_data.get("sharpe", 0.5)
+-            daily_returns = np.random.normal(sharpe / 252, 0.01, n_obs)
+-            verdict = wfv.walk_forward_efficiency_gate(daily_returns, train_size=100, test_size=20)
++            # Only measured evidence may be gated. This used to synthesise
++            # np.random.normal(sharpe/252, 0.01, 200) from the backtest's own
++            # Sharpe claim, so the walk-forward gate evaluated a series built
++            # to its target instead of anything the strategy produced. A
++            # backtest reporting a Sharpe but no return series is
++            # NOT_VALIDATED, not a licence to manufacture one.
++            measured_returns = bt_data.get("returns")
++            if not measured_returns or len(measured_returns) < 120:
++                wfe_results[strat_id] = {
++                    "status": "NOT_VALIDATED",
++                    "reason": "backtest reported a Sharpe but no measured return series",
++                }
++                continue
++            verdict = wfv.walk_forward_efficiency_gate(
++                np.asarray(measured_returns, dtype=float), train_size=100, test_size=20)
+             wfe_results[strat_id] = {
+                 "wfe": round(getattr(verdict, "wfe", 0), 4),
+                 "passed": getattr(verdict, "passed", False),
+@@ -254,19 +368,31 @@ def _phase_validate(
+     overfit_results: Dict[str, Any] = {}
+     try:
+         from core.overfit_gate import OverfitGate
+-        import numpy as np
+         gate = OverfitGate(store=store)
+         for strat_id, bt_data in backtest_results.items():
+             if not bt_data.get("passed"):
+                 continue
+-            # Generate synthetic returns for overfit detection
+-            n_obs = 200
+-            sharpe = bt_data.get("sharpe", 0.5)
+-            returns = np.random.normal(sharpe / 252, 0.01, n_obs).tolist()
++            # Only measured evidence may be validated. This used to synthesise
++            # np.random.normal(sharpe/252, 0.01, 200) from the backtest's own
++            # Sharpe claim, which handed the overfit detector a series built to
++            # its target: a random walk then scored grade C / MODERATE and
++            # cleared the DSR bar, while an identical real series was rejected
++            # F / CRITICAL. A backtest that reports a Sharpe but no return
++            # series is NOT_VALIDATED, not a licence to manufacture one.
++            returns = bt_data.get("returns")
++            if returns is None:
++                overfit_results[strat_id] = {
++                    "status": "NOT_VALIDATED",
++                    "risk_level": "UNKNOWN",
++                    "grade": "N/A",
++                    "reason": "backtest reported a Sharpe but no measured return series",
++                }
++                continue
+             gate_result = gate.validate_strategy(
+                 strategy=strat_id,
+-                returns=returns,
++                returns=list(returns),
+                 n_strategies_tested=max(1, len(active_strategies)),
++                returns_provenance="measured",
+             )
+             overfit_results[strat_id] = {
+                 "status": gate_result.status,
+@@ -287,6 +413,27 @@ def _phase_validate(
+         pgs = ProgressiveGateSystem()
+         for strat in strategies:
+             strat_id = strat.get("id", "unknown")
++            current_stage = strat.get("stage", "CANDIDATE")
++            if current_stage not in ("FULL", "EVALUATION"):
++                continue
++            # Registry metrics are a summary someone wrote into a JSON file;
++            # they are not evidence. Scoring them straight into a DEPLOYMENT
++            # verdict let placeholder rows (e.g. profit_factor 2.45 over 342
++            # trades, for strategies with no order intents and no broker
++            # execution reports) drive a promotion decision. Only a strategy
++            # carrying a measured return series may be scored.
++            if not _has_measured_evidence(strat):
++                scoring_results[strat_id] = {
++                    "passed": False,
++                    "quality_score": 0.0,
++                    "current_stage": current_stage,
++                    "status": "NOT_VALIDATED",
++                    "reason": ("no measured return series in the registry; the "
++                               "recorded win_rate/profit_factor/sharpe are "
++                               "unattributed and cannot support a DEPLOYMENT "
++                               "verdict"),
++                }
++                continue
+             metrics = {
+                 "trades": strat.get("trades", 0),
+                 "win_rate": strat.get("win_rate", 0),
+@@ -294,14 +441,12 @@ def _phase_validate(
+                 "sharpe": strat.get("sharpe", 0),
+                 "max_dd": strat.get("max_dd", 100),
+             }
+-            current_stage = strat.get("stage", "CANDIDATE")
+-            if current_stage in ("FULL", "EVALUATION"):
+-                verdict = pgs.evaluate(metrics, current_stage="DEPLOYMENT", strategy_id=strat_id)
+-                scoring_results[strat_id] = {
+-                    "passed": verdict.passed,
+-                    "quality_score": verdict.quality_score,
+-                    "current_stage": current_stage,
+-                }
++            verdict = pgs.evaluate(metrics, current_stage="DEPLOYMENT", strategy_id=strat_id)
++            scoring_results[strat_id] = {
++                "passed": verdict.passed,
++                "quality_score": verdict.quality_score,
++                "current_stage": current_stage,
++            }
+     except Exception as exc:
+         logger.warning("Strategy scoring skipped: %s", exc)
+     details["strategy_scoring"] = scoring_results
+@@ -353,8 +498,11 @@ def _phase_prepare(
+     warnings: List[str] = []
+     details: Dict[str, Any] = {}
+ 
++    step_elapsed: Dict[str, float] = {}
++
+     # --- 2a. Data source initialization ---
+     logger.info("[Bootstrap/PREPARE] 2a. Data source initialization")
++    _t_step = time.time()
+     try:
+         from data.data_source_pipeline import catalog_fred_series
+         fred_catalog = catalog_fred_series()
+@@ -366,22 +514,35 @@ def _phase_prepare(
+         logger.warning("Data source init skipped: %s", exc)
+         warnings.append(f"Data source init: {exc}")
+         details["data_sources"] = {"status": "SKIPPED"}
++    finally:
++        step_elapsed["2a_data_sources"] = time.time() - _t_step
+ 
+     # --- 2b. Macro graph seed + first ingestion ---
++    # (bounded: this step runs the FRED/NewsAPI pipeline — the 94.5s silent
++    # offender on the 2026-09-30 session-5 boot)
+     logger.info("[Bootstrap/PREPARE] 2b. Macro graph seed")
++    _t_step = time.time()
+     try:
+         macro_graph = None
+         if orchestrator is not None and hasattr(orchestrator, "macro_graph"):
+             macro_graph = orchestrator.macro_graph
+         if macro_graph is not None:
+             from data.data_source_pipeline import process_cycle_data_sources
+-            macro_result = process_cycle_data_sources(
+-                macro_graph=macro_graph,
+-                journal_path=store.path if hasattr(store, "path") else "trading_state.db",
+-                symbol="EURUSD",
+-                include_optional_providers=False,
+-                include_alternative_nowcast=True,
+-            )
++
++            def _macro_seed() -> Any:
++                return process_cycle_data_sources(
++                    macro_graph=macro_graph,
++                    journal_path=store.path if hasattr(store, "path") else "trading_state.db",
++                    symbol="EURUSD",
++                    include_optional_providers=False,
++                    include_alternative_nowcast=True,
++                )
++
++            macro_result = _boot_stage(
++                "bootstrap_macro_seed", _macro_seed,
++                float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
++            if isinstance(macro_result, dict) and macro_result.get("status") in ("TIMEOUT", "ERROR"):
++                raise RuntimeError(macro_result.get("error", "bounded stage failed"))
+             details["macro_graph"] = {
+                 "status": macro_result.get("status", "UNKNOWN"),
+                 "entities": len(macro_result.get("macro_entities_extra", [])),
+@@ -392,9 +553,12 @@ def _phase_prepare(
+         logger.warning("Macro graph seed skipped: %s", exc)
+         warnings.append(f"Macro graph: {exc}")
+         details["macro_graph"] = {"status": "ERROR", "error": str(exc)[:200]}
++    finally:
++        step_elapsed["2b_macro_seed"] = time.time() - _t_step
+ 
+     # --- 2c. News ingestion (first pass) ---
+     logger.info("[Bootstrap/PREPARE] 2c. News ingestion")
++    _t_step = time.time()
+     try:
+         macro_graph = None
+         if orchestrator is not None and hasattr(orchestrator, "macro_graph"):
+@@ -423,13 +587,23 @@ def _phase_prepare(
+         logger.warning("News ingestion skipped: %s", exc)
+         warnings.append(f"News: {exc}")
+         details["news_ingest"] = {"status": "SKIPPED"}
++    finally:
++        step_elapsed["2c_news"] = time.time() - _t_step
+ 
+     # --- 2c2. Global Macro Bridge (FF + Exness + CFTC + EIA + SA + AltData) ---
+     logger.info("[Bootstrap/PREPARE] 2c2. Global Macro Bridge")
++    _t_step = time.time()
+     try:
+         from data.global_macro_bridge import GlobalMacroBridge
+-        gmb = GlobalMacroBridge()
+-        snapshot = gmb.get_macro_snapshot("EURUSD")
++
++        def _gmb_snapshot() -> Any:
++            gmb = GlobalMacroBridge()
++            return gmb.get_macro_snapshot("EURUSD")
++
++        snapshot = _boot_stage("bootstrap_global_macro_bridge", _gmb_snapshot,
++                               float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
++        if isinstance(snapshot, dict) and snapshot.get("status") in ("TIMEOUT", "ERROR"):
++            raise RuntimeError(snapshot.get("error", "bounded stage failed"))
+         details["global_macro_bridge"] = {
+             "status": "INITIALIZED",
+             "calendar_events": getattr(snapshot, "calendar_events_count", 0),
+@@ -442,13 +616,23 @@ def _phase_prepare(
+         logger.warning("Global Macro Bridge init skipped: %s", exc)
+         warnings.append(f"GlobalMacroBridge: {exc}")
+         details["global_macro_bridge"] = {"status": "SKIPPED"}
++    finally:
++        step_elapsed["2c2_macro_bridge"] = time.time() - _t_step
+ 
+     # --- 2c3. Alternative Data Provider (Nowcast: zero_lag + yahoo + eia + cot) ---
+     logger.info("[Bootstrap/PREPARE] 2c3. Alternative Data Provider")
++    _t_step = time.time()
+     try:
+         from data.alternative_data_provider import AlternativeDataProvider
+-        alt = AlternativeDataProvider()
+-        nowcast = alt.fetch_nowcast_snapshot(include_stubs=False)
++
++        def _alt_nowcast() -> Any:
++            alt = AlternativeDataProvider()
++            return alt.fetch_nowcast_snapshot(include_stubs=False)
++
++        nowcast = _boot_stage("bootstrap_alternative_data", _alt_nowcast,
++                              float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
++        if isinstance(nowcast, dict) and nowcast.get("status") in ("TIMEOUT", "ERROR"):
++            raise RuntimeError(nowcast.get("error", "bounded stage failed"))
+         live_count = sum(1 for obs in (nowcast if isinstance(nowcast, list) else [])
+                          if isinstance(obs, dict) and obs.get("status") == "LIVE")
+         details["alternative_data"] = {
+@@ -460,13 +644,23 @@ def _phase_prepare(
+         logger.warning("Alternative Data Provider init skipped: %s", exc)
+         warnings.append(f"AltData: {exc}")
+         details["alternative_data"] = {"status": "SKIPPED"}
++    finally:
++        step_elapsed["2c3_alt_data"] = time.time() - _t_step
+ 
+     # --- 2c4. Yahoo Finance provider ---
+     logger.info("[Bootstrap/PREPARE] 2c4. Yahoo Finance")
++    _t_step = time.time()
+     try:
+         from data.yahoo_finance_provider import YahooFinanceProvider
+-        yf_prov = YahooFinanceProvider()
+-        indices = yf_prov.get_market_indices()
++
++        def _yf_indices() -> Any:
++            yf_prov = YahooFinanceProvider()
++            return yf_prov.get_market_indices()
++
++        indices = _boot_stage("bootstrap_yahoo_finance", _yf_indices,
++                              float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
++        if isinstance(indices, dict) and indices.get("status") in ("TIMEOUT", "ERROR"):
++            raise RuntimeError(indices.get("error", "bounded stage failed"))
+         details["yahoo_finance"] = {
+             "status": "INITIALIZED",
+             "indices": list(indices.keys())[:5] if isinstance(indices, dict) else [],
+@@ -475,13 +669,23 @@ def _phase_prepare(
+         logger.warning("Yahoo Finance init skipped: %s", exc)
+         warnings.append(f"YahooFinance: {exc}")
+         details["yahoo_finance"] = {"status": "SKIPPED"}
++    finally:
++        step_elapsed["2c4_yahoo"] = time.time() - _t_step
+ 
+     # --- 2c5. CFTC COT provider ---
+     logger.info("[Bootstrap/PREPARE] 2c5. CFTC COT")
++    _t_step = time.time()
+     try:
+         from data.cftc_cot_provider import CFTCCOTProvider
+-        cot = CFTCCOTProvider()
+-        cot_report = cot.fetch_cot_report()
++
++        def _cot_report() -> Any:
++            cot = CFTCCOTProvider()
++            return cot.fetch_cot_report()
++
++        cot_report = _boot_stage("bootstrap_cftc_cot", _cot_report,
++                                 float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
++        if isinstance(cot_report, dict) and cot_report.get("status") in ("TIMEOUT", "ERROR"):
++            raise RuntimeError(cot_report.get("error", "bounded stage failed"))
+         details["cftc_cot"] = {
+             "status": "INITIALIZED",
+             "reports": len(cot_report) if isinstance(cot_report, list) else 0,
+@@ -490,13 +694,23 @@ def _phase_prepare(
+         logger.warning("CFTC COT init skipped: %s", exc)
+         warnings.append(f"CFTC: {exc}")
+         details["cftc_cot"] = {"status": "SKIPPED"}
++    finally:
++        step_elapsed["2c5_cot"] = time.time() - _t_step
+ 
+-    # --- 2c6. EIA Petroleum provider ---
++    # --- 2c6. EIA Petroleum provider (bounded; was the last unbounded fetch) ---
+     logger.info("[Bootstrap/PREPARE] 2c6. EIA Petroleum")
++    _t_step = time.time()
+     try:
+         from data.eia_provider import EIAProvider
+-        eia = EIAProvider()
+-        eia_report = eia.fetch_latest_report()
++
++        def _eia_report() -> Any:
++            return EIAProvider().fetch_latest_report()
++
++        eia_report = _boot_stage(
++            "bootstrap_eia_petroleum", _eia_report,
++            float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
++        if isinstance(eia_report, dict) and eia_report.get("status") in ("TIMEOUT", "ERROR"):
++            raise RuntimeError(eia_report.get("error", "bounded stage failed"))
+         details["eia_petroleum"] = {
+             "status": "INITIALIZED",
+             "has_data": eia_report is not None,
+@@ -505,13 +719,23 @@ def _phase_prepare(
+         logger.warning("EIA Petroleum init skipped: %s", exc)
+         warnings.append(f"EIA: {exc}")
+         details["eia_petroleum"] = {"status": "SKIPPED"}
++    finally:
++        step_elapsed["2c6_eia"] = time.time() - _t_step
+ 
+     # --- 2c7. ForexFactory calendar ---
+     logger.info("[Bootstrap/PREPARE] 2c7. ForexFactory")
++    _t_step = time.time()
+     try:
+         from data.forexfactory_provider import ForexFactoryProvider
+-        ff = ForexFactoryProvider()
+-        ff_events = ff.fetch_calendar()
++
++        def _ff_calendar() -> Any:
++            ff = ForexFactoryProvider()
++            return ff.fetch_calendar()
++
++        ff_events = _boot_stage("bootstrap_forexfactory", _ff_calendar,
++                                float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
++        if isinstance(ff_events, dict) and ff_events.get("status") in ("TIMEOUT", "ERROR"):
++            raise RuntimeError(ff_events.get("error", "bounded stage failed"))
+         details["forexfactory"] = {
+             "status": "INITIALIZED",
+             "events": len(ff_events) if isinstance(ff_events, list) else 0,
+@@ -520,13 +744,23 @@ def _phase_prepare(
+         logger.warning("ForexFactory init skipped: %s", exc)
+         warnings.append(f"ForexFactory: {exc}")
+         details["forexfactory"] = {"status": "SKIPPED"}
++    finally:
++        step_elapsed["2c7_forexfactory"] = time.time() - _t_step
+ 
+     # --- 2c8. Exness market insights ---
+     logger.info("[Bootstrap/PREPARE] 2c8. Exness")
++    _t_step = time.time()
+     try:
+         from data.exness_provider import ExnessProvider
+-        exness = ExnessProvider()
+-        insights = exness.fetch_insights()
++
++        def _exness_insights() -> Any:
++            exness = ExnessProvider()
++            return exness.fetch_insights()
++
++        insights = _boot_stage("bootstrap_exness", _exness_insights,
++                               float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
++        if isinstance(insights, dict) and insights.get("status") in ("TIMEOUT", "ERROR"):
++            raise RuntimeError(insights.get("error", "bounded stage failed"))
+         details["exness"] = {
+             "status": "INITIALIZED",
+             "insights": len(insights) if isinstance(insights, list) else 0,
+@@ -535,6 +769,8 @@ def _phase_prepare(
+         logger.warning("Exness init skipped: %s", exc)
+         warnings.append(f"Exness: {exc}")
+         details["exness"] = {"status": "SKIPPED"}
++    finally:
++        step_elapsed["2c8_exness"] = time.time() - _t_step
+ 
+     # --- 2c9. SEC EDGAR filings ---
+     logger.info("[Bootstrap/PREPARE] 2c9. SEC EDGAR")
+@@ -812,11 +1048,19 @@ def _phase_prepare(
+ 
+     duration = time.time() - t0
+ 
++    # Disclose per-step elapsed times in the completion log so silent slow
++    # fetches (38-94s each on the 2026-09-30 session-5 boot) are visible.
++    step_times = " ".join(
++        "%s=%.1fs" % (k.split("_")[0], v) for k, v in sorted(step_elapsed.items()))
+     logger.info(
+-        "[Bootstrap/PREPARE] Complete: duration=%.1fs warnings=%d",
+-        duration, len(warnings),
++        "[Bootstrap/PREPARE] Complete: duration=%.1fs warnings=%d%s",
++        duration, len(warnings), (" steps=" + step_times) if step_times else "",
+     )
+ 
++    # Datasheet rows: one per PREPARE step (status + elapsed), merged later
++    # with boot-watchdog outcomes and APIManager degradation markers.
++    record_prepare_rows(details, step_elapsed, warnings)
++
+     return PhaseResult(
+         phase="PREPARE",
+         passed=True,  # best-effort: never blocks
+@@ -859,6 +1103,12 @@ class AutonomousBootstrap:
+         all_blockers: List[str] = []
+         phase_results: Dict[str, Any] = {}
+ 
++        # Fresh datasheet per boot: all layers (bootstrap steps, boot-fetch
++        # watchdog outcomes, APIManager degradation markers) record into this
++        # one collector; the orchestrator renders the table exactly once.
++        if boot_datasheet_enabled():
++            get_datasheet().reset()
++
+         logger.info("=" * 70)
+         logger.info("AUTONOMOUS BOOTSTRAP STARTING")
+         logger.info("=" * 70)

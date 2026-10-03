@@ -1,0 +1,35 @@
+=== RUN 1: fresh classify ===
+items: 2 success: True errors: []
+noop? False
+[run1] transcriptions_left=[]
+[run1] kb/03_Portfolio_Management: ['topic_on.txt']
+[run1] kb/99_Archive_Unsorted: ['archive_me.txt']
+[run1] index_counts={'03_Portfolio_Management': 1, '99_Archive_Unsorted': 1}
+
+=== RUN 2: re-run over empty transcriptions dir (the old trap) ===
+noop? True | reason: no transcriptions to classify (already classified or none produced)
+index_files: 2 success: True
+[run2] transcriptions_left=[]
+[run2] kb/03_Portfolio_Management: ['topic_on.txt']
+[run2] kb/99_Archive_Unsorted: ['archive_me.txt']
+[run2] index_counts={'03_Portfolio_Management': 1, '99_Archive_Unsorted': 1}
+
+=== RUN 3: duplicate content reappears (identical) ===
+noop? False | dup_skipped: 1 | items: 1
+[run3] transcriptions_left=[]
+[run3] kb/03_Portfolio_Management: ['topic_on.txt']
+[run3] kb/99_Archive_Unsorted: ['archive_me.txt']
+[run3] index_counts={'03_Portfolio_Management': 1, '99_Archive_Unsorted': 1}
+
+=== RUN 4: same name, different content, same topic -> suffix rename ===
+collisions_renamed: 1 | items: 1
+[run4] transcriptions_left=[]
+[run4] kb/03_Portfolio_Management: ['topic_on.txt', 'topic_on_1.txt']
+[run4] kb/99_Archive_Unsorted: ['archive_me.txt']
+[run4] index_counts={'03_Portfolio_Management': 2, '99_Archive_Unsorted': 1}
+
+=== RUN 5: full pipeline stage sequence still coherent (classify + index) ===
+index stage files: 2 success: True
+
+IDEM-DONE base=C:\Users\User\AppData\Local\Temp\qkf_idem_1bll73s5
+END-MARKER-PU-0073

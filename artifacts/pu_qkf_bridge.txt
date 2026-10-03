@@ -1,0 +1,50 @@
+Even though the 'startprob_' attribute is set, it will be overwritten during initialization because 'init_params' contains 's'
+Even though the 'transmat_' attribute is set, it will be overwritten during initialization because 'init_params' contains 't'
+Even though the 'means_' attribute is set, it will be overwritten during initialization because 'init_params' contains 'm'
+Even though the 'covars_' attribute is set, it will be overwritten during initialization because 'init_params' contains 'c'
+registry tools after plain import: 13
+   order_execution.almgren_chriss.calculate
+   order_execution.spread.calculate
+   portfolio_management.hrp.optimize
+   portfolio_management.kelly.calculate
+   quant_utilities.drawdown.analyze
+   quant_utilities.expectancy.calculate
+   quant_utilities.expectancy.r_multiple
+   regime_detection.hmm.classify
+   regime_detection.hmm.fit
+   regime_detection.hurst.calculate
+   strategy_development.dsr.calculate
+   strategy_development.triple_barrier.label
+   strategy_development.wfo.optimize
+modules registered: 11
+agent tool count: 18
+
+-- execute every module tool via execute_tool --
+OK   regime_detection.hmm.classify -> ['confidence', 'current_regime', 'regime_label', 'regimes']
+OK   regime_detection.hmm.fit -> ['fitted', 'log_likelihood', 'n_samples', 'n_states', 'state_labels']
+OK   regime_detection.hurst.calculate -> ['confidence', 'hurst_exponent', 'interpretation']
+OK   strategy_development.wfo.optimize -> ['error']
+OK   strategy_development.dsr.calculate -> ['dsr', 'p_value', 'significant', 'z_score']
+OK   strategy_development.triple_barrier.label -> ['exit_bar', 'label', 'return']
+OK   portfolio_management.kelly.calculate -> ['applied_fraction', 'kelly_fraction', 'max_drawdown_estimate']
+OK   portfolio_management.hrp.optimize -> ['portfolio_volatility', 'weights']
+OK   order_execution.spread.calculate -> ['dynamic_spread_bps', 'half_spread_cost']
+OK   order_execution.almgren_chriss.calculate -> ['participation_ratio', 'permanent_impact', 'temporary_impact', 'total_impact_bps']
+OK   quant_utilities.expectancy.calculate -> ['avg_loss_r', 'avg_win_r', 'ev', 'ev_per_dollar', 'profitable', 'win_rate']
+OK   quant_utilities.expectancy.r_multiple -> ['dollar_profit', 'r_multiple']
+OK   quant_utilities.drawdown.analyze -> ['cagr', 'calmar_ratio', 'max_drawdown', 'max_drawdown_duration']
+module tools OK: 13 / 13
+
+-- knowledge tool still works --
+knowledge.classify: True 01_Regime_Detection
+
+-- chained module + knowledge tools --
+chain step1 success: True
+
+-- no-config agent (module tools must still work) --
+no-config kelly: True 0.33333333333333326
+
+-- unknown tool --
+unknown tool: False Tool not found: no.such.tool
+BRIDGE-DONE
+END-MARKER-PU-0067

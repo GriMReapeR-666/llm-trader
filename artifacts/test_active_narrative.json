@@ -1,0 +1,53 @@
+{
+  "narrative_id": "NAR_2026_CANONICAL_01",
+  "thesis": "Disinflationary normalization with selective central bank divergence",
+  "regime_archetype": "NORMAL_RISK_OFF",
+  "active_since": "2026-09-23T07:29:11.053712+00:00",
+  "narrative_age_days": 0.0,
+  "decay_factor": 1.0,
+  "current_confidence": 0.0,
+  "is_invalidated": true,
+  "invalidation_reason": "Tripwire 'TW_VIX_SPIKE' triggered: VIX spikes into acute panic regime (>= 30) (value=34.0)",
+  "evidence_for": [
+    "Core inflation decelerating towards 2%",
+    "Central banks nearing terminal rates",
+    "Core CPI continues steady glide path"
+  ],
+  "evidence_against": [
+    "Geopolitical supply chain disruptions",
+    "Fiscal debt ceiling standoff"
+  ],
+  "tripwires": [
+    {
+      "tripwire_id": "TW_VIX_SPIKE",
+      "metric": "vix",
+      "operator": ">=",
+      "threshold": 30.0,
+      "description": "VIX spikes into acute panic regime (>= 30)",
+      "is_armed": true,
+      "is_triggered": true,
+      "triggered_at": "2026-09-23T07:29:11.054626+00:00"
+    },
+    {
+      "tripwire_id": "TW_CREDIT_STRESS",
+      "metric": "credit_oas_bps",
+      "operator": ">=",
+      "threshold": 380.0,
+      "description": "High yield OAS spreads blowout past 380 bps",
+      "is_armed": true,
+      "is_triggered": false,
+      "triggered_at": null
+    },
+    {
+      "tripwire_id": "TW_SOFR_SPIKE",
+      "metric": "sofr_rate",
+      "operator": ">=",
+      "threshold": 5.6,
+      "description": "SOFR repo rate spikes into acute funding stress (>= 5.60%)",
+      "is_armed": true,
+      "is_triggered": false,
+      "triggered_at": null
+    }
+  ],
+  "last_updated": "2026-09-23T07:29:11.054521+00:00"
+}

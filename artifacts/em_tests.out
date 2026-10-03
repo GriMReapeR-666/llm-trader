@@ -1,0 +1,12 @@
+................F...........                                             [100%]
+================================== FAILURES ===================================
+_____________ test_event_monitor_heavy_pipeline_runs_sub_cadence ______________
+tests\test_scheduler_pulse.py:605: in test_event_monitor_heavy_pipeline_runs_sub_cadence
+    assert calls == ["pipeline", "rn"], "first pass must run the heavy block"
+E   AssertionError: first pass must run the heavy block
+E   assert [] == ['pipeline', 'rn']
+E     
+E     Right contains 2 more items, first extra item: 'pipeline'
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/test_scheduler_pulse.py::test_event_monitor_heavy_pipeline_runs_sub_cadence

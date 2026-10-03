@@ -1,0 +1,17 @@
+min values -> rw 83.33 trend 100.00 ou 94.65 gbm 74.19
+random_walk -> {'hurst_exponent': 0.4959, 'interpretation': 'random_walk', 'confidence': 0.9994}
+trending_ar1 -> {'hurst_exponent': 0.77, 'interpretation': 'trending', 'confidence': 0.9959}
+mean_rev_ou -> {'hurst_exponent': 0.2032, 'interpretation': 'mean_reverting', 'confidence': 0.9506}
+gbm -> {'hurst_exponent': 0.5072, 'interpretation': 'random_walk', 'confidence': 0.9993}
+trend max_lag=20 -> 0.77
+ou    max_lag=20 -> 0.2032
+trend max_lag=50 -> 0.7001
+ou    max_lag=50 -> 0.1338
+fit -> {'fitted': True, 'n_samples': 300, 'n_states': 2, 'log_likelihood': 768.59, 'state_labels': {'0': 'calm', '1': 'normal'}}
+classify keys -> ['confidence', 'current_regime', 'regime_label', 'regimes']
+classify -> current_regime=1 label=normal conf=1.000 n_regimes=50
+autofit fresh -> current_regime=1 label=normal conf=1.000
+short classify -> {'error': 'need at least 10 samples to fit, got 4'}
+3-state fit -> {'fitted': True, 'n_samples': 300, 'n_states': 3, 'log_likelihood': 583.76, 'state_labels': {'0': 'calm', '1': 'normal', '2': 'high_vol'}}
+CALIB-DONE
+END-MARKER-PU-0065

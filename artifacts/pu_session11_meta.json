@@ -1,0 +1,26 @@
+{
+  "booted_at_utc": "2026-10-02T17:22:00.000000+00:00",
+  "pid": 4740,
+  "free_gb_at_boot": 1.5,
+  "mode": "baseline_with_llm",
+  "cmd": [
+    "C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "-X",
+    "utf8",
+    "-u",
+    "mt5_trader.py",
+    "llm-trade",
+    "--paper",
+    "--symbol",
+    "EURUSD",
+    "--timeframe",
+    "AUTO",
+    "--model",
+    "meta/llama-3.2-11b-vision-instruct",
+    "--risk-per-trade",
+    "1.0",
+    "--loops",
+    "24",
+    "--no-dashboard"
+  ]
+}

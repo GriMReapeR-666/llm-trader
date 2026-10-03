@@ -1,0 +1,8 @@
+2026-10-02T17:13:42+00:00 armed: bar 1.20GB, window 16.0h, poll 30s, free 0.86GB, baseline mode (loops=24, with-LLM, waits for session-10 slot)
+2026-10-02T17:13:42+00:00 session-10 slot free (report present) - proceeding to preflight loop
+2026-10-02T17:17:42+00:00 PREFLIGHT PASS: 1.50GB >= 1.20GB and fresh M15 candle - launching BASELINE boot (WITH LLM enabled)
+2026-10-02T17:17:42+00:00 boot spawned (pid 27748); meta written; watcher exits
+2026-10-03T05:00:46+00:00 armed: bar 1.20GB, window 16.0h, poll 30s, free 0.61GB, baseline mode (loops=24, with-LLM, waits for session-10 slot) | schedule: 2026-10-03 offset 0 from anchor 2026-10-03 -> arm 'no_llm' (this chassis: 'with_llm')
+2026-10-03T05:00:46+00:00 SKIP - schedule: today 2026-10-03 is arm 'no_llm' but this chassis runs 'with_llm' - yielding to the paired chassis
+2026-10-03T05:56:29+00:00 armed: bar 1.20GB, window 16.0h, poll 30s, free 1.34GB, baseline mode (loops=24, with-LLM, waits for session-10 slot) | schedule: 2026-10-03 offset 0 from anchor 2026-10-03 -> arm 'no_llm' (this chassis: 'with_llm')
+2026-10-03T05:56:29+00:00 SKIP - schedule: today 2026-10-03 is arm 'no_llm' but this chassis runs 'with_llm' - yielding to the paired chassis

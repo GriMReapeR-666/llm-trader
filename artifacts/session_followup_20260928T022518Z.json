@@ -1,0 +1,43 @@
+{
+  "ran_at": "2026-09-28T02:25:18+00:00",
+  "session": {
+    "start": "2026-09-28T01:34:59.937096+00:00",
+    "finish": "2026-09-27T17:10:13.577255+00:00",
+    "open": true
+  },
+  "results": {
+    "report": {
+      "ok": true,
+      "note": "exit 0\n== claimed-but-abandoned batches (schedule_skipped) ==\n  position_reconcile: abandoned in 1 batches (wave_deadline x1)\n  deferral reasons across 1 batches: wave_deadline: 1\n  (1 batches scanned)\n\nsaved: artifacts\\scheduler_tuning_report.json"
+    },
+    "verify": {
+      "ok": true,
+      "note": "rows=2 exit 0\nverifying 2 verdict row(s) against the pinned thresholds:\nVERIFIED - all verdicts match the pinned RAISE/AT_CAP/WATCH boundaries (provenance: confirmed)"
+    },
+    "apply": {
+      "ok": true,
+      "note": "no RAISE verdicts - nothing to apply (budgets untouched)"
+    },
+    "duty": {
+      "ok": true,
+      "note": "exit 0 (no comparison verdicts yet)"
+    },
+    "dashboard": {
+      "ok": true,
+      "note": "dashboard written: compliance_dashboard.html"
+    },
+    "dashboard_check": {
+      "ok": false,
+      "note": "event_monitor: dashboard shows 2 overruns, journal has 37\nevent_monitor: dashboard p95 281.6s != report-style 125.59s\njournal_maintenance: p50 50.0s (SQL even-count median) vs report-style 48.67s - definitions not yet unified"
+    },
+    "tests": {
+      "ok": true,
+      "note": "exit 0\n........................................................................ [ 36%]\n........................................................................ [ 73%]\n.....................................................                    [100%]"
+    }
+  },
+  "critical_failed": [],
+  "commit_worthies": [
+    "apply"
+  ],
+  "note": "no auto-commit; review applied budgets and the refreshed report artifact before committing"
+}

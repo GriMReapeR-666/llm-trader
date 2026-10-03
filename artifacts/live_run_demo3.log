@@ -1,0 +1,202 @@
+2026-09-18 08:48:05,988 INFO MT5Client:  Using Account: DEMO - 5055089321
+2026-09-18 08:48:06,490 INFO MT5Client: Trying default MT5 initialization...
+2026-09-18 08:48:06,518 INFO MT5Client:  Connected to MetaTrader 5 (MetaQuotes Ltd.)
+2026-09-18 08:48:06,519 INFO MT5Client:  Auto-trading is ENABLED
+2026-09-18 08:48:06,519 INFO MT5Client: === Account Info ===
+2026-09-18 08:48:06,519 INFO MT5Client: Login: 5055089321
+2026-09-18 08:48:06,519 INFO MT5Client: Server: MetaQuotes-Demo
+2026-09-18 08:48:06,519 INFO MT5Client: Balance: 100000.0
+2026-09-18 08:48:06,519 INFO MT5Client: Equity: 100000.0
+2026-09-18 08:48:06,519 INFO MT5Client: Company: MetaQuotes Ltd.
+2026-09-18 08:48:06,519 INFO MT5Client: Name: Llm trader  antigravity Graph ai
+2026-09-18 08:48:06,519 INFO MT5Client: =====================
+2026-09-18 08:48:06,820 INFO MT5Client: Broker preflight captured for XAUUSD; specification changed=False
+ Single symbol mode: XAUUSD
+2026-09-18 08:48:07,823 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-18 08:48:08,290 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-18 08:48:08,744 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-18 08:48:10,941 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-18 08:48:10,942 INFO main: LLM Router initialized: 4 providers, 3 agents
+2026-09-18 08:48:11,021 INFO core.harness.plugins: RiskManagementPlugin initialized with balance 10000.00, max risk 1.00%
+2026-09-18 08:48:11,022 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'risk_management' (v1.0.0)
+2026-09-18 08:48:11,035 INFO core.harness.plugins: TradingMemoryPlugin mounted on database 'trading_state.db'
+2026-09-18 08:48:11,035 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'trading_memory' (v1.0.0)
+2026-09-18 08:48:11,052 INFO TradeManager: Loaded active conditions for 2 symbols
+2026-09-18 08:48:11,053 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-18 08:48:11,053 INFO core.harness.plugins: BrokerPlugin mounted (mode=PAPER)
+2026-09-18 08:48:11,053 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'broker' (v1.0.0)
+2026-09-18 08:48:11,053 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-18 08:48:11,054 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-18 08:48:11,054 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-18 08:48:11,054 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-18 08:48:11,054 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-18 08:48:11,055 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-18 08:48:11,055 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-18 08:48:11,087 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-18 08:48:11,087 INFO core.harness.plugins: DataHubPlugin mounted (market_data=yes + FRED/COT/news/OpenBB).
+2026-09-18 08:48:11,087 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'data_hub' (v1.0.0)
+2026-09-18 08:48:11,089 INFO core.harness.plugins: CausalIntelligencePlugin mounted with 134 macro dynamic nodes.
+2026-09-18 08:48:11,090 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'causal_intelligence' (v1.0.0)
+2026-09-18 08:48:11,098 INFO core.harness.plugins: AnalyticalFrameworksPlugin mounted (Modules 01-07 Foresight, Spreads & Signals).
+2026-09-18 08:48:11,098 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'analytical_frameworks' (v1.0.0)
+2026-09-18 08:48:11,103 INFO core.harness.plugins: KronosIntelligencePlugin mounted (Signal Calibration, Synthetic Jumps & CPCV).
+2026-09-18 08:48:11,103 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'kronos_intelligence' (v1.0.0)
+2026-09-18 08:48:11,106 INFO core.harness.plugins: ExecutionSafetyPlugin mounted.
+2026-09-18 08:48:11,106 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'execution_safety' (v1.0.0)
+2026-09-18 08:48:11,108 INFO core.harness.plugins: CointegrationGovernancePlugin mounted.
+2026-09-18 08:48:11,108 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'cointegration_governance' (v1.0.0)
+2026-09-18 08:48:11,121 INFO core.harness.plugins: SkillsPlugin mounted with 35 standard skills.
+2026-09-18 08:48:11,122 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'skills' (v1.0.0)
+2026-09-18 08:48:11,123 INFO core.harness.plugins: JournalAuditPlugin mounted for database 'trading_state.db'.
+2026-09-18 08:48:11,123 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'journal_audit' (v1.0.0)
+2026-09-18 08:48:11,123 INFO core.harness.plugins: QuantWorkflowsPlugin mounted with 7 trading workflows.
+2026-09-18 08:48:11,124 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'quant_workflows' (v1.0.0)
+2026-09-18 08:48:11,127 INFO core.harness.plugins: MacroEventAlphaPlugin mounted with leading indicators, ESI & 3-phase execution.
+2026-09-18 08:48:11,127 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'macro_event_alpha' (v1.0.0)
+2026-09-18 08:48:11,129 INFO core.harness.extracted_module_plugins: ExtractedMetricsPlugin mounted — 14 metric functions available.
+2026-09-18 08:48:11,136 INFO core.harness.extracted_module_plugins: ExtractedValidationPlugin mounted — CPCV, MC shuffle, stress, jitter available.
+2026-09-18 08:48:11,156 INFO core.harness.extracted_module_plugins: ExtractedAlphaSourcePlugin mounted — alpha discovery, ensemble, decay, rotation available.
+2026-09-18 08:48:11,166 INFO core.harness.extracted_module_plugins: ExtractedRegimePlugin mounted — HMM/Hurst regime + allocation matrix wired.
+2026-09-18 08:48:11,171 INFO core.harness.extracted_module_plugins: ExtractedNewsPlugin mounted — ESI, Delta, phase detection, NFP/CPI weights available.
+2026-09-18 08:48:11,171 INFO core.harness.extracted_module_plugins: ExtractedRiskPlugin mounted — 3-layer risk, 1R sizing, vol targeting, heat management.
+2026-09-18 08:48:11,197 INFO core.harness.extracted_module_plugins: ExtractedAutonomousPlugin mounted — constitution, trust levels, seasons, drift detection.
+2026-09-18 08:48:11,197 INFO core.harness.extracted_module_plugins: ExtractedAltDataPlugin mounted — gold FV, vol regime, carry, synthetic index available.
+2026-09-18 08:48:11,204 INFO core.harness.extracted_module_plugins: ExtractedResearchPlugin mounted — FactorMiner, AQuA, MARS configs + challenge mapping.
+2026-09-18 08:48:11,204 INFO core.harness.extracted_module_plugins: ExtractedModulesPlugin mounted 9/9 adapters: ['extracted_metrics', 'extracted_validation', 'extracted_alpha_source', 'extracted_regime', 'extracted_news', 'extracted_risk', 'extracted_autonomous', 'extracted_alt_data', 'extracted_research']
+2026-09-18 08:48:11,204 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'extracted_modules' (v1.0.0)
+2026-09-18 08:48:11,264 INFO core.harness.quant_models_plugins: RetailQuantBundlePlugin mounted (12 modules).
+2026-09-18 08:48:11,265 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'retail_quant_bundle' (v1.0.0)
+2026-09-18 08:48:12,768 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-18 08:48:13,257 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-18 08:48:13,740 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-18 08:48:15,956 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-18 08:48:15,975 INFO RiskManager: 🔁 Daily Limits Reset. Start Equity: $100000.00
+2026-09-18 08:48:16,017 INFO core.harness.plugins: DeliberativeGraphPlugin compiled and mounted.
+2026-09-18 08:48:16,018 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'deliberative_graph' (v1.0.0)
+2026-09-18 08:48:16,021 INFO core.harness.live_trading_plugin: LiveTradingPlugin mounted (paper=True) — loop factory, sandbox, live advisories via TradingContext
+2026-09-18 08:48:16,021 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'live_trading' (v1.0.0)
+2026-09-18 08:48:16,021 INFO core.harness.quant_models_plugins: Profile 'paper' mounted with 17 plugins into context 'paper_ctx'.
+2026-09-18 08:48:16,025 INFO operations.event_bridge: event_bridge initialized (db=trading_state.db)
+2026-09-18 08:48:16,026 INFO main: Event bridge initialized for engine process
+2026-09-18 08:48:16,026 INFO main: Profile 'paper' mounted via TradingContext — 71 services, 17 plugins
+2026-09-18 08:48:16,036 INFO PrometheusExporter: Prometheus exporter started on 0.0.0.0:9090
+2026-09-18 08:48:16,037 INFO main: Prometheus metrics exporter started on port 9090
+2026-09-18 08:48:16,040 INFO main: Memory Orchestrator initialized (L0-L3 hierarchy)
+2026-09-18 08:48:16,041 INFO main: Knowledge Retrieval initialized (macro + cases + domain)
+2026-09-18 08:48:16,041 INFO main: Meta-Improvement Orchestrator initialized
+2026-09-18 08:48:16,042 INFO main: Kronos Signal Fusion initialized (multi-horizon)
+2026-09-18 08:48:16,042 INFO main: Advanced RL Pipeline initialized (multi-agent)
+2026-09-18 08:48:16,043 INFO main: Improvement Pipeline initialized (auto-apply low-risk)
+2026-09-18 08:48:16,052 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-18 08:48:16,052 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-18 08:48:16,052 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-18 08:48:16,052 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-18 08:48:16,052 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-18 08:48:16,052 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-18 08:48:16,053 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-18 08:48:16,055 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-18 08:48:16,214 INFO LLMOrchestrator: Using LLM Router | agent=trader | model=mistralai/mistral-7b-instruct-v0.2
+2026-09-18 08:48:16,215 INFO RLTrainer: RL model loaded from rl_model.json (0 states, 0 updates)
+2026-09-18 08:48:22,640 INFO KronosBridge: ✅ Kronos neural backend ready (kronos-mini): loaded neural weights model=kronos-mini tokenizer=kronos-tokenizer-2k device=cpu — error cleared
+2026-09-18 08:48:22,640 INFO LLMOrchestrator: Kronos advisory enabled | backend=neural | weights_loaded=True
+2026-09-18 08:48:22,654 INFO main: LLMOrchestrator constructed via harness factory (profile=paper)
+2026-09-18 08:48:22,655 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-18 08:48:22,655 INFO main: TradeManager wired from harness context to orchestrator
+Starting LLM Trader on XAUUSD (M15)...
+Mode: DEMO
+Model: mistralai/mistral-7b-instruct-v0.2
+2026-09-18 08:48:22,662 INFO ExternalGuardian: Ψ Guardian thread started (poll_interval=2.0s)
+2026-09-18 08:48:22,663 INFO ExternalGuardian: Ψ Guardian thread spawned
+2026-09-18 08:48:22,663 INFO main: Ψ External Guardian started (hardcoded thresholds, independent of Γ)
+2026-09-18 08:48:22,766 INFO TaskQueue: Migrated 39 intervals to S.Q priority queue
+2026-09-18 08:48:22,767 INFO main: S.Q Priority Queue initialized (39 scheduled tasks)
+2026-09-18 08:48:22,767 INFO main: κ Compliance Audit started (hash-chained, append-only)
+2026-09-18 08:48:22,818 INFO CrashRecovery: Crash recovery: checking system state...
+2026-09-18 08:48:22,818 WARNING CrashRecovery: Crash detected: last checkpoint was interrupted
+2026-09-18 08:48:22,857 INFO CrashRecovery: Recovery: restoring from checkpoint (cycle 2)
+2026-09-18 08:48:22,857 WARNING main: ⚠  Crash detected — last completed cycle: 2 (action: RESTORE_FROM_CHECKPOINT)
+2026-09-18 08:48:22,857 WARNING main:   Recovery reason: Last checkpoint was RUNNING (crash-interrupted)
+2026-09-18 08:48:22,857 INFO main:   Restored state from cycle 2
+2026-09-18 08:48:22,857 INFO main: Crash recovery started (hash-chained checkpoint journal, atexit+SIGTERM hooks)
+2026-09-18 08:48:23,072 INFO MT5Client: Broker preflight captured for XAUUSD; specification changed=False
+2026-09-18 08:48:23,094 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+┌──────────────────────────── 🚀 CYCLE 1/4 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: M15 | Time: 08:48:23                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 08:48:23,467 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 08:48:23,557 INFO MarketScanner: Scanning Key Markets & Wildcards...
+2026-09-18 08:48:27,187 INFO APIManager: Fetched 5 news articles for: ['Gold', 'XAUUSD', 'Federal Reserve', 'XAU', 'US Dollar']
+2026-09-18 08:48:38,512 WARNING LLMOrchestrator: schedule batch exceeded 15.0s budget; abandoning this pulse
+2026-09-18 08:48:39,222 WARNING AlertRules: ALERT [WARNING]: Rolling win rate below 40% (value=0.0, threshold=0.4)
+2026-09-18 08:48:39,225 WARNING main: ALERT [WARNING]: Rolling win rate below 40% (value=0.0)
+2026-09-18 08:48:39,227 INFO DegradationDetector: Running degradation check...
+2026-09-18 08:48:39,227 INFO DegradationDetector: Action REDUCE in cooldown, skipping
+
+ Next market pulse in 5 seconds...
+2026-09-18 08:48:44,234 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+┌──────────────────────────── 🚀 CYCLE 2/4 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: M15 | Time: 08:48:44                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 08:48:44,562 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 08:48:44,636 INFO MarketScanner: Scanning Key Markets & Wildcards...
+2026-09-18 08:48:45,862 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-18 08:48:45,893 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-18 08:48:45,918 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-18 08:48:46,619 WARNING AlertRules: ALERT [WARNING]: Rolling win rate below 40% (value=0.0, threshold=0.4)
+2026-09-18 08:48:46,623 WARNING main: ALERT [WARNING]: Rolling win rate below 40% (value=0.0)
+2026-09-18 08:48:46,624 INFO DegradationDetector: Running degradation check...
+2026-09-18 08:48:46,624 INFO DegradationDetector: Action REDUCE in cooldown, skipping
+
+ Next market pulse in 5 seconds...
+2026-09-18 08:48:51,630 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+┌──────────────────────────── 🚀 CYCLE 3/4 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: M15 | Time: 08:48:51                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 08:48:51,970 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 08:48:52,688 WARNING AlertRules: ALERT [WARNING]: Rolling win rate below 40% (value=0.0, threshold=0.4)
+2026-09-18 08:48:52,691 WARNING main: ALERT [WARNING]: Rolling win rate below 40% (value=0.0)
+2026-09-18 08:48:52,692 INFO DegradationDetector: Running degradation check...
+2026-09-18 08:48:52,693 INFO DegradationDetector: Action REDUCE in cooldown, skipping
+
+ Next market pulse in 5 seconds...
+2026-09-18 08:48:55,213 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-18 08:48:55,244 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-18 08:48:57,698 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+┌──────────────────────────── 🚀 CYCLE 4/4 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: M15 | Time: 08:48:58                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 08:48:58,233 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 08:48:59,002 WARNING AlertRules: ALERT [WARNING]: Rolling win rate below 40% (value=0.0, threshold=0.4)
+2026-09-18 08:48:59,006 WARNING main: ALERT [WARNING]: Rolling win rate below 40% (value=0.0)
+2026-09-18 08:48:59,007 INFO DegradationDetector: Running degradation check...
+2026-09-18 08:48:59,007 INFO DegradationDetector: Action REDUCE in cooldown, skipping
+2026-09-18 08:48:59,097 INFO ExternalGuardian: Ψ Guardian thread stopped
+2026-09-18 08:48:59,097 INFO main: Ψ Guardian stopped
+
+
+
+[Performance] No trades recorded this session.
+Total Trades Logged: 0
+Rolling Sharpe (20): 0.0000
+Max Drawdown:        0.0000
+Win Rate (Closed):   0.0%
+==================================================
+
+
+==================================================
+  RL TRAINING METRICS
+==================================================
+Total Updates: 0
+Epsilon:       0.2000
+==================================================
+
+==================================================
+
+2026-09-18 08:48:59,131 INFO RLTrainer: RL model saved to rl_model.json (0 states)
+✔ RL Model Saved.
+
+▣ Alpha dashboard (final): alpha_dashboard.html
+   Dashboard auto-generated 5 time(s) during this run.
+2026-09-18 08:48:59,157 INFO CrashRecovery: Crash recovery: graceful shutdown initiated
+2026-09-18 08:48:59,181 INFO CrashRecovery: Shutdown snapshot saved for cycle 4 (checkpoint 13470)
+2026-09-18 08:48:59,181 INFO CrashRecovery: Crash recovery: shutdown complete

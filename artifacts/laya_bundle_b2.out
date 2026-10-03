@@ -1,0 +1,5 @@
+.......                                                                  [100%]
+============================= slowest 3 durations =============================
+0.02s setup    tests/test_laya_bundle_prompt.py::test_projection_shapes_heads_and_bundle_level_fields
+0.01s setup    tests/test_laya_bundle_prompt.py::test_attach_stale_bundle_is_unavailable
+0.01s setup    tests/test_laya_bundle_prompt.py::test_attach_available_fresh_bundle

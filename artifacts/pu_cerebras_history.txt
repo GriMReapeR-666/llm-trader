@@ -1,0 +1,8 @@
+all-time provider/status counts:
+nvidia_nim|ERROR|5
+openrouter|ERROR|44
+openrouter|SUCCESS|27
+
+last 5 cerebras rows ever (if any):
+exit=0
+END-MARKER-PU-0148

@@ -1,0 +1,35 @@
+...............................                                          [100%]
+============================== warnings summary ===============================
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_core\provider\utils\client.py:65
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_core\provider\utils\client.py:65: DeprecationWarning: Inheritance class ClientSession from ClientSession is discouraged
+    class ClientSession(aiohttp.ClientSession):
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_core\app\model\system_settings.py:77
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_core\app\model\system_settings.py:77: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")  # type: ignore
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_congress_gov\models\congress_amendments.py:75
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_congress_gov\models\congress_amendments.py:75: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_congress_gov\models\congress_bills.py:87
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_congress_gov\models\congress_bills.py:87: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\equity_historical.py:83
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\equity_historical.py:83: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\forward_eps_estimates.py:52
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\forward_eps_estimates.py:52: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\forward_sales_estimates.py:52
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\forward_sales_estimates.py:52: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\options_chains.py:118
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\options_chains.py:118: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html

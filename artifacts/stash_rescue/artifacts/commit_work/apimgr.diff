@@ -1,0 +1,291 @@
+diff --git a/data/api_manager.py b/data/api_manager.py
+index 1e3e85c..8792da3 100644
+--- a/data/api_manager.py
++++ b/data/api_manager.py
+@@ -7,11 +7,50 @@ Manages NewsAPI, FRED, SEC filing, Yahoo Finance, and OpenBB APIs with rate limi
+ import os
+ import time
+ import logging
++import threading
+ import requests
+-from typing import List, Dict, Any, Optional
++from typing import Any, Callable, Dict, List, Optional, Tuple
+ from datetime import datetime, timedelta, timezone
+ from rate_limiter import MultiAPIRateLimiter
+ 
++
++def _ds_note(src: str, outcome: str, note: str) -> None:
++    """Best-effort boot-datasheet marker (never fatal, no-op when disabled)."""
++    try:
++        from boot_datasheet import boot_datasheet_enabled, get_datasheet
++        if boot_datasheet_enabled():
++            get_datasheet().record_degraded(src, outcome, note)
++    except Exception:
++        pass
++
++
++def _run_bounded(fn: Callable[[], Any], budget_s: float) -> Tuple[bool, Any, Optional[BaseException]]:
++    """Run ``fn`` on a daemon thread with a hard wait-bound; never propagates.
++
++    Returns ``(ok, result, error)``: ``ok`` is True when ``fn`` returned within
++    the budget; a raised exception is reported via ``error`` (contained, not
++    propagated); a deadline miss reports ``ok=False`` with a synthetic timeout
++    error and abandons the (unkillable) worker thread — the caller fails open
++    instead of hanging.
++    """
++    box: Dict[str, Any] = {}
++
++    def _target() -> None:
++        try:
++            box["result"] = fn()
++        except BaseException as exc:  # contained; re-raising would defeat the bound
++            box["error"] = exc
++
++    worker = threading.Thread(target=_target, name="api-manager-bounded", daemon=True)
++    worker.start()
++    worker.join(timeout=budget_s)
++    if worker.is_alive():
++        return False, None, TimeoutError(
++            f"call exceeded {budget_s:.0f}s budget; abandoned (hung provider?)")
++    if "error" in box:
++        return False, None, box["error"]
++    return True, box.get("result"), None
++
+ # Optional imports with fallbacks
+ try:
+     from newsapi import NewsApiClient
+@@ -224,16 +263,19 @@ class APIManager:
+             return False
+         return (time.time() - bo["last_429"]) < bo["delay_sec"]
+ 
+-    def record_rate_limit(self, service: str) -> None:
++    def record_rate_limit(self, service: str, long_backoff: bool = False) -> None:
+         """Record a 429 rate limit or quota exhaustion with exponential backoff."""
+         if service not in self._service_backoffs:
+             self._service_backoffs[service] = {"last_429": 0.0, "delay_sec": 10.0}
+         bo = self._service_backoffs[service]
+         bo["last_429"] = time.time()
+-        bo["delay_sec"] = min(300.0, bo["delay_sec"] * 2.0)
+-        self.log.warning("Rate limit / quota hit for %s. Backoff increased to %.1fs", service, bo["delay_sec"])
++        if long_backoff:
++            bo["delay_sec"] = 43200.0  # 12 hours for daily quota exhaustion
++        else:
++            bo["delay_sec"] = min(3600.0, max(bo["delay_sec"] * 2.0, 60.0))
++        self.log.warning("Rate limit / quota hit for %s. Backoff set to %.1fs", service, bo["delay_sec"])
+ 
+-    def rotate_key(self, service: str) -> bool:
++    def rotate_key(self, service: str, long_backoff: bool = False) -> bool:
+         """Rotate to next key in key pool for the specified service."""
+         if service == "newsapi" and len(self._newsapi_keys) > 1:
+             self._newsapi_key_idx = (self._newsapi_key_idx + 1) % len(self._newsapi_keys)
+@@ -259,7 +301,7 @@ class APIManager:
+                     return True
+                 except Exception as e:
+                     self.log.warning("Failed to reinitialize FRED with rotated key: %s", e)
+-        self.record_rate_limit(service)
++        self.record_rate_limit(service, long_backoff=long_backoff)
+         return False
+ 
+     def get_news(self, keywords: List[str], language: str = "en", page_size: int = 5) -> List[Dict[str, Any]]:
+@@ -269,8 +311,10 @@ class APIManager:
+         if not self.newsapi or self.is_service_backed_off("newsapi"):
+             if self.is_service_backed_off("newsapi"):
+                 self.log.debug("NewsAPI is currently backed off due to rate limits.")
++                _ds_note("newsapi.get_news", "SKIP", "service backed off")
+             elif not self.newsapi:
+                 self.log.warning("NewsAPI not available. Skipping news fetch.")
++                _ds_note("newsapi.get_news", "SKIP", "not configured")
+             return []
+         
+         cache_key = self._get_cache_key("newsapi", ",".join(keywords))
+@@ -285,14 +329,29 @@ class APIManager:
+             
+             query = " OR ".join(keywords)
+             from_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+-            
+-            response = self.newsapi.get_everything(
+-                q=query,
+-                language=language,
+-                from_param=from_date,
+-                sort_by="relevancy",
+-                page_size=page_size
+-            )
++
++            def _call() -> Dict[str, Any]:
++                return self.newsapi.get_everything(
++                    q=query,
++                    language=language,
++                    from_param=from_date,
++                    sort_by="relevancy",
++                    page_size=page_size
++                )
++
++            ok, response, err = _run_bounded(
++                _call, float(os.getenv("NEWSAPI_BUDGET_S", "15")))
++            if not ok:
++                # Fail open with the LAST GOOD data instead of an empty list:
++                # a stale headline is still an informative headline, and the
++                # caller sees a bounded, degraded fetch rather than a hang.
++                if cached and "data" in cached:
++                    self.log.warning("NewsAPI unavailable (%s); serving stale cache for %s", err, keywords)
++                    _ds_note("newsapi.get_news", "STALE", "budget/hang; stale cache served")
++                    return cached["data"]
++                self.log.warning("NewsAPI unavailable (%s); no cached news - returning empty", err)
++                _ds_note("newsapi.get_news", "EMPTY", "budget/hang; no cache")
++                return []
+             
+             articles = []
+             for article in response.get("articles", []):
+@@ -311,15 +370,26 @@ class APIManager:
+                 "data": articles
+             }
+             self._save_cache()
++            _ds_note("newsapi.get_news", "FRESH", "%d articles" % len(articles))
+             
+             self.log.info(f"Fetched {len(articles)} news articles for: {keywords}")
+             return articles
+             
+         except Exception as e:
+-            self.log.error(f"NewsAPI error: {e}")
+             err_str = str(e).lower()
+-            if "429" in err_str or "rate" in err_str or "too many" in err_str:
+-                self.rotate_key("newsapi")
++            is_quota = "ratelimited" in err_str or "24 hour" in err_str or "too many requests recently" in err_str
++            is_rate = is_quota or "429" in err_str or "rate" in err_str or "too many" in err_str
++            if is_rate:
++                self.rotate_key("newsapi", long_backoff=is_quota)
++                if not is_quota:
++                    self.log.warning("NewsAPI rate limited: %s", e)
++            else:
++                self.log.error("NewsAPI error: %s", e)
++            if cached and "data" in cached:
++                self.log.warning("NewsAPI failed (%s); serving stale cache for %s", e, keywords)
++                _ds_note("newsapi.get_news", "STALE", str(e)[:60])
++                return cached["data"]
++            _ds_note("newsapi.get_news", "EMPTY", str(e)[:60])
+             return []
+     
+     def get_hot_topics(self, limit: int = 3) -> List[Dict[str, Any]]:
+@@ -339,12 +409,24 @@ class APIManager:
+         try:
+             self.rate_limiter.wait_if_needed("newsapi")
+             
+-            response = self.newsapi.get_top_headlines(
+-                q=None, 
+-                category="business",
+-                language="en",
+-                page_size=limit
+-            )
++            def _call() -> Dict[str, Any]:
++                return self.newsapi.get_top_headlines(
++                    q=None,
++                    category="business",
++                    language="en",
++                    page_size=limit
++                )
++
++            ok, response, err = _run_bounded(
++                _call, float(os.getenv("NEWSAPI_BUDGET_S", "15")))
++            if not ok:
++                if cached and "data" in cached:
++                    self.log.warning("Hot topics unavailable (%s); serving stale cache", err)
++                    _ds_note("newsapi.get_hot_topics", "STALE", "budget/hang; stale cache served")
++                    return cached["data"]
++                self.log.warning("Hot topics unavailable (%s); no cached headlines - returning empty", err)
++                _ds_note("newsapi.get_hot_topics", "EMPTY", "budget/hang; no cache")
++                return []
+             
+             articles = []
+             for article in response.get("articles", []):
+@@ -363,12 +445,24 @@ class APIManager:
+                 "data": articles
+             }
+             self._save_cache()
++            _ds_note("newsapi.get_hot_topics", "FRESH", "%d headlines" % len(articles))
+             
+             self.log.info(f"Fetched {len(articles)} hot topics (incl. geopolitics)")
+             return articles
+             
+         except Exception as e:
+-            self.log.error(f"Hot topics fetch failed: {e}")
++            err_str = str(e).lower()
++            is_quota = "ratelimited" in err_str or "24 hour" in err_str or "too many requests recently" in err_str
++            is_rate = is_quota or "429" in err_str or "rate" in err_str or "too many" in err_str
++            if is_rate:
++                self.rotate_key("newsapi", long_backoff=is_quota)
++                if not is_quota:
++                    self.log.warning("Hot topics rate limited: %s", e)
++            else:
++                self.log.error("Hot topics fetch failed: %s", e)
++            if cached and "data" in cached:
++                self.log.warning("Hot topics failed (%s); serving stale cache", e)
++                return cached["data"]
+             return []
+ 
+     def _estimate_sentiment(self, text: str) -> str:
+@@ -397,8 +491,10 @@ class APIManager:
+         if not self.fred or self.is_service_backed_off("fred"):
+             if self.is_service_backed_off("fred"):
+                 self.log.debug("FRED API is currently backed off due to rate limits.")
++                _ds_note("fred.get_fred_data", "SKIP", "service backed off")
+             elif not self.fred:
+                 self.log.warning("FRED API not available. Skipping macro data fetch.")
++                _ds_note("fred.get_fred_data", "SKIP", "not configured")
+             return {}
+         
+         cache_key = self._get_cache_key("fred", ",".join(series_ids))
+@@ -413,8 +509,19 @@ class APIManager:
+         for series_id in series_ids:
+             try:
+                 self.rate_limiter.wait_if_needed("fred")
+-                
+-                series = self.fred.get_series(series_id)
++
++                def _call(series_id=series_id):
++                    return self.fred.get_series(series_id)
++
++                ok, series, err = _run_bounded(
++                    _call, float(os.getenv("FRED_BUDGET_S", "20")))
++                if not ok:
++                    # Fail open per series: log, keep what we have, keep
++                    # walking the batch (the batch-level network-abort merge
++                    # below already preserves cached series).
++                    self.log.warning("FRED %s unavailable (%s); skipping series", series_id, err)
++                    _ds_note("fred.get_series", "SKIP", "%s budget/hang" % series_id)
++                    continue
+                 if series is not None and len(series) > 0:
+                     latest_value = float(series.iloc[-1])
+                     latest_date = series.index[-1].strftime("%Y-%m-%d")
+@@ -435,11 +542,31 @@ class APIManager:
+                         except (TypeError, ValueError, OverflowError):
+                             pass
+                     results[series_id] = row
++                    _ds_note("fred.get_series", "FRESH", "%s (as of %s)" % (series_id, latest_date))
+                     self.log.debug(f"FRED {series_id}: {latest_value} (as of {latest_date})")
+                 
+             except Exception as e:
+-                self.log.warning(f"FRED error for {series_id}: {e}")
+                 err_str = str(e).lower()
++                is_net_err = (
++                    "getaddrinfo" in err_str
++                    or "10053" in err_str
++                    or "10054" in err_str
++                    or "connection" in err_str
++                    or "timed out" in err_str
++                    or "remote end closed" in err_str
++                )
++                if is_net_err:
++                    self.log.warning(
++                        "FRED network connection aborted (%s). Stopping batch early to preserve cached series.",
++                        e,
++                    )
++                    _ds_note("fred.get_fred_data", "ABORT", "net abort; cached series kept")
++                    if cached and "data" in cached:
++                        merged = dict(cached["data"])
++                        merged.update(results)
++                        results = merged
++                    break
++                self.log.warning("FRED error for %s: %s", series_id, e)
+                 if "429" in err_str or "rate" in err_str or "too many" in err_str:
+                     self.rotate_key("fred")
+         

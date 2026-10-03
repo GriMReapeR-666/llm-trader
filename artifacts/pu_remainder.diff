@@ -1,0 +1,22 @@
+diff --git a/intelligence/llm_orchestrator.py b/intelligence/llm_orchestrator.py
+index f9531f4..79995f9 100644
+--- a/intelligence/llm_orchestrator.py
++++ b/intelligence/llm_orchestrator.py
+@@ -7855,7 +7855,16 @@ class LLMOrchestrator:
+             self._guardian_progress("post_llm_decision")
+             # GAP-11: fill missing continuous params from RL bridge (advisory only).
+             # If Bounded Autonomy is active, Proposition 1 Monotone Exposure forbids RL mutation/origination!
+-            if not getattr(self, "enable_bounded_autonomy", False):
++            # A provider outage means there is NO model judgement at all. Letting
++            # the RL suggestion stand in for it would open new risk with nothing in
++            # the loop, which is exactly what deterministic_hold_fallback forbids.
++            # The safety HOLD must stay absolute.
++            provider_outage = bool(decision.get("deterministic_fallback"))
++            if provider_outage:
++                logger.warning(
++                    "RL bridge suppressed: LLM providers are down and the decision "
++                    "is a deterministic safety HOLD; no new risk may be taken")
++            if not getattr(self, "enable_bounded_autonomy", False) and not provider_outage:
+                 bridged_payload = toon.get("rl_bridged_params") or {}
+                 if bridged_payload.get("action") in {"BUY", "SELL"}:
+                     from rl_action_bridge import BridgedExecutionParams

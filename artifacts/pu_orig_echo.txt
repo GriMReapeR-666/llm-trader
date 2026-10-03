@@ -1,0 +1,7 @@
+--- orig_block: rc=0
+   stdout: [HEADLESS AUTO-MODE] Launching EURUSD AUTO (Paper Mode, Continuous
+HARNESS-LAUNCHED
+--- fixed_block: rc=0
+   stdout: [HEADLESS AUTO-MODE] Launching EURUSD AUTO (Paper Mode, Continuous)
+HARNESS-LAUNCHED
+END-MARKER-PU-0092

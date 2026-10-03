@@ -1,0 +1,27 @@
+=== PU-0145 SDK probes @ 2026-09-30T02:51:45Z UTC ===
+
+--- Cerebras (OpenAI SDK, api.cerebras.ai/v1) ---
+key: csk-...692c(len=52) model: qwen-3.8-27b
+GET /models -> 200, count=2, sample=['gpt-oss-120b', 'qwen-3.8-27b']
+[cerebras] 0 chars -> ERROR (0.5s): Error code: 402 - {'message': 'Payment required to access this resource. Visit your billing tab.', 'type': 'payment_required_error', 'param': 'quota', 'code': 'payment_required'}
+
+--- NVIDIA NIM payload-size ladder (meta/llama-3.2-11b-vision-instruct) ---
+key: nvap...ld88(len=70)
+[nvidia] 0 chars -> 200 (2.0s) reply='Received'
+[nvidia] 1000 chars -> 200 (0.5s) reply='Received'
+[nvidia] 10000 chars -> 200 (0.8s) reply='Received'
+[nvidia] 50000 chars -> 200 (6.2s) reply='Received'
+[nvidia] 100000 chars -> 200 (18.4s) reply='Launch'
+[nvidia] 150000 chars -> 200 (4.4s) reply='ping'
+[nvidia] 200000 chars -> 200 (6.7s) reply='Launch'
+
+--- TokenRouter (sk key against openrouter.ai/api/v1) ---
+key: sk-k...KeCh(len=51) model: GLM5.2
+[tokenrouter] 0 chars -> ERROR (0.4s): Error code: 401 - {'error': {'message': 'Missing Authentication header', 'code': 401}}
+
+--- OpenRouter key status (/api/v1/key) ---
+key info: {"label": "sk-or-v1-99f...f3e", "is_free_tier": true, "limit": null, "usage": 0.10412528, "limit_remaining": null}
+
+PU-0145-OK
+exit=0
+END-MARKER-PU-0145

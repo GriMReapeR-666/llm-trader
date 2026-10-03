@@ -1,0 +1,9 @@
+newest llm_prompt: 175733 chars
+HEAD: {"messages":[{"content":"You are a World-Class Hedge Fund Trader & Risk Manager (Macro/Quant). Your goal is to analyze the provided Market Data (TOON) and output a deterministic JSON decision.\n\nCRITICAL MANDATE: You MUST output ONLY a valid JSON object starting immediately with '{' and ending with '}'. Never output preliminary conversational reasoning, preambles, or explanations outside the JSON
+envelope: top-level JSON dict
+top-level sections: 2, total 175758 chars
+    175722  100.0%  messages
+        36    0.0%  model
+(top 25 cover 100.0% of the JSON)
+PROBE-DONE
+END-MARKER-PU-0095

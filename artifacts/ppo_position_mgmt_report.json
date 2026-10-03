@@ -1,0 +1,80 @@
+{
+  "status": "COMPLETED",
+  "model_kind": "ppo_gae_position_mgmt_v1",
+  "training_data_hash": "8d2a195e01626deb8affd72bd158ef222449ae2ddb37cece8f3c72a374edc305",
+  "configuration": {
+    "episodes": 2,
+    "updates": 1,
+    "max_steps": 30,
+    "symbol": "EURUSD",
+    "regime": "volatile",
+    "seed": 7,
+    "simulator": "kronos",
+    "backend": "numpy",
+    "model_kind": "ppo_gae_position_mgmt_v1",
+    "actions": [
+      "HOLD",
+      "TIGHTEN_SL",
+      "TRAIL",
+      "PARTIAL_CLOSE",
+      "FULL_EXIT"
+    ]
+  },
+  "updates": [
+    {
+      "update": 0,
+      "timesteps": 2,
+      "mean_reward": -0.4,
+      "mean_advantage": -0.33864413210986855,
+      "policy_loss": -0.0039026467151854205,
+      "value_loss": 0.2810720617527129,
+      "entropy": 1.6041095290272636
+    }
+  ],
+  "episodes_detail": [
+    {
+      "episode": 0,
+      "seed": 7,
+      "steps": 1,
+      "reward": -0.8,
+      "pnl": -0.800000000000001,
+      "direction": 1.0
+    },
+    {
+      "episode": 1,
+      "seed": 8,
+      "steps": 1,
+      "reward": 0.0,
+      "pnl": 0.0,
+      "direction": -1.0
+    }
+  ],
+  "mean_episode_reward": -0.4,
+  "artifact_written": true,
+  "promotion_safe": false,
+  "execution_authority": false,
+  "source": "KronosRLMarketSimulator",
+  "limitation": "Offline PPO research artifact only; never grants live execution or promotion.",
+  "sustainability_objective": {
+    "status": "OK",
+    "objective": -0.6000000000000001,
+    "mean": -0.4,
+    "cvar": -0.8,
+    "mean_weight": 0.5,
+    "cvar_weight": 0.5,
+    "alpha": 0.05,
+    "n": 2,
+    "execution_authority": false,
+    "kind": "cvar_mixture_objective"
+  },
+  "artifact_path": "artifacts\\ppo_position_mgmt.json",
+  "artifact_sha256": "7ee744f98e1684eec6e452b3b630fef3c784b870b93efd2de54c1efb82870fe5",
+  "session_rollup": {
+    "symbol": "EURUSD",
+    "regime": "volatile",
+    "simulator": "kronos",
+    "episodes": 2,
+    "mean_episode_reward": -0.4,
+    "execution_authority": false
+  }
+}

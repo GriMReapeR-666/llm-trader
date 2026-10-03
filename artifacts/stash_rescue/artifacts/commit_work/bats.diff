@@ -1,0 +1,140 @@
+diff --git a/START_DECK.bat b/START_DECK.bat
+index ec89fae..8b5c7fe 100644
+--- a/START_DECK.bat
++++ b/START_DECK.bat
+@@ -5,6 +5,8 @@ title LLM Trader - Command Deck
+ set "BUN=%USERPROFILE%\.bun\bin\bun.exe"
+ if not exist "%BUN%" set "BUN=bun"
+ set "PROJECT_ROOT=%~dp0"
++set "DELIBERATIVE_GRAPH_SHADOW=1"
++if "%~1"=="" (echo  Args: none) else (echo  Args: %*)
+ 
+ echo.
+ echo  +====================================================+
+@@ -57,6 +59,36 @@ if not exist "%PROJECT_ROOT%tui_opentui\package.json" (
+     exit /b 1
+ )
+ 
++REM -- Optional compact-context preflight: set LLM_TRADER_COMPACT_CONTEXT=1 --
++REM    (R1 payload audit: rolling-window history + summaries; verify env first).
++
++if /i "%LLM_TRADER_COMPACT_CONTEXT%"=="1" (
++  call python -X utf8 artifacts\ctx_probe.py
++  if errorlevel 1 (
++    echo  [X] PREFLIGHT: compact-context probe RED - aborting launch. See artifacts\ctx_probe.txt
++    pause
++    exit /b 1
++  )
++  echo  [OK] PREFLIGHT: compact-context probe GREEN.
++)
++
++REM -- Boot mode selection: fast-boot skips the ~25-min Laya news triage --
++REM    (NEWS_TRIAGE_MODE=off -> deterministic rule-based triage, honest fallback).
++
++set "TRIAGE_MODE=auto"
++if /i "%DECK_TRIAGE_MODE%"=="off" set "TRIAGE_MODE=off"
++if /i "%DECK_TRIAGE_MODE%"=="auto" set "TRIAGE_MODE=auto_no_prompt"
++if /i "%1"=="--fast" set "TRIAGE_MODE=off"
++if /i "%1"=="--full" set "TRIAGE_MODE=full"
++if "%TRIAGE_MODE%"=="auto" if not "%DECK_TRIAGE_MODE%"=="auto" (
++  echo.
++  choice /C YN /N /T 5 /D N /M "Fast boot? Skip ~25min news triage this launch [Y/N, N in 5s]: "
++  if errorlevel 2 (set "TRIAGE_MODE=full") else set "TRIAGE_MODE=off"
++)
++if "%TRIAGE_MODE%"=="off" (set "NEWS_TRIAGE_MODE=off") else if "%TRIAGE_MODE%"=="full" (set "NEWS_TRIAGE_MODE=auto") else set "NEWS_TRIAGE_MODE="
++if "%TRIAGE_MODE%"=="off" echo  [FAST BOOT] NEWS_TRIAGE_MODE=off -- deterministic news triage, Laya inference skipped
++if "%TRIAGE_MODE%"=="full" echo  [FULL BOOT] NEWS_TRIAGE_MODE=auto -- full Laya news triage runs at engine start
++
+ REM -- Kill stale processes on port 8000 -----------------
+ 
+ for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr :8000 ^| findstr LISTENING') do taskkill /PID %%a /F >nul 2>&1
+@@ -91,6 +123,15 @@ exit /b 1
+ echo  [OK] API server ready
+ echo.
+ 
++REM -- Auto-start trader in PAPER mode --------------------
++
++echo  Starting trader (paper mode)...
++python -c "import urllib.request, json; r=urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/api/control/start', data=json.dumps({'mode':'paper','symbol':'EURUSD','timeframe':'AUTO','risk':1.0,'continuous':True,'news_triage_mode':__import__('os').environ.get('NEWS_TRIAGE_MODE','') or None}).encode(), headers={'Content-Type':'application/json'}), timeout=10); b=json.load(r); print('[OK] Trader started (paper mode)' if b.get('status')=='success' else '[!] Trader start refused: '+str(b.get('status'))+' -- start manually from Command Deck [5]')" 2>nul
++if %ERRORLEVEL% EQU 0 goto TRADER_DONE
++echo  [!] Trader auto-start failed (connection error) -- start manually from Command Deck [5]
++:TRADER_DONE
++echo.
++
+ REM -- Install TUI deps if needed -----------------------
+ 
+ if not exist "%PROJECT_ROOT%tui_opentui\node_modules" (
+@@ -115,7 +156,8 @@ echo   Exit: Ctrl+C
+ echo.
+ 
+ cd /d "%PROJECT_ROOT%tui_opentui"
+-"%BUN%" src/index.tsx %*
++set "TUI_ARGS=%DECK_TUI_ARGS%"
++if defined TUI_ARGS ("%BUN%" src/index.tsx %TUI_ARGS%) else "%BUN%" src/index.tsx
+ 
+ REM -- Cleanup: kill API on exit -------------------------
+ 
+diff --git a/START_TRADING.bat b/START_TRADING.bat
+index a5c8ba4..655c11e 100644
+--- a/START_TRADING.bat
++++ b/START_TRADING.bat
+@@ -1,4 +1,57 @@
+ @echo off
++setlocal EnableDelayedExpansion
+ chcp 65001 >nul 2>&1
+-python mt5_trader.py
+-pause
++title LLM Trader - Autonomous Headless Trading
++
++set "PROJECT_ROOT=%~dp0"
++cd /d "%PROJECT_ROOT%"
++set "DELIBERATIVE_GRAPH_SHADOW=1"
++
++echo.
++echo ====================================================
++echo   LLM TRADER - AUTONOMOUS HEADLESS TRADING ENGINE
++echo ====================================================
++echo.
++
++set "FIRST_ARG=%~1"
++set "PREFIX=!FIRST_ARG:~0,2!"
++
++if "%~1"=="" (
++    echo [HEADLESS AUTO-MODE] Launching EURUSD AUTO ^(Paper Mode, Continuous^)
++    if /i "%SMOKE_PREFLIGHT%"=="1" (
++        echo [PREFLIGHT] QKF smoke probes running ^(set SMOKE_PREFLIGHT=0 to skip^)...
++        pushd quant_knowledge_framework
++        python -X utf8 smoke_test.py --fast
++        if errorlevel 1 (
++            popd
++            echo [PREFLIGHT] QKF smoke RED - aborting launch. Report: artifacts\qkf_smoke_report.txt
++            goto :done
++        )
++        popd
++        echo [PREFLIGHT] QKF smoke GREEN.
++    )
++    if /i "%LLM_TRADER_COMPACT_CONTEXT%"=="1" (
++        echo [PREFLIGHT] Compact-context probe running ^(LLM_TRADER_COMPACT_CONTEXT=1^)...
++        call python -X utf8 artifacts\ctx_probe.py
++        if errorlevel 1 (
++            echo [PREFLIGHT] Compact-context probe RED - aborting launch. See artifacts\ctx_probe.txt
++            goto :done
++        )
++        echo [PREFLIGHT] Compact-context probe GREEN.
++    )
++    python -u mt5_trader.py llm-trade --paper --symbol EURUSD --timeframe AUTO --model mistralai/mistral-7b-instruct-v0.2 --risk-per-trade 1.0 --continuous
++    goto :done
++)
++
++if "!PREFIX!"=="--" (
++    echo [HEADLESS AUTO-MODE] Launching EURUSD AUTO with options: %*
++    python -u mt5_trader.py llm-trade --paper --symbol EURUSD --timeframe AUTO --model mistralai/mistral-7b-instruct-v0.2 --risk-per-trade 1.0 %*
++    goto :done
++)
++
++echo [HEADLESS CUSTOM-COMMAND] Launching: %*
++python -u mt5_trader.py %*
++
++:done
++if "%~1"=="" if not "%CI%"=="1" if not "%HEADLESS%"=="1" pause
++endlocal

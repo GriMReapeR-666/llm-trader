@@ -1,0 +1,26 @@
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_ensemble.py:375: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+Loading 100000 real MT5 bars: USDJPY M15 ...
+Alpha set: higher-persistence family (6 alphas, multi-day momentum), edge_horizon=480
+========================================================================================
+  PARAMETER STABILITY SURFACE - trend_quantile x min_edge_multiple
+  data: mt5:USDJPY:M15
+========================================================================================
+ tq \ me |        0.5 |        1.0 |        1.5 |        2.0 |        3.0 |
+---------------------------------------------------------------------------
+     0.3 |     1.22|     1.22|     1.22|     1.22|     1.22|
+     0.4 |     1.22|     1.22|     1.22|     1.22|     1.22|
+     0.5 |     1.22|     1.22|     1.22*|     1.22|     1.22|
+     0.6 |     1.22|     1.22|     1.22|     1.22|     1.22|
+     0.7 |     1.44|     1.44|     1.44|     1.44|     1.44|
+
+  cell = profit factor  (* = default operating point)
+  + = profitable (>=10 trades)   . = unprofitable   blank = unmeasurable
+
+CENTER (tq=0.5, me=1.5): trades=9 ret=+0.04% pf=1.22 win=44.4%
+profitable cells: 0/0 measurable  (share=0%)
+
+VERDICT: INSUFFICIENT - too few trades at the center to judge
+========================================================================================
+
+JSON saved: artifacts/sweep_persistence_usdjpy_m15.json

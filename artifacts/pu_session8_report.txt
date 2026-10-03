@@ -1,0 +1,166 @@
+{
+  "report": "PU-0150",
+  "window_start": "2026-10-01T12:59:28.747391+00:00",
+  "llm_requests": [
+    {
+      "created_at": "2026-10-01T13:03:25.271762+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 701
+    },
+    {
+      "created_at": "2026-10-01T13:14:18.786999+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 708
+    },
+    {
+      "created_at": "2026-10-01T13:25:04.045699+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch items parked FAILED after retry budget; deterministic fallback narratives saved",
+      "estimated_tokens": 1500,
+      "response_chars": 668
+    },
+    {
+      "created_at": "2026-10-01T13:38:43.996846+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch items parked FAILED after retry budget; deterministic fallback narratives saved",
+      "estimated_tokens": 1500,
+      "response_chars": 689
+    },
+    {
+      "created_at": "2026-10-01T14:01:18.912852+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch items parked FAILED after retry budget; deterministic fallback narratives saved",
+      "estimated_tokens": 1500,
+      "response_chars": 0
+    },
+    {
+      "created_at": "2026-10-01T14:07:53.957666+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 811
+    },
+    {
+      "created_at": "2026-10-01T14:20:59.856866+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 175
+    },
+    {
+      "created_at": "2026-10-01T14:31:47.246904+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 179
+    }
+  ],
+  "trader_summary": {
+    "n": 3,
+    "errors": 1,
+    "successes": 2,
+    "error_rate": 0.333,
+    "baseline_error_rate": 0.579
+  },
+  "by_strategy": {
+    "scalp": {
+      "n": 3,
+      "errors": 1,
+      "successes": 2
+    }
+  },
+  "errors_detail": [
+    {
+      "at": "2026-10-01T14:07:53.957666+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    }
+  ],
+  "prompt_join": [
+    {
+      "at": "2026-10-01T14:07:53.957666+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 52040
+    },
+    {
+      "at": "2026-10-01T14:20:59.856866+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 52094
+    },
+    {
+      "at": "2026-10-01T14:31:47.246904+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 89858
+    }
+  ],
+  "prompt_stats": {
+    "n": 3,
+    "min": 52040,
+    "max": 89858,
+    "avg": 64664,
+    "over_96k": 0,
+    "baseline_avg": 129820,
+    "baseline_max": 287319
+  },
+  "memory_summary": {
+    "n": 5,
+    "errors": 5,
+    "parse_status_counts": {
+      "FAILURE": 5
+    },
+    "error_strings": [
+      "memory batch contained failed items; left queued for retry",
+      "memory batch items parked FAILED after retry budget; deterministic fallback narr"
+    ]
+  },
+  "operational_event_counts": {
+    "distillation_failed": 13,
+    "distillation_fallback_used": 6,
+    "schedule_handler_overrun": 7
+  },
+  "memory_outbox_status": {
+    "FAILED": 6,
+    "SENT": 14
+  }
+}
+PU-0150-OK

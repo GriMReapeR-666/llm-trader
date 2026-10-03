@@ -1,0 +1,128 @@
+{
+  "report": "PU-0150",
+  "window_start": "2026-09-30T05:07:14.773763+00:00",
+  "llm_requests": [
+    {
+      "created_at": "2026-09-30T05:12:40.364848+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "PARTIAL_FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 1034
+    },
+    {
+      "created_at": "2026-09-30T05:26:07.831189+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "PARTIAL_FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 1593
+    },
+    {
+      "created_at": "2026-09-30T05:40:59.532161+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "PARTIAL_FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 1541
+    },
+    {
+      "created_at": "2026-09-30T05:58:59.435562+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "PARTIAL_FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 1704
+    },
+    {
+      "created_at": "2026-09-30T06:13:52.287351+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "PARTIAL_FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 1351
+    },
+    {
+      "created_at": "2026-09-30T06:29:07.248647+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "PARTIAL_FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 1376
+    },
+    {
+      "created_at": "2026-09-30T06:45:52.166649+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "PARTIAL_FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 1219
+    },
+    {
+      "created_at": "2026-09-30T07:11:03.006428+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "PARTIAL_FAILURE",
+      "error": "memory batch blocked by provider outage; items left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 1046
+    }
+  ],
+  "trader_summary": {
+    "n": 0,
+    "errors": 0,
+    "successes": 0,
+    "error_rate": null,
+    "baseline_error_rate": 0.579
+  },
+  "by_strategy": {},
+  "errors_detail": [],
+  "prompt_join": [],
+  "prompt_stats": {
+    "n": 0
+  },
+  "memory_summary": {
+    "n": 8,
+    "errors": 8,
+    "parse_status_counts": {
+      "PARTIAL_FAILURE": 8
+    },
+    "error_strings": [
+      "memory batch blocked by provider outage; items left queued for retry",
+      "memory batch contained failed items; left queued for retry"
+    ]
+  },
+  "operational_event_counts": {
+    "distillation_failed": 11,
+    "distilled_locally": 13,
+    "schedule_handler_overrun": 12
+  },
+  "memory_outbox_status": {
+    "PENDING": 7,
+    "SENT": 13
+  }
+}
+PU-0150-OK

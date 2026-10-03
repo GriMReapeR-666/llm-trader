@@ -1,0 +1,51 @@
+now_utc: 2026-09-28T16:37:27.336363+00:00
+mtime artifacts/watch_guarded_boot_session.log: 2026-09-28T11:27:12.539149+00:00 size=158892
+mtime artifacts/watch_2h_duty.out: 2026-09-28T16:37:04.738814+00:00 size=277
+mtime artifacts/watch_guarded_boot.out: 2026-09-28T10:28:30.666530+00:00 size=713
+session_log_lines: 1276
+session_log_tail:
+  | ┌─────────────────────────── 🚀 CYCLE 5/9999 START ───────────────────────────┐
+  | │ Symbol: EURUSD | TF: M15 | Time: 16:56:50                                   │
+  | └─────────────────────────────────────────────────────────────────────────────┘
+  | 2026-09-28 16:56:50,276 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+  | 2026-09-28 16:56:50,319 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD M15 (scalp): candle 2026-09-28 11:00:00 already analyzed (duplicate trigger)
+  | 2026-09-28 16:56:50,359 INFO main: ⏸️ [DECISION] Cycle 5: HOLD EURUSD M15 (scalp) | Duplicate analysis trigger (candle 2026-09-28 11:00:00 already analyzed)
+  | 2026-09-28 16:56:51,245 INFO ui.compliance_dashboard: Compliance dashboard generated: compliance_dashboard.html
+  | 2026-09-28 16:56:51,281 INFO DegradationDetector: Running degradation check...
+  | 
+  |  Next market pulse in 5 seconds...
+  | 2026-09-28 16:56:56,293 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+  | 2026-09-28 16:57:12,539 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+agent_runs_latest: [
+ {
+  "run_id": "055778a7-8286-44f9-ab93-96bb6483f738",
+  "started_at": "2026-09-28T10:29:17.196480+00:00",
+  "heartbeat_at": "2026-09-28T11:27:35.552846+00:00",
+  "status": "RUNNING"
+ },
+ {
+  "run_id": "059b05b4-1784-449c-ae4d-ebc0199fddb8",
+  "started_at": "2026-09-28T07:21:18.187266+00:00",
+  "heartbeat_at": "2026-09-28T07:30:03.779889+00:00",
+  "status": "STOPPED"
+ }
+]
+journal_latest: [
+ {
+  "created_at": "2026-09-28T16:31:48.100050+00:00",
+  "event_type": "task_marked_stale"
+ },
+ {
+  "created_at": "2026-09-28T16:31:48.086983+00:00",
+  "event_type": "task_marked_stale"
+ },
+ {
+  "created_at": "2026-09-28T16:31:48.078271+00:00",
+  "event_type": "task_marked_stale"
+ },
+ {
+  "created_at": "2026-09-28T16:31:48.066275+00:00",
+  "event_type": "task_marked_stale"
+ }
+]
+END-MARKER-PU-0061

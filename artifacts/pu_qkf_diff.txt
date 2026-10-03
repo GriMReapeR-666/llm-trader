@@ -1,0 +1,25 @@
+doc_list: 922 disk: 922
+in index but not on disk: 922
+  idx-only: data\knowledge_base\01_Regime_Detection\0KRzDyEqIVY_Quant Radio Centaur Trading vs AI Only Models in Regime Shifts.txt
+  idx-only: data\knowledge_base\01_Regime_Detection\1fSo7xmrVb8_Quant Radio Transfer Learning for Portfolio Optimization.txt
+  idx-only: data\knowledge_base\01_Regime_Detection\1tk0IySPFgA.en.txt
+  idx-only: data\knowledge_base\01_Regime_Detection\67Tvctn-OzA.en.txt
+  idx-only: data\knowledge_base\01_Regime_Detection\7iqXICDW60Q.en.txt
+  idx-only: data\knowledge_base\01_Regime_Detection\D0FV5uaYqn0_Quant Radio Rethinking Cross Sectional Asset Pricing.txt
+  idx-only: data\knowledge_base\01_Regime_Detection\HAN7v7wMZcI.en.txt
+  idx-only: data\knowledge_base\01_Regime_Detection\H_C9P-nAuKc.en.txt
+  idx-only: data\knowledge_base\01_Regime_Detection\ZHIrE_r_9HY_Quant Radio Machine Learning and the Probability of Bouncing Back.txt
+  idx-only: data\knowledge_base\01_Regime_Detection\cG8hGjwPang_Tom Sosnoff on Options Trading Entrepreneurship AI  Risk Management  AlphaMinds .txt
+on disk but not in index: 922
+  disk-only: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework\data\knowledge_base\01_Regime_Detection\0KRzDyEqIVY_Quant Radio Centaur Trading vs AI Only Models in Regime Shifts.txt
+  disk-only: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework\data\knowledge_base\01_Regime_Detection\1fSo7xmrVb8_Quant Radio Transfer Learning for Portfolio Optimization.txt
+  disk-only: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework\data\knowledge_base\01_Regime_Detection\1tk0IySPFgA.en.txt
+  disk-only: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework\data\knowledge_base\01_Regime_Detection\67Tvctn-OzA.en.txt
+  disk-only: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework\data\knowledge_base\01_Regime_Detection\7iqXICDW60Q.en.txt
+  disk-only: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework\data\knowledge_base\01_Regime_Detection\D0FV5uaYqn0_Quant Radio Rethinking Cross Sectional Asset Pricing.txt
+  disk-only: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework\data\knowledge_base\01_Regime_Detection\HAN7v7wMZcI.en.txt
+  disk-only: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework\data\knowledge_base\01_Regime_Detection\H_C9P-nAuKc.en.txt
+  disk-only: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework\data\knowledge_base\01_Regime_Detection\ZHIrE_r_9HY_Quant Radio Machine Learning and the Probability of Bouncing Back.txt
+  disk-only: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework\data\knowledge_base\01_Regime_Detection\cG8hGjwPang_Tom Sosnoff on Options Trading Entrepreneurship AI  Risk Management  AlphaMinds .txt
+DIFF-DONE
+END-MARKER-PU-0080

@@ -1,0 +1,7 @@
+compile-exit=0
+bringing up nodes...
+bringing up nodes...
+
+........................................                                 [100%]
+pytest-exit=0
+END-MARKER-PU-0138

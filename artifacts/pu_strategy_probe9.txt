@@ -1,0 +1,55 @@
+now_utc: 2026-09-28T16:35:42.840125+00:00
+[
+ {
+  "run_id": "055778a7-8286-44f9-ab93-96bb6483f738",
+  "agent": "trader",
+  "started_at": "2026-09-28T10:29:17.196480+00:00",
+  "heartbeat_at": "2026-09-28T11:27:35.552846+00:00",
+  "status": "RUNNING",
+  "p": "{\"symbol\": \"EURUSD\", \"timeframe\": \"M15\", \"phase\": \"market_pulse\"}"
+ },
+ {
+  "run_id": "059b05b4-1784-449c-ae4d-ebc0199fddb8",
+  "agent": "trader",
+  "started_at": "2026-09-28T07:21:18.187266+00:00",
+  "heartbeat_at": "2026-09-28T07:30:03.779889+00:00",
+  "status": "STOPPED",
+  "p": "{\"strategy\": \"scalp\", \"symbol\": \"EURUSD\", \"timeframe\": \"M5\", \"reason\": \"main_loop_exit\"}"
+ },
+ {
+  "run_id": "ce4f1493-d08e-4e22-b74a-88dff40b044d",
+  "agent": "trader",
+  "started_at": "2026-09-28T06:50:16.677111+00:00",
+  "heartbeat_at": "2026-09-28T06:57:49.147295+00:00",
+  "status": "STOPPED",
+  "p": "{\"strategy\": \"scalp\", \"symbol\": \"EURUSD\", \"timeframe\": \"M5\", \"reason\": \"main_loop_exit\"}"
+ }
+]
+[
+ {
+  "created_at": "2026-09-28T16:31:48.100050+00:00",
+  "event_type": "task_marked_stale",
+  "severity": "WARNING"
+ },
+ {
+  "created_at": "2026-09-28T16:31:48.086983+00:00",
+  "event_type": "task_marked_stale",
+  "severity": "WARNING"
+ },
+ {
+  "created_at": "2026-09-28T16:31:48.078271+00:00",
+  "event_type": "task_marked_stale",
+  "severity": "WARNING"
+ },
+ {
+  "created_at": "2026-09-28T16:31:48.066275+00:00",
+  "event_type": "task_marked_stale",
+  "severity": "WARNING"
+ },
+ {
+  "created_at": "2026-09-28T11:27:35.301400+00:00",
+  "event_type": "dual_velocity_job_finished",
+  "severity": "INFO"
+ }
+]
+END-MARKER-PU-0060

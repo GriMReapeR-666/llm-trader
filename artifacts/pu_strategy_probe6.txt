@@ -1,0 +1,24 @@
+=== expired agent_task leases ===
+ERR: no such column: id
+
+=== agent_tasks by status ===
+[
+ {
+  "status": "COMPLETED",
+  "n": 294
+ },
+ {
+  "status": "ERROR",
+  "n": 7
+ },
+ {
+  "status": "PENDING",
+  "n": 2
+ },
+ {
+  "status": "RUNNING",
+  "n": 4
+ }
+]
+
+END-MARKER-PU-0056

@@ -1,0 +1,18 @@
+compile-exit=0
+bringing up nodes...
+bringing up nodes...
+
+.............................................F.....                      [100%]
+================================== FAILURES ===================================
+__________________ test_r3_discard_failed_cycle_compact_mode __________________
+[gw0] win32 -- Python 3.13.5 C:\Users\User\AppData\Local\Programs\Python\Python313\python.exe
+tests\test_context_buffer_compact.py:229: in test_r3_discard_failed_cycle_compact_mode
+    assert user_turns == [_payload(0)]
+E   AssertionError: assert [] == ['Market Data...xxxxxxxxxxxx']
+E     
+E     Right contains one more item: [0m[33m'[39;49;00m[33mMarket Data JSON: cycle-0 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx[39;49;00m[33m'[39;49;00m[90m[39;49;00m
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/test_context_buffer_compact.py::test_r3_discard_failed_cycle_compact_mode
+pytest-exit=1
+END-MARKER-PU-0103

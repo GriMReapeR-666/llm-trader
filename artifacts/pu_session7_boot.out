@@ -1,0 +1,16 @@
+2026-10-01T08:49:38+00:00 armed: bar 1.50GB, window 10.0h, poll 30s, free 1.73GB
+2026-10-01T08:49:39+00:00 RAM pass (1.73GB) but NO fresh M15 candle - waiting
+2026-10-01T08:50:09+00:00 RAM pass (1.68GB) but NO fresh M15 candle - waiting
+2026-10-01T08:50:39+00:00 RAM pass (1.70GB) but NO fresh M15 candle - waiting
+2026-10-01T08:51:09+00:00 RAM pass (1.63GB) but NO fresh M15 candle - waiting
+2026-10-01T08:51:40+00:00 RAM pass (1.66GB) but NO fresh M15 candle - waiting
+2026-10-01T08:52:10+00:00 RAM pass (1.72GB) but NO fresh M15 candle - waiting
+2026-10-01T08:52:40+00:00 RAM pass (1.75GB) but NO fresh M15 candle - waiting
+2026-10-01T08:53:40+00:00 RAM pass (2.01GB) but NO fresh M15 candle - waiting
+2026-10-01T08:54:11+00:00 RAM pass (1.84GB) but NO fresh M15 candle - waiting
+2026-10-01T08:54:41+00:00 RAM pass (1.54GB) but NO fresh M15 candle - waiting
+2026-10-01T08:56:42+00:00 RAM pass (1.77GB) but NO fresh M15 candle - waiting
+2026-10-01T08:57:12+00:00 RAM pass (1.64GB) but NO fresh M15 candle - waiting
+2026-10-01T08:57:42+00:00 RAM pass (1.68GB) but NO fresh M15 candle - waiting
+2026-10-01T09:00:12+00:00 PREFLIGHT PASS: 1.50GB >= 1.50GB and fresh M15 candle - launching bounded accumulation boot
+2026-10-01T09:00:12+00:00 boot spawned (pid 14460); meta written; watcher exits

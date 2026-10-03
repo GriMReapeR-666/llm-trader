@@ -1,0 +1,222 @@
+{
+  "last_cycle": "2026-09-28T07:26:37.753409+00:00",
+  "total_cycles": 8,
+  "improvements_applied": 0,
+  "improvements_rejected": 0,
+  "health_status": "HEALTHY",
+  "hypotheses_generated": 0,
+  "hypotheses_validated": 0,
+  "last_proposal_verdict": {
+    "proposal": "grpo_marketmodel_proposer",
+    "verdict": "GATE_BLOCKED",
+    "gate_status": "BLOCKED",
+    "reasons": [
+      "need 30+ trades for gate (have 0) \u2014 auto-clears with more data"
+    ],
+    "mean_group_reward": 0.025,
+    "ts": 1790749208.0194874
+  },
+  "proposal_verdicts": [
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "CPCV not yet available \u2014 need valid CPCV run first"
+      ],
+      "mean_group_reward": -0.0192,
+      "ts": 1790745095.4184058
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "CPCV not yet available \u2014 need valid CPCV run first"
+      ],
+      "mean_group_reward": -0.0271,
+      "ts": 1790745390.1343498
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "CPCV not yet available \u2014 need valid CPCV run first"
+      ],
+      "mean_group_reward": 0.1037,
+      "ts": 1790745433.0754254
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "CPCV not yet available \u2014 need valid CPCV run first"
+      ],
+      "mean_group_reward": 0.1896,
+      "ts": 1790745510.052809
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "CPCV not yet available \u2014 need valid CPCV run first"
+      ],
+      "mean_group_reward": -0.0286,
+      "ts": 1790745522.8392756
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "CPCV not yet available \u2014 need valid CPCV run first"
+      ],
+      "mean_group_reward": 0.509,
+      "ts": 1790745642.434933
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "CPCV not yet available \u2014 need valid CPCV run first"
+      ],
+      "mean_group_reward": 0.0077,
+      "ts": 1790745651.973734
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "CPCV not yet available \u2014 need valid CPCV run first"
+      ],
+      "mean_group_reward": -0.1121,
+      "ts": 1790748761.6520278
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "READY_FOR_REVIEW",
+      "gate_status": "READY_FOR_REVIEW",
+      "reasons": [
+        "PBO 0.150<0.25 DSR 0.85>0.70 trades 50 \u2014 ready for human promotion review"
+      ],
+      "mean_group_reward": -0.1121,
+      "ts": 1790748761.698109
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "PBO 0.400 FAIL DSR 0.30 FAIL \u2014 auto-clears when gate passes"
+      ],
+      "mean_group_reward": -0.1121,
+      "ts": 1790748761.7418933
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "CPCV not yet available \u2014 need valid CPCV run first"
+      ],
+      "mean_group_reward": 0.0416,
+      "ts": 1790748799.919612
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "need 30+ trades for gate (have 0) \u2014 auto-clears with more data"
+      ],
+      "mean_group_reward": 0.1595,
+      "ts": 1790748839.0170953
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "need 30+ trades for gate (have 0) \u2014 auto-clears with more data"
+      ],
+      "mean_group_reward": 0.1764,
+      "ts": 1790748874.191227
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "need 30+ trades for gate (have 0) \u2014 auto-clears with more data"
+      ],
+      "mean_group_reward": -0.0898,
+      "ts": 1790748907.8632421
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "need 30+ trades for gate (have 0) \u2014 auto-clears with more data"
+      ],
+      "mean_group_reward": -0.0559,
+      "ts": 1790748924.9119725
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "need 30+ trades for gate (have 0) \u2014 auto-clears with more data"
+      ],
+      "mean_group_reward": 0.0547,
+      "ts": 1790748999.8119614
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "CPCV not yet available \u2014 need valid CPCV run first"
+      ],
+      "mean_group_reward": 0.2009,
+      "ts": 1790749017.7818198
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "need 30+ trades for gate (have 0) \u2014 auto-clears with more data"
+      ],
+      "mean_group_reward": 0.103,
+      "ts": 1790749085.0463753
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "need 30+ trades for gate (have 0) \u2014 auto-clears with more data"
+      ],
+      "mean_group_reward": -0.1648,
+      "ts": 1790749092.2413967
+    },
+    {
+      "proposal": "grpo_marketmodel_proposer",
+      "verdict": "GATE_BLOCKED",
+      "gate_status": "BLOCKED",
+      "reasons": [
+        "need 30+ trades for gate (have 0) \u2014 auto-clears with more data"
+      ],
+      "mean_group_reward": 0.025,
+      "ts": 1790749208.0194874
+    }
+  ]
+}
+}

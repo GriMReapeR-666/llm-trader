@@ -1,0 +1,182 @@
+[2026-09-28T05:43:54+00:00] watcher armed; waiting up to 6h for a live session to cross the 2.0h span floor
+[2026-09-28T05:43:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T05:45:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T05:47:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T05:49:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T05:51:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T05:53:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T05:55:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T05:57:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T05:59:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:01:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:03:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:05:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:07:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:09:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:11:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:13:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:15:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:17:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:19:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:21:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:23:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:25:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:27:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:29:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:31:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:33:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:35:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:37:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:39:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:41:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:43:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:45:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:47:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:49:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:51:54+00:00] live session at 0.03h (< 2.0h); retrying
+[2026-09-28T06:53:54+00:00] live session at 0.06h (< 2.0h); retrying
+[2026-09-28T06:55:54+00:00] live session at 0.09h (< 2.0h); retrying
+[2026-09-28T06:57:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T06:59:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:01:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:03:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:05:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:07:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:09:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:11:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:13:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:15:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:17:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:19:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:21:54+00:00] live session at 0.01h (< 2.0h); retrying
+[2026-09-28T07:23:54+00:00] live session at 0.04h (< 2.0h); retrying
+[2026-09-28T07:25:54+00:00] live session at 0.08h (< 2.0h); retrying
+[2026-09-28T07:27:54+00:00] live session at 0.11h (< 2.0h); retrying
+[2026-09-28T07:29:54+00:00] live session at 0.14h (< 2.0h); retrying
+[2026-09-28T07:31:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:33:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:35:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:37:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:39:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:41:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:43:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:45:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:47:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:49:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:51:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:53:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:55:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:57:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T07:59:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:01:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:03:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:05:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:07:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:09:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:11:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:13:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:15:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:17:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:19:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:21:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:23:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:25:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:27:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:29:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:31:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:33:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:35:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:37:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:39:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:41:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:43:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:45:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:47:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:49:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:51:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:53:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:55:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:57:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T08:59:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:01:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:03:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:05:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:07:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:09:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:11:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:13:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:15:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:17:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:19:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:21:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:23:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:25:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:27:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:29:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:31:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:33:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:35:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:37:54+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:39:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:41:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:43:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:45:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:47:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:49:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:51:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:53:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:55:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:57:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T09:59:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:01:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:03:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:05:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:07:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:09:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:11:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:13:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:15:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:17:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:19:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:21:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:23:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:25:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:27:55+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T10:29:55+00:00] live session at 0.01h (< 2.0h); retrying
+[2026-09-28T10:31:55+00:00] live session at 0.04h (< 2.0h); retrying
+[2026-09-28T10:33:55+00:00] live session at 0.08h (< 2.0h); retrying
+[2026-09-28T10:35:55+00:00] live session at 0.11h (< 2.0h); retrying
+[2026-09-28T10:38:05+00:00] live session at 0.15h (< 2.0h); retrying
+[2026-09-28T10:40:05+00:00] live session at 0.18h (< 2.0h); retrying
+[2026-09-28T10:42:05+00:00] live session at 0.21h (< 2.0h); retrying
+[2026-09-28T10:44:05+00:00] live session at 0.25h (< 2.0h); retrying
+[2026-09-28T10:46:15+00:00] live session at 0.28h (< 2.0h); retrying
+[2026-09-28T10:48:16+00:00] live session at 0.32h (< 2.0h); retrying
+[2026-09-28T10:50:16+00:00] live session at 0.35h (< 2.0h); retrying
+[2026-09-28T10:52:16+00:00] live session at 0.38h (< 2.0h); retrying
+[2026-09-28T10:54:16+00:00] live session at 0.42h (< 2.0h); retrying
+[2026-09-28T10:56:16+00:00] live session at 0.45h (< 2.0h); retrying
+[2026-09-28T10:58:16+00:00] live session at 0.48h (< 2.0h); retrying
+[2026-09-28T11:00:16+00:00] live session at 0.52h (< 2.0h); retrying
+[2026-09-28T11:02:16+00:00] live session at 0.55h (< 2.0h); retrying
+[2026-09-28T11:04:16+00:00] live session at 0.58h (< 2.0h); retrying
+[2026-09-28T11:06:16+00:00] live session at 0.62h (< 2.0h); retrying
+[2026-09-28T11:08:16+00:00] live session at 0.65h (< 2.0h); retrying
+[2026-09-28T11:10:16+00:00] live session at 0.68h (< 2.0h); retrying
+[2026-09-28T11:12:16+00:00] live session at 0.72h (< 2.0h); retrying
+[2026-09-28T11:14:16+00:00] live session at 0.75h (< 2.0h); retrying
+[2026-09-28T11:16:16+00:00] live session at 0.78h (< 2.0h); retrying
+[2026-09-28T11:18:16+00:00] live session at 0.82h (< 2.0h); retrying
+[2026-09-28T11:20:16+00:00] live session at 0.85h (< 2.0h); retrying
+[2026-09-28T11:22:16+00:00] live session at 0.88h (< 2.0h); retrying
+[2026-09-28T11:24:17+00:00] live session at 0.92h (< 2.0h); retrying
+[2026-09-28T11:26:28+00:00] live session at 0.95h (< 2.0h); retrying
+[2026-09-28T11:28:28+00:00] live session at 0.99h (< 2.0h); retrying
+[2026-09-28T11:30:28+00:00] live session at 1.02h (< 2.0h); retrying
+[2026-09-28T11:33:02+00:00] live session at 1.06h (< 2.0h); retrying
+[2026-09-28T11:35:02+00:00] live session at 1.10h (< 2.0h); retrying
+[2026-09-28T11:37:02+00:00] live session at 1.13h (< 2.0h); retrying
+[2026-09-28T11:39:02+00:00] live session at 1.16h (< 2.0h); retrying
+[2026-09-28T11:41:02+00:00] live session at 1.20h (< 2.0h); retrying
+[2026-09-28T11:43:02+00:00] no live session (open run + fresh heartbeat); retrying
+[2026-09-28T11:45:02+00:00] gave up: no live session crossed the floor within the wait window (see artifacts/watch_2h_*.out if it fired)

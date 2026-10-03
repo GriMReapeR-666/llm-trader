@@ -1,0 +1,44 @@
+
+=== step: report ===
+[2026-09-28T02:09:36+00:00] report: OK
+exit 0
+== claimed-but-abandoned batches (schedule_skipped) ==
+  position_reconcile: abandoned in 1 batches (wave_deadline x1)
+  deferral reasons across 1 batches: wave_deadline: 1
+  (1 batches scanned)
+
+saved: artifacts\scheduler_tuning_report.json
+
+=== step: verify ===
+[2026-09-28T02:09:37+00:00] verify: OK
+rows=2 exit 0
+verifying 2 verdict row(s) against the pinned thresholds:
+VERIFIED - all verdicts match the pinned RAISE/AT_CAP/WATCH boundaries (provenance: confirmed)
+
+=== step: apply ===
+[2026-09-28T02:09:37+00:00] apply: OK
+no RAISE verdicts - nothing to apply (budgets untouched)
+
+=== step: duty ===
+[2026-09-28T02:09:37+00:00] duty: OK
+exit 0 (no comparison verdicts yet)
+
+=== step: dashboard ===
+[2026-09-28T02:09:42+00:00] dashboard: OK
+dashboard written: compliance_dashboard.html
+
+=== step: dashboard_check ===
+[2026-09-28T02:09:42+00:00] dashboard_check: FAIL
+event_monitor: dashboard shows 2 overruns, journal has 37
+event_monitor: dashboard p95 281.6s != report-style 125.59s
+journal_maintenance: p50 50.0s (SQL even-count median) vs report-style 48.67s - definitions not yet unified
+
+=== step: tests ===
+[2026-09-28T02:11:04+00:00] tests: OK
+exit 0
+........................................................................ [ 36%]
+........................................................................ [ 73%]
+.....................................................                    [100%]
+
+summary artifact: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\artifacts\session_followup_20260928T021104Z.json
+EXIT 0

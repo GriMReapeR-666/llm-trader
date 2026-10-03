@@ -1,0 +1,7 @@
+== 6 decision cycles x 30K-char payloads ==
+compact=False: prompt_chars=121,685 (~30,421 tok) user_turns=4 summaries=1
+compact=True: prompt_chars=31,652 (~7,913 tok) user_turns=1 summaries=4
+ratio: 3.84x smaller
+PU-0102-OK
+exit=0
+END-MARKER-PU-0102

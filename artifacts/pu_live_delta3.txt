@@ -1,0 +1,20 @@
+{
+  "llm_requests_since_wm": [
+    {
+      "strategy": "memory",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "n": 2
+    }
+  ],
+  "prompts_since_wm": {
+    "count": 0,
+    "avg_chars": 0,
+    "max_chars": 0
+  },
+  "prompt_rows": [],
+  "new_watermark_llm_requests": "2026-09-29T21:23:18.240786+00:00"
+}
+PU-0123-OK
+exit=0
+END-MARKER-PU-0125

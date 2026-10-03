@@ -1,0 +1,1590 @@
+{
+  "captured_at": "2026-10-03T08:56:08.462296+00:00",
+  "registry": {
+    "total_sources": 65,
+    "golden_eight": 8,
+    "by_tier": {
+      "T1_REALTIME": 16,
+      "T2_DAILY": 30,
+      "T3_WEEKLY": 19
+    },
+    "entities_covered": [
+      "CONSUMER_SPENDING",
+      "CORPORATE_HEALTH",
+      "CPI_NOWCAST",
+      "CROP_HEALTH",
+      "DXY",
+      "EMPLOYMENT",
+      "ENERGY_DEMAND",
+      "FREIGHT_VOLUME",
+      "FUTURES_LIQUIDITY",
+      "FUTURES_POSITIONING",
+      "GAS_STORAGE",
+      "GRAIN_EXPORTS",
+      "GRID_LOAD",
+      "GROWTH",
+      "HOUSING_ACTIVITY",
+      "INFLATION",
+      "LABOR_DEMAND",
+      "LABOR_SUPPLY",
+      "MACRO_SENTIMENT",
+      "MARKET_STRESS",
+      "MONEY_SUPPLY",
+      "OIL_STORAGE",
+      "OPTIONS_SKEW",
+      "POLICY_SENTIMENT",
+      "RAIL_ACTIVITY",
+      "SHELTER_RENT",
+      "SHIPPING_FLOW"
+    ],
+    "execution_authority": false,
+    "modeling_principles": [
+      "Never model CPI directly \u2014 model daily scraped price basket + energy ticks + ZORI, then bridge to CPI for benchmarking.",
+      "Never model GDP directly \u2014 model electricity consumption + rail velocity + credit-card flows, then reconcile to GDP quarterly.",
+      "Government reports are lagging benchmarks, not primary alphas.",
+      "Tier 1 and Tier 2 sources are primary nowcast inputs; Tier 3 confirms."
+    ]
+  },
+  "observations": [
+    {
+      "source_id": "energy_futures_ticks",
+      "entity": "INFLATION",
+      "tier": "T1_REALTIME",
+      "provider": "MARKET",
+      "value": 32.48580026626587,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:10.830561+00:00",
+      "symbols": [
+        "CL=F",
+        "NG=F",
+        "RB=F"
+      ],
+      "payload": {
+        "quotes": [
+          {
+            "symbol": "CL=F",
+            "price": 91.11000061035156,
+            "volume": 0.0,
+            "observed_at": "2026-10-02T00:00:00-04:00"
+          },
+          {
+            "symbol": "NG=F",
+            "price": 3.0350000858306885,
+            "volume": 0.0,
+            "observed_at": "2026-10-02T00:00:00-04:00"
+          },
+          {
+            "symbol": "RB=F",
+            "price": 3.3124001026153564,
+            "volume": 0.0,
+            "observed_at": "2026-10-02T00:00:00-04:00"
+          }
+        ],
+        "kind": "market_tick_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "realtime_fx",
+      "entity": "DXY",
+      "tier": "T1_REALTIME",
+      "provider": "MARKET",
+      "value": 51.527873039245605,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:11.499250+00:00",
+      "symbols": [
+        "DX-Y.NYB",
+        "EURUSD=X"
+      ],
+      "payload": {
+        "quotes": [
+          {
+            "symbol": "DX-Y.NYB",
+            "price": 101.93000030517578,
+            "volume": 0.0,
+            "observed_at": "2026-10-02T00:00:00-04:00"
+          },
+          {
+            "symbol": "EURUSD=X",
+            "price": 1.1257457733154297,
+            "volume": 0.0,
+            "observed_at": "2026-10-02T00:00:00+01:00"
+          }
+        ],
+        "kind": "market_tick_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "grid_load_mw",
+      "entity": "GRID_LOAD",
+      "tier": "T1_REALTIME",
+      "provider": "GRID_ISO",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:15.143582+00:00",
+      "symbols": [],
+      "payload": {
+        "industrial_grid_index": 101.4,
+        "unit": "index_vs_baseline",
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "ais_vessel_tracking",
+      "entity": "SHIPPING_FLOW",
+      "tier": "T1_REALTIME",
+      "provider": "AIS",
+      "value": 98.2,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:15.840589+00:00",
+      "symbols": [],
+      "payload": {
+        "chokepoint_transit_index": 98.2,
+        "unit": "index_vs_baseline",
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "options_vol_surface",
+      "entity": "OPTIONS_SKEW",
+      "tier": "T1_REALTIME",
+      "provider": "CBOE",
+      "value": 80.0950026512146,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:16.497933+00:00",
+      "symbols": [
+        "^VIX",
+        "^SKEW"
+      ],
+      "payload": {
+        "quotes": [
+          {
+            "symbol": "^VIX",
+            "price": 15.3100004196167,
+            "volume": 0.0,
+            "observed_at": "2026-10-02T00:00:00-05:00"
+          },
+          {
+            "symbol": "^SKEW",
+            "price": 144.8800048828125,
+            "volume": 0.0,
+            "observed_at": "2026-10-02T00:00:00-04:00"
+          }
+        ],
+        "kind": "market_tick_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "fed_sofr_futures",
+      "entity": "FUTURES_LIQUIDITY",
+      "tier": "T1_REALTIME",
+      "provider": "MARKET",
+      "value": 95.94499969482422,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:17.380268+00:00",
+      "symbols": [
+        "ZQ=F",
+        "SR3=F"
+      ],
+      "payload": {
+        "quotes": [
+          {
+            "symbol": "ZQ=F",
+            "price": 96.12000274658203,
+            "volume": 0.0,
+            "observed_at": "2026-10-02T00:00:00-04:00"
+          },
+          {
+            "symbol": "SR3=F",
+            "price": 95.7699966430664,
+            "volume": 0.0,
+            "observed_at": "2026-10-02T00:00:00-04:00"
+          }
+        ],
+        "kind": "market_tick_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "sku_price_scrape",
+      "entity": "CPI_NOWCAST",
+      "tier": "T2_DAILY",
+      "provider": "SKU_SCRAPER",
+      "value": 0.22,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:18.028934+00:00",
+      "symbols": [],
+      "payload": {
+        "cpi_mom_nowcast": 0.22,
+        "cpi_yoy_nowcast": 2.85,
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "linkup_job_postings",
+      "entity": "LABOR_DEMAND",
+      "tier": "T2_DAILY",
+      "provider": "LINKUP",
+      "value": -1.2,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:18.694663+00:00",
+      "symbols": [],
+      "payload": {
+        "job_vacancy_velocity_mom": -1.2,
+        "unit": "percent_mom",
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "sentinel_ndvi",
+      "entity": "CROP_HEALTH",
+      "tier": "T2_DAILY",
+      "provider": "SATELLITE",
+      "value": 74.5,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:19.401826+00:00",
+      "symbols": [],
+      "payload": {
+        "vegetation_soil_health_score": 74.5,
+        "unit": "index_0_100",
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "ais_tanker_tracking",
+      "entity": "SHIPPING_FLOW",
+      "tier": "T1_REALTIME",
+      "provider": "AIS",
+      "value": 98.2,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:20.007021+00:00",
+      "symbols": [],
+      "payload": {
+        "chokepoint_transit_index": 98.2,
+        "unit": "index_vs_baseline",
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "eia_petroleum_weekly",
+      "entity": "OIL_STORAGE",
+      "tier": "T3_WEEKLY",
+      "provider": "EIA",
+      "value": -2.1,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:20.009970+00:00",
+      "symbols": [],
+      "payload": {
+        "report_date": "2026-08-12",
+        "crude_oil_inventory_change_mb": -3.2,
+        "crude_forecast_change_mb": -1.1,
+        "gasoline_inventory_change_mb": 0.8,
+        "distillate_inventory_change_mb": -0.5,
+        "refinery_utilization_pct": 91.5,
+        "crude_surprise_mb": -2.1,
+        "oil_bias": "BULLISH",
+        "cad_bias": "BULLISH_CAD",
+        "source": "eia_weekly_petroleum_status",
+        "kind": "eia_petroleum"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "cftc_cot_weekly",
+      "entity": "FUTURES_POSITIONING",
+      "tier": "T3_WEEKLY",
+      "provider": "CFTC",
+      "value": 0.0,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:20.102816+00:00",
+      "symbols": [],
+      "payload": {
+        "asset": "EUR",
+        "contract_name": "EURO FX - CHICAGO MERCANTILE EXCHANGE",
+        "report_date": "2026-09-15",
+        "non_commercial_long": 486435,
+        "non_commercial_short": 234737,
+        "non_commercial_net": 251698,
+        "commercial_net": -258080,
+        "open_interest": 920035,
+        "net_change": -22429,
+        "percentile_52w": 0.0,
+        "sentiment_bias": "EXTREME_BEARISH",
+        "source": "cftc_cot_reports",
+        "kind": "cftc_cot"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "fred_tips_breakeven",
+      "entity": "INFLATION",
+      "tier": "T2_DAILY",
+      "provider": "FRED",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:20.757588+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:20.103263+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "redfin_housing_market",
+      "entity": "SHELTER_RENT",
+      "tier": "T3_WEEKLY",
+      "provider": "REDFIN",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:21.403474+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:20.757652+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "open_meteo_weather",
+      "entity": "ENERGY_DEMAND",
+      "tier": "T1_REALTIME",
+      "provider": "NOAA",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:22.050674+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:21.403527+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "entsoe_electricity_grid",
+      "entity": "GRID_LOAD",
+      "tier": "T1_REALTIME",
+      "provider": "ENTSO-E",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:22.684606+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:22.050713+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "aar_rail_carloads",
+      "entity": "FREIGHT_VOLUME",
+      "tier": "T3_WEEKLY",
+      "provider": "AAR",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:23.420976+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:22.684643+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "nasa_viirs_nightlights",
+      "entity": "GROWTH",
+      "tier": "T2_DAILY",
+      "provider": "NASA",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:24.041903+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:23.421050+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "google_trends_unemployment",
+      "entity": "LABOR_DEMAND",
+      "tier": "T2_DAILY",
+      "provider": "GOOGLE_TRENDS",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:24.668066+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:24.041941+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "fred_initial_claims",
+      "entity": "LABOR_SUPPLY",
+      "tier": "T3_WEEKLY",
+      "provider": "FRED",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:25.786187+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:24.668105+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "fred_retail_gasoline",
+      "entity": "CONSUMER_SPENDING",
+      "tier": "T3_WEEKLY",
+      "provider": "FRED",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:26.490587+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:25.786267+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "opentable_reservations",
+      "entity": "CONSUMER_SPENDING",
+      "tier": "T2_DAILY",
+      "provider": "OPENTABLE",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:27.183888+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:26.490625+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "fred_building_permits",
+      "entity": "HOUSING_ACTIVITY",
+      "tier": "T2_DAILY",
+      "provider": "FRED",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:27.831073+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:27.183936+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "usgs_landsat_urban",
+      "entity": "HOUSING_ACTIVITY",
+      "tier": "T3_WEEKLY",
+      "provider": "USGS",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:28.452174+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:27.831111+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "usda_nass_quickstats",
+      "entity": "CROP_HEALTH",
+      "tier": "T3_WEEKLY",
+      "provider": "USDA_NASS",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:29.114525+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:28.452226+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "nasa_smap_moisture",
+      "entity": "CROP_HEALTH",
+      "tier": "T2_DAILY",
+      "provider": "NASA",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:30.026866+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:29.114563+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "noaa_climate_precip",
+      "entity": "CROP_HEALTH",
+      "tier": "T2_DAILY",
+      "provider": "NOAA",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:30.834835+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:30.026927+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "noaa_gfs_degree_days",
+      "entity": "ENERGY_DEMAND",
+      "tier": "T2_DAILY",
+      "provider": "NOAA",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:31.637513+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:30.834888+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "skyfi_tank_shadows",
+      "entity": "OIL_STORAGE",
+      "tier": "T3_WEEKLY",
+      "provider": "SKYFI",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:32.383159+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:31.637556+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "marine_cadastre_ais",
+      "entity": "SHIPPING_FLOW",
+      "tier": "T1_REALTIME",
+      "provider": "NOAA_AIS",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:33.060067+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:32.383199+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "aishub_vessel_positions",
+      "entity": "SHIPPING_FLOW",
+      "tier": "T1_REALTIME",
+      "provider": "AISHUB",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:33.746585+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:33.060105+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "freightos_fbx_ticker",
+      "entity": "SHIPPING_FLOW",
+      "tier": "T3_WEEKLY",
+      "provider": "FREIGHTOS",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:34.377554+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:33.746624+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "fred_corporate_yield_spreads",
+      "entity": "MARKET_STRESS",
+      "tier": "T2_DAILY",
+      "provider": "FRED",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:35.050422+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:34.377592+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "fed_speech_transcripts",
+      "entity": "POLICY_SENTIMENT",
+      "tier": "T2_DAILY",
+      "provider": "FED",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:35.788117+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:35.050474+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "google_trends_macro",
+      "entity": "MACRO_SENTIMENT",
+      "tier": "T2_DAILY",
+      "provider": "GOOGLE_TRENDS",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:36.427047+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:35.788155+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "satellite_sar_storage",
+      "entity": "OIL_STORAGE",
+      "tier": "T2_DAILY",
+      "provider": "SATELLITE",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:37.085583+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:36.427083+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "viirs_dnb_nightlights",
+      "entity": "GROWTH",
+      "tier": "T2_DAILY",
+      "provider": "NASA",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:37.788719+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:37.085623+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "tropomi_atmospheric_flaring",
+      "entity": "ENERGY_DEMAND",
+      "tier": "T2_DAILY",
+      "provider": "SATELLITE",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:38.462982+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:37.788833+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "grace_groundwater_depletion",
+      "entity": "CROP_HEALTH",
+      "tier": "T2_DAILY",
+      "provider": "NASA",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:39.069653+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:38.463022+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "sku_stockout_elasticity",
+      "entity": "CPI_NOWCAST",
+      "tier": "T2_DAILY",
+      "provider": "SKU_SCRAPER",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:39.684652+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:39.069694+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "aar_intermodal_carloads",
+      "entity": "FREIGHT_VOLUME",
+      "tier": "T3_WEEKLY",
+      "provider": "AAR",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:40.502885+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:39.684694+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "credit_card_velocity",
+      "entity": "CONSUMER_SPENDING",
+      "tier": "T2_DAILY",
+      "provider": "CREDIT_CARD",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:41.222613+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:40.502921+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "lightcast_job_nlp",
+      "entity": "LABOR_DEMAND",
+      "tier": "T3_WEEKLY",
+      "provider": "LINKUP",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:41.875841+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:41.222648+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "dark_vessel_sts_ais",
+      "entity": "SHIPPING_FLOW",
+      "tier": "T1_REALTIME",
+      "provider": "AIS",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:42.483501+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:41.875877+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "grid_frequency_scada",
+      "entity": "GRID_LOAD",
+      "tier": "T1_REALTIME",
+      "provider": "GRID_ISO",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:43.171463+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:42.483615+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "onchain_stablecoin_flows",
+      "entity": "FUTURES_LIQUIDITY",
+      "tier": "T1_REALTIME",
+      "provider": "ONCHAIN",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:43.754643+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:43.171504+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    },
+    {
+      "source_id": "drone_open_isr_port",
+      "entity": "SHIPPING_FLOW",
+      "tier": "T2_DAILY",
+      "provider": "SATELLITE",
+      "value": 101.4,
+      "status": "LIVE",
+      "observed_at": "2026-10-03T08:56:44.359949+00:00",
+      "symbols": [],
+      "payload": {
+        "snapshot": {
+          "timestamp_utc": "2026-10-03T08:56:43.754686+00:00",
+          "net_liquidity_usd_billions": 6168.5,
+          "net_liquidity_bias": "EXPANSIONARY",
+          "daily_cpi_mom_nowcast": 0.22,
+          "daily_cpi_yoy_nowcast": 2.85,
+          "industrial_grid_load_index": 101.4,
+          "maritime_chokepoint_index": 98.2,
+          "satellite_crop_health_score": 74.5,
+          "labor_hiring_velocity": -1.2,
+          "synthetic_spreads": {
+            "synthetic_ammonia_cost_ton": 166.67,
+            "corn_soy_price_ratio": 2.568,
+            "corn_soy_regime": "SOY_FAVORED",
+            "crack_spread_321_bbl": 64.65,
+            "soybean_crush_spread_bu": -520.357,
+            "spark_spread_mwh": 23.75,
+            "ethanol_blend_margin_gal": -175.768
+          },
+          "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+          "execution_authority": false
+        },
+        "kind": "zero_lag_physical_proxy"
+      },
+      "execution_authority": false
+    }
+  ],
+  "live_count": 47,
+  "stub_count": 0,
+  "execution_authority": false
+}

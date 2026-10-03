@@ -1,0 +1,59 @@
+[
+  {
+    "ticker": "SPX",
+    "form_type": "10-K",
+    "filing_date": "2026-08-01",
+    "title": "S&P 500 Aggregate Corporate Disclosures: Capital Expenditures & AI Capex Guidance",
+    "source_url": "https://www.sec.gov/edgar/searchedgar/companysearch",
+    "content_hash": "sha256_spx_10k_sample_2026",
+    "key_items": [
+      "Item 1A. Risk Factors",
+      "Item 7. MD&A",
+      "AI Capex Acceleration"
+    ],
+    "material_risk_factors": [
+      "Data center power constraints",
+      "Supply chain bottleneck in advanced nodes",
+      "Foreign exchange rate volatility"
+    ],
+    "sentiment_bias": "POSITIVE"
+  },
+  {
+    "ticker": "FED",
+    "form_type": "FOMC_MINUTES",
+    "filing_date": "2026-08-05",
+    "title": "Minutes of the Federal Open Market Committee Policy Review",
+    "source_url": "https://www.federalreserve.gov/monetarypolicy/fomcminutes20260805.htm",
+    "content_hash": "sha256_fomc_minutes_sample_2026",
+    "key_items": [
+      "Economic Projections",
+      "Balance Sheet Normalization",
+      "Inflation Target Assessment"
+    ],
+    "material_risk_factors": [
+      "Persistent shelter inflation",
+      "Geopolitical commodity supply disruptions",
+      "Financial conditions loosening"
+    ],
+    "sentiment_bias": "HAWKISH"
+  },
+  {
+    "ticker": "XOM",
+    "form_type": "10-Q",
+    "filing_date": "2026-08-08",
+    "title": "ExxonMobil Q2 Quarterly Disclosure: Global Refining Capacity & Energy Capex",
+    "source_url": "https://www.sec.gov/edgar/data/34088/000003408826000045",
+    "content_hash": "sha256_xom_10q_sample_2026",
+    "key_items": [
+      "Upstream Production",
+      "Energy Transition Capex",
+      "Refining Margins"
+    ],
+    "material_risk_factors": [
+      "Global crude inventory fluctuations",
+      "OPEC+ quota compliance",
+      "Shipping lane transit risks"
+    ],
+    "sentiment_bias": "NEUTRAL"
+  }
+]

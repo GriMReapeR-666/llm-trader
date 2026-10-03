@@ -1,0 +1,12 @@
+2026-09-23 05:11:00,049 [INFO] Loaded Laya model from C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\models\laya in 19031.8 ms
+Traceback (most recent call last):
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\_bench_wrapper.py", line 10, in <module>
+    bench.run_macro_correct_benchmark()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\test_macro_correct_benchmark.py", line 351, in run_macro_correct_benchmark
+    print("\n--- Part 2: Evaluating Boundary Precision on Near-Miss Triples (±0.35\u03c3) ---")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u03c3' in position 71: character maps to <undefined>

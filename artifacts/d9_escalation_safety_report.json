@@ -1,0 +1,132 @@
+{
+  "pattern_under_test": "data/news_triage.py::_pick_better D9 escalation (no probability floor)",
+  "latch_under_test": "data/kill_switch_latch.KillSwitchLatch (2 batches / 300s window, replayed exactly)",
+  "simulation": {
+    "n_batches": 6000,
+    "trials": 24,
+    "seed": 20260923,
+    "batch_size": "1-12",
+    "batch_gap_s": 60,
+    "floor_survival": 0.05,
+    "det_rate_grid": {
+      "mundane_0.005": 0.005,
+      "mixed_0.02": 0.02,
+      "elevated_0.05": 0.05,
+      "adversarial_measured": "measured 0.702"
+    }
+  },
+  "results": {
+    "det=mundane_0.005|rho=0.00": {
+      "no_floor_latches_per_1k_batches": 2.2,
+      "floor_latches_per_1k_batches": 2.2,
+      "marginal_cost_per_1k": 0.0
+    },
+    "det=mundane_0.005|rho=0.01": {
+      "no_floor_latches_per_1k_batches": 16.43,
+      "floor_latches_per_1k_batches": 2.74,
+      "marginal_cost_per_1k": 13.69
+    },
+    "det=mundane_0.005|rho=0.02": {
+      "no_floor_latches_per_1k_batches": 36.44,
+      "floor_latches_per_1k_batches": 3.29,
+      "marginal_cost_per_1k": 33.15
+    },
+    "det=mundane_0.005|rho=0.05": {
+      "no_floor_latches_per_1k_batches": 94.84,
+      "floor_latches_per_1k_batches": 5.03,
+      "marginal_cost_per_1k": 89.81
+    },
+    "det=mundane_0.005|rho=0.10": {
+      "no_floor_latches_per_1k_batches": 145.85,
+      "floor_latches_per_1k_batches": 8.61,
+      "marginal_cost_per_1k": 137.24
+    },
+    "det=mixed_0.02|rho=0.00": {
+      "no_floor_latches_per_1k_batches": 27.15,
+      "floor_latches_per_1k_batches": 27.15,
+      "marginal_cost_per_1k": 0.0
+    },
+    "det=mixed_0.02|rho=0.01": {
+      "no_floor_latches_per_1k_batches": 48.8,
+      "floor_latches_per_1k_batches": 27.95,
+      "marginal_cost_per_1k": 20.85
+    },
+    "det=mixed_0.02|rho=0.02": {
+      "no_floor_latches_per_1k_batches": 70.07,
+      "floor_latches_per_1k_batches": 29.72,
+      "marginal_cost_per_1k": 40.35
+    },
+    "det=mixed_0.02|rho=0.05": {
+      "no_floor_latches_per_1k_batches": 119.89,
+      "floor_latches_per_1k_batches": 32.57,
+      "marginal_cost_per_1k": 87.32
+    },
+    "det=mixed_0.02|rho=0.10": {
+      "no_floor_latches_per_1k_batches": 159.91,
+      "floor_latches_per_1k_batches": 39.72,
+      "marginal_cost_per_1k": 120.19
+    },
+    "det=elevated_0.05|rho=0.00": {
+      "no_floor_latches_per_1k_batches": 103.72,
+      "floor_latches_per_1k_batches": 103.72,
+      "marginal_cost_per_1k": 0.0
+    },
+    "det=elevated_0.05|rho=0.01": {
+      "no_floor_latches_per_1k_batches": 120.12,
+      "floor_latches_per_1k_batches": 102.52,
+      "marginal_cost_per_1k": 17.6
+    },
+    "det=elevated_0.05|rho=0.02": {
+      "no_floor_latches_per_1k_batches": 136.81,
+      "floor_latches_per_1k_batches": 105.7,
+      "marginal_cost_per_1k": 31.1
+    },
+    "det=elevated_0.05|rho=0.05": {
+      "no_floor_latches_per_1k_batches": 168.71,
+      "floor_latches_per_1k_batches": 108.33,
+      "marginal_cost_per_1k": 60.38
+    },
+    "det=elevated_0.05|rho=0.10": {
+      "no_floor_latches_per_1k_batches": 192.63,
+      "floor_latches_per_1k_batches": 114.08,
+      "marginal_cost_per_1k": 78.56
+    },
+    "det=adversarial_measured|rho=0.00": {
+      "no_floor_latches_per_1k_batches": 482.37,
+      "floor_latches_per_1k_batches": 482.37,
+      "marginal_cost_per_1k": 0.0
+    },
+    "det=adversarial_measured|rho=0.01": {
+      "no_floor_latches_per_1k_batches": 482.47,
+      "floor_latches_per_1k_batches": 482.47,
+      "marginal_cost_per_1k": 0.0
+    },
+    "det=adversarial_measured|rho=0.02": {
+      "no_floor_latches_per_1k_batches": 481.99,
+      "floor_latches_per_1k_batches": 481.99,
+      "marginal_cost_per_1k": 0.0
+    },
+    "det=adversarial_measured|rho=0.05": {
+      "no_floor_latches_per_1k_batches": 482.43,
+      "floor_latches_per_1k_batches": 482.43,
+      "marginal_cost_per_1k": 0.0
+    },
+    "det=adversarial_measured|rho=0.10": {
+      "no_floor_latches_per_1k_batches": 482.31,
+      "floor_latches_per_1k_batches": 482.3,
+      "marginal_cost_per_1k": 0.01
+    }
+  },
+  "verdict": {
+    "doctrine": "no-probability-floor model escalation of D9",
+    "det_benign_fp_rate_adversarial": 0.7021,
+    "model_true_prob_ceiling_observed": 0.101,
+    "model_true_answer_rate_observed": 0.0,
+    "marginal_adversarial_rho_0.10": 0.01,
+    "marginal_mundane_rho_0.01": 13.69,
+    "marginal_mundane_rho_0.05": 89.81,
+    "safe_threshold_per_1k": 0.5,
+    "verdict": "UNSAFE WITHOUT FLOOR",
+    "rationale": "Even a 1% benign noul-true answer rate breaches the marginal budget on mundane coverage (+13.7 latches/1k vs a 0.5 budget; +89.8/1k at rho=0.05), while the >=0.5-floor arm stays at the det-only baseline in every regime. IMPORTANT: the risk is LATENT today \u2014 the live model cannot escalate D9 at all (noul-bool answer serializes to '' pre-_pick_better, parity finding), so observed marginal cost is exactly zero by accident, not doctrine. It ACTIVATES the moment the adapter vocabulary/bool shim lands. Recommendation: adopt a SOFT floor of ~0.2 (double the observed benign p(true) ceiling of 0.101) in the same change, so benign-text escalations (p-true mass < 0.15) are suppressed while confident real halts pass. Honest limit: the floor's recall cost on TRUE halt text is unmeasured \u2014 the probe corpora contain no real halt articles with model probabilities."
+  }
+}

@@ -1,0 +1,111 @@
+{
+ "symbol": "EURUSD",
+ "timeframe": "H1",
+ "bars": 5000,
+ "deep_sweep_reference": {
+  "agent_regime_supervisor": {
+   "strategy": "agent_regime_supervisor",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "strategy:agent_regime_supervisor",
+    "sharpe": -3.48,
+    "total_trades": 185,
+    "bars_processed": 5000
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "source": "backtest_trades",
+    "samples": 184,
+    "mean_cpcv_sharpe": -3.793,
+    "pbo": 1.0,
+    "dsr_conf": 0.0
+   },
+   "dsr": "completed",
+   "walkforward": "INSUFFICIENT_JOURNAL_EVIDENCE",
+   "seconds": 1.1
+  }
+ },
+ "runs": [
+  {
+   "strategy": "agent_regime_supervisor@sprt_confirm",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "strategy:agent_regime_supervisor@sprt_confirm",
+    "sharpe": -0.73,
+    "total_trades": 242,
+    "bars_processed": 5000
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "source": "backtest_trades",
+    "samples": 242,
+    "mean_cpcv_sharpe": -0.737,
+    "pbo": 0.6667,
+    "dsr_conf": 1.0
+   },
+   "dsr": "completed",
+   "walkforward": "INSUFFICIENT_JOURNAL_EVIDENCE",
+   "seconds": 14.7
+  },
+  {
+   "strategy": "agent_regime_supervisor",
+   "verdict": {
+    "passed": false,
+    "status": "FAIL",
+    "blockers": [
+     "sharpe_below_1",
+     "profit_factor_below_1.2",
+     "negative_expectancy",
+     "dsr_gate_failed"
+    ],
+    "warnings": [
+     "low_win_rate"
+    ]
+   },
+   "backtest": {
+    "status": "completed",
+    "ruleset": "strategy:agent_regime_supervisor",
+    "sharpe": -2.85,
+    "total_trades": 190,
+    "bars_processed": 5000
+   },
+   "cpcv": {
+    "status": "OVERFITTING_RISK_DETECTED",
+    "source": "backtest_trades",
+    "samples": 190,
+    "mean_cpcv_sharpe": -2.854,
+    "pbo": 0.9333,
+    "dsr_conf": 1.0
+   },
+   "dsr": "completed",
+   "walkforward": "INSUFFICIENT_JOURNAL_EVIDENCE",
+   "seconds": 1.0
+  }
+ ]
+}
