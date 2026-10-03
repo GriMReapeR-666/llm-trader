@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Compliance Dashboard</title>
+<style>
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #0d1117; color: #c9d1d9; padding: 20px; }
+    h1 { color: #58a6ff; margin-bottom: 5px; }
+    h2 { color: #58a6ff; margin: 15px 0 8px; font-size: 1.1em; }
+    .subtitle { color: #8b949e; font-size: 0.9em; margin-bottom: 15px; }
+    .cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+            padding: 15px 20px; min-width: 140px; text-align: center; }
+    .card .num { font-size: 1.8em; font-weight: bold; color: #58a6ff; }
+    .card .label { font-size: 0.8em; color: #8b949e; margin-top: 4px; }
+    .section { background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+               padding: 15px 20px; margin-bottom: 15px; }
+    .ok { color: #28a745; font-weight: bold; }
+    .warn { color: #ffc107; font-weight: bold; }
+    .crit { color: #dc3545; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+    th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #21262d; }
+    th { color: #8b949e; font-weight: 600; position: sticky; top: 0; background: #161b22; }
+    tr:hover { background: #1c2128; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px;
+             font-size: 0.75em; font-weight: 600; }
+    .badge-crit { background: #dc354522; color: #dc3545; border: 1px solid #dc354544; }
+    .badge-warn { background: #ffc10722; color: #ffc107; border: 1px solid #ffc10744; }
+    .badge-info { background: #17a2b822; color: #17a2b8; border: 1px solid #17a2b844; }
+    .badge-ok { background: #28a74522; color: #28a745; border: 1px solid #28a74544; }
+    .truncate { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .muted { color: #8b949e; }
+    
+</style>
+</head>
+<body>
+<h1>▣ Compliance Dashboard</h1>
+<p class='subtitle'>Generated: 2026-09-28 11:26:50 UTC | Period: 24h</p>
+
+<div class='cards'>
+<div class='card'><div class='num'>↻ 0</div><div class='label'>Total Events</div></div>
+<div class='card'><div class='num'>▣ ✔</div><div class='label'>Chain Valid</div></div>
+<div class='card'><div class='num'>⚠ 0</div><div class='label'>Alerts</div></div>
+<div class='card'><div class='num'>≡ 0</div><div class='label'>S.Q Tasks</div></div>
+<div class='card'><div class='num'>⚠ 45</div><div class='label'>Schedule Starvation</div></div>
+<div class='card'><div class='num'>⚠ FALLBACK</div><div class='label'>AlphaDiscovery</div></div>
+</div>
+
+<div class='section'>
+<h2>▣ Hash Chain Integrity</h2>
+<p>Status: <span class='ok'>VALID</span></p>
+<p>Entries verified: 0</p>
+<p>Duration: 0.0ms</p>
+</div>
+
+
+
+<div class='section'>
+<h2>✉ Operator Alert Outbox</h2>
+<table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Status</td><td><span class='badge badge-warn'>WARN</span></td></tr>
+<tr><td>PENDING</td><td>0</td></tr>
+<tr><td>CLAIMED</td><td>0</td></tr>
+<tr><td>SENT</td><td>75</td></tr>
+<tr><td>EXPIRED</td><td>849</td></tr>
+<tr><td>Oldest pending</td><td>—</td></tr>
+<tr><td>Report captured at</td><td>2026-09-28T11:26:35.006061+00:00</td></tr>
+</table>
+</div>
+
+<div class='section'>
+<h2>◷ Schedule Starvation</h2>
+<p>Status: <span class='badge badge-warn'>WARN</span> <span class='muted'>| window 24h | 2654 scheduled dispatches</span></p>
+<table>
+<tr><th>Schedule</th><th>Handler overruns</th><th>Worst elapsed</th><th>Worst over-by</th><th>p50</th><th>p95</th><th>Last overrun</th></tr>
+<tr><td>event_monitor</td><td>41</td><td>281.6s</td><td>221.6s</td><td>82.0s</td><td>135.6s</td><td>2026-09-28T11:06:40</td></tr>
+<tr><td>journal_maintenance</td><td>4</td><td>75.0s</td><td>30.0s</td><td>60.1s</td><td>75.0s</td><td>2026-09-28T10:41:30</td></tr>
+</table>
+<h2>◷ Schedule Duty Cycle</h2>
+<table>
+<tr><th>Schedule</th><th>Claims</th><th>Span</th><th>Interval</th><th>Expected</th><th>Duty</th><th>Verdict</th></tr>
+<tr><td>market_health</td><td>486</td><td>19.4h</td><td>30s</td><td>2326.7</td><td class='crit'>21%</td><td class='crit'>STARVED</td></tr>
+<tr><td>position_reconcile</td><td>271</td><td>18.3h</td><td>60s</td><td>1098.1</td><td class='crit'>25%</td><td class='crit'>STARVED</td></tr>
+<tr><td>sieve_poll</td><td>300</td><td>19.4h</td><td>60s</td><td>1163.4</td><td class='crit'>26%</td><td class='crit'>STARVED</td></tr>
+<tr><td>event_triage</td><td>330</td><td>19.4h</td><td>60s</td><td>1163.3</td><td class='crit'>28%</td><td class='crit'>STARVED</td></tr>
+<tr><td>incident_sweep</td><td>330</td><td>19.4h</td><td>60s</td><td>1163.3</td><td class='crit'>28%</td><td class='crit'>STARVED</td></tr>
+<tr><td>alert_dispatch</td><td>354</td><td>19.4h</td><td>60s</td><td>1163.3</td><td class='crit'>30%</td><td class='crit'>STARVED</td></tr>
+<tr><td>event_monitor</td><td>362</td><td>19.4h</td><td>60s</td><td>1163.3</td><td class='crit'>31%</td><td class='crit'>STARVED</td></tr>
+<tr><td>alloc_rebalance</td><td>88</td><td>19.3h</td><td>300s</td><td>231.1</td><td class='crit'>38%</td><td class='crit'>STARVED</td></tr>
+<tr><td>causal_edge_validate</td><td>33</td><td>18.1h</td><td>900s</td><td>72.5</td><td class='crit'>46%</td><td class='crit'>STARVED</td></tr>
+<tr><td>macro_event_evidence</td><td>34</td><td>18.1h</td><td>900s</td><td>72.5</td><td class='crit'>47%</td><td class='crit'>STARVED</td></tr>
+<tr><td>catalog_measurement_pass</td><td>18</td><td>18.0h</td><td>1800s</td><td>35.9</td><td class='crit'>50%</td><td class='crit'>STARVED</td></tr>
+<tr><td>journal_maintenance</td><td>10</td><td>17.5h</td><td>3600s</td><td>17.5</td><td class='crit'>57%</td><td class='crit'>STARVED</td></tr>
+<tr><td>lifecycle_evaluation</td><td>10</td><td>17.5h</td><td>3600s</td><td>17.5</td><td class='crit'>57%</td><td class='crit'>STARVED</td></tr>
+<tr><td>macro_post_event_review</td><td>11</td><td>18.0h</td><td>3600s</td><td>18.0</td><td class='crit'>61%</td><td class='crit'>STARVED</td></tr>
+<tr><td>session_review</td><td>11</td><td>18.0h</td><td>3600s</td><td>18.0</td><td class='crit'>61%</td><td class='crit'>STARVED</td></tr>
+<tr><td>daily_review</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>economic_dynamics_seed</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>historical_regime_research</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>ledger_housekeeping</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>outbox_archive</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>self_improvement</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+</table>
+<p class='muted'>Duty = claims vs cadence-expected over the claims' own span (scheduler tuning report computation); spans under 2h render without a ratio. All-time spans include trader-down hours, so ratios lower-bound real duty.</p>
+<p class='warn'>2 abandoned batch(es) in window (last 2026-09-28T11:04:30) — deferral reasons: wave_deadline x2; released claims keep their cadence turn (claims never advance it).</p>
+</div>
+
+<div class='section'>
+<h2>✉ LLM Providers</h2>
+<table>
+<tr><th>Provider</th><th>Status</th><th>Keys</th><th>Circuit</th></tr>
+<tr><td>openrouter</td><td class='ok'>INITIALIZED</td><td>1</td><td>closed</td></tr>
+<tr><td>tokenrouter</td><td class='ok'>INITIALIZED</td><td>1</td><td>closed</td></tr>
+<tr><td>cerebras</td><td class='ok'>INITIALIZED</td><td>1</td><td>closed</td></tr>
+<tr><td>nvidia_nim</td><td class='ok'>INITIALIZED</td><td>5</td><td>closed</td></tr>
+</table>
+<p>AlphaDiscovery generation: <span class='badge badge-crit'>FALLBACK_STATIC</span> <span class='crit'>(static heuristic candidates — NOT LLM)</span> <span class='muted'>| 2026-09-27T23:57:04 | generation 2938 | source: state file (alpha_discovery_state.json)</span></p>
+</div>
+
+
+
+<div class='section'>
+<h2>≡ S.Q Priority Queue Status</h2>
+<table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>pending</td><td>0</td></tr>
+<tr><td>running</td><td>0</td></tr>
+<tr><td>completed</td><td>0</td></tr>
+<tr><td>failed</td><td>0</td></tr>
+</table>
+</div>
+
+<div class='section'>
+<h2>≡ Recent Audit Events</h2>
+<table>
+<tr><th>Time</th><th>Type</th><th>Agent</th><th>Symbol</th><th>Details</th></tr>
+<tr><td>2026-09-28T11:26:50.441711+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
+<tr><td>2026-09-28T11:20:42.339980+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
+<tr><td>2026-09-28T11:18:44.174452+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T11:17:34.361098+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T11:15:31.992265+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T11:09:02.348507+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
+<tr><td>2026-09-28T11:09:00.715083+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
+<tr><td>2026-09-28T11:06:56.912296+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
+<tr><td>2026-09-28T11:05:02.908244+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
+<tr><td>2026-09-28T10:54:56.311711+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
+<tr><td>2026-09-28T10:54:53.450781+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T10:52:30.330543+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T10:50:34.223860+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T10:42:31.360964+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
+<tr><td>2026-09-28T10:42:29.552520+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
+<tr><td>2026-09-28T10:41:48.906998+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
+<tr><td>2026-09-28T10:03:42.383243+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario envelope_decision&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T10:03:42.240927+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T10:01:23.941987+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;replay scenario maint_once&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T10:01:23.818476+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:59:37.246488+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario order_once&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:59:37.111547+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:58:36.147149+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario order_once&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:58:36.014761+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:58:30.205691+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;SELL&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_sell&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:58:30.076173+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:57:54.069954+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;x&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:57:53.922557+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:57:48.972134+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;SELL&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_sell&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:57:48.834662+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:57:11.623408+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;x&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:57:11.480507+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:57:05.187687+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_buy&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:57:05.050840+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:56:23.897723+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario missing_stop&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:56:23.765719+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:56:20.010635+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_buy&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:56:19.877535+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:55:34.471545+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario missing_stop&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:55:34.338000+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:55:26.179618+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_hold&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:55:26.036971+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:54:11.826593+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_hold&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:54:11.738519+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;SELL&quot;, &quot;reasoning&quot;: &quot;replay scenario broker_reject&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:54:11.600022+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:54:11.593496+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:53:24.761706+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;SELL&quot;, &quot;reasoning&quot;: &quot;replay scenario broker_reject&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:53:24.535076+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:49:10.741034+00:00</td><td> ORDER_SUBMITTED</td><td>ε</td><td>XAUUSD</td><td class='truncate'>{&quot;type&quot;: &quot;buy_limit&quot;, &quot;price&quot;: 2000.0, &quot;volume&quot;: 0.05}</td></tr>
+<tr><td>2026-09-28T09:49:10.715176+00:00</td><td>✔ ORDER_FILLED</td><td>ε</td><td>GBPUSD</td><td class='truncate'>{&quot;type&quot;: &quot;emergency_exit&quot;, &quot;reason&quot;: &quot;guardian_trip&quot;}</td></tr>
+<tr><td>2026-09-28T09:49:10.687588+00:00</td><td>✔ ORDER_FILLED</td><td>ε</td><td>EURUSD</td><td class='truncate'>{&quot;type&quot;: &quot;market_order&quot;, &quot;side&quot;: &quot;BUY&quot;, &quot;volume&quot;: 0.1}</td></tr>
+<tr><td>2026-09-28T09:49:09.082368+00:00</td><td> ORDER_SUBMITTED</td><td>ε</td><td>EURUSD</td><td class='truncate'>{&quot;side&quot;: &quot;BUY&quot;, &quot;volume&quot;: 0.1}</td></tr>
+<tr><td>2026-09-28T09:48:01.120656+00:00</td><td> ORDER_SUBMITTED</td><td>ε</td><td>EURUSD</td><td class='truncate'>{&quot;side&quot;: &quot;BUY&quot;, &quot;volume&quot;: 0.05, &quot;entry&quot;: 125.05, &quot;sl&quot;: 124.3, &quot;tp&quot;: 126.55, &quot;order_type&quot;: &quot;BUY_LIMIT&quot;, &quot;ticket&quot;: 12345, &quot;paper&quot;: true}</td></tr>
+<tr><td>2026-09-28T09:48:00.951930+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;[BoundedAutonomy] Proposer: BUY (S(X,P) score=0.40 (EMA=1.0, RSI=100.0, Mom=8.261%)) | Veto: Approved (Clear technical</td></tr>
+<tr><td>2026-09-28T09:48:00.903140+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:47:46.219330+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;[BoundedAutonomy] Proposer: HOLD (VETOED by LLM: High-impact macro event impending, vetoing trade.) | Veto: Vetoed (H</td></tr>
+<tr><td>2026-09-28T09:47:46.169784+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:47:30.060458+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;[BoundedAutonomy] Proposer: HOLD (S(X,P) score=0.30 (EMA=0.0, RSI=0.0, Mom=0.000%)) | Veto: Vetoed (N/A) | Shield: Ap</td></tr>
+<tr><td>2026-09-28T09:47:30.008298+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:42:42.981765+00:00</td><td> ORDER_SUBMITTED</td><td>ε</td><td>XAUUSD</td><td class='truncate'>{&quot;type&quot;: &quot;buy_limit&quot;, &quot;price&quot;: 2000.0, &quot;volume&quot;: 0.05}</td></tr>
+<tr><td>2026-09-28T09:42:42.954291+00:00</td><td>✔ ORDER_FILLED</td><td>ε</td><td>GBPUSD</td><td class='truncate'>{&quot;type&quot;: &quot;emergency_exit&quot;, &quot;reason&quot;: &quot;guardian_trip&quot;}</td></tr>
+<tr><td>2026-09-28T09:42:42.923281+00:00</td><td>✔ ORDER_FILLED</td><td>ε</td><td>EURUSD</td><td class='truncate'>{&quot;type&quot;: &quot;market_order&quot;, &quot;side&quot;: &quot;BUY&quot;, &quot;volume&quot;: 0.1}</td></tr>
+<tr><td>2026-09-28T09:42:41.238358+00:00</td><td> ORDER_SUBMITTED</td><td>ε</td><td>EURUSD</td><td class='truncate'>{&quot;side&quot;: &quot;BUY&quot;, &quot;volume&quot;: 0.1}</td></tr>
+<tr><td>2026-09-28T09:33:06.873554+00:00</td><td> ORDER_SUBMITTED</td><td>ε</td><td>EURUSD</td><td class='truncate'>{&quot;side&quot;: &quot;BUY&quot;, &quot;volume&quot;: 0.05, &quot;entry&quot;: 125.05, &quot;sl&quot;: 124.3, &quot;tp&quot;: 126.55, &quot;order_type&quot;: &quot;BUY_LIMIT&quot;, &quot;ticket&quot;: 12345, &quot;paper&quot;: true}</td></tr>
+<tr><td>2026-09-28T09:33:06.590932+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;[BoundedAutonomy] Proposer: BUY (S(X,P) score=0.40 (EMA=1.0, RSI=100.0, Mom=8.261%)) | Veto: Approved (Clear technical</td></tr>
+<tr><td>2026-09-28T09:33:06.513749+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:32:52.513360+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;[BoundedAutonomy] Proposer: HOLD (VETOED by LLM: High-impact macro event impending, vetoing trade.) | Veto: Vetoed (H</td></tr>
+<tr><td>2026-09-28T09:32:52.446688+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T09:32:37.490841+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;[BoundedAutonomy] Proposer: HOLD (S(X,P) score=0.30 (EMA=0.0, RSI=0.0, Mom=0.000%)) | Veto: Vetoed (N/A) | Shield: Ap</td></tr>
+<tr><td>2026-09-28T09:32:37.441512+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:14:57.236067+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario envelope_decision&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:14:57.112169+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:14:14.879828+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;replay scenario maint_once&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:14:14.764016+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:13:29.002159+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario order_once&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:13:28.870371+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:12:44.881033+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario order_once&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:12:44.745159+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:12:00.100377+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;x&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:11:59.974302+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:11:16.477841+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;x&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:11:16.331987+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:10:30.967814+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario missing_stop&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:10:30.839008+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:09:44.195632+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario missing_stop&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:09:44.063203+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:08:56.478313+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;SELL&quot;, &quot;reasoning&quot;: &quot;replay scenario broker_reject&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:08:56.341617+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:08:13.831759+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;SELL&quot;, &quot;reasoning&quot;: &quot;replay scenario broker_reject&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:08:13.700956+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:07:16.104929+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;SELL&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_sell&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:07:15.961659+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:06:33.743999+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;SELL&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_sell&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:06:33.615794+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:05:45.572454+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_buy&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:05:45.441879+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:05:00.478886+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;BUY&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_buy&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:05:00.348754+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:04:14.212182+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;replay scenario clean_hold&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-09-28T08:04:14.085890+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+</table>
+</div>
+
+</body>
+</html>
