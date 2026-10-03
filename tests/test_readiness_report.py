@@ -187,3 +187,18 @@ def test_verify_chain_readonly_does_not_mutate_db(tmp_path):
     # or the ledger's cross-process lockfile created during setup)
     extra = {p for p in os.listdir(tmp_path) if p.startswith("ro.db")} - {"ro.db"}
     assert extra <= {"ro.db-wal", "ro.db-shm", "ro.db.lock"}
+
+
+def test_readiness_fails_closed_when_strategy_ledger_module_import_fails(tmp_path, monkeypatch):
+    import operations.readiness_report as rr
+    monkeypatch.setattr(rr, "_verify_chain_cpcv", lambda: {
+        "valid": False, "status": "MODULE_IMPORT_ERROR", "error": "simulated missing module"
+    })
+    path = str(tmp_path / "readiness_missing_module.db")
+    TradingStore(path)
+    result = rr.build(path, auth_fn=lambda: {"status": "AUTHORIZATION_FAILED"})
+    gate = result["gates"]["trial_ledger_chain"]
+    assert gate["valid"] is False
+    assert gate["status"] == "COMPROMISED"
+    assert any("trial-ledger hash chain compromised or unreadable" in b for b in result["blockers"])
+
