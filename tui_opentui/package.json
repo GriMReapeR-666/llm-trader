@@ -1,0 +1,32 @@
+{
+  "name": "llm-trader-command-deck",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun src/index.tsx",
+    "mcp": "TRANSPORT=mcp bun src/index.tsx",
+    "live": "TRANSPORT=live bun src/index.tsx",
+    "selftest": "bun src/selftest.tsx",
+    "demo:observatory": "bun src/demo_observatory.tsx",
+    "observatory": "bun src/demo_observatory.tsx",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && graphify update ..",
+    "build:rtk": "rtk tsc --noEmit && rtk graphify update ..",
+    "graphify": "graphify update ..",
+    "ponytail": "python ../scripts/ponytail_audit.py",
+    "ponytail:debt": "python ../scripts/ponytail_audit.py --debt"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@opentui/core": "^0.5.8",
+    "@opentui/react": "^0.5.8",
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.3.0",
+    "@types/react": "^19.2.0",
+    "typescript": "^5.9.0"
+  }
+}
