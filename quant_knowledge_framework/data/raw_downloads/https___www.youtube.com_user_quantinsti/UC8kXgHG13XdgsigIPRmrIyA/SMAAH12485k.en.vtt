@@ -1,0 +1,248 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:05.760 --> 00:00:08.550 align:start position:0%
+ 
+There<00:00:05.960><c> is</c><00:00:06.080><c> something</c><00:00:06.640><c> called</c><00:00:07.040><c> the</c><00:00:07.560><c> same</c><00:00:08.000><c> side</c>
+
+00:00:08.550 --> 00:00:08.560 align:start position:0%
+There is something called the same side
+ 
+
+00:00:08.560 --> 00:00:11.590 align:start position:0%
+There is something called the same side
+depth.<00:00:09.520><c> So,</c><00:00:09.640><c> say</c><00:00:09.800><c> if</c><00:00:09.960><c> this</c><00:00:10.240><c> is</c><00:00:10.400><c> the</c><00:00:10.600><c> order</c><00:00:10.920><c> book</c>
+
+00:00:11.590 --> 00:00:11.600 align:start position:0%
+depth. So, say if this is the order book
+ 
+
+00:00:11.600 --> 00:00:15.550 align:start position:0%
+depth. So, say if this is the order book
+and<00:00:12.080><c> at</c><00:00:12.280><c> the</c><00:00:12.760><c> top</c><00:00:13.320><c> level,</c><00:00:14.160><c> there</c><00:00:14.400><c> are</c><00:00:15.000><c> five</c>
+
+00:00:15.550 --> 00:00:15.560 align:start position:0%
+and at the top level, there are five
+ 
+
+00:00:15.560 --> 00:00:18.190 align:start position:0%
+and at the top level, there are five
+orders,<00:00:16.280><c> 100</c><00:00:16.720><c> quantity</c><00:00:17.280><c> each.</c><00:00:17.720><c> So,</c><00:00:17.840><c> the</c><00:00:17.960><c> total</c>
+
+00:00:18.190 --> 00:00:18.200 align:start position:0%
+orders, 100 quantity each. So, the total
+ 
+
+00:00:18.200 --> 00:00:21.950 align:start position:0%
+orders, 100 quantity each. So, the total
+quantity<00:00:18.600><c> is</c><00:00:18.760><c> 500.</c><00:00:19.840><c> So,</c><00:00:20.360><c> we</c><00:00:20.600><c> say</c><00:00:21.000><c> that</c><00:00:21.400><c> the</c>
+
+00:00:21.950 --> 00:00:21.960 align:start position:0%
+quantity is 500. So, we say that the
+ 
+
+00:00:21.960 --> 00:00:25.030 align:start position:0%
+quantity is 500. So, we say that the
+same<00:00:22.400><c> side</c><00:00:22.960><c> depth</c><00:00:23.280><c> on</c><00:00:23.480><c> the</c><00:00:23.640><c> buy</c><00:00:24.040><c> side</c><00:00:24.640><c> till</c>
+
+00:00:25.030 --> 00:00:25.040 align:start position:0%
+same side depth on the buy side till
+ 
+
+00:00:25.040 --> 00:00:28.790 align:start position:0%
+same side depth on the buy side till
+level<00:00:25.520><c> one</c><00:00:25.840><c> is</c><00:00:26.080><c> 500.</c><00:00:26.920><c> So,</c><00:00:27.120><c> depth</c><00:00:27.600><c> is</c><00:00:27.840><c> basically</c>
+
+00:00:28.790 --> 00:00:28.800 align:start position:0%
+level one is 500. So, depth is basically
+ 
+
+00:00:28.800 --> 00:00:32.589 align:start position:0%
+level one is 500. So, depth is basically
+the<00:00:29.080><c> cumulative</c><00:00:30.400><c> orders</c><00:00:31.320><c> or</c><00:00:31.440><c> quantity</c><00:00:32.439><c> till</c>
+
+00:00:32.589 --> 00:00:32.599 align:start position:0%
+the cumulative orders or quantity till
+ 
+
+00:00:32.599 --> 00:00:35.350 align:start position:0%
+the cumulative orders or quantity till
+that<00:00:32.920><c> level.</c><00:00:33.240><c> So,</c><00:00:33.480><c> depth</c><00:00:34.200><c> on</c><00:00:34.400><c> the</c><00:00:34.560><c> buy</c><00:00:34.920><c> side</c>
+
+00:00:35.350 --> 00:00:35.360 align:start position:0%
+that level. So, depth on the buy side
+ 
+
+00:00:35.360 --> 00:00:38.790 align:start position:0%
+that level. So, depth on the buy side
+till<00:00:35.560><c> level</c><00:00:35.960><c> two</c><00:00:36.280><c> is</c><00:00:36.600><c> 750.</c><00:00:37.640><c> Depth</c><00:00:38.280><c> till</c><00:00:38.480><c> level</c>
+
+00:00:38.790 --> 00:00:38.800 align:start position:0%
+till level two is 750. Depth till level
+ 
+
+00:00:38.800 --> 00:00:42.150 align:start position:0%
+till level two is 750. Depth till level
+three<00:00:39.320><c> on</c><00:00:39.520><c> the</c><00:00:39.640><c> buy</c><00:00:40.000><c> side</c><00:00:40.640><c> is</c><00:00:40.920><c> 850.</c><00:00:41.640><c> Similarly,</c>
+
+00:00:42.150 --> 00:00:42.160 align:start position:0%
+three on the buy side is 850. Similarly,
+ 
+
+00:00:42.160 --> 00:00:44.870 align:start position:0%
+three on the buy side is 850. Similarly,
+depth<00:00:42.560><c> at</c><00:00:42.720><c> level</c><00:00:43.240><c> till</c><00:00:43.400><c> level</c><00:00:43.720><c> three</c><00:00:44.480><c> on</c><00:00:44.640><c> the</c>
+
+00:00:44.870 --> 00:00:44.880 align:start position:0%
+depth at level till level three on the
+ 
+
+00:00:44.880 --> 00:00:47.470 align:start position:0%
+depth at level till level three on the
+ask<00:00:45.160><c> side</c><00:00:45.600><c> would</c><00:00:45.800><c> be</c><00:00:45.920><c> 350.</c><00:00:46.720><c> Depth</c><00:00:47.160><c> is</c><00:00:47.320><c> the</c>
+
+00:00:47.470 --> 00:00:47.480 align:start position:0%
+ask side would be 350. Depth is the
+ 
+
+00:00:47.480 --> 00:00:50.470 align:start position:0%
+ask side would be 350. Depth is the
+cumulative<00:00:48.360><c> quantity</c><00:00:48.960><c> till</c><00:00:49.320><c> that</c><00:00:49.840><c> level.</c><00:00:50.280><c> So,</c>
+
+00:00:50.470 --> 00:00:50.480 align:start position:0%
+cumulative quantity till that level. So,
+ 
+
+00:00:50.480 --> 00:00:53.190 align:start position:0%
+cumulative quantity till that level. So,
+same<00:00:50.800><c> side</c><00:00:51.040><c> depth</c><00:00:51.320><c> till</c><00:00:51.480><c> level</c><00:00:51.840><c> two</c><00:00:52.120><c> is</c><00:00:52.360><c> 750.</c>
+
+00:00:53.190 --> 00:00:53.200 align:start position:0%
+same side depth till level two is 750.
+ 
+
+00:00:53.200 --> 00:00:55.270 align:start position:0%
+same side depth till level two is 750.
+Now,<00:00:53.680><c> something</c><00:00:54.200><c> called</c>
+
+00:00:55.270 --> 00:00:55.280 align:start position:0%
+Now, something called
+ 
+
+00:00:55.280 --> 00:00:57.750 align:start position:0%
+Now, something called
+if<00:00:55.560><c> whether</c><00:00:55.800><c> the</c><00:00:56.040><c> order</c><00:00:56.360><c> is</c><00:00:56.640><c> alone</c><00:00:57.120><c> or</c><00:00:57.240><c> not.</c>
+
+00:00:57.750 --> 00:00:57.760 align:start position:0%
+if whether the order is alone or not.
+ 
+
+00:00:57.760 --> 00:00:59.550 align:start position:0%
+if whether the order is alone or not.
+So,<00:00:57.920><c> say</c><00:00:58.080><c> at</c><00:00:58.240><c> 10:00</c><00:00:58.680><c> This</c><00:00:58.880><c> was</c><00:00:59.040><c> the</c><00:00:59.160><c> order</c><00:00:59.360><c> book</c>
+
+00:00:59.550 --> 00:00:59.560 align:start position:0%
+So, say at 10:00 This was the order book
+ 
+
+00:00:59.560 --> 00:01:02.990 align:start position:0%
+So, say at 10:00 This was the order book
+at<00:00:59.680><c> 10:15,</c><00:01:00.480><c> an</c><00:01:00.760><c> order</c><00:01:01.440><c> comes</c><00:01:01.720><c> in</c><00:01:01.840><c> at</c><00:01:01.960><c> 100.1</c><00:01:02.840><c> for</c>
+
+00:01:02.990 --> 00:01:03.000 align:start position:0%
+at 10:15, an order comes in at 100.1 for
+ 
+
+00:01:03.000 --> 00:01:05.390 align:start position:0%
+at 10:15, an order comes in at 100.1 for
+quantity<00:01:03.440><c> 200,</c><00:01:04.320><c> right?</c><00:01:04.559><c> Trader</c><00:01:04.839><c> one</c><00:01:05.000><c> fires</c><00:01:05.280><c> an</c>
+
+00:01:05.390 --> 00:01:05.400 align:start position:0%
+quantity 200, right? Trader one fires an
+ 
+
+00:01:05.400 --> 00:01:08.230 align:start position:0%
+quantity 200, right? Trader one fires an
+order<00:01:05.640><c> of</c><00:01:05.760><c> size</c><00:01:06.000><c> 200</c><00:01:06.800><c> at</c><00:01:06.920><c> 100.1.</c>
+
+00:01:08.230 --> 00:01:08.240 align:start position:0%
+order of size 200 at 100.1.
+ 
+
+00:01:08.240 --> 00:01:12.190 align:start position:0%
+order of size 200 at 100.1.
+At<00:01:08.480><c> this</c><00:01:08.840><c> point,</c><00:01:09.960><c> because</c><00:01:10.840><c> there</c><00:01:11.080><c> is</c><00:01:11.280><c> no</c><00:01:11.760><c> other</c>
+
+00:01:12.190 --> 00:01:12.200 align:start position:0%
+At this point, because there is no other
+ 
+
+00:01:12.200 --> 00:01:17.390 align:start position:0%
+At this point, because there is no other
+order<00:01:12.640><c> at</c><00:01:12.840><c> 100.1,</c><00:01:14.040><c> here</c><00:01:14.760><c> the</c><00:01:15.120><c> order</c><00:01:15.880><c> is</c><00:01:16.200><c> alone.</c>
+
+00:01:17.390 --> 00:01:17.400 align:start position:0%
+order at 100.1, here the order is alone.
+ 
+
+00:01:17.400 --> 00:01:18.990 align:start position:0%
+order at 100.1, here the order is alone.
+Because<00:01:17.680><c> there</c><00:01:17.840><c> is</c><00:01:18.000><c> no</c><00:01:18.200><c> other</c><00:01:18.480><c> order</c><00:01:18.760><c> at</c><00:01:18.880><c> the</c>
+
+00:01:18.990 --> 00:01:19.000 align:start position:0%
+Because there is no other order at the
+ 
+
+00:01:19.000 --> 00:01:20.350 align:start position:0%
+Because there is no other order at the
+same<00:01:19.320><c> price,</c>
+
+00:01:20.350 --> 00:01:20.360 align:start position:0%
+same price,
+ 
+
+00:01:20.360 --> 00:01:23.790 align:start position:0%
+same price,
+this<00:01:20.800><c> order</c><00:01:21.240><c> is</c><00:01:21.600><c> alone</c><00:01:22.160><c> at</c><00:01:22.440><c> level</c><00:01:22.840><c> one.</c><00:01:23.720><c> And</c>
+
+00:01:23.790 --> 00:01:23.800 align:start position:0%
+this order is alone at level one. And
+ 
+
+00:01:23.800 --> 00:01:26.030 align:start position:0%
+this order is alone at level one. And
+obviously,<00:01:24.120><c> the</c><00:01:24.520><c> depth</c><00:01:24.880><c> till</c><00:01:25.080><c> level</c><00:01:25.400><c> one</c><00:01:25.680><c> is</c>
+
+00:01:26.030 --> 00:01:26.040 align:start position:0%
+obviously, the depth till level one is
+ 
+
+00:01:26.040 --> 00:01:28.390 align:start position:0%
+obviously, the depth till level one is
+200.<00:01:26.840><c> So,</c><00:01:26.920><c> the</c><00:01:27.040><c> same</c><00:01:27.280><c> side</c><00:01:27.480><c> depth</c><00:01:27.760><c> for</c><00:01:28.160><c> buy</c>
+
+00:01:28.390 --> 00:01:28.400 align:start position:0%
+200. So, the same side depth for buy
+ 
+
+00:01:28.400 --> 00:01:31.150 align:start position:0%
+200. So, the same side depth for buy
+side<00:01:28.680><c> is</c><00:01:28.840><c> 200.</c><00:01:29.920><c> And</c><00:01:30.080><c> this</c><00:01:30.400><c> order</c><00:01:30.720><c> is</c><00:01:30.920><c> alone</c>
+
+00:01:31.150 --> 00:01:31.160 align:start position:0%
+side is 200. And this order is alone
+ 
+
+00:01:31.160 --> 00:01:33.190 align:start position:0%
+side is 200. And this order is alone
+because<00:01:31.440><c> there</c><00:01:31.640><c> is</c><00:01:31.760><c> no</c><00:01:32.000><c> other</c>
+
+00:01:33.190 --> 00:01:33.200 align:start position:0%
+because there is no other
+ 
+
+00:01:33.200 --> 00:01:36.880 align:start position:0%
+because there is no other
+order<00:01:33.680><c> at</c><00:01:33.880><c> 100.1.</c>
+

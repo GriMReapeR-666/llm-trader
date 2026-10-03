@@ -1,0 +1,328 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.000 --> 00:00:01.630 align:start position:0%
+ 
+Let's<00:00:00.320><c> also</c><00:00:00.600><c> create</c><00:00:00.840><c> a</c><00:00:00.920><c> heat</c><00:00:01.160><c> map,</c><00:00:01.400><c> because</c>
+
+00:00:01.630 --> 00:00:01.640 align:start position:0%
+Let's also create a heat map, because
+ 
+
+00:00:01.640 --> 00:00:03.910 align:start position:0%
+Let's also create a heat map, because
+heat<00:00:01.840><c> maps</c><00:00:02.080><c> can</c><00:00:02.200><c> be</c><00:00:02.480><c> easier</c><00:00:02.800><c> to</c><00:00:03.000><c> use.</c><00:00:03.680><c> And</c>
+
+00:00:03.910 --> 00:00:03.920 align:start position:0%
+heat maps can be easier to use. And
+ 
+
+00:00:03.920 --> 00:00:05.150 align:start position:0%
+heat maps can be easier to use. And
+we're<00:00:04.000><c> going</c><00:00:04.120><c> to</c><00:00:04.160><c> use</c><00:00:04.240><c> the</c><00:00:04.360><c> seaborn</c><00:00:04.800><c> package</c>
+
+00:00:05.150 --> 00:00:05.160 align:start position:0%
+we're going to use the seaborn package
+ 
+
+00:00:05.160 --> 00:00:06.550 align:start position:0%
+we're going to use the seaborn package
+for<00:00:05.240><c> this.</c><00:00:05.600><c> This</c><00:00:05.760><c> is</c><00:00:05.800><c> one</c><00:00:05.920><c> of</c><00:00:05.960><c> the</c><00:00:06.040><c> great</c><00:00:06.200><c> uses</c>
+
+00:00:06.550 --> 00:00:06.560 align:start position:0%
+for this. This is one of the great uses
+ 
+
+00:00:06.560 --> 00:00:08.590 align:start position:0%
+for this. This is one of the great uses
+for<00:00:06.680><c> seaborn.</c><00:00:07.240><c> So,</c><00:00:07.440><c> sns</c><00:00:08.000><c> is</c><00:00:08.120><c> the</c><00:00:08.200><c> package</c>
+
+00:00:08.590 --> 00:00:08.600 align:start position:0%
+for seaborn. So, sns is the package
+ 
+
+00:00:08.600 --> 00:00:10.270 align:start position:0%
+for seaborn. So, sns is the package
+we're<00:00:08.680><c> going</c><00:00:08.800><c> to</c><00:00:08.840><c> call.</c>
+
+00:00:10.270 --> 00:00:10.280 align:start position:0%
+we're going to call.
+ 
+
+00:00:10.280 --> 00:00:12.070 align:start position:0%
+we're going to call.
+This<00:00:10.520><c> is</c><00:00:10.640><c> a</c><00:00:10.720><c> heat</c><00:00:10.960><c> map,</c><00:00:11.560><c> and</c><00:00:11.840><c> we're</c><00:00:11.920><c> going</c><00:00:12.040><c> to</c>
+
+00:00:12.070 --> 00:00:12.080 align:start position:0%
+This is a heat map, and we're going to
+ 
+
+00:00:12.080 --> 00:00:14.470 align:start position:0%
+This is a heat map, and we're going to
+type<00:00:12.320><c> in</c><00:00:12.440><c> correlations,</c><00:00:13.880><c> which</c><00:00:14.040><c> is</c><00:00:14.160><c> the</c><00:00:14.200><c> data</c>
+
+00:00:14.470 --> 00:00:14.480 align:start position:0%
+type in correlations, which is the data
+ 
+
+00:00:14.480 --> 00:00:16.070 align:start position:0%
+type in correlations, which is the data
+we're<00:00:14.560><c> going</c><00:00:14.680><c> to</c><00:00:14.760><c> pass</c><00:00:15.160><c> into</c><00:00:15.560><c> the</c><00:00:15.680><c> heat</c><00:00:15.840><c> map</c>
+
+00:00:16.070 --> 00:00:16.080 align:start position:0%
+we're going to pass into the heat map
+ 
+
+00:00:16.080 --> 00:00:18.510 align:start position:0%
+we're going to pass into the heat map
+function.<00:00:16.920><c> Annot,</c><00:00:17.360><c> which</c><00:00:17.560><c> is</c><00:00:17.720><c> the</c><00:00:17.840><c> annotation</c>
+
+00:00:18.510 --> 00:00:18.520 align:start position:0%
+function. Annot, which is the annotation
+ 
+
+00:00:18.520 --> 00:00:19.990 align:start position:0%
+function. Annot, which is the annotation
+we're<00:00:18.600><c> going</c><00:00:18.720><c> to</c><00:00:18.760><c> have</c><00:00:19.040><c> false,</c><00:00:19.480><c> because</c><00:00:19.880><c> it</c>
+
+00:00:19.990 --> 00:00:20.000 align:start position:0%
+we're going to have false, because it
+ 
+
+00:00:20.000 --> 00:00:21.750 align:start position:0%
+we're going to have false, because it
+makes<00:00:20.240><c> it</c><00:00:20.400><c> very</c><00:00:20.760><c> large</c><00:00:21.080><c> and</c><00:00:21.200><c> messy</c><00:00:21.520><c> with</c><00:00:21.640><c> all</c>
+
+00:00:21.750 --> 00:00:21.760 align:start position:0%
+makes it very large and messy with all
+ 
+
+00:00:21.760 --> 00:00:23.310 align:start position:0%
+makes it very large and messy with all
+the<00:00:21.880><c> annotations</c><00:00:22.440><c> on</c><00:00:22.520><c> there,</c><00:00:22.680><c> and</c><00:00:23.120><c> I</c><00:00:23.160><c> don't</c>
+
+00:00:23.310 --> 00:00:23.320 align:start position:0%
+the annotations on there, and I don't
+ 
+
+00:00:23.320 --> 00:00:24.990 align:start position:0%
+the annotations on there, and I don't
+really<00:00:23.480><c> care.</c><00:00:24.440><c> And</c><00:00:24.560><c> then</c><00:00:24.640><c> we're</c><00:00:24.720><c> going</c><00:00:24.840><c> to</c><00:00:24.880><c> put</c>
+
+00:00:24.990 --> 00:00:25.000 align:start position:0%
+really care. And then we're going to put
+ 
+
+00:00:25.000 --> 00:00:27.950 align:start position:0%
+really care. And then we're going to put
+in<00:00:25.080><c> our</c><00:00:25.200><c> cmap</c><00:00:25.800><c> is</c><00:00:25.920><c> going</c><00:00:26.200><c> to</c><00:00:26.320><c> be</c><00:00:26.520><c> cool</c><00:00:27.000><c> warm,</c>
+
+00:00:27.950 --> 00:00:27.960 align:start position:0%
+in our cmap is going to be cool warm,
+ 
+
+00:00:27.960 --> 00:00:29.590 align:start position:0%
+in our cmap is going to be cool warm,
+which<00:00:28.120><c> is</c><00:00:28.160><c> going</c><00:00:28.280><c> to</c><00:00:28.320><c> be</c><00:00:28.400><c> the</c><00:00:28.520><c> red</c><00:00:28.720><c> blue</c><00:00:28.960><c> one.</c>
+
+00:00:29.590 --> 00:00:29.600 align:start position:0%
+which is going to be the red blue one.
+ 
+
+00:00:29.600 --> 00:00:30.590 align:start position:0%
+which is going to be the red blue one.
+And<00:00:29.720><c> then</c><00:00:29.800><c> we're</c><00:00:29.920><c> going</c><00:00:30.040><c> to</c><00:00:30.080><c> set</c><00:00:30.240><c> our</c><00:00:30.400><c> other</c>
+
+00:00:30.590 --> 00:00:30.600 align:start position:0%
+And then we're going to set our other
+ 
+
+00:00:30.600 --> 00:00:35.750 align:start position:0%
+And then we're going to set our other
+values<00:00:31.040><c> of</c><00:00:31.360><c> Vmin</c><00:00:32.720><c> -1</c><00:00:33.880><c> and</c><00:00:34.120><c> Vmax</c><00:00:35.240><c> is</c><00:00:35.400><c> equal</c><00:00:35.640><c> to</c>
+
+00:00:35.750 --> 00:00:35.760 align:start position:0%
+values of Vmin -1 and Vmax is equal to
+ 
+
+00:00:35.760 --> 00:00:37.670 align:start position:0%
+values of Vmin -1 and Vmax is equal to
+1.<00:00:36.360><c> And</c><00:00:36.480><c> that</c><00:00:36.640><c> just</c><00:00:36.840><c> means</c><00:00:37.120><c> that</c><00:00:37.240><c> the</c><00:00:37.360><c> min</c><00:00:37.560><c> and</c>
+
+00:00:37.670 --> 00:00:37.680 align:start position:0%
+1. And that just means that the min and
+ 
+
+00:00:37.680 --> 00:00:39.070 align:start position:0%
+1. And that just means that the min and
+the<00:00:37.720><c> max</c><00:00:38.040><c> we're</c><00:00:38.160><c> going</c><00:00:38.320><c> to</c><00:00:38.360><c> be</c><00:00:38.480><c> setting</c><00:00:38.920><c> for</c>
+
+00:00:39.070 --> 00:00:39.080 align:start position:0%
+the max we're going to be setting for
+ 
+
+00:00:39.080 --> 00:00:41.350 align:start position:0%
+the max we're going to be setting for
+this<00:00:39.240><c> function</c><00:00:39.600><c> is</c><00:00:39.640><c> going</c><00:00:39.760><c> to</c><00:00:39.840><c> be</c><00:00:40.400><c> 1</c><00:00:40.720><c> and</c><00:00:40.840><c> -1</c>
+
+00:00:41.350 --> 00:00:41.360 align:start position:0%
+this function is going to be 1 and -1
+ 
+
+00:00:41.360 --> 00:00:43.150 align:start position:0%
+this function is going to be 1 and -1
+here,<00:00:41.680><c> which</c><00:00:42.080><c> makes</c><00:00:42.320><c> sense.</c><00:00:42.920><c> And</c><00:00:43.000><c> then</c><00:00:43.080><c> we're</c>
+
+00:00:43.150 --> 00:00:43.160 align:start position:0%
+here, which makes sense. And then we're
+ 
+
+00:00:43.160 --> 00:00:46.070 align:start position:0%
+here, which makes sense. And then we're
+going<00:00:43.280><c> to</c><00:00:43.360><c> use</c><00:00:43.480><c> the</c><00:00:43.640><c> matplotlib,</c><00:00:44.520><c> so</c><00:00:44.720><c> plt.</c><00:00:45.960><c> Uh</c>
+
+00:00:46.070 --> 00:00:46.080 align:start position:0%
+going to use the matplotlib, so plt. Uh
+ 
+
+00:00:46.080 --> 00:00:47.910 align:start position:0%
+going to use the matplotlib, so plt. Uh
+and<00:00:46.160><c> we're</c><00:00:46.280><c> just</c><00:00:46.440><c> going</c><00:00:46.560><c> to</c><00:00:46.600><c> type</c><00:00:46.880><c> in</c><00:00:47.080><c> show</c><00:00:47.800><c> to</c>
+
+00:00:47.910 --> 00:00:47.920 align:start position:0%
+and we're just going to type in show to
+ 
+
+00:00:47.920 --> 00:00:49.710 align:start position:0%
+and we're just going to type in show to
+show<00:00:48.200><c> out</c><00:00:48.400><c> this</c><00:00:48.640><c> map.</c><00:00:49.360><c> And</c><00:00:49.440><c> then</c><00:00:49.520><c> we're</c><00:00:49.600><c> going</c>
+
+00:00:49.710 --> 00:00:49.720 align:start position:0%
+show out this map. And then we're going
+ 
+
+00:00:49.720 --> 00:00:51.550 align:start position:0%
+show out this map. And then we're going
+to<00:00:49.760><c> run</c><00:00:49.960><c> these</c><00:00:50.160><c> real</c><00:00:50.320><c> quick.</c>
+
+00:00:51.550 --> 00:00:51.560 align:start position:0%
+to run these real quick.
+ 
+
+00:00:51.560 --> 00:00:54.510 align:start position:0%
+to run these real quick.
+And<00:00:51.680><c> we're</c><00:00:51.760><c> going</c><00:00:51.880><c> to</c><00:00:51.920><c> go</c><00:00:52.040><c> to</c><00:00:52.200><c> our</c><00:00:52.320><c> plots</c><00:00:52.760><c> tab.</c>
+
+00:00:54.510 --> 00:00:54.520 align:start position:0%
+And we're going to go to our plots tab.
+ 
+
+00:00:54.520 --> 00:00:55.590 align:start position:0%
+And we're going to go to our plots tab.
+We're<00:00:54.600><c> going</c><00:00:54.720><c> to</c><00:00:54.760><c> make</c><00:00:54.840><c> this</c><00:00:54.960><c> window</c><00:00:55.240><c> bigger,</c>
+
+00:00:55.590 --> 00:00:55.600 align:start position:0%
+We're going to make this window bigger,
+ 
+
+00:00:55.600 --> 00:00:56.350 align:start position:0%
+We're going to make this window bigger,
+so<00:00:55.680><c> we</c><00:00:55.760><c> can</c><00:00:55.880><c> actually</c><00:00:56.120><c> see</c><00:00:56.200><c> what</c><00:00:56.280><c> we're</c>
+
+00:00:56.350 --> 00:00:56.360 align:start position:0%
+so we can actually see what we're
+ 
+
+00:00:56.360 --> 00:00:57.590 align:start position:0%
+so we can actually see what we're
+looking<00:00:56.680><c> at.</c><00:00:56.960><c> And</c><00:00:57.040><c> again,</c><00:00:57.160><c> we're</c><00:00:57.280><c> only</c><00:00:57.480><c> going</c>
+
+00:00:57.590 --> 00:00:57.600 align:start position:0%
+looking at. And again, we're only going
+ 
+
+00:00:57.600 --> 00:00:59.470 align:start position:0%
+looking at. And again, we're only going
+to<00:00:57.640><c> be</c><00:00:57.680><c> looking</c><00:00:57.960><c> at</c><00:00:58.160><c> the</c><00:00:58.400><c> last</c><00:00:58.880><c> column,</c><00:00:59.360><c> the</c>
+
+00:00:59.470 --> 00:00:59.480 align:start position:0%
+to be looking at the last column, the
+ 
+
+00:00:59.480 --> 00:01:01.310 align:start position:0%
+to be looking at the last column, the
+default<00:01:00.040><c> column.</c><00:01:00.400><c> Now,</c><00:01:00.560><c> you</c><00:01:00.680><c> could</c><00:01:00.840><c> look</c><00:01:01.080><c> at</c>
+
+00:01:01.310 --> 00:01:01.320 align:start position:0%
+default column. Now, you could look at
+ 
+
+00:01:01.320 --> 00:01:03.910 align:start position:0%
+default column. Now, you could look at
+it<00:01:01.560><c> as</c><00:01:01.800><c> a</c><00:01:01.920><c> row</c><00:01:02.520><c> going</c><00:01:03.040><c> across,</c><00:01:03.560><c> but</c><00:01:03.720><c> I</c><00:01:03.760><c> don't</c>
+
+00:01:03.910 --> 00:01:03.920 align:start position:0%
+it as a row going across, but I don't
+ 
+
+00:01:03.920 --> 00:01:04.990 align:start position:0%
+it as a row going across, but I don't
+like<00:01:04.040><c> doing</c><00:01:04.239><c> that.</c><00:01:04.400><c> I</c><00:01:04.440><c> like</c><00:01:04.559><c> looking</c><00:01:04.800><c> at</c><00:01:04.879><c> them</c>
+
+00:01:04.990 --> 00:01:05.000 align:start position:0%
+like doing that. I like looking at them
+ 
+
+00:01:05.000 --> 00:01:07.270 align:start position:0%
+like doing that. I like looking at them
+as<00:01:05.120><c> columns,</c><00:01:05.760><c> just</c><00:01:05.920><c> personal</c><00:01:06.240><c> preference.</c>
+
+00:01:07.270 --> 00:01:07.280 align:start position:0%
+as columns, just personal preference.
+ 
+
+00:01:07.280 --> 00:01:08.750 align:start position:0%
+as columns, just personal preference.
+Um<00:01:07.400><c> and</c><00:01:07.520><c> you</c><00:01:07.560><c> can</c><00:01:07.680><c> see</c><00:01:07.800><c> here</c><00:01:07.960><c> the</c><00:01:08.200><c> darker</c><00:01:08.600><c> the</c>
+
+00:01:08.750 --> 00:01:08.760 align:start position:0%
+Um and you can see here the darker the
+ 
+
+00:01:08.760 --> 00:01:10.710 align:start position:0%
+Um and you can see here the darker the
+color,<00:01:09.520><c> that</c><00:01:09.680><c> really</c><00:01:09.880><c> just</c><00:01:10.120><c> means</c><00:01:10.400><c> in</c><00:01:10.520><c> our</c>
+
+00:01:10.710 --> 00:01:10.720 align:start position:0%
+color, that really just means in our
+ 
+
+00:01:10.720 --> 00:01:12.390 align:start position:0%
+color, that really just means in our
+case<00:01:11.080><c> the</c><00:01:11.240><c> better</c><00:01:11.560><c> the</c><00:01:11.680><c> variable,</c><00:01:12.080><c> right?</c><00:01:12.280><c> The</c>
+
+00:01:12.390 --> 00:01:12.400 align:start position:0%
+case the better the variable, right? The
+ 
+
+00:01:12.400 --> 00:01:14.310 align:start position:0%
+case the better the variable, right? The
+darker<00:01:12.920><c> red,</c><00:01:13.480><c> the</c><00:01:13.560><c> more</c><00:01:13.720><c> positively</c>
+
+00:01:14.310 --> 00:01:14.320 align:start position:0%
+darker red, the more positively
+ 
+
+00:01:14.320 --> 00:01:16.070 align:start position:0%
+darker red, the more positively
+correlated.<00:01:14.840><c> The</c><00:01:14.960><c> darker</c><00:01:15.360><c> the</c><00:01:15.520><c> blue,</c><00:01:16.000><c> the</c>
+
+00:01:16.070 --> 00:01:16.080 align:start position:0%
+correlated. The darker the blue, the
+ 
+
+00:01:16.080 --> 00:01:19.760 align:start position:0%
+correlated. The darker the blue, the
+more<00:01:16.240><c> negatively</c><00:01:16.880><c> correlated</c><00:01:17.400><c> here.</c>
+

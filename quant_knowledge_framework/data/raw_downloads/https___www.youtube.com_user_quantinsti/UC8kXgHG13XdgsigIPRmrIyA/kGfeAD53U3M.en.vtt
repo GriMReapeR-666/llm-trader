@@ -1,0 +1,1824 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.000 --> 00:00:02.950 align:start position:0%
+ 
+a<00:00:00.520><c> environment.</c>
+
+00:00:02.950 --> 00:00:02.960 align:start position:0%
+a environment.
+ 
+
+00:00:02.960 --> 00:00:05.190 align:start position:0%
+a environment.
+And<00:00:03.200><c> the</c><00:00:03.280><c> environment</c><00:00:04.080><c> in</c><00:00:04.200><c> trading</c><00:00:04.680><c> could</c><00:00:04.920><c> be,</c>
+
+00:00:05.190 --> 00:00:05.200 align:start position:0%
+And the environment in trading could be,
+ 
+
+00:00:05.200 --> 00:00:06.910 align:start position:0%
+And the environment in trading could be,
+for<00:00:05.400><c> example,</c><00:00:05.880><c> a</c><00:00:05.920><c> set</c><00:00:06.240><c> of</c><00:00:06.400><c> technical</c>
+
+00:00:06.910 --> 00:00:06.920 align:start position:0%
+for example, a set of technical
+ 
+
+00:00:06.920 --> 00:00:08.790 align:start position:0%
+for example, a set of technical
+indicators,
+
+00:00:08.790 --> 00:00:08.800 align:start position:0%
+indicators,
+ 
+
+00:00:08.800 --> 00:00:10.670 align:start position:0%
+indicators,
+um,<00:00:09.720><c> you</c><00:00:09.920><c> know,</c>
+
+00:00:10.670 --> 00:00:10.680 align:start position:0%
+um, you know,
+ 
+
+00:00:10.680 --> 00:00:13.870 align:start position:0%
+um, you know,
+a<00:00:10.800><c> trading</c><00:00:11.440><c> or</c><00:00:11.600><c> the</c><00:00:11.760><c> time</c><00:00:12.080><c> of</c><00:00:12.240><c> the</c><00:00:12.360><c> day,</c><00:00:12.960><c> um,</c>
+
+00:00:13.870 --> 00:00:13.880 align:start position:0%
+a trading or the time of the day, um,
+ 
+
+00:00:13.880 --> 00:00:15.670 align:start position:0%
+a trading or the time of the day, um,
+some,<00:00:14.520><c> um,</c>
+
+00:00:15.670 --> 00:00:15.680 align:start position:0%
+some, um,
+ 
+
+00:00:15.680 --> 00:00:17.990 align:start position:0%
+some, um,
+alternative<00:00:16.360><c> data,</c><00:00:16.680><c> some</c><00:00:16.920><c> sentiment,</c><00:00:17.560><c> and</c><00:00:17.760><c> so</c>
+
+00:00:17.990 --> 00:00:18.000 align:start position:0%
+alternative data, some sentiment, and so
+ 
+
+00:00:18.000 --> 00:00:19.350 align:start position:0%
+alternative data, some sentiment, and so
+on.
+
+00:00:19.350 --> 00:00:19.360 align:start position:0%
+on.
+ 
+
+00:00:19.360 --> 00:00:21.030 align:start position:0%
+on.
+And
+
+00:00:21.030 --> 00:00:21.040 align:start position:0%
+And
+ 
+
+00:00:21.040 --> 00:00:24.030 align:start position:0%
+And
+effectively,<00:00:22.040><c> uh,</c><00:00:22.320><c> what</c><00:00:22.600><c> happens</c><00:00:23.000><c> is,</c><00:00:23.400><c> um,</c>
+
+00:00:24.030 --> 00:00:24.040 align:start position:0%
+effectively, uh, what happens is, um,
+ 
+
+00:00:24.040 --> 00:00:26.630 align:start position:0%
+effectively, uh, what happens is, um,
+this<00:00:24.240><c> environment,</c><00:00:25.040><c> or</c><00:00:25.240><c> or</c><00:00:25.360><c> the</c><00:00:25.480><c> way</c><00:00:26.400><c> this</c>
+
+00:00:26.630 --> 00:00:26.640 align:start position:0%
+this environment, or or the way this
+ 
+
+00:00:26.640 --> 00:00:28.910 align:start position:0%
+this environment, or or the way this
+environment<00:00:27.240><c> is</c><00:00:27.400><c> constructed</c><00:00:28.160><c> is</c><00:00:28.360><c> basically</c>
+
+00:00:28.910 --> 00:00:28.920 align:start position:0%
+environment is constructed is basically
+ 
+
+00:00:28.920 --> 00:00:31.870 align:start position:0%
+environment is constructed is basically
+a<00:00:29.000><c> state.</c><00:00:29.560><c> So,</c><00:00:30.320><c> what</c><00:00:30.560><c> is</c><00:00:30.720><c> the</c><00:00:30.920><c> environment</c><00:00:31.760><c> at</c>
+
+00:00:31.870 --> 00:00:31.880 align:start position:0%
+a state. So, what is the environment at
+ 
+
+00:00:31.880 --> 00:00:34.350 align:start position:0%
+a state. So, what is the environment at
+this<00:00:32.080><c> current</c><00:00:32.800><c> time,</c><00:00:33.280><c> you</c><00:00:33.360><c> know?</c><00:00:34.040><c> What</c><00:00:34.280><c> are</c>
+
+00:00:34.350 --> 00:00:34.360 align:start position:0%
+this current time, you know? What are
+ 
+
+00:00:34.360 --> 00:00:36.670 align:start position:0%
+this current time, you know? What are
+the<00:00:34.480><c> values</c><00:00:34.960><c> of</c><00:00:35.120><c> our</c><00:00:35.280><c> indicators?</c><00:00:36.240><c> How</c><00:00:36.480><c> What</c>
+
+00:00:36.670 --> 00:00:36.680 align:start position:0%
+the values of our indicators? How What
+ 
+
+00:00:36.680 --> 00:00:37.990 align:start position:0%
+the values of our indicators? How What
+is<00:00:36.800><c> the</c><00:00:36.920><c> sentiment?</c><00:00:37.640><c> What</c><00:00:37.800><c> is</c><00:00:37.920><c> the</c>
+
+00:00:37.990 --> 00:00:38.000 align:start position:0%
+is the sentiment? What is the
+ 
+
+00:00:38.000 --> 00:00:40.070 align:start position:0%
+is the sentiment? What is the
+volatility?<00:00:38.640><c> And</c><00:00:38.800><c> so</c><00:00:39.000><c> on.</c>
+
+00:00:40.070 --> 00:00:40.080 align:start position:0%
+volatility? And so on.
+ 
+
+00:00:40.080 --> 00:00:41.510 align:start position:0%
+volatility? And so on.
+And<00:00:40.320><c> so,</c>
+
+00:00:41.510 --> 00:00:41.520 align:start position:0%
+And so,
+ 
+
+00:00:41.520 --> 00:00:44.830 align:start position:0%
+And so,
+this<00:00:41.840><c> state</c><00:00:42.160><c> goes</c><00:00:42.520><c> into</c><00:00:42.840><c> an</c><00:00:43.040><c> agent.</c>
+
+00:00:44.830 --> 00:00:44.840 align:start position:0%
+this state goes into an agent.
+ 
+
+00:00:44.840 --> 00:00:46.830 align:start position:0%
+this state goes into an agent.
+And<00:00:45.080><c> based</c><00:00:45.400><c> on</c><00:00:45.520><c> that,</c>
+
+00:00:46.830 --> 00:00:46.840 align:start position:0%
+And based on that,
+ 
+
+00:00:46.840 --> 00:00:49.950 align:start position:0%
+And based on that,
+the<00:00:47.120><c> agent,</c><00:00:47.800><c> uh,</c><00:00:48.040><c> then</c><00:00:48.280><c> performs</c><00:00:48.840><c> an</c><00:00:48.960><c> action.</c>
+
+00:00:49.950 --> 00:00:49.960 align:start position:0%
+the agent, uh, then performs an action.
+ 
+
+00:00:49.960 --> 00:00:52.870 align:start position:0%
+the agent, uh, then performs an action.
+So,<00:00:51.040><c> what's</c><00:00:51.400><c> the</c><00:00:51.560><c> actions</c><00:00:52.040><c> that</c><00:00:52.200><c> we</c><00:00:52.320><c> can</c><00:00:52.520><c> do</c><00:00:52.720><c> in</c>
+
+00:00:52.870 --> 00:00:52.880 align:start position:0%
+So, what's the actions that we can do in
+ 
+
+00:00:52.880 --> 00:00:55.390 align:start position:0%
+So, what's the actions that we can do in
+a<00:00:52.920><c> really</c><00:00:53.240><c> simple</c><00:00:53.600><c> trading</c><00:00:53.960><c> system?</c>
+
+00:00:55.390 --> 00:00:55.400 align:start position:0%
+a really simple trading system?
+ 
+
+00:00:55.400 --> 00:00:58.070 align:start position:0%
+a really simple trading system?
+Like<00:00:55.640><c> the</c><00:00:55.720><c> most</c><00:00:56.080><c> basic</c><00:00:56.520><c> one.</c>
+
+00:00:58.070 --> 00:00:58.080 align:start position:0%
+Like the most basic one.
+ 
+
+00:00:58.080 --> 00:01:00.070 align:start position:0%
+Like the most basic one.
+Anyone?<00:00:58.760><c> Um,</c>
+
+00:01:00.070 --> 00:01:00.080 align:start position:0%
+Anyone? Um,
+ 
+
+00:01:00.080 --> 00:01:01.870 align:start position:0%
+Anyone? Um,
+what<00:01:00.360><c> are</c><00:01:00.440><c> the</c><00:01:00.600><c> actions</c><00:01:01.040><c> that</c><00:01:01.200><c> we</c><00:01:01.320><c> could</c><00:01:01.520><c> do</c><00:01:01.720><c> in</c>
+
+00:01:01.870 --> 00:01:01.880 align:start position:0%
+what are the actions that we could do in
+ 
+
+00:01:01.880 --> 00:01:03.870 align:start position:0%
+what are the actions that we could do in
+a<00:01:02.000><c> most</c><00:01:02.400><c> basic</c>
+
+00:01:03.870 --> 00:01:03.880 align:start position:0%
+a most basic
+ 
+
+00:01:03.880 --> 00:01:06.150 align:start position:0%
+a most basic
+trading<00:01:04.360><c> environment?</c>
+
+00:01:06.150 --> 00:01:06.160 align:start position:0%
+trading environment?
+ 
+
+00:01:06.160 --> 00:01:07.910 align:start position:0%
+trading environment?
+Any<00:01:06.560><c> ideas?</c>
+
+00:01:07.910 --> 00:01:07.920 align:start position:0%
+Any ideas?
+ 
+
+00:01:07.920 --> 00:01:10.270 align:start position:0%
+Any ideas?
+Uh,
+
+00:01:10.270 --> 00:01:10.280 align:start position:0%
+ 
+ 
+
+00:01:10.280 --> 00:01:12.550 align:start position:0%
+ 
+well,
+
+00:01:12.550 --> 00:01:12.560 align:start position:0%
+well,
+ 
+
+00:01:12.560 --> 00:01:14.310 align:start position:0%
+well,
+that's<00:01:12.920><c> exactly</c><00:01:13.400><c> right,</c><00:01:13.640><c> Carlos.</c><00:01:14.000><c> Thanks</c>
+
+00:01:14.310 --> 00:01:14.320 align:start position:0%
+that's exactly right, Carlos. Thanks
+ 
+
+00:01:14.320 --> 00:01:16.870 align:start position:0%
+that's exactly right, Carlos. Thanks
+very<00:01:14.520><c> much.</c><00:01:14.840><c> I</c><00:01:14.880><c> was</c><00:01:15.120><c> just</c><00:01:15.320><c> going</c><00:01:15.480><c> to</c><00:01:15.560><c> say</c><00:01:15.800><c> it.</c>
+
+00:01:16.870 --> 00:01:16.880 align:start position:0%
+very much. I was just going to say it.
+ 
+
+00:01:16.880 --> 00:01:18.270 align:start position:0%
+very much. I was just going to say it.
+Buy,<00:01:17.160><c> sell,</c>
+
+00:01:18.270 --> 00:01:18.280 align:start position:0%
+Buy, sell,
+ 
+
+00:01:18.280 --> 00:01:19.630 align:start position:0%
+Buy, sell,
+or<00:01:18.520><c> hold.</c>
+
+00:01:19.630 --> 00:01:19.640 align:start position:0%
+or hold.
+ 
+
+00:01:19.640 --> 00:01:21.510 align:start position:0%
+or hold.
+So,<00:01:19.800><c> we</c><00:01:19.920><c> could</c><00:01:20.080><c> buy,</c><00:01:20.280><c> we</c><00:01:20.400><c> could</c><00:01:20.600><c> sell,</c>
+
+00:01:21.510 --> 00:01:21.520 align:start position:0%
+So, we could buy, we could sell,
+ 
+
+00:01:21.520 --> 00:01:23.670 align:start position:0%
+So, we could buy, we could sell,
+but<00:01:21.800><c> also,</c>
+
+00:01:23.670 --> 00:01:23.680 align:start position:0%
+but also,
+ 
+
+00:01:23.680 --> 00:01:25.670 align:start position:0%
+but also,
+we<00:01:23.880><c> could</c><00:01:24.080><c> take</c><00:01:24.280><c> no</c><00:01:24.520><c> action.</c>
+
+00:01:25.670 --> 00:01:25.680 align:start position:0%
+we could take no action.
+ 
+
+00:01:25.680 --> 00:01:27.070 align:start position:0%
+we could take no action.
+Thanks,<00:01:26.000><c> Carlos.</c>
+
+00:01:27.070 --> 00:01:27.080 align:start position:0%
+Thanks, Carlos.
+ 
+
+00:01:27.080 --> 00:01:28.390 align:start position:0%
+Thanks, Carlos.
+So,
+
+00:01:28.390 --> 00:01:28.400 align:start position:0%
+So,
+ 
+
+00:01:28.400 --> 00:01:30.030 align:start position:0%
+So,
+we've<00:01:28.680><c> got</c><00:01:28.840><c> these</c><00:01:29.000><c> actions</c><00:01:29.360><c> here,</c><00:01:29.560><c> buy,</c><00:01:29.760><c> sell,</c>
+
+00:01:30.030 --> 00:01:30.040 align:start position:0%
+we've got these actions here, buy, sell,
+ 
+
+00:01:30.040 --> 00:01:31.350 align:start position:0%
+we've got these actions here, buy, sell,
+and<00:01:30.160><c> hold,</c>
+
+00:01:31.350 --> 00:01:31.360 align:start position:0%
+and hold,
+ 
+
+00:01:31.360 --> 00:01:33.590 align:start position:0%
+and hold,
+and<00:01:31.600><c> so</c><00:01:31.800><c> on.</c>
+
+00:01:33.590 --> 00:01:33.600 align:start position:0%
+and so on.
+ 
+
+00:01:33.600 --> 00:01:35.590 align:start position:0%
+and so on.
+These<00:01:33.920><c> actions</c><00:01:34.320><c> basically</c>
+
+00:01:35.590 --> 00:01:35.600 align:start position:0%
+These actions basically
+ 
+
+00:01:35.600 --> 00:01:39.190 align:start position:0%
+These actions basically
+then<00:01:35.920><c> influence</c><00:01:36.480><c> our</c><00:01:36.640><c> environment</c><00:01:37.320><c> again.</c>
+
+00:01:39.190 --> 00:01:39.200 align:start position:0%
+then influence our environment again.
+ 
+
+00:01:39.200 --> 00:01:41.230 align:start position:0%
+then influence our environment again.
+And<00:01:39.640><c> um,</c>
+
+00:01:41.230 --> 00:01:41.240 align:start position:0%
+And um,
+ 
+
+00:01:41.240 --> 00:01:42.910 align:start position:0%
+And um,
+what's<00:01:41.600><c> also</c><00:01:41.880><c> interesting</c><00:01:42.400><c> is</c><00:01:42.640><c> when</c><00:01:42.800><c> we</c>
+
+00:01:42.910 --> 00:01:42.920 align:start position:0%
+what's also interesting is when we
+ 
+
+00:01:42.920 --> 00:01:45.110 align:start position:0%
+what's also interesting is when we
+perform<00:01:43.280><c> an</c><00:01:43.400><c> action,</c>
+
+00:01:45.110 --> 00:01:45.120 align:start position:0%
+perform an action,
+ 
+
+00:01:45.120 --> 00:01:47.110 align:start position:0%
+perform an action,
+based<00:01:45.520><c> on</c><00:01:45.760><c> the</c><00:01:45.960><c> outcome</c><00:01:46.320><c> of</c><00:01:46.480><c> the</c><00:01:46.600><c> action,</c><00:01:46.960><c> we</c>
+
+00:01:47.110 --> 00:01:47.120 align:start position:0%
+based on the outcome of the action, we
+ 
+
+00:01:47.120 --> 00:01:49.110 align:start position:0%
+based on the outcome of the action, we
+actually<00:01:47.560><c> get</c><00:01:47.760><c> a</c><00:01:47.800><c> reward.</c>
+
+00:01:49.110 --> 00:01:49.120 align:start position:0%
+actually get a reward.
+ 
+
+00:01:49.120 --> 00:01:52.110 align:start position:0%
+actually get a reward.
+So,<00:01:49.480><c> if</c><00:01:49.600><c> the</c><00:01:49.760><c> action</c><00:01:50.080><c> was</c><00:01:50.280><c> a</c><00:01:50.320><c> good</c><00:01:50.600><c> one,</c><00:01:51.240><c> um,</c><00:01:51.920><c> we</c>
+
+00:01:52.110 --> 00:01:52.120 align:start position:0%
+So, if the action was a good one, um, we
+ 
+
+00:01:52.120 --> 00:01:54.710 align:start position:0%
+So, if the action was a good one, um, we
+get,<00:01:52.480><c> let's</c><00:01:52.680><c> say,</c><00:01:52.880><c> a</c><00:01:52.960><c> positive</c><00:01:53.560><c> reward</c><00:01:54.440><c> or</c><00:01:54.640><c> a</c>
+
+00:01:54.710 --> 00:01:54.720 align:start position:0%
+get, let's say, a positive reward or a
+ 
+
+00:01:54.720 --> 00:01:56.470 align:start position:0%
+get, let's say, a positive reward or a
+higher<00:01:55.000><c> reward.</c><00:01:55.440><c> If</c><00:01:55.560><c> the</c><00:01:55.680><c> action</c><00:01:56.000><c> was</c><00:01:56.120><c> not</c><00:01:56.320><c> so</c>
+
+00:01:56.470 --> 00:01:56.480 align:start position:0%
+higher reward. If the action was not so
+ 
+
+00:01:56.480 --> 00:01:57.710 align:start position:0%
+higher reward. If the action was not so
+great,
+
+00:01:57.710 --> 00:01:57.720 align:start position:0%
+great,
+ 
+
+00:01:57.720 --> 00:02:00.550 align:start position:0%
+great,
+our<00:01:57.920><c> reward</c><00:01:58.360><c> won't</c><00:01:58.560><c> be</c><00:01:58.720><c> so</c><00:01:58.920><c> great,</c><00:01:59.320><c> either.</c>
+
+00:02:00.550 --> 00:02:00.560 align:start position:0%
+our reward won't be so great, either.
+ 
+
+00:02:00.560 --> 00:02:03.070 align:start position:0%
+our reward won't be so great, either.
+So,<00:02:00.760><c> that</c><00:02:01.040><c> also</c><00:02:01.560><c> gets</c>
+
+00:02:03.070 --> 00:02:03.080 align:start position:0%
+So, that also gets
+ 
+
+00:02:03.080 --> 00:02:04.870 align:start position:0%
+So, that also gets
+then<00:02:03.360><c> submitted</c><00:02:03.920><c> to</c><00:02:04.040><c> the</c><00:02:04.200><c> agent,</c><00:02:04.760><c> and</c>
+
+00:02:04.870 --> 00:02:04.880 align:start position:0%
+then submitted to the agent, and
+ 
+
+00:02:04.880 --> 00:02:07.590 align:start position:0%
+then submitted to the agent, and
+basically<00:02:05.360><c> the</c><00:02:05.560><c> agent</c><00:02:05.960><c> learns</c>
+
+00:02:07.590 --> 00:02:07.600 align:start position:0%
+basically the agent learns
+ 
+
+00:02:07.600 --> 00:02:11.030 align:start position:0%
+basically the agent learns
+uh<00:02:07.880><c> which</c><00:02:08.320><c> actions</c><00:02:09.160><c> um</c>
+
+00:02:11.030 --> 00:02:11.040 align:start position:0%
+uh which actions um
+ 
+
+00:02:11.040 --> 00:02:13.949 align:start position:0%
+uh which actions um
+get<00:02:11.760><c> uh</c><00:02:11.880><c> given</c><00:02:12.240><c> a</c><00:02:12.280><c> certain</c><00:02:12.640><c> state</c><00:02:13.240><c> uh</c>
+
+00:02:13.949 --> 00:02:13.959 align:start position:0%
+get uh given a certain state uh
+ 
+
+00:02:13.959 --> 00:02:16.110 align:start position:0%
+get uh given a certain state uh
+get<00:02:14.160><c> rewarded</c><00:02:14.959><c> and</c><00:02:15.240><c> and</c><00:02:15.400><c> which</c><00:02:15.640><c> ones</c><00:02:15.920><c> get</c>
+
+00:02:16.110 --> 00:02:16.120 align:start position:0%
+get rewarded and and which ones get
+ 
+
+00:02:16.120 --> 00:02:17.750 align:start position:0%
+get rewarded and and which ones get
+punished.
+
+00:02:17.750 --> 00:02:17.760 align:start position:0%
+punished.
+ 
+
+00:02:17.760 --> 00:02:20.030 align:start position:0%
+punished.
+And<00:02:17.920><c> so,</c><00:02:18.040><c> this</c><00:02:18.280><c> whole</c><00:02:18.760><c> uh</c><00:02:18.920><c> system</c><00:02:19.360><c> then</c><00:02:19.760><c> ends</c>
+
+00:02:20.030 --> 00:02:20.040 align:start position:0%
+And so, this whole uh system then ends
+ 
+
+00:02:20.040 --> 00:02:21.790 align:start position:0%
+And so, this whole uh system then ends
+up<00:02:20.400><c> uh</c><00:02:20.600><c> being</c>
+
+00:02:21.790 --> 00:02:21.800 align:start position:0%
+up uh being
+ 
+
+00:02:21.800 --> 00:02:23.270 align:start position:0%
+up uh being
+this<00:02:21.959><c> equation.</c>
+
+00:02:23.270 --> 00:02:23.280 align:start position:0%
+this equation.
+ 
+
+00:02:23.280 --> 00:02:25.630 align:start position:0%
+this equation.
+So,<00:02:23.840><c> um</c><00:02:24.160><c> we</c><00:02:24.280><c> have</c><00:02:24.480><c> this</c><00:02:24.680><c> really</c><00:02:24.920><c> interesting</c>
+
+00:02:25.630 --> 00:02:25.640 align:start position:0%
+So, um we have this really interesting
+ 
+
+00:02:25.640 --> 00:02:28.110 align:start position:0%
+So, um we have this really interesting
+uh<00:02:25.760><c> thing</c><00:02:25.959><c> here</c><00:02:26.200><c> called</c><00:02:26.520><c> a</c><00:02:26.600><c> Q</c><00:02:27.320><c> value.</c><00:02:27.880><c> And</c><00:02:28.040><c> the</c>
+
+00:02:28.110 --> 00:02:28.120 align:start position:0%
+uh thing here called a Q value. And the
+ 
+
+00:02:28.120 --> 00:02:29.590 align:start position:0%
+uh thing here called a Q value. And the
+Q<00:02:28.400><c> value</c><00:02:28.680><c> is</c>
+
+00:02:29.590 --> 00:02:29.600 align:start position:0%
+Q value is
+ 
+
+00:02:29.600 --> 00:02:32.310 align:start position:0%
+Q value is
+uh<00:02:29.800><c> you</c><00:02:29.959><c> would</c><00:02:30.120><c> call</c><00:02:30.400><c> this</c><00:02:30.959><c> um</c>
+
+00:02:32.310 --> 00:02:32.320 align:start position:0%
+uh you would call this um
+ 
+
+00:02:32.320 --> 00:02:34.750 align:start position:0%
+uh you would call this um
+effectively<00:02:32.920><c> an</c><00:02:33.120><c> unrealized</c><00:02:34.040><c> reward.</c><00:02:34.600><c> So,</c>
+
+00:02:34.750 --> 00:02:34.760 align:start position:0%
+effectively an unrealized reward. So,
+ 
+
+00:02:34.760 --> 00:02:37.030 align:start position:0%
+effectively an unrealized reward. So,
+we've<00:02:34.959><c> got</c>
+
+00:02:37.030 --> 00:02:37.040 align:start position:0%
+we've got
+ 
+
+00:02:37.040 --> 00:02:38.949 align:start position:0%
+we've got
+uh<00:02:37.320><c> a</c><00:02:37.440><c> reward</c><00:02:38.000><c> that</c><00:02:38.160><c> comes</c><00:02:38.480><c> with</c><00:02:38.600><c> a</c><00:02:38.640><c> certain</c>
+
+00:02:38.949 --> 00:02:38.959 align:start position:0%
+uh a reward that comes with a certain
+ 
+
+00:02:38.959 --> 00:02:41.590 align:start position:0%
+uh a reward that comes with a certain
+action.<00:02:39.920><c> And</c><00:02:40.080><c> so,</c><00:02:40.720><c> you</c><00:02:40.840><c> know,</c><00:02:41.000><c> eventually</c>
+
+00:02:41.590 --> 00:02:41.600 align:start position:0%
+action. And so, you know, eventually
+ 
+
+00:02:41.600 --> 00:02:43.350 align:start position:0%
+action. And so, you know, eventually
+when<00:02:41.840><c> we</c><00:02:42.000><c> have</c><00:02:42.160><c> a</c><00:02:42.240><c> trade,</c><00:02:42.800><c> we</c><00:02:42.959><c> we</c><00:02:43.080><c> going</c><00:02:43.280><c> to</c>
+
+00:02:43.350 --> 00:02:43.360 align:start position:0%
+when we have a trade, we we going to
+ 
+
+00:02:43.360 --> 00:02:45.190 align:start position:0%
+when we have a trade, we we going to
+enter<00:02:43.600><c> the</c><00:02:43.760><c> trade,</c>
+
+00:02:45.190 --> 00:02:45.200 align:start position:0%
+enter the trade,
+ 
+
+00:02:45.200 --> 00:02:47.230 align:start position:0%
+enter the trade,
+we<00:02:45.320><c> hold,</c><00:02:46.040><c> and</c><00:02:46.200><c> eventually</c><00:02:46.760><c> we</c><00:02:46.880><c> going</c><00:02:47.120><c> to</c>
+
+00:02:47.230 --> 00:02:47.240 align:start position:0%
+we hold, and eventually we going to
+ 
+
+00:02:47.240 --> 00:02:48.270 align:start position:0%
+we hold, and eventually we going to
+sell.
+
+00:02:48.270 --> 00:02:48.280 align:start position:0%
+sell.
+ 
+
+00:02:48.280 --> 00:02:50.830 align:start position:0%
+sell.
+And<00:02:48.440><c> then,</c><00:02:48.680><c> once</c><00:02:48.959><c> we</c><00:02:49.120><c> sold,</c><00:02:49.480><c> then</c><00:02:49.680><c> we</c><00:02:49.800><c> get</c><00:02:50.600><c> a</c><00:02:50.760><c> a</c>
+
+00:02:50.830 --> 00:02:50.840 align:start position:0%
+And then, once we sold, then we get a a
+ 
+
+00:02:50.840 --> 00:02:54.510 align:start position:0%
+And then, once we sold, then we get a a
+distinct<00:02:51.320><c> reward,</c><00:02:51.800><c> which</c><00:02:52.000><c> is</c><00:02:52.120><c> this</c><00:02:52.360><c> one</c><00:02:52.560><c> here.</c>
+
+00:02:54.510 --> 00:02:54.520 align:start position:0%
+distinct reward, which is this one here.
+ 
+
+00:02:54.520 --> 00:02:57.590 align:start position:0%
+distinct reward, which is this one here.
+So,<00:02:54.760><c> we</c><00:02:54.880><c> get</c><00:02:55.080><c> this</c><00:02:55.320><c> final</c><00:02:55.680><c> reward.</c><00:02:56.680><c> Um</c>
+
+00:02:57.590 --> 00:02:57.600 align:start position:0%
+So, we get this final reward. Um
+ 
+
+00:02:57.600 --> 00:03:00.670 align:start position:0%
+So, we get this final reward. Um
+but<00:02:57.800><c> we</c><00:02:57.920><c> also</c><00:02:58.280><c> get</c><00:02:58.480><c> this</c><00:02:59.000><c> uh</c><00:02:59.120><c> Q</c><00:02:59.480><c> function</c><00:02:59.920><c> here.</c>
+
+00:03:00.670 --> 00:03:00.680 align:start position:0%
+but we also get this uh Q function here.
+ 
+
+00:03:00.680 --> 00:03:03.270 align:start position:0%
+but we also get this uh Q function here.
+And<00:03:00.800><c> this</c><00:03:00.959><c> Q</c><00:03:01.200><c> function</c><00:03:01.720><c> basically</c><00:03:02.239><c> gives</c><00:03:02.519><c> us</c><00:03:02.840><c> a</c>
+
+00:03:03.270 --> 00:03:03.280 align:start position:0%
+And this Q function basically gives us a
+ 
+
+00:03:03.280 --> 00:03:05.670 align:start position:0%
+And this Q function basically gives us a
+intermittent<00:03:03.959><c> reward.</c><00:03:04.840><c> So,</c><00:03:05.000><c> we</c><00:03:05.120><c> perform</c><00:03:05.560><c> an</c>
+
+00:03:05.670 --> 00:03:05.680 align:start position:0%
+intermittent reward. So, we perform an
+ 
+
+00:03:05.680 --> 00:03:07.550 align:start position:0%
+intermittent reward. So, we perform an
+action<00:03:06.239><c> So,</c><00:03:06.440><c> for</c><00:03:06.600><c> example,</c><00:03:06.959><c> we</c><00:03:07.080><c> perform</c><00:03:07.440><c> the</c>
+
+00:03:07.550 --> 00:03:07.560 align:start position:0%
+action So, for example, we perform the
+ 
+
+00:03:07.560 --> 00:03:09.310 align:start position:0%
+action So, for example, we perform the
+action<00:03:07.920><c> hold,</c>
+
+00:03:09.310 --> 00:03:09.320 align:start position:0%
+action hold,
+ 
+
+00:03:09.320 --> 00:03:11.470 align:start position:0%
+action hold,
+given<00:03:09.560><c> a</c><00:03:09.640><c> certain</c><00:03:09.959><c> state,</c>
+
+00:03:11.470 --> 00:03:11.480 align:start position:0%
+given a certain state,
+ 
+
+00:03:11.480 --> 00:03:13.030 align:start position:0%
+given a certain state,
+we<00:03:11.600><c> don't</c><00:03:11.840><c> necessarily</c><00:03:12.400><c> get</c><00:03:12.560><c> a</c><00:03:12.600><c> reward</c>
+
+00:03:13.030 --> 00:03:13.040 align:start position:0%
+we don't necessarily get a reward
+ 
+
+00:03:13.040 --> 00:03:14.550 align:start position:0%
+we don't necessarily get a reward
+because<00:03:13.400><c> we</c><00:03:13.480><c> haven't</c><00:03:13.760><c> actually</c><00:03:14.040><c> closed</c><00:03:14.440><c> our</c>
+
+00:03:14.550 --> 00:03:14.560 align:start position:0%
+because we haven't actually closed our
+ 
+
+00:03:14.560 --> 00:03:16.590 align:start position:0%
+because we haven't actually closed our
+trade<00:03:14.880><c> yet,</c><00:03:15.680><c> but</c><00:03:15.760><c> we</c><00:03:15.880><c> get</c><00:03:16.080><c> this</c><00:03:16.239><c> sort</c><00:03:16.440><c> of</c>
+
+00:03:16.590 --> 00:03:16.600 align:start position:0%
+trade yet, but we get this sort of
+ 
+
+00:03:16.600 --> 00:03:18.949 align:start position:0%
+trade yet, but we get this sort of
+imaginary<00:03:17.400><c> reward.</c>
+
+00:03:18.949 --> 00:03:18.959 align:start position:0%
+imaginary reward.
+ 
+
+00:03:18.959 --> 00:03:21.310 align:start position:0%
+imaginary reward.
+And<00:03:19.080><c> this</c><00:03:19.239><c> imaginary</c><00:03:19.840><c> reward</c><00:03:20.360><c> is</c>
+
+00:03:21.310 --> 00:03:21.320 align:start position:0%
+And this imaginary reward is
+ 
+
+00:03:21.320 --> 00:03:23.630 align:start position:0%
+And this imaginary reward is
+based<00:03:21.720><c> on</c><00:03:22.200><c> um</c>
+
+00:03:23.630 --> 00:03:23.640 align:start position:0%
+based on um
+ 
+
+00:03:23.640 --> 00:03:26.310 align:start position:0%
+based on um
+a<00:03:23.720><c> state</c><00:03:24.400><c> and</c><00:03:24.560><c> an</c><00:03:24.720><c> action,</c><00:03:25.360><c> just</c><00:03:25.720><c> as</c><00:03:25.880><c> we</c><00:03:26.000><c> see</c><00:03:26.200><c> in</c>
+
+00:03:26.310 --> 00:03:26.320 align:start position:0%
+a state and an action, just as we see in
+ 
+
+00:03:26.320 --> 00:03:27.870 align:start position:0%
+a state and an action, just as we see in
+the<00:03:26.400><c> diagram</c><00:03:26.880><c> here.</c>
+
+00:03:27.870 --> 00:03:27.880 align:start position:0%
+the diagram here.
+ 
+
+00:03:27.880 --> 00:03:29.710 align:start position:0%
+the diagram here.
+And<00:03:28.040><c> so,</c><00:03:28.239><c> what</c><00:03:28.400><c> we</c><00:03:28.519><c> do</c><00:03:28.720><c> is</c><00:03:29.040><c> if</c><00:03:29.200><c> we</c><00:03:29.320><c> want</c><00:03:29.480><c> to</c><00:03:29.560><c> make</c>
+
+00:03:29.710 --> 00:03:29.720 align:start position:0%
+And so, what we do is if we want to make
+ 
+
+00:03:29.720 --> 00:03:32.590 align:start position:0%
+And so, what we do is if we want to make
+a<00:03:29.760><c> decision</c><00:03:30.320><c> what</c><00:03:30.440><c> we</c><00:03:30.560><c> going</c><00:03:30.760><c> to</c><00:03:30.840><c> do</c><00:03:31.000><c> next,</c>
+
+00:03:32.590 --> 00:03:32.600 align:start position:0%
+a decision what we going to do next,
+ 
+
+00:03:32.600 --> 00:03:34.590 align:start position:0%
+a decision what we going to do next,
+we<00:03:32.720><c> basically</c><00:03:33.280><c> say,</c><00:03:33.560><c> "Well,</c><00:03:33.800><c> whatever</c><00:03:34.280><c> gives</c>
+
+00:03:34.590 --> 00:03:34.600 align:start position:0%
+we basically say, "Well, whatever gives
+ 
+
+00:03:34.600 --> 00:03:37.030 align:start position:0%
+we basically say, "Well, whatever gives
+us<00:03:34.760><c> the</c><00:03:34.920><c> maximum</c><00:03:35.720><c> reward</c><00:03:36.239><c> given</c><00:03:36.560><c> a</c><00:03:36.600><c> certain</c>
+
+00:03:37.030 --> 00:03:37.040 align:start position:0%
+us the maximum reward given a certain
+ 
+
+00:03:37.040 --> 00:03:39.509 align:start position:0%
+us the maximum reward given a certain
+state<00:03:37.480><c> and</c><00:03:37.680><c> action."</c><00:03:38.120><c> So,</c><00:03:38.800><c> given</c><00:03:39.080><c> a</c><00:03:39.160><c> certain</c>
+
+00:03:39.509 --> 00:03:39.519 align:start position:0%
+state and action." So, given a certain
+ 
+
+00:03:39.519 --> 00:03:42.470 align:start position:0%
+state and action." So, given a certain
+state,<00:03:39.880><c> whatever</c><00:03:40.280><c> action</c><00:03:40.640><c> we</c><00:03:40.760><c> perform</c><00:03:41.239><c> here,</c>
+
+00:03:42.470 --> 00:03:42.480 align:start position:0%
+state, whatever action we perform here,
+ 
+
+00:03:42.480 --> 00:03:45.350 align:start position:0%
+state, whatever action we perform here,
+so,<00:03:42.800><c> whether</c><00:03:43.040><c> we</c><00:03:43.200><c> do</c><00:03:43.360><c> buy,</c><00:03:43.640><c> sell,</c><00:03:44.000><c> or</c><00:03:44.120><c> hold,</c>
+
+00:03:45.350 --> 00:03:45.360 align:start position:0%
+so, whether we do buy, sell, or hold,
+ 
+
+00:03:45.360 --> 00:03:48.670 align:start position:0%
+so, whether we do buy, sell, or hold,
+whatever<00:03:45.760><c> is</c><00:03:45.920><c> the</c><00:03:46.040><c> highest</c><00:03:46.480><c> of</c><00:03:46.600><c> those</c><00:03:47.360><c> um</c>
+
+00:03:48.670 --> 00:03:48.680 align:start position:0%
+whatever is the highest of those um
+ 
+
+00:03:48.680 --> 00:03:51.310 align:start position:0%
+whatever is the highest of those um
+gives<00:03:48.920><c> us</c><00:03:49.160><c> the</c><00:03:49.320><c> new</c><00:03:49.959><c> uh</c><00:03:50.000><c> uh,</c>
+
+00:03:51.310 --> 00:03:51.320 align:start position:0%
+gives us the new uh uh,
+ 
+
+00:03:51.320 --> 00:03:52.750 align:start position:0%
+gives us the new uh uh,
+And<00:03:51.440><c> what</c><00:03:51.560><c> we</c><00:03:51.680><c> want</c><00:03:51.880><c> to</c><00:03:51.959><c> do</c><00:03:52.200><c> is</c><00:03:52.400><c> we</c><00:03:52.520><c> want</c><00:03:52.720><c> to</c>
+
+00:03:52.750 --> 00:03:52.760 align:start position:0%
+And what we want to do is we want to
+ 
+
+00:03:52.760 --> 00:03:55.430 align:start position:0%
+And what we want to do is we want to
+basically,<00:03:53.680><c> uh,</c><00:03:54.160><c> uh,</c><00:03:54.200><c> get</c><00:03:54.480><c> these</c><00:03:54.720><c> values</c><00:03:55.240><c> for</c>
+
+00:03:55.430 --> 00:03:55.440 align:start position:0%
+basically, uh, uh, get these values for
+ 
+
+00:03:55.440 --> 00:03:56.550 align:start position:0%
+basically, uh, uh, get these values for
+Q.
+
+00:03:56.550 --> 00:03:56.560 align:start position:0%
+Q.
+ 
+
+00:03:56.560 --> 00:03:58.510 align:start position:0%
+Q.
+Because<00:03:56.920><c> what</c><00:03:57.120><c> Q</c><00:03:57.440><c> actually</c><00:03:57.840><c> is</c><00:03:58.000><c> is</c><00:03:58.120><c> called</c><00:03:58.440><c> a</c>
+
+00:03:58.510 --> 00:03:58.520 align:start position:0%
+Because what Q actually is is called a
+ 
+
+00:03:58.520 --> 00:04:01.270 align:start position:0%
+Because what Q actually is is called a
+state<00:03:58.960><c> action</c><00:03:59.360><c> table.</c><00:04:00.000><c> So,</c>
+
+00:04:01.270 --> 00:04:01.280 align:start position:0%
+state action table. So,
+ 
+
+00:04:01.280 --> 00:04:02.710 align:start position:0%
+state action table. So,
+um,
+
+00:04:02.710 --> 00:04:02.720 align:start position:0%
+um,
+ 
+
+00:04:02.720 --> 00:04:05.430 align:start position:0%
+um,
+what<00:04:02.920><c> we</c><00:04:03.080><c> have,</c><00:04:03.600><c> uh,</c><00:04:03.840><c> here</c><00:04:04.240><c> is</c>
+
+00:04:05.430 --> 00:04:05.440 align:start position:0%
+what we have, uh, here is
+ 
+
+00:04:05.440 --> 00:04:07.070 align:start position:0%
+what we have, uh, here is
+a,<00:04:05.880><c> um,</c>
+
+00:04:07.070 --> 00:04:07.080 align:start position:0%
+a, um,
+ 
+
+00:04:07.080 --> 00:04:10.270 align:start position:0%
+a, um,
+you<00:04:07.160><c> know,</c><00:04:07.360><c> we</c><00:04:07.520><c> have</c><00:04:08.040><c> a</c><00:04:08.120><c> state</c>
+
+00:04:10.270 --> 00:04:10.280 align:start position:0%
+you know, we have a state
+ 
+
+00:04:10.280 --> 00:04:13.870 align:start position:0%
+you know, we have a state
+and<00:04:10.440><c> an</c><00:04:10.600><c> action.</c>
+
+00:04:13.870 --> 00:04:13.880 align:start position:0%
+ 
+ 
+
+00:04:13.880 --> 00:04:16.150 align:start position:0%
+ 
+Oh,<00:04:14.000><c> sorry.</c><00:04:14.600><c> Um,</c><00:04:15.080><c> that's</c><00:04:15.280><c> not</c><00:04:15.440><c> quite</c><00:04:15.720><c> right.</c>
+
+00:04:16.150 --> 00:04:16.160 align:start position:0%
+Oh, sorry. Um, that's not quite right.
+ 
+
+00:04:16.160 --> 00:04:17.390 align:start position:0%
+Oh, sorry. Um, that's not quite right.
+Uh,
+
+00:04:17.390 --> 00:04:17.400 align:start position:0%
+Uh,
+ 
+
+00:04:17.400 --> 00:04:19.590 align:start position:0%
+Uh,
+we<00:04:17.480><c> have</c><00:04:17.640><c> an</c><00:04:17.799><c> action</c><00:04:18.160><c> here</c><00:04:18.480><c> on</c><00:04:18.600><c> the</c><00:04:18.760><c> X.</c><00:04:19.200><c> We</c><00:04:19.359><c> have</c>
+
+00:04:19.590 --> 00:04:19.600 align:start position:0%
+we have an action here on the X. We have
+ 
+
+00:04:19.600 --> 00:04:23.190 align:start position:0%
+we have an action here on the X. We have
+set<00:04:20.000><c> the</c><00:04:20.079><c> states.</c>
+
+00:04:23.190 --> 00:04:23.200 align:start position:0%
+ 
+ 
+
+00:04:23.200 --> 00:04:28.790 align:start position:0%
+ 
+S-<00:04:23.680><c> And</c><00:04:23.800><c> then</c><00:04:23.960><c> we</c><00:04:24.080><c> have</c><00:04:24.240><c> a</c><00:04:24.280><c> table</c><00:04:24.720><c> here.</c>
+
+00:04:28.790 --> 00:04:28.800 align:start position:0%
+ 
+ 
+
+00:04:28.800 --> 00:04:30.590 align:start position:0%
+ 
+So,<00:04:29.000><c> this</c><00:04:29.200><c> is</c><00:04:29.320><c> actually</c><00:04:29.720><c> a,</c><00:04:30.000><c> a</c><00:04:30.080><c> kind</c><00:04:30.400><c> of</c><00:04:30.520><c> a</c>
+
+00:04:30.590 --> 00:04:30.600 align:start position:0%
+So, this is actually a, a kind of a
+ 
+
+00:04:30.600 --> 00:04:32.909 align:start position:0%
+So, this is actually a, a kind of a
+physical<00:04:31.200><c> table.</c>
+
+00:04:32.909 --> 00:04:32.919 align:start position:0%
+physical table.
+ 
+
+00:04:32.919 --> 00:04:34.110 align:start position:0%
+physical table.
+And<00:04:33.120><c> so,</c>
+
+00:04:34.110 --> 00:04:34.120 align:start position:0%
+And so,
+ 
+
+00:04:34.120 --> 00:04:35.830 align:start position:0%
+And so,
+our<00:04:34.360><c> actions</c><00:04:34.760><c> here</c><00:04:34.919><c> are</c><00:04:35.040><c> basically</c><00:04:35.560><c> buy,</c>
+
+00:04:35.830 --> 00:04:35.840 align:start position:0%
+our actions here are basically buy,
+ 
+
+00:04:35.840 --> 00:04:39.470 align:start position:0%
+our actions here are basically buy,
+sell,<00:04:36.160><c> and</c><00:04:36.320><c> hold.</c>
+
+00:04:39.470 --> 00:04:39.480 align:start position:0%
+ 
+ 
+
+00:04:39.480 --> 00:04:42.670 align:start position:0%
+ 
+So,<00:04:39.640><c> we've</c><00:04:39.840><c> got,</c><00:04:40.120><c> let's</c><00:04:40.400><c> say,</c><00:04:40.800><c> buy,</c>
+
+00:04:42.670 --> 00:04:42.680 align:start position:0%
+So, we've got, let's say, buy,
+ 
+
+00:04:42.680 --> 00:04:44.909 align:start position:0%
+So, we've got, let's say, buy,
+sell,
+
+00:04:44.909 --> 00:04:44.919 align:start position:0%
+sell,
+ 
+
+00:04:44.919 --> 00:04:47.750 align:start position:0%
+sell,
+hold.
+
+00:04:47.750 --> 00:04:47.760 align:start position:0%
+ 
+ 
+
+00:04:47.760 --> 00:04:50.310 align:start position:0%
+ 
+And<00:04:47.919><c> for</c><00:04:48.160><c> each</c><00:04:48.360><c> of</c><00:04:48.480><c> these</c><00:04:48.760><c> we</c><00:04:48.840><c> have</c><00:04:49.040><c> a</c><00:04:49.080><c> Q</c><00:04:49.480><c> value.</c>
+
+00:04:50.310 --> 00:04:50.320 align:start position:0%
+And for each of these we have a Q value.
+ 
+
+00:04:50.320 --> 00:04:53.510 align:start position:0%
+And for each of these we have a Q value.
+So,<00:04:50.600><c> there's</c><00:04:50.880><c> like</c><00:04:51.120><c> a</c><00:04:51.200><c> Q</c><00:04:51.520><c> value</c><00:04:51.919><c> here,</c>
+
+00:04:53.510 --> 00:04:53.520 align:start position:0%
+So, there's like a Q value here,
+ 
+
+00:04:53.520 --> 00:04:55.590 align:start position:0%
+So, there's like a Q value here,
+Q<00:04:53.840><c> value</c><00:04:54.240><c> here,</c>
+
+00:04:55.590 --> 00:04:55.600 align:start position:0%
+Q value here,
+ 
+
+00:04:55.600 --> 00:04:56.950 align:start position:0%
+Q value here,
+and
+
+00:04:56.950 --> 00:04:56.960 align:start position:0%
+and
+ 
+
+00:04:56.960 --> 00:04:58.950 align:start position:0%
+and
+my<00:04:57.120><c> pen</c><00:04:57.600><c> is</c><00:04:58.080><c> is</c><00:04:58.160><c> kind</c><00:04:58.440><c> of</c><00:04:58.520><c> hard</c><00:04:58.720><c> with</c><00:04:58.840><c> the</c>
+
+00:04:58.950 --> 00:04:58.960 align:start position:0%
+my pen is is kind of hard with the
+ 
+
+00:04:58.960 --> 00:05:00.110 align:start position:0%
+my pen is is kind of hard with the
+trackpad.
+
+00:05:00.110 --> 00:05:00.120 align:start position:0%
+trackpad.
+ 
+
+00:05:00.120 --> 00:05:02.390 align:start position:0%
+trackpad.
+So,<00:05:00.240><c> we</c><00:05:00.320><c> have</c><00:05:00.480><c> these</c><00:05:00.680><c> Q</c><00:05:00.960><c> values</c><00:05:01.360><c> here.</c>
+
+00:05:02.390 --> 00:05:02.400 align:start position:0%
+So, we have these Q values here.
+ 
+
+00:05:02.400 --> 00:05:05.110 align:start position:0%
+So, we have these Q values here.
+And<00:05:02.480><c> then</c><00:05:02.640><c> what</c><00:05:02.760><c> we</c><00:05:02.880><c> can</c><00:05:03.120><c> say</c><00:05:03.400><c> is,</c><00:05:03.760><c> well,</c>
+
+00:05:05.110 --> 00:05:05.120 align:start position:0%
+And then what we can say is, well,
+ 
+
+00:05:05.120 --> 00:05:07.110 align:start position:0%
+And then what we can say is, well,
+given<00:05:05.440><c> a</c><00:05:05.480><c> certain</c><00:05:05.840><c> state</c><00:05:06.240><c> of</c><00:05:06.400><c> the</c><00:05:06.520><c> market</c><00:05:06.919><c> that</c>
+
+00:05:07.110 --> 00:05:07.120 align:start position:0%
+given a certain state of the market that
+ 
+
+00:05:07.120 --> 00:05:09.550 align:start position:0%
+given a certain state of the market that
+we<00:05:07.240><c> have,</c>
+
+00:05:09.550 --> 00:05:09.560 align:start position:0%
+we have,
+ 
+
+00:05:09.560 --> 00:05:11.230 align:start position:0%
+we have,
+we<00:05:09.680><c> just</c><00:05:10.120><c> pick</c>
+
+00:05:11.230 --> 00:05:11.240 align:start position:0%
+we just pick
+ 
+
+00:05:11.240 --> 00:05:12.550 align:start position:0%
+we just pick
+this<00:05:11.480><c> row,</c>
+
+00:05:12.550 --> 00:05:12.560 align:start position:0%
+this row,
+ 
+
+00:05:12.560 --> 00:05:14.710 align:start position:0%
+this row,
+and<00:05:12.720><c> then</c><00:05:12.919><c> we</c><00:05:13.040><c> go</c><00:05:13.320><c> which</c><00:05:13.600><c> one</c><00:05:13.800><c> is</c><00:05:13.960><c> the</c><00:05:14.080><c> maximum</c>
+
+00:05:14.710 --> 00:05:14.720 align:start position:0%
+and then we go which one is the maximum
+ 
+
+00:05:14.720 --> 00:05:16.950 align:start position:0%
+and then we go which one is the maximum
+quick<00:05:15.000><c> Q</c><00:05:15.240><c> value</c><00:05:15.600><c> here.</c><00:05:16.440><c> And</c><00:05:16.520><c> whatever</c><00:05:16.840><c> the</c>
+
+00:05:16.950 --> 00:05:16.960 align:start position:0%
+quick Q value here. And whatever the
+ 
+
+00:05:16.960 --> 00:05:19.150 align:start position:0%
+quick Q value here. And whatever the
+maximum<00:05:17.360><c> Q</c><00:05:17.600><c> value</c><00:05:17.880><c> is</c><00:05:18.040><c> is</c><00:05:18.240><c> the</c><00:05:18.360><c> one,</c><00:05:18.880><c> uh,</c>
+
+00:05:19.150 --> 00:05:19.160 align:start position:0%
+maximum Q value is is the one, uh,
+ 
+
+00:05:19.160 --> 00:05:21.710 align:start position:0%
+maximum Q value is is the one, uh,
+action<00:05:19.560><c> that</c><00:05:19.760><c> we</c><00:05:19.880><c> pick.</c><00:05:20.800><c> So,</c><00:05:20.880><c> let's</c><00:05:21.160><c> say,</c><00:05:21.560><c> uh,</c>
+
+00:05:21.710 --> 00:05:21.720 align:start position:0%
+action that we pick. So, let's say, uh,
+ 
+
+00:05:21.720 --> 00:05:24.550 align:start position:0%
+action that we pick. So, let's say, uh,
+the<00:05:21.840><c> maximum</c><00:05:22.360><c> Q</c><00:05:22.640><c> value</c><00:05:23.000><c> is</c><00:05:23.160><c> this,</c>
+
+00:05:24.550 --> 00:05:24.560 align:start position:0%
+the maximum Q value is this,
+ 
+
+00:05:24.560 --> 00:05:26.790 align:start position:0%
+the maximum Q value is this,
+then<00:05:24.720><c> we</c><00:05:24.840><c> go,</c><00:05:25.080><c> okay,</c><00:05:25.480><c> we're</c><00:05:25.680><c> holding.</c><00:05:26.560><c> And</c><00:05:26.680><c> the</c>
+
+00:05:26.790 --> 00:05:26.800 align:start position:0%
+then we go, okay, we're holding. And the
+ 
+
+00:05:26.800 --> 00:05:28.790 align:start position:0%
+then we go, okay, we're holding. And the
+Q<00:05:27.080><c> value</c><00:05:27.440><c> or</c><00:05:27.560><c> this</c><00:05:27.800><c> table</c><00:05:28.080><c> is</c><00:05:28.240><c> basically</c>
+
+00:05:28.790 --> 00:05:28.800 align:start position:0%
+Q value or this table is basically
+ 
+
+00:05:28.800 --> 00:05:32.070 align:start position:0%
+Q value or this table is basically
+populated<00:05:29.640><c> by</c><00:05:29.800><c> this,</c><00:05:30.360><c> uh,</c><00:05:30.480><c> backward-looking</c>
+
+00:05:32.070 --> 00:05:32.080 align:start position:0%
+populated by this, uh, backward-looking
+ 
+
+00:05:32.080 --> 00:05:34.230 align:start position:0%
+populated by this, uh, backward-looking
+equation.<00:05:33.120><c> And</c><00:05:33.280><c> again,</c><00:05:33.560><c> don't</c><00:05:33.760><c> forget</c><00:05:34.120><c> this</c>
+
+00:05:34.230 --> 00:05:34.240 align:start position:0%
+equation. And again, don't forget this
+ 
+
+00:05:34.240 --> 00:05:35.790 align:start position:0%
+equation. And again, don't forget this
+is<00:05:34.360><c> not</c><00:05:34.640><c> actually</c><00:05:34.960><c> for</c><00:05:35.160><c> trading.</c><00:05:35.560><c> It</c><00:05:35.680><c> is</c>
+
+00:05:35.790 --> 00:05:35.800 align:start position:0%
+is not actually for trading. It is
+ 
+
+00:05:35.800 --> 00:05:38.070 align:start position:0%
+is not actually for trading. It is
+actually<00:05:36.120><c> just</c><00:05:36.400><c> for</c><00:05:36.520><c> training</c><00:05:37.000><c> the</c><00:05:37.080><c> model.</c>
+
+00:05:38.070 --> 00:05:38.080 align:start position:0%
+actually just for training the model.
+ 
+
+00:05:38.080 --> 00:05:40.230 align:start position:0%
+actually just for training the model.
+This<00:05:38.280><c> Let's</c><00:05:38.600><c> just</c><00:05:38.800><c> say</c><00:05:39.000><c> we</c><00:05:39.120><c> have</c><00:05:39.400><c> two</c><00:05:39.520><c> cases</c><00:05:40.040><c> in</c>
+
+00:05:40.230 --> 00:05:40.240 align:start position:0%
+This Let's just say we have two cases in
+ 
+
+00:05:40.240 --> 00:05:42.670 align:start position:0%
+This Let's just say we have two cases in
+our<00:05:40.440><c> case,</c><00:05:40.760><c> buy</c><00:05:41.000><c> and</c><00:05:41.200><c> sell.</c>
+
+00:05:42.670 --> 00:05:42.680 align:start position:0%
+our case, buy and sell.
+ 
+
+00:05:42.680 --> 00:05:45.670 align:start position:0%
+our case, buy and sell.
+Um,<00:05:43.320><c> you</c><00:05:43.360><c> know,</c><00:05:43.560><c> buy</c><00:05:43.960><c> and</c><00:05:44.160><c> sell.</c>
+
+00:05:45.670 --> 00:05:45.680 align:start position:0%
+Um, you know, buy and sell.
+ 
+
+00:05:45.680 --> 00:05:47.150 align:start position:0%
+Um, you know, buy and sell.
+For<00:05:45.880><c> each</c><00:05:46.080><c> of</c><00:05:46.200><c> these,</c><00:05:46.680><c> uh,</c><00:05:46.760><c> the</c><00:05:46.880><c> neural</c>
+
+00:05:47.150 --> 00:05:47.160 align:start position:0%
+For each of these, uh, the neural
+ 
+
+00:05:47.160 --> 00:05:50.150 align:start position:0%
+For each of these, uh, the neural
+network<00:05:47.680><c> will</c><00:05:47.840><c> assign</c><00:05:48.240><c> a</c><00:05:48.280><c> value.</c>
+
+00:05:50.150 --> 00:05:50.160 align:start position:0%
+network will assign a value.
+ 
+
+00:05:50.160 --> 00:05:52.910 align:start position:0%
+network will assign a value.
+Let's<00:05:50.360><c> just</c><00:05:50.520><c> say</c><00:05:50.760><c> it</c><00:05:50.920><c> assigns</c><00:05:51.320><c> a</c><00:05:51.360><c> value</c><00:05:51.720><c> of</c><00:05:51.840><c> 0.3</c>
+
+00:05:52.910 --> 00:05:52.920 align:start position:0%
+Let's just say it assigns a value of 0.3
+ 
+
+00:05:52.920 --> 00:05:54.950 align:start position:0%
+Let's just say it assigns a value of 0.3
+to<00:05:53.120><c> buy</c>
+
+00:05:54.950 --> 00:05:54.960 align:start position:0%
+to buy
+ 
+
+00:05:54.960 --> 00:05:58.470 align:start position:0%
+to buy
+and<00:05:55.160><c> a</c><00:05:55.200><c> value</c><00:05:55.760><c> of</c><00:05:55.960><c> 0.7</c>
+
+00:05:58.470 --> 00:05:58.480 align:start position:0%
+and a value of 0.7
+ 
+
+00:05:58.480 --> 00:06:00.390 align:start position:0%
+and a value of 0.7
+to<00:05:58.640><c> sell.</c>
+
+00:06:00.390 --> 00:06:00.400 align:start position:0%
+to sell.
+ 
+
+00:06:00.400 --> 00:06:02.830 align:start position:0%
+to sell.
+Then,<00:06:00.880><c> um</c><00:06:01.360><c> we're</c><00:06:01.520><c> basically</c><00:06:02.000><c> saying,</c><00:06:02.360><c> "Okay,</c>
+
+00:06:02.830 --> 00:06:02.840 align:start position:0%
+Then, um we're basically saying, "Okay,
+ 
+
+00:06:02.840 --> 00:06:05.110 align:start position:0%
+Then, um we're basically saying, "Okay,
+let's<00:06:03.120><c> go</c><00:06:03.320><c> with</c><00:06:03.480><c> the</c><00:06:03.560><c> sell."</c>
+
+00:06:05.110 --> 00:06:05.120 align:start position:0%
+let's go with the sell."
+ 
+
+00:06:05.120 --> 00:06:06.230 align:start position:0%
+let's go with the sell."
+So,
+
+00:06:06.230 --> 00:06:06.240 align:start position:0%
+So,
+ 
+
+00:06:06.240 --> 00:06:08.390 align:start position:0%
+So,
+this<00:06:06.400><c> is</c><00:06:06.720><c> effectively</c><00:06:07.320><c> how</c><00:06:07.520><c> these</c><00:06:07.960><c> uh</c><00:06:08.080><c> neural</c>
+
+00:06:08.390 --> 00:06:08.400 align:start position:0%
+this is effectively how these uh neural
+ 
+
+00:06:08.400 --> 00:06:10.350 align:start position:0%
+this is effectively how these uh neural
+networks<00:06:09.000><c> work.</c><00:06:09.360><c> You</c><00:06:09.480><c> can</c><00:06:09.680><c> see</c><00:06:09.880><c> that</c><00:06:10.080><c> we</c><00:06:10.200><c> have</c>
+
+00:06:10.350 --> 00:06:10.360 align:start position:0%
+networks work. You can see that we have
+ 
+
+00:06:10.360 --> 00:06:12.670 align:start position:0%
+networks work. You can see that we have
+another<00:06:10.760><c> activation</c><00:06:11.400><c> function</c><00:06:11.760><c> here.</c><00:06:12.560><c> And</c>
+
+00:06:12.670 --> 00:06:12.680 align:start position:0%
+another activation function here. And
+ 
+
+00:06:12.680 --> 00:06:14.310 align:start position:0%
+another activation function here. And
+this<00:06:12.920><c> activation</c><00:06:13.520><c> function</c><00:06:13.880><c> is</c><00:06:14.000><c> called</c>
+
+00:06:14.310 --> 00:06:14.320 align:start position:0%
+this activation function is called
+ 
+
+00:06:14.320 --> 00:06:16.070 align:start position:0%
+this activation function is called
+softmax.
+
+00:06:16.070 --> 00:06:16.080 align:start position:0%
+softmax.
+ 
+
+00:06:16.080 --> 00:06:16.990 align:start position:0%
+softmax.
+And<00:06:16.360><c> uh</c>
+
+00:06:16.990 --> 00:06:17.000 align:start position:0%
+And uh
+ 
+
+00:06:17.000 --> 00:06:18.670 align:start position:0%
+And uh
+softmax<00:06:17.560><c> works</c><00:06:17.800><c> a</c><00:06:17.840><c> little</c><00:06:18.040><c> bit</c><00:06:18.240><c> different</c>
+
+00:06:18.670 --> 00:06:18.680 align:start position:0%
+softmax works a little bit different
+ 
+
+00:06:18.680 --> 00:06:21.270 align:start position:0%
+softmax works a little bit different
+from<00:06:18.919><c> ReLU.</c><00:06:19.320><c> You</c><00:06:19.440><c> remember</c><00:06:19.840><c> ReLU</c><00:06:20.240><c> was</c>
+
+00:06:21.270 --> 00:06:21.280 align:start position:0%
+from ReLU. You remember ReLU was
+ 
+
+00:06:21.280 --> 00:06:22.790 align:start position:0%
+from ReLU. You remember ReLU was
+uh<00:06:21.560><c> this</c><00:06:21.800><c> one.</c>
+
+00:06:22.790 --> 00:06:22.800 align:start position:0%
+uh this one.
+ 
+
+00:06:22.800 --> 00:06:25.270 align:start position:0%
+uh this one.
+And<00:06:22.919><c> so,</c><00:06:23.040><c> what</c><00:06:23.240><c> softmax</c><00:06:23.840><c> does</c><00:06:24.120><c> is</c><00:06:24.280><c> it</c><00:06:24.400><c> actually</c>
+
+00:06:25.270 --> 00:06:25.280 align:start position:0%
+And so, what softmax does is it actually
+ 
+
+00:06:25.280 --> 00:06:26.550 align:start position:0%
+And so, what softmax does is it actually
+um
+
+00:06:26.550 --> 00:06:26.560 align:start position:0%
+um
+ 
+
+00:06:26.560 --> 00:06:28.510 align:start position:0%
+um
+basically<00:06:27.040><c> takes</c><00:06:27.400><c> the</c><00:06:27.560><c> outputs</c><00:06:28.080><c> and</c><00:06:28.280><c> and</c>
+
+00:06:28.510 --> 00:06:28.520 align:start position:0%
+basically takes the outputs and and
+ 
+
+00:06:28.520 --> 00:06:31.110 align:start position:0%
+basically takes the outputs and and
+assigns<00:06:29.200><c> uh</c><00:06:29.360><c> probabilities</c>
+
+00:06:31.110 --> 00:06:31.120 align:start position:0%
+assigns uh probabilities
+ 
+
+00:06:31.120 --> 00:06:32.590 align:start position:0%
+assigns uh probabilities
+to<00:06:31.280><c> each</c><00:06:31.520><c> output.</c><00:06:32.080><c> And</c><00:06:32.280><c> all</c><00:06:32.400><c> these</c>
+
+00:06:32.590 --> 00:06:32.600 align:start position:0%
+to each output. And all these
+ 
+
+00:06:32.600 --> 00:06:35.110 align:start position:0%
+to each output. And all these
+probabilities<00:06:33.320><c> at</c><00:06:33.480><c> the</c><00:06:33.640><c> outputs</c><00:06:34.400><c> uh</c><00:06:34.640><c> sum</c><00:06:34.919><c> up</c>
+
+00:06:35.110 --> 00:06:35.120 align:start position:0%
+probabilities at the outputs uh sum up
+ 
+
+00:06:35.120 --> 00:06:36.270 align:start position:0%
+probabilities at the outputs uh sum up
+to<00:06:35.280><c> one.</c>
+
+00:06:36.270 --> 00:06:36.280 align:start position:0%
+to one.
+ 
+
+00:06:36.280 --> 00:06:38.190 align:start position:0%
+to one.
+So,<00:06:36.640><c> when,</c><00:06:37.000><c> you</c><00:06:37.120><c> know,</c><00:06:37.360><c> I</c><00:06:37.640><c> I</c><00:06:37.760><c> gave</c><00:06:38.000><c> you</c><00:06:38.080><c> the</c>
+
+00:06:38.190 --> 00:06:38.200 align:start position:0%
+So, when, you know, I I gave you the
+ 
+
+00:06:38.200 --> 00:06:39.909 align:start position:0%
+So, when, you know, I I gave you the
+example<00:06:38.680><c> earlier,</c><00:06:39.080><c> you</c><00:06:39.200><c> know,</c><00:06:39.320><c> we</c><00:06:39.480><c> had</c><00:06:39.680><c> buy</c>
+
+00:06:39.909 --> 00:06:39.919 align:start position:0%
+example earlier, you know, we had buy
+ 
+
+00:06:39.919 --> 00:06:41.750 align:start position:0%
+example earlier, you know, we had buy
+and<00:06:40.120><c> sell.</c>
+
+00:06:41.750 --> 00:06:41.760 align:start position:0%
+and sell.
+ 
+
+00:06:41.760 --> 00:06:43.030 align:start position:0%
+and sell.
+Um
+
+00:06:43.030 --> 00:06:43.040 align:start position:0%
+Um
+ 
+
+00:06:43.040 --> 00:06:46.710 align:start position:0%
+Um
+and<00:06:43.240><c> so,</c><00:06:43.840><c> you</c><00:06:43.960><c> know,</c><00:06:44.640><c> we</c><00:06:44.840><c> have</c><00:06:45.120><c> maybe</c><00:06:45.560><c> 0.3</c><00:06:46.560><c> at</c>
+
+00:06:46.710 --> 00:06:46.720 align:start position:0%
+and so, you know, we have maybe 0.3 at
+ 
+
+00:06:46.720 --> 00:06:48.750 align:start position:0%
+and so, you know, we have maybe 0.3 at
+buy.
+
+00:06:48.750 --> 00:06:48.760 align:start position:0%
+buy.
+ 
+
+00:06:48.760 --> 00:06:51.390 align:start position:0%
+buy.
+Oops,<00:06:49.520><c> 0.3.</c>
+
+00:06:51.390 --> 00:06:51.400 align:start position:0%
+Oops, 0.3.
+ 
+
+00:06:51.400 --> 00:06:55.190 align:start position:0%
+Oops, 0.3.
+And<00:06:51.520><c> then</c><00:06:51.680><c> we</c><00:06:51.800><c> have</c><00:06:52.000><c> 0.7</c><00:06:53.200><c> at</c><00:06:53.400><c> sell.</c>
+
+00:06:55.190 --> 00:06:55.200 align:start position:0%
+And then we have 0.7 at sell.
+ 
+
+00:06:55.200 --> 00:06:56.270 align:start position:0%
+And then we have 0.7 at sell.
+And<00:06:55.400><c> so,</c>
+
+00:06:56.270 --> 00:06:56.280 align:start position:0%
+And so,
+ 
+
+00:06:56.280 --> 00:06:58.270 align:start position:0%
+And so,
+this<00:06:56.440><c> is</c><00:06:56.520><c> always</c><00:06:56.880><c> sums</c><00:06:57.200><c> to</c><00:06:57.320><c> one.</c>
+
+00:06:58.270 --> 00:06:58.280 align:start position:0%
+this is always sums to one.
+ 
+
+00:06:58.280 --> 00:07:00.110 align:start position:0%
+this is always sums to one.
+And<00:06:58.480><c> so,</c><00:06:58.960><c> you</c><00:06:59.080><c> know,</c><00:06:59.320><c> what</c><00:06:59.560><c> you</c><00:06:59.640><c> can</c><00:06:59.800><c> then</c><00:06:59.960><c> do</c>
+
+00:07:00.110 --> 00:07:00.120 align:start position:0%
+And so, you know, what you can then do
+ 
+
+00:07:00.120 --> 00:07:01.909 align:start position:0%
+And so, you know, what you can then do
+is<00:07:00.320><c> you</c><00:07:00.400><c> can</c><00:07:00.600><c> say,</c><00:07:00.880><c> "Well,</c><00:07:01.320><c> we</c><00:07:01.440><c> have</c><00:07:01.640><c> a</c><00:07:01.680><c> much</c>
+
+00:07:01.909 --> 00:07:01.919 align:start position:0%
+is you can say, "Well, we have a much
+ 
+
+00:07:01.919 --> 00:07:03.750 align:start position:0%
+is you can say, "Well, we have a much
+higher<00:07:02.200><c> value</c><00:07:02.520><c> for</c><00:07:02.720><c> sell,</c><00:07:03.040><c> so</c><00:07:03.200><c> this</c><00:07:03.440><c> is</c><00:07:03.600><c> what</c>
+
+00:07:03.750 --> 00:07:03.760 align:start position:0%
+higher value for sell, so this is what
+ 
+
+00:07:03.760 --> 00:07:05.110 align:start position:0%
+higher value for sell, so this is what
+we're<00:07:03.880><c> going</c><00:07:04.080><c> to</c><00:07:04.160><c> do."</c>
+
+00:07:05.110 --> 00:07:05.120 align:start position:0%
+we're going to do."
+ 
+
+00:07:05.120 --> 00:07:07.630 align:start position:0%
+we're going to do."
+And<00:07:05.280><c> so,</c><00:07:05.440><c> softmax</c><00:07:06.440><c> uh</c><00:07:06.640><c> so</c><00:07:06.800><c> so</c><00:07:07.000><c> the</c><00:07:07.160><c> outputs</c>
+
+00:07:07.630 --> 00:07:07.640 align:start position:0%
+And so, softmax uh so so the outputs
+ 
+
+00:07:07.640 --> 00:07:09.750 align:start position:0%
+And so, softmax uh so so the outputs
+that<00:07:07.840><c> normally</c><00:07:08.240><c> come</c><00:07:08.480><c> out</c><00:07:08.640><c> of</c><00:07:08.760><c> here</c>
+
+00:07:09.750 --> 00:07:09.760 align:start position:0%
+that normally come out of here
+ 
+
+00:07:09.760 --> 00:07:12.550 align:start position:0%
+that normally come out of here
+are<00:07:09.880><c> not</c><00:07:10.120><c> really</c><00:07:10.760><c> uh</c><00:07:10.880><c> these</c><00:07:11.160><c> values,</c><00:07:11.919><c> um</c>
+
+00:07:12.550 --> 00:07:12.560 align:start position:0%
+are not really uh these values, um
+ 
+
+00:07:12.560 --> 00:07:15.270 align:start position:0%
+are not really uh these values, um
+but<00:07:12.720><c> then</c><00:07:12.919><c> what</c><00:07:13.080><c> softmax</c><00:07:13.600><c> does</c><00:07:13.800><c> it</c><00:07:13.960><c> actually</c>
+
+00:07:15.270 --> 00:07:15.280 align:start position:0%
+but then what softmax does it actually
+ 
+
+00:07:15.280 --> 00:07:18.070 align:start position:0%
+but then what softmax does it actually
+uh<00:07:15.600><c> turns</c><00:07:16.040><c> them</c><00:07:16.280><c> into</c><00:07:16.600><c> those</c><00:07:17.120><c> uh</c><00:07:17.280><c> probability</c>
+
+00:07:18.070 --> 00:07:18.080 align:start position:0%
+uh turns them into those uh probability
+ 
+
+00:07:18.080 --> 00:07:20.150 align:start position:0%
+uh turns them into those uh probability
+values.<00:07:18.720><c> And</c><00:07:18.880><c> sometimes</c>
+
+00:07:20.150 --> 00:07:20.160 align:start position:0%
+values. And sometimes
+ 
+
+00:07:20.160 --> 00:07:23.070 align:start position:0%
+values. And sometimes
+that<00:07:20.320><c> makes</c><00:07:20.560><c> it</c><00:07:20.640><c> much</c><00:07:21.000><c> easier</c><00:07:21.680><c> uh</c><00:07:21.919><c> to</c><00:07:22.120><c> deal</c><00:07:22.919><c> uh</c>
+
+00:07:23.070 --> 00:07:23.080 align:start position:0%
+that makes it much easier uh to deal uh
+ 
+
+00:07:23.080 --> 00:07:25.750 align:start position:0%
+that makes it much easier uh to deal uh
+with<00:07:23.240><c> this.</c><00:07:24.000><c> This</c><00:07:24.200><c> is</c><00:07:24.480><c> very</c><00:07:24.720><c> much</c><00:07:25.280><c> uh</c><00:07:25.440><c> looking</c>
+
+00:07:25.750 --> 00:07:25.760 align:start position:0%
+with this. This is very much uh looking
+ 
+
+00:07:25.760 --> 00:07:27.790 align:start position:0%
+with this. This is very much uh looking
+like<00:07:26.000><c> the</c><00:07:26.120><c> Bellman</c><00:07:26.560><c> equation.</c>
+
+00:07:27.790 --> 00:07:27.800 align:start position:0%
+like the Bellman equation.
+ 
+
+00:07:27.800 --> 00:07:29.870 align:start position:0%
+like the Bellman equation.
+So,<00:07:28.000><c> this</c><00:07:28.280><c> discount</c><00:07:29.000><c> sometimes</c><00:07:29.520><c> is</c><00:07:29.640><c> called</c>
+
+00:07:29.870 --> 00:07:29.880 align:start position:0%
+So, this discount sometimes is called
+ 
+
+00:07:29.880 --> 00:07:32.070 align:start position:0%
+So, this discount sometimes is called
+discount.<00:07:30.440><c> I</c><00:07:30.560><c> called</c><00:07:30.919><c> it</c><00:07:31.200><c> in</c><00:07:31.400><c> my</c><00:07:31.600><c> equation</c>
+
+00:07:32.070 --> 00:07:32.080 align:start position:0%
+discount. I called it in my equation
+ 
+
+00:07:32.080 --> 00:07:33.430 align:start position:0%
+discount. I called it in my equation
+gamma.
+
+00:07:33.430 --> 00:07:33.440 align:start position:0%
+gamma.
+ 
+
+00:07:33.440 --> 00:07:35.870 align:start position:0%
+gamma.
+Um<00:07:34.240><c> you</c><00:07:34.360><c> know,</c><00:07:34.720><c> you</c><00:07:34.960><c> There's</c><00:07:35.240><c> different</c><00:07:35.600><c> ways</c>
+
+00:07:35.870 --> 00:07:35.880 align:start position:0%
+Um you know, you There's different ways
+ 
+
+00:07:35.880 --> 00:07:37.310 align:start position:0%
+Um you know, you There's different ways
+of<00:07:36.040><c> naming</c><00:07:36.440><c> it.</c>
+
+00:07:37.310 --> 00:07:37.320 align:start position:0%
+of naming it.
+ 
+
+00:07:37.320 --> 00:07:40.110 align:start position:0%
+of naming it.
+Then<00:07:37.440><c> you</c><00:07:37.520><c> remember</c><00:07:37.919><c> Q</c><00:07:38.400><c> was</c><00:07:38.640><c> your</c><00:07:39.000><c> Q</c><00:07:39.480><c> value</c><00:07:40.000><c> or</c>
+
+00:07:40.110 --> 00:07:40.120 align:start position:0%
+Then you remember Q was your Q value or
+ 
+
+00:07:40.120 --> 00:07:42.430 align:start position:0%
+Then you remember Q was your Q value or
+Q<00:07:40.480><c> table</c><00:07:40.919><c> value.</c>
+
+00:07:42.430 --> 00:07:42.440 align:start position:0%
+Q table value.
+ 
+
+00:07:42.440 --> 00:07:44.990 align:start position:0%
+Q table value.
+Then<00:07:42.640><c> we</c><00:07:42.760><c> had</c><00:07:42.960><c> the</c><00:07:43.200><c> reward,</c><00:07:44.040><c> the</c><00:07:44.160><c> final</c><00:07:44.600><c> reward</c>
+
+00:07:44.990 --> 00:07:45.000 align:start position:0%
+Then we had the reward, the final reward
+ 
+
+00:07:45.000 --> 00:07:46.990 align:start position:0%
+Then we had the reward, the final reward
+effectively<00:07:45.600><c> that</c><00:07:45.840><c> you</c><00:07:45.960><c> get</c>
+
+00:07:46.990 --> 00:07:47.000 align:start position:0%
+effectively that you get
+ 
+
+00:07:47.000 --> 00:07:49.190 align:start position:0%
+effectively that you get
+for<00:07:47.120><c> this</c><00:07:47.360><c> whole</c><00:07:47.640><c> game.</c>
+
+00:07:49.190 --> 00:07:49.200 align:start position:0%
+for this whole game.
+ 
+
+00:07:49.200 --> 00:07:51.950 align:start position:0%
+for this whole game.
+And<00:07:49.360><c> then</c><00:07:49.800><c> the</c><00:07:50.000><c> targets</c><00:07:50.600><c> is</c><00:07:50.800><c> basically</c><00:07:51.840><c> the</c>
+
+00:07:51.950 --> 00:07:51.960 align:start position:0%
+And then the targets is basically the
+ 
+
+00:07:51.960 --> 00:07:55.870 align:start position:0%
+And then the targets is basically the
+same<00:07:52.960><c> Q</c><00:07:53.320><c> table</c><00:07:53.800><c> but</c><00:07:54.080><c> the</c><00:07:54.240><c> previous</c><00:07:54.800><c> one.</c>
+
+00:07:55.870 --> 00:07:55.880 align:start position:0%
+same Q table but the previous one.
+ 
+
+00:07:55.880 --> 00:07:58.470 align:start position:0%
+same Q table but the previous one.
+And<00:07:56.240><c> what</c><00:07:56.400><c> you</c><00:07:56.480><c> do</c><00:07:56.680><c> is</c><00:07:56.840><c> here</c><00:07:57.080><c> you</c><00:07:57.240><c> maximize</c><00:07:58.360><c> or</c>
+
+00:07:58.470 --> 00:07:58.480 align:start position:0%
+And what you do is here you maximize or
+ 
+
+00:07:58.480 --> 00:08:00.550 align:start position:0%
+And what you do is here you maximize or
+you<00:07:58.600><c> find</c><00:07:58.880><c> the</c><00:07:59.000><c> maximum</c>
+
+00:08:00.550 --> 00:08:00.560 align:start position:0%
+you find the maximum
+ 
+
+00:08:00.560 --> 00:08:02.710 align:start position:0%
+you find the maximum
+of<00:08:00.760><c> that</c><00:08:00.920><c> value.</c><00:08:01.840><c> This</c><00:08:02.000><c> is</c><00:08:02.080><c> actually</c><00:08:02.400><c> what</c><00:08:02.600><c> you</c>
+
+00:08:02.710 --> 00:08:02.720 align:start position:0%
+of that value. This is actually what you
+ 
+
+00:08:02.720 --> 00:08:05.430 align:start position:0%
+of that value. This is actually what you
+do<00:08:02.920><c> here.</c>
+
+00:08:05.430 --> 00:08:05.440 align:start position:0%
+do here.
+ 
+
+00:08:05.440 --> 00:08:08.350 align:start position:0%
+do here.
+So<00:08:05.640><c> you</c><00:08:05.760><c> can</c><00:08:05.960><c> see</c><00:08:06.120><c> this</c><00:08:06.360><c> here</c><00:08:06.720><c> NP</c><00:08:07.120><c> max</c>
+
+00:08:08.350 --> 00:08:08.360 align:start position:0%
+So you can see this here NP max
+ 
+
+00:08:08.360 --> 00:08:11.070 align:start position:0%
+So you can see this here NP max
+Q<00:08:08.640><c> predict.</c><00:08:09.240><c> So</c><00:08:09.440><c> you</c><00:08:09.560><c> do</c><00:08:09.960><c> you</c><00:08:10.120><c> calculate</c><00:08:10.720><c> the</c><00:08:10.800><c> Q</c>
+
+00:08:11.070 --> 00:08:11.080 align:start position:0%
+Q predict. So you do you calculate the Q
+ 
+
+00:08:11.080 --> 00:08:13.830 align:start position:0%
+Q predict. So you do you calculate the Q
+value<00:08:11.520><c> using</c><00:08:11.840><c> the</c><00:08:11.960><c> neural</c><00:08:12.280><c> network</c>
+
+00:08:13.830 --> 00:08:13.840 align:start position:0%
+value using the neural network
+ 
+
+00:08:13.840 --> 00:08:15.950 align:start position:0%
+value using the neural network
+given<00:08:14.120><c> the</c><00:08:14.240><c> state</c>
+
+00:08:15.950 --> 00:08:15.960 align:start position:0%
+given the state
+ 
+
+00:08:15.960 --> 00:08:17.790 align:start position:0%
+given the state
+and<00:08:16.080><c> then</c><00:08:16.280><c> you</c><00:08:16.360><c> have</c><00:08:16.520><c> three</c><00:08:16.880><c> actions</c><00:08:17.400><c> coming</c>
+
+00:08:17.790 --> 00:08:17.800 align:start position:0%
+and then you have three actions coming
+ 
+
+00:08:17.800 --> 00:08:19.830 align:start position:0%
+and then you have three actions coming
+out<00:08:18.040><c> of</c><00:08:18.200><c> this</c><00:08:18.800><c> model.</c>
+
+00:08:19.830 --> 00:08:19.840 align:start position:0%
+out of this model.
+ 
+
+00:08:19.840 --> 00:08:21.710 align:start position:0%
+out of this model.
+And<00:08:19.960><c> then</c><00:08:20.160><c> you</c><00:08:20.280><c> just</c><00:08:20.520><c> find</c><00:08:20.800><c> the</c><00:08:20.880><c> maximum</c><00:08:21.560><c> and</c>
+
+00:08:21.710 --> 00:08:21.720 align:start position:0%
+And then you just find the maximum and
+ 
+
+00:08:21.720 --> 00:08:24.950 align:start position:0%
+And then you just find the maximum and
+that<00:08:21.919><c> gives</c><00:08:22.160><c> you</c><00:08:22.280><c> that</c><00:08:22.600><c> QSA</c><00:08:23.520><c> here.</c>
+
+00:08:24.950 --> 00:08:24.960 align:start position:0%
+that gives you that QSA here.
+ 
+
+00:08:24.960 --> 00:08:26.510 align:start position:0%
+that gives you that QSA here.
+Which<00:08:25.160><c> is</c><00:08:25.320><c> then</c>
+
+00:08:26.510 --> 00:08:26.520 align:start position:0%
+Which is then
+ 
+
+00:08:26.520 --> 00:08:28.950 align:start position:0%
+Which is then
+moved<00:08:27.000><c> into</c><00:08:27.280><c> here.</c>
+
+00:08:28.950 --> 00:08:28.960 align:start position:0%
+moved into here.
+ 
+
+00:08:28.960 --> 00:08:33.000 align:start position:0%
+moved into here.
+And<00:08:29.200><c> then</c><00:08:29.400><c> solves</c><00:08:29.880><c> the</c><00:08:29.960><c> Bellman</c><00:08:30.360><c> equation.</c>
+

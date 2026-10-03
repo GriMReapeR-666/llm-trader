@@ -1,0 +1,176 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.000 --> 00:00:03.070 align:start position:0%
+ 
+I<00:00:00.080><c> want</c><00:00:00.320><c> to</c><00:00:00.400><c> essentially</c><00:00:00.840><c> flag</c><00:00:01.320><c> all</c><00:00:01.560><c> of</c><00:00:01.680><c> these</c>
+
+00:00:03.070 --> 00:00:03.080 align:start position:0%
+I want to essentially flag all of these
+ 
+
+00:00:03.080 --> 00:00:05.070 align:start position:0%
+I want to essentially flag all of these
+defaulted<00:00:03.840><c> dates</c>
+
+00:00:05.070 --> 00:00:05.080 align:start position:0%
+defaulted dates
+ 
+
+00:00:05.080 --> 00:00:07.070 align:start position:0%
+defaulted dates
+as<00:00:05.320><c> bad</c><00:00:05.720><c> loans,</c><00:00:06.080><c> loans</c><00:00:06.280><c> that</c><00:00:06.400><c> have</c><00:00:06.520><c> defaulted</c>
+
+00:00:07.070 --> 00:00:07.080 align:start position:0%
+as bad loans, loans that have defaulted
+ 
+
+00:00:07.080 --> 00:00:08.590 align:start position:0%
+as bad loans, loans that have defaulted
+here.<00:00:07.600><c> And</c><00:00:07.800><c> to</c><00:00:07.840><c> do</c><00:00:07.960><c> that,</c><00:00:08.160><c> we're</c><00:00:08.240><c> going</c><00:00:08.360><c> to</c><00:00:08.440><c> use</c>
+
+00:00:08.590 --> 00:00:08.600 align:start position:0%
+here. And to do that, we're going to use
+ 
+
+00:00:08.600 --> 00:00:10.070 align:start position:0%
+here. And to do that, we're going to use
+NumPy,<00:00:09.280><c> and</c><00:00:09.360><c> we're</c><00:00:09.440><c> going</c><00:00:09.560><c> to</c><00:00:09.600><c> use</c><00:00:09.720><c> the</c><00:00:09.840><c> where</c>
+
+00:00:10.070 --> 00:00:10.080 align:start position:0%
+NumPy, and we're going to use the where
+ 
+
+00:00:10.080 --> 00:00:11.630 align:start position:0%
+NumPy, and we're going to use the where
+statement.
+
+00:00:11.630 --> 00:00:11.640 align:start position:0%
+statement.
+ 
+
+00:00:11.640 --> 00:00:14.350 align:start position:0%
+statement.
+Uh<00:00:11.920><c> and</c><00:00:12.000><c> we're</c><00:00:12.080><c> just</c><00:00:12.200><c> going</c><00:00:12.320><c> to</c><00:00:12.360><c> take</c><00:00:12.680><c> our</c><00:00:12.880><c> data</c>
+
+00:00:14.350 --> 00:00:14.360 align:start position:0%
+Uh and we're just going to take our data
+ 
+
+00:00:14.360 --> 00:00:15.710 align:start position:0%
+Uh and we're just going to take our data
+and<00:00:14.560><c> we're</c><00:00:14.640><c> going</c><00:00:14.760><c> to</c><00:00:14.800><c> take</c><00:00:15.120><c> the</c><00:00:15.240><c> column</c><00:00:15.640><c> of</c>
+
+00:00:15.710 --> 00:00:15.720 align:start position:0%
+and we're going to take the column of
+ 
+
+00:00:15.720 --> 00:00:17.350 align:start position:0%
+and we're going to take the column of
+that<00:00:15.880><c> data,</c><00:00:16.160><c> so</c><00:00:16.200><c> I'm</c><00:00:16.280><c> going</c><00:00:16.400><c> to</c><00:00:16.440><c> use</c><00:00:16.600><c> two</c><00:00:17.120><c> sets</c>
+
+00:00:17.350 --> 00:00:17.360 align:start position:0%
+that data, so I'm going to use two sets
+ 
+
+00:00:17.360 --> 00:00:19.350 align:start position:0%
+that data, so I'm going to use two sets
+of<00:00:17.480><c> square</c><00:00:17.760><c> brackets,</c><00:00:18.760><c> and</c><00:00:19.040><c> we're</c><00:00:19.120><c> just</c><00:00:19.240><c> going</c>
+
+00:00:19.350 --> 00:00:19.360 align:start position:0%
+of square brackets, and we're just going
+ 
+
+00:00:19.360 --> 00:00:21.510 align:start position:0%
+of square brackets, and we're just going
+to<00:00:19.400><c> type</c><00:00:19.720><c> in</c><00:00:20.040><c> default</c><00:00:20.600><c> date.</c><00:00:21.120><c> And</c><00:00:21.280><c> then</c><00:00:21.440><c> we're</c>
+
+00:00:21.510 --> 00:00:21.520 align:start position:0%
+to type in default date. And then we're
+ 
+
+00:00:21.520 --> 00:00:24.910 align:start position:0%
+to type in default date. And then we're
+going<00:00:21.640><c> to</c><00:00:21.760><c> say,</c><00:00:22.800><c> um</c><00:00:22.920><c> if</c><00:00:23.120><c> this</c><00:00:23.320><c> column</c><00:00:24.160><c> is</c><00:00:24.480><c> null,</c>
+
+00:00:24.910 --> 00:00:24.920 align:start position:0%
+going to say, um if this column is null,
+ 
+
+00:00:24.920 --> 00:00:25.710 align:start position:0%
+going to say, um if this column is null,
+so<00:00:25.000><c> we're</c><00:00:25.080><c> going</c><00:00:25.200><c> to</c><00:00:25.240><c> use</c><00:00:25.320><c> the</c><00:00:25.360><c> is</c><00:00:25.520><c> null</c>
+
+00:00:25.710 --> 00:00:25.720 align:start position:0%
+so we're going to use the is null
+ 
+
+00:00:25.720 --> 00:00:28.150 align:start position:0%
+so we're going to use the is null
+function,
+
+00:00:28.150 --> 00:00:28.160 align:start position:0%
+function,
+ 
+
+00:00:28.160 --> 00:00:30.150 align:start position:0%
+function,
+um<00:00:28.520><c> and</c><00:00:28.600><c> then</c><00:00:28.680><c> we're</c><00:00:28.760><c> going</c><00:00:28.880><c> to</c><00:00:28.960><c> have</c><00:00:29.120><c> zero,</c><00:00:30.040><c> so</c>
+
+00:00:30.150 --> 00:00:30.160 align:start position:0%
+um and then we're going to have zero, so
+ 
+
+00:00:30.160 --> 00:00:31.830 align:start position:0%
+um and then we're going to have zero, so
+we're<00:00:30.280><c> going</c><00:00:30.400><c> to</c><00:00:30.440><c> set</c><00:00:30.600><c> it</c><00:00:30.720><c> equal</c><00:00:30.960><c> to</c><00:00:31.120><c> zero</c><00:00:31.640><c> if</c>
+
+00:00:31.830 --> 00:00:31.840 align:start position:0%
+we're going to set it equal to zero if
+ 
+
+00:00:31.840 --> 00:00:33.670 align:start position:0%
+we're going to set it equal to zero if
+it<00:00:31.920><c> is</c><00:00:32.080><c> null,</c><00:00:32.880><c> and</c><00:00:32.960><c> we're</c><00:00:33.040><c> going</c><00:00:33.160><c> to</c><00:00:33.240><c> set</c><00:00:33.360><c> it</c><00:00:33.480><c> to</c>
+
+00:00:33.670 --> 00:00:33.680 align:start position:0%
+it is null, and we're going to set it to
+ 
+
+00:00:33.680 --> 00:00:36.270 align:start position:0%
+it is null, and we're going to set it to
+one<00:00:34.000><c> if</c><00:00:34.120><c> it</c><00:00:34.200><c> is</c><00:00:34.400><c> filled.</c><00:00:35.000><c> So</c><00:00:35.120><c> essentially,</c><00:00:36.240><c> um</c>
+
+00:00:36.270 --> 00:00:36.280 align:start position:0%
+one if it is filled. So essentially, um
+ 
+
+00:00:36.280 --> 00:00:38.230 align:start position:0%
+one if it is filled. So essentially, um
+if<00:00:36.440><c> it</c><00:00:36.560><c> has</c><00:00:36.800><c> defaulted,</c><00:00:37.760><c> it's</c><00:00:37.920><c> going</c><00:00:38.040><c> to</c><00:00:38.080><c> be</c><00:00:38.160><c> a</c>
+
+00:00:38.230 --> 00:00:38.240 align:start position:0%
+if it has defaulted, it's going to be a
+ 
+
+00:00:38.240 --> 00:00:40.590 align:start position:0%
+if it has defaulted, it's going to be a
+one,<00:00:38.600><c> it's</c><00:00:38.800><c> bad.</c><00:00:39.400><c> If</c><00:00:39.560><c> it</c><00:00:39.640><c> is</c><00:00:39.720><c> not</c><00:00:39.880><c> defaulted,</c>
+
+00:00:40.590 --> 00:00:40.600 align:start position:0%
+one, it's bad. If it is not defaulted,
+ 
+
+00:00:40.600 --> 00:00:42.590 align:start position:0%
+one, it's bad. If it is not defaulted,
+it<00:00:40.720><c> is</c><00:00:40.840><c> a</c><00:00:40.920><c> zero</c><00:00:41.480><c> um</c><00:00:41.640><c> into</c><00:00:41.960><c> the</c><00:00:42.040><c> zero-one</c>
+
+00:00:42.590 --> 00:00:42.600 align:start position:0%
+it is a zero um into the zero-one
+ 
+
+00:00:42.600 --> 00:00:45.240 align:start position:0%
+it is a zero um into the zero-one
+framework.
+
