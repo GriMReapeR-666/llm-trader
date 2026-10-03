@@ -1,0 +1,16 @@
+import sqlite3, sys
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+con = sqlite3.connect("trading_state.db")
+cur = con.cursor()
+cur.execute("SELECT COUNT(*), AVG(pnl), SUM(pnl), SUM(CASE WHEN pnl>0 THEN 1 ELSE 0 END) FROM trades WHERE closed_at IS NOT NULL")
+tot, avg_pnl, sum_pnl, wins = cur.fetchone()
+cur.execute("SELECT AVG(r_multiple) FROM trade_labels")
+avg_r = cur.fetchone()[0]
+cur.execute("SELECT symbol, COUNT(*), AVG(pnl) FROM trades WHERE closed_at IS NOT NULL GROUP BY symbol")
+by_sym = cur.fetchall()
+cur.execute("SELECT exit_reason, COUNT(*), AVG(pnl) FROM trades WHERE closed_at IS NOT NULL GROUP BY exit_reason")
+by_reason = cur.fetchall()
+print(f"Closed trades: {tot}, avg PnL: {avg_pnl:.2f}, total PnL: {sum_pnl:.2f}, avg R: {avg_r:.3f}, win rate: {wins/tot*100:.1f}%")
+print("By symbol:", by_sym)
+print("By exit reason:", by_reason)
+con.close()

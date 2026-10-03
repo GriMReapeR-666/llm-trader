@@ -1,0 +1,8 @@
+# Graphify ignore patterns
+artifacts/
+.pytest_cache/
+.pytest_tmp/
+node_modules/
+.kilo/
+__pycache__/
+*.pyc

@@ -1,0 +1,21 @@
+{
+  "max_messages": 5,
+  "summary_threshold": 15,
+  "system_prompt": "You are a trading assistant.",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Analyze EURUSD"
+    },
+    {
+      "role": "assistant",
+      "content": "Bullish structure."
+    },
+    {
+      "role": "user",
+      "content": "Analyze GBPUSD"
+    }
+  ],
+  "summaries": [],
+  "total_tokens_estimate": 6
+}
