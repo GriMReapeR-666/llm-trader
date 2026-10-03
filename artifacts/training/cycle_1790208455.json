@@ -1,0 +1,9 @@
+{
+  "symbols_trained": 4,
+  "total_trades": 272,
+  "symbols_passed": 2,
+  "best_symbol": "EURUSD",
+  "best_oos_sharpe": 2.18,
+  "overall_gate": true,
+  "duration": 1.0
+}

@@ -1,0 +1,186 @@
+{
+  "symbol": "XAUUSD",
+  "timeframe": "H1",
+  "total_trades": 1063,
+  "benchmark_score": 40.7,
+  "benchmark_grade": "C",
+  "ready_for_live": "False",
+  "gate_passed": false,
+  "summary": "1063 trades | Grade C (41/100) | Gate FAIL | 5s",
+  "phases": [
+    {
+      "name": "real_backtest",
+      "status": "PASS",
+      "trades": 83,
+      "duration": 3.3,
+      "details": {
+        "alpha_cols": 27,
+        "cost_model": "tce_per_fill",
+        "cpcv": {
+          "status": "OVERFITTING_RISK_DETECTED",
+          "mean_cpcv_sharpe": -0.846,
+          "deflated_sharpe_ratio": 1.0,
+          "pbo": 0.6,
+          "is_statistically_robust": false,
+          "samples": 83
+        }
+      }
+    },
+    {
+      "name": "scenario_stress",
+      "status": "PASS",
+      "trades": 980,
+      "duration": 0.0,
+      "details": {
+        "scenarios_tested": 19,
+        "scenarios_passed": 18
+      }
+    },
+    {
+      "name": "rl_training",
+      "status": "PASS",
+      "trades": 0,
+      "duration": 0.0,
+      "details": {
+        "status": "ok"
+      }
+    },
+    {
+      "name": "meta_improvement",
+      "status": "PASS",
+      "trades": 0,
+      "duration": 0.0,
+      "details": {
+        "cycle": 1,
+        "improvements_applied": 0,
+        "checks": {
+          "parameter_stability": {
+            "status": "no_persisted_status",
+            "available": true,
+            "note": "on-demand only: run_parameter_stability(grids, strategy_fn)"
+          },
+          "overfit_gate": {
+            "total_validated": 0,
+            "passed": 0,
+            "rejected": 0,
+            "not_validated_count": 0,
+            "blocked_risk_levels": [
+              "CRITICAL",
+              "HIGH"
+            ],
+            "strategies": {}
+          },
+          "return_diagnostics": {
+            "n_observations": 150,
+            "is_white_noise": true,
+            "has_linear_dependence": false,
+            "has_volatility_clustering": false,
+            "durbin_watson": 2.0833,
+            "runs_test_p_value": 0.6085,
+            "summary": "n=150 | returns: no linear dependence | |returns|: no volatility clustering | DW=2.083 | WHITE NOISE \u2713"
+          }
+        }
+      }
+    },
+    {
+      "name": "alpha_evaluation",
+      "status": "SKIP",
+      "trades": 0,
+      "duration": 2.0,
+      "details": {
+        "error": "compute_alpha_quality() missing 1 required positional argument: 'name'"
+      }
+    },
+    {
+      "name": "regime_analysis",
+      "status": "PASS",
+      "trades": 0,
+      "duration": 0.0,
+      "details": {
+        "regimes": 2
+      }
+    },
+    {
+      "name": "journal_gathering",
+      "status": "SKIP",
+      "trades": 0,
+      "duration": 0.0,
+      "details": {
+        "error": "cannot import name 'Journal' from 'core.trading_tools' (C:\\Users\\User\\OneDrive\\Desktop\\selfmade game"
+      }
+    },
+    {
+      "name": "benchmarking",
+      "status": "PASS",
+      "trades": 0,
+      "duration": 0.0,
+      "details": {
+        "overall_score": 40.7,
+        "overall_grade": "C",
+        "total_trades": 1063,
+        "min_trades_met": true,
+        "ready_for_deployment": "False",
+        "summary": "Grade C | 1063 trades | MIN_MET | 6 issues | NEEDS_WORK",
+        "dimensions": {
+          "risk_adjusted_returns": {
+            "score": 0,
+            "grade": "F",
+            "issues": [
+              "Sharpe -0.16 < 0.5"
+            ]
+          },
+          "statistical_significance": {
+            "score": 46.7,
+            "grade": "C",
+            "issues": [
+              "p-value 1.777 > 0.05 (not significant)"
+            ]
+          },
+          "robustness": {
+            "score": 50,
+            "grade": "C+",
+            "issues": [
+              "PBO 0.500 > 0.3 (overfitting risk)"
+            ]
+          },
+          "regime_performance": {
+            "score": 18.7,
+            "grade": "F",
+            "issues": []
+          },
+          "edge_case_survival": {
+            "score": 94.7,
+            "grade": "A+",
+            "issues": []
+          },
+          "drawdown_analysis": {
+            "score": 0,
+            "grade": "F",
+            "issues": [
+              "Max drawdown -266.4% > -20%"
+            ]
+          },
+          "execution_quality": {
+            "score": 68.9,
+            "grade": "B",
+            "issues": [
+              "Profit factor 0.98 < 1.0"
+            ]
+          },
+          "capacity": {
+            "score": 80,
+            "grade": "A",
+            "issues": [
+              "Max volume 47810.0000 may exceed capacity"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "artifacts": {
+    "trades": "artifacts\\capstone\\trades_XAUUSD_1790582342.json",
+    "equity": "artifacts\\capstone\\equity_XAUUSD_1790582342.json",
+    "scenarios": "artifacts\\capstone\\scenarios_XAUUSD_1790582342.json"
+  }
+}
