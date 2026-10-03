@@ -1,0 +1,75 @@
+# Quant Knowledge Framework Configuration
+
+channels:
+  - id: quantinsti
+    name: "QuantInsti Quantitative Learning"
+    url: "https://www.youtube.com/user/quantinsti"
+    enabled: true
+    priority: high
+
+  - id: quantra
+    name: "Quantra"
+    url: "https://www.youtube.com/channel/UCLHvJ1KNGE1s-A3ODiSgplw"
+    enabled: true
+    priority: high
+
+  - id: author_c
+    name: "Author-C"
+    url: "https://www.youtube.com/@ErnestPChan"
+    enabled: true
+    priority: high
+
+  - id: quantocracy
+    name: "Quantocracy"
+    url: "https://www.youtube.com/@Quantocracy"
+    enabled: true
+    priority: medium
+
+  - id: systematic_investor
+    name: "Systematic Individual Investor"
+    url: "https://www.youtube.com/@SystematicIndividualInvestor"
+    enabled: true
+    priority: medium
+
+  - id: algoshots
+    name: "AlgoShots"
+    url: "https://www.youtube.com/@AlgoShots"
+    enabled: true
+    priority: medium
+
+topics:
+  01_Regime_Detection:
+    keywords: ["hurst", "hmm", "hidden markov", "regime", "adx", "atr", "volatility", "bocpd", "changepoint"]
+  02_Strategy_Development:
+    keywords: ["strategy", "backtest", "walk-forward", "wfo", "dsr", "deflated sharpe", "cpcv", "expected value", "win rate", "monte carlo"]
+  03_Portfolio_Management:
+    keywords: ["portfolio", "kelly", "risk parity", "hrp", "correlation", "allocation", "drawdown", "calmar"]
+  04_Order_Execution:
+    keywords: ["execution", "slippage", "spread", "market impact", "almgren", "tca", "order routing"]
+  05_Quant_Utilities:
+    keywords: ["python", "pandas", "numpy", "data pipeline", "feature engineering", "stationarity", "adf test"]
+
+paths:
+  raw_downloads: "data/raw_downloads"
+  transcriptions: "data/transcriptions"
+  knowledge_base: "data/knowledge_base"
+  output: "docs/quant_knowledge_base"
+
+transcription:
+  engine: "whisper"
+  model_size: "base"
+  language: "en"
+  device: "cpu"
+  compute_type: "int8"
+
+download:
+  mode: "transcript_only"
+  max_videos_per_channel: 100
+  rate_limit_delay: 1.0
+  subtitle_langs:
+    - en
+
+processing:
+  max_workers: 4
+  batch_size: 10
+  skip_existing: true

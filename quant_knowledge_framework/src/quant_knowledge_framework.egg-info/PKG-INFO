@@ -1,0 +1,105 @@
+Metadata-Version: 2.4
+Name: quant-knowledge-framework
+Version: 1.0.0
+Summary: Isolated framework for downloading, transcribing, and organizing quantitative finance knowledge
+License: MIT
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: yt-dlp>=2024.1.0
+Requires-Dist: openai-whisper>=20231117
+Requires-Dist: faster-whisper>=1.0.0
+Requires-Dist: numpy>=1.20.0
+Requires-Dist: pandas>=1.5.0
+Requires-Dist: scikit-learn>=1.0.0
+Requires-Dist: hmmlearn>=0.3.0
+Requires-Dist: scipy>=1.7.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: requests>=2.28.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
+Requires-Dist: black>=23.0.0; extra == "dev"
+Requires-Dist: ruff>=0.1.0; extra == "dev"
+
+# Quant Knowledge Framework
+
+**Isolated framework for batch-downloading YouTube transcriptions and organizing quantitative finance knowledge from YouTube channels, books, and other sources.**
+
+## Overview
+
+This framework is completely isolated from the main trading system. It:
+- Batch-fetches YouTube subtitles/transcriptions **without downloading video/audio**
+- Parses subtitles into plain-text transcripts
+- Extracts code snippets and mathematical formulas
+- Classifies content into 5 quant topics
+- Builds a searchable, organized knowledge base
+- Provides agent-executable universal modules
+
+## Important
+
+This framework is configured for **transcription-only** mode by default. It does not download video or audio files. It only fetches available subtitles and auto-generated captions via `yt-dlp`, then converts them to searchable text.
+
+## Quick Start
+
+```bash
+# Install in editable mode
+pip install -e .
+
+# Run full pipeline
+quant-knowledge build --config config/sources.yaml
+
+# Or run individual stages
+quant-knowledge download --channel "https://www.youtube.com/@UnbiasedTrading"
+quant-knowledge transcribe --input data/raw_downloads
+quant-knowledge classify --input data/transcriptions
+```
+
+## CLI
+
+```text
+quant-knowledge download   --channel <url> --limit <n>
+quant-knowledge transcribe --input <dir>
+quant-knowledge classify   --input <dir>
+quant-knowledge search     <query>
+quant-knowledge stats
+quant-knowledge reclassify
+quant-knowledge build      --channels <ch1> <ch2>
+quant-knowledge agent
+```
+
+## Topics
+
+| ID | Topic |
+|:---|:---|
+| 01 | Regime Detection |
+| 02 | Strategy Development |
+| 03 | Portfolio Management |
+| 04 | Order Execution |
+| 05 | Quant Utilities |
+| 99 | Archive / Unsorted |
+
+## Agent Interface
+
+```python
+from quant_framework.agent import QuantAgent
+
+agent = QuantAgent()
+
+# Discover available tools
+tools = agent.discover_tools()
+
+# Search the knowledge base
+result = agent.execute_tool("knowledge.search", query="volatility")
+
+# Classify text
+result = agent.execute_tool("knowledge.classify", text="hidden markov model for regime detection")
+
+# Get file content
+result = agent.execute_tool("knowledge.get_content", path="data/knowledge_base/01_Regime_Detection/...")
+
+# Chain tools
+results = agent.chain_tools([
+    {"tool": "knowledge.list_topics", "params": {}},
+    {"tool": "knowledge.search", "params": {"query": "kelly"}}
+])
+```

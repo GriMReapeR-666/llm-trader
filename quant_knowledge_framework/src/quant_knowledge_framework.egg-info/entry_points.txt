@@ -1,0 +1,2 @@
+[console_scripts]
+quant-knowledge = quant_framework.cli:main
