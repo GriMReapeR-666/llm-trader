@@ -1,0 +1,12 @@
+# Implementation
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: cointegration
+
+---
+
+## Implementation
+When actually implementing a pairs trading strategy you would normally want to be trading many different pairs at once. If you find a good pair relationship by analyzing data, there is no guarantee that that relationship will continue into the future. Trading many different pairs creates a diversified portfolio to mitigate the risk of individual pairs "falling out of" cointegration.
+
+There is a template [algorithm](https://www.quantopian.com/lectures/example-basic-pairs-trading-algorithm) attached to this lecture that shows an example of how you would implement pairs trading on our platform. Feel free to check it out and modify it with your own pairs to see if you can improve it.

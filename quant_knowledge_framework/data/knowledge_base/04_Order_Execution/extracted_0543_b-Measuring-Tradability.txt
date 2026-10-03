@@ -1,0 +1,18 @@
+# b. Measuring Tradability
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Measuring Tradability
+
+
+Find the average 200 day average dollar volume of the NetIncome 1500 universe using the `AverageDollarVolume` built in factor and compare to that of the QTradableStocksUS.
+
+Using average dollar volume as a stand-in liquidity metric, the QTradableStocksUS is more liquid than the NetIncome 1500. 
+
+We used ADV as a liquidity metric here as it is an important indicator and its calculation is simple. However, average dollar volume is not a perfect measurement of liquidity as liquidity is determined by several factors and volume is only one of those. For more information on liquidity and its effects on algorithm performance, refer to the [lecture on Volume, Slippage, and Liquidity](https://www.educational_platform.com/research/notebooks/Cloned%20from%20%22Educational Platform%20Lecture%20Series%3A%20Introduction%20to%20Volume%2C%20Slippage%2C%20and%20Liquidity%22.ipynb)
+
+# Exercise 3: Sector Balance

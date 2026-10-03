@@ -1,0 +1,129 @@
+# Factor Models
+
+Topic: 01_Regime_Detection
+Confidence: 0.40
+Keywords: atr, volatility
+
+---
+
+## Factor Models
+We have written many lectures on [Factor Models](https://www.educational_platform.com/lectures/the-capital-asset-pricing-model-and-arbitrage-pricing-theory) and the calculation of [Factor Risk Exposure](https://www.educational_platform.com/lectures/factor-risk-exposure), as well as [how to analyze alpha factors](https://www.educational_platform.com/lectures/factor-analysis). The notation we generally use when introducing a factor model is as follows:
+
+$$R_i = a_i + b_{i1} F_1 + b_{i2} F_2 + \ldots + b_{iK} F_k + \epsilon_i$$
+
+where:
+$$\begin{eqnarray}
+k &=& \text{the number of factors}\\
+R_i &=& \text{the return for company $i$}, \\
+a_i &=& \text{the intercept},\\
+F_j &=& \text{the return for factor $j$, $j \in [1,k]$}, \\
+b_{ij} &=& \text{the corresponding exposure to factor $j$, $j \in [1,k]$,} \\
+\epsilon_i &=& \text{specific fluctuation of company $i$.}\\
+\end{eqnarray}$$
+
+
+
+To quantify unexpected risks and have acceptable risk levels in a given portfolio, we need to answer 3 questions:
+
+1. What proportion of the variance of my portfolio comes from common risk factors?
+      
+2. How do I limit this risk?
+   
+3. Where does the return/PNL of my portfolio come from, i.e., to what do I attribute the performance?
+
+These risk factors can be:
+- Classical fundamental factors, such as those in the [CAPM](https://www.educational_platform.com/lectures/the-capital-asset-pricing-model-and-arbitrage-pricing-theory) (market risk) or the [Fama-French 3-Factor Model](https://www.educational_platform.com/lectures/fundamental-factor-models) (price-to-book (P/B) ratio, volatility)
+- Sector or industry exposure
+- Macroeconomic factors, such as inflation or interest rates
+- Statistical factors that are based on historical returns and derived from principal component
+  analysis
+
+### Universe 
+
+The base universe of assets we use here is the QTradableStocksUS.
+
+First we pull the returns of every asset in this universe across our desired time period.
+
+### Factor Returns and Exposures
+
+We will start with the classic Fama-French factors. The Fama-French factors are the market, company size, and company price-to-book (PB) ratio. We compute each asset's exposures to these factors, computing the factors themselves using pipeline code borrowed from the [Fundamental Factor Models lecture](https://www.educational_platform.com/lectures/fundamental-factor-models). 
+
+Here we run our pipeline and create the return streams for high-minus-low and small-minus-big.
+
+### Calculating the Exposures
+
+Running a multiple linear regression on the fundamental factors for each asset in our universe, we can obtain the corresponding factor exposure for each asset. Here we express:
+
+$$ R_i = \alpha_i + \beta_{i, MKT} R_{i, MKT} + \beta_{i, HML} R_{i, HML} + \beta_{i, SMB} R_{i, SMB} + \epsilon_i$$
+
+for each asset $S_i$. This shows us how much of each individual security's return is made up of these risk factors.
+
+We calculate the risk exposures on an asset-by-asset basis in order to get a more granular view of the risk of our portfolio. This approach requires that we know the holdings of the portfolio itself, on any given day, and is computationally expensive.
+
+The factor exposures are shown as follows. Each individual asset in our universe will have a different exposure to the three included risk factors.
+
+### Summary of the Setup:
+1. returns of assets in universe: `R`
+2. fundamental factors: `F`
+3. Exposures of these fundamental factors: `B`
+
+Currently, the `F` DataFrame contains the return streams for MKT, SMB, and HML, by date.
+
+While the `B` DataFrame contains point estimates of the beta exposures **to** MKT, SMB, and HML for every asset in our universe.
+
+Now that we have these values, we can start to crack open the variance of any portfolio that contains these assets.
+
+### Splitting Variance into Common Factor Risks
+
+The portfolio variance can be represented as:
+  
+  $$\sigma^2 = \omega BVB^{\top}\omega^{\top} + \omega D\omega^{\top}$$
+
+where:
+
+$$\begin{eqnarray}
+B &=& \text{the matrix of factor exposures of $n$ assets to the factors} \\
+    V &=& \text{the covariance matrix of factors} \\
+    D &=& \text{the specific variance} \\
+    \omega &=& \text{the vector of portfolio weights for $n$ assets}\\
+    \omega BVB^{\top}\omega^{\top} &=& \text{common factor variance} \\
+    \omega D\omega^{\top} &=& \text{specific variance} \\
+\end{eqnarray}$$
+
+#### Computing Common Factor and Specific Variance:
+
+Here we build functions to break out the risk in our portfolio. Suppose that our portfolio consists of all stocks in the Q3000US, equally-weighted. Let's have a look at how much of the variance of the returns in this universe are due to common factor risk.
+
+In order to actually calculate the percentage of our portfolio variance that is made up of common factor risk, we do the following:
+
+
+$$\frac{\text{common factor variance}}{\text{common factor variance + specific variance}}$$
+
+So we see that if we just take every single security in the Q3000US and equally-weight them, we will end up possessing a portfolio that effectively only contains common risk.
+
+### Risk-Constrained Optimization
+
+Currently we are operating with an equal-weighted portfolio. However, we can reapportion those weights in such a way that we minimize the common factor risk illustrated by our common factor exposures. This is a portfolio optimization problem to find the optimal weights.
+
+We define this problem as:
+
+\begin{array}{ll} \mbox{$\text{minimize/maximum}$}_{w} & \text{objective function}\\
+\mbox{subject to} & {\bf 1}^T \omega = 1, \quad f=B^T\omega\\
+& \omega \in {\cal W}, \quad f \in {\cal F},
+\end{array}
+
+where the variable $w$ is the vector of allocations, the variable $f$ is weighted factor exposures, and  the variable ${\cal F}$ provides our constraints for $f$. We set ${\cal F}$ as a vector to bound the weighted factor exposures of the porfolio. These constraints allow us to reject weightings that do not fit our criteria. For example, we can set the maximum factor exposures that our portfolios can have by changing the value of ${\cal F}$. A value of $[1,1,1]$ would indicate that we want the maximum factor exposure of the portfolio to each factor to be less than $1$, rejecting any portfolios that do not meet that condition.
+
+We define the objective function as whichever business goal we value highest. This can be something such as maximizing the Sharpe ratio or minimizing the volatility. Ultimately, what we want to solve for in this optimization problem is the weights, $\omega$.
+
+Let's quickly generate some random weights to see how the weighted factor exposures of the portfolio change.
+
+The variable $f$ contains the weighted factor exposures of our portfolio, with size equal to the number of factors we have.  As we change $\omega$, our weights, our weighted exposures, $f$, also change.
+
+A concrete example of this can be found [here](http://nbviewer.jupyter.org/github/cvxgrp/cvx_short_course/blob/master/applications/portfolio_optimization.ipynb), in the docs for CVXPY.
+
+### Performance Attribution
+
+Let's take a sample algo from the Educational Platform forums and attribute its performance using pyfolio. This should give us an understanding of the specific and common risk associated with the algorithm's return stream.
+
+Now we'll run the algorithm using [Educational Platform's built-in risk model](https://www.educational_platform.com/posts/new-tool-for-quants-the-educational_platform-risk-model) and performance attribution tearsheet. We extend beyond the Fama-French Factors, looking into common factor risk due to sectors and due to particular styles of investment that are common in the market.

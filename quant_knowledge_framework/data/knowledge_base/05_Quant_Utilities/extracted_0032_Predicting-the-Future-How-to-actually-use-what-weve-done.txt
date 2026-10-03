@@ -1,0 +1,490 @@
+# Predicting the Future: How to actually use what we've done
+
+Topic: 05_Quant_Utilities
+Confidence: 0.55
+Keywords: pandas, cointegration, stationarity, normalize, python, standardize, numpy
+
+---
+
+## Predicting the Future: How to actually use what we've done
+Now that we've fitted a model to our observations, we'd like to be able to predict what the future volatility will look like. To do this, we can just simulate more values using our original GARCH dynamics and the estimated parameters.
+
+The first thing we'll do is compute an initial $\sigma_t$. We'll compute our squared sigmas and take the last one.
+
+Now we'll just sample values walking forward.
+
+One should note that because we are moving foward using a random walk, this analysis is supposed to give us a sense of the magnitude of sigma and therefore the risk we could face. It is not supposed to accurately model future values of X. In practice you would probably want to use Monte Carlo sampling to generate thousands of future scenarios, and then look at the potential range of outputs. We'll try that now. Keep in mind that this is a fairly simplistic way of doing this analysis, and that better techniques, such as Bayesian cones, exist.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import cvxopt
+from functools import partial
+import math
+import numpy as np
+import scipy
+from scipy import stats
+import statsmodels.api as sm
+from statsmodels.stats.stattools import jarque_bera
+
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# Define parameters
+a0 = 1.0
+a1 = 0.1
+b1 = 0.8
+sigma1 = math.sqrt(a0 / (1 - a1 - b1))
+```
+*Cell 3:*
+```python
+def simulate_GARCH(T, a0, a1, b1, sigma1):
+    
+    # Initialize our values
+    X = np.ndarray(T)
+    sigma = np.ndarray(T)
+    sigma[0] = sigma1
+    
+    for t in range(1, T):
+        # Draw the next x_t
+        X[t - 1] = sigma[t - 1] * np.random.normal(0, 1)
+        # Draw the next sigma_t
+        sigma[t] = math.sqrt(a0 + b1 * sigma[t - 1]**2 + a1 * X[t - 1]**2)
+        
+    X[T - 1] = sigma[T - 1] * np.random.normal(0, 1)    
+    
+    return X, sigma
+```
+*Cell 4:*
+```python
+X, _ = simulate_GARCH(10000, a0, a1, b1, sigma1)
+X = X[1000:] # Drop burn in
+X = X / np.std(X) # Normalize X
+
+def compare_tails_to_normal(X):
+    # Define matrix to store comparisons
+    A = np.zeros((2,4))
+    for k in range(4):
+        A[0, k] = len(X[X > (k + 1)]) / float(len(X)) # Estimate tails of X
+        A[1, k] = 1 - stats.norm.cdf(k + 1) # Compare to Gaussian distribution
+    return A
+
+compare_tails_to_normal(X)
+```
+*Cell 5:*
+```python
+plt.hist(X, bins=50)
+plt.xlabel('sigma')
+plt.ylabel('observations');
+```
+*Cell 6:*
+```python
+# Sample values from a normal distribution
+X2 = np.random.normal(0, 1, 9000)
+both = np.matrix([X, X2])
+```
+*Cell 7:*
+```python
+# Plot both the GARCH and normal values
+plt.plot(both.T, alpha=.7);
+plt.axhline(X2.std(), color='yellow', linestyle='--')
+plt.axhline(-X2.std(), color='yellow', linestyle='--')
+plt.axhline(3*X2.std(), color='red', linestyle='--')
+plt.axhline(-3*X2.std(), color='red', linestyle='--')
+plt.xlabel('time')
+plt.ylabel('sigma');
+```
+*Cell 8:*
+```python
+X, _ = simulate_GARCH(1100, a0, a1, b1, sigma1)
+X = X[100:] # Drop burn in
+
+p = 20
+
+# Drop the first 20 so we have a lag of p's
+Y2 = (X**2)[p:]
+X2 = np.ndarray((980, p))
+for i in range(p, 1000):
+    X2[i - p, :] = np.asarray((X**2)[i-p:i])[::-1]
+
+model = sm.OLS(Y2, X2)
+model = model.fit()
+theta = np.matrix(model.params)
+omega = np.matrix(model.cov_HC0)
+F = np.asscalar(theta * np.linalg.inv(omega) * theta.T)
+
+print np.asarray(theta.T).shape
+
+plt.plot(range(20), np.asarray(theta.T))
+plt.xlabel('Lag Amount')
+plt.ylabel('Estimated Coefficient for Lagged Datapoint')
+
+print 'F = ' + str(F)
+
+chi2dist = scipy.stats.chi2(p)
+pvalue = 1-chi2dist.cdf(F)
+print 'p-value = ' + str(pvalue)
+
+# Finally let's look at the significance of each a_p as measured by the standard deviations away from 0
+print theta/np.diag(omega)
+```
+*Cell 9:*
+```python
+X, _ = simulate_GARCH(10000, a0, a1, b1, sigma1)
+X = X[1000:] # Drop burn in
+```
+*Cell 10:*
+```python
+# Here's our function to compute the sigmas given the initial guess
+def compute_squared_sigmas(X, initial_sigma, theta):
+    
+    a0 = theta[0]
+    a1 = theta[1]
+    b1 = theta[2]
+    
+    T = len(X)
+    sigma2 = np.ndarray(T)
+    
+    sigma2[0] = initial_sigma ** 2
+    
+    for t in range(1, T):
+        # Here's where we apply the equation
+        sigma2[t] = a0 + a1 * X[t-1]**2 + b1 * sigma2[t-1]
+    
+    return sigma2
+```
+*Cell 11:*
+```python
+plt.plot(range(len(X)), compute_squared_sigmas(X, np.sqrt(np.mean(X**2)), (1, 0.5, 0.5)))
+plt.xlabel('Time')
+plt.ylabel('Sigma');
+```
+*Cell 12:*
+```python
+def negative_log_likelihood(X, theta):
+    
+    T = len(X)
+    
+    # Estimate initial sigma squared
+    initial_sigma = np.sqrt(np.mean(X ** 2))
+    
+    # Generate the squared sigma values
+    sigma2 = compute_squared_sigmas(X, initial_sigma, theta)
+    
+    # Now actually compute
+    return -sum(
+        [-np.log(np.sqrt(2.0 * np.pi)) -
+        (X[t] ** 2) / (2.0 * sigma2[t]) -
+        0.5 * np.log(sigma2[t]) for
+         t in range(T)]
+    )
+```
+*Cell 13:*
+```python
+# Make our objective function by plugging X into our log likelihood function
+objective = partial(negative_log_likelihood, X)
+
+# Define the constraints for our minimizer
+def constraint1(theta):
+    return np.array([1 - (theta[1] + theta[2])])
+
+def constraint2(theta):
+    return np.array([theta[1]])
+
+def constraint3(theta):
+    return np.array([theta[2]])
+
+cons = ({'type': 'ineq', 'fun': constraint1},
+        {'type': 'ineq', 'fun': constraint2},
+        {'type': 'ineq', 'fun': constraint3})
+
+# Actually do the minimization
+result = scipy.optimize.minimize(objective, (1, 0.5, 0.5),
+                        method='SLSQP',
+                        constraints = cons)
+theta_mle = result.x
+print 'theta MLE: ' + str(theta_mle)
+```
+*Cell 14:*
+```python
+def check_theta_estimate(X, theta_estimate):
+    initial_sigma = np.sqrt(np.mean(X ** 2))
+    sigma = np.sqrt(compute_squared_sigmas(X, initial_sigma, theta_estimate))
+    epsilon = X / sigma
+    print 'Tails table'
+    print compare_tails_to_normal(epsilon / np.std(epsilon))
+    print ''
+    
+    _, pvalue, _, _ = jarque_bera(epsilon)
+    print 'Jarque-Bera probability normal: ' + str(pvalue)
+    
+check_theta_estimate(X, theta_mle)
+```
+*Cell 15:*
+```python
+# The n-th standardized moment
+# skewness is 3, kurtosis is 4
+def standardized_moment(x, mu, sigma, n):
+    return ((x - mu) ** n) / (sigma ** n)
+```
+*Cell 16:*
+```python
+def gmm_objective(X, W, theta):
+    # Compute the residuals for X and theta
+    initial_sigma = np.sqrt(np.mean(X ** 2))
+    sigma = np.sqrt(compute_squared_sigmas(X, initial_sigma, theta))
+    e = X / sigma
+    
+    # Compute the mean moments
+    m1 = np.mean(e)
+    m2 = np.mean(e ** 2) - 1
+    m3 = np.mean(standardized_moment(e, np.mean(e), np.std(e), 3))
+    m4 = np.mean(standardized_moment(e, np.mean(e), np.std(e), 4) - 3)
+    
+    G = np.matrix([m1, m2, m3, m4]).T
+    
+    return np.asscalar(G.T * W * G)
+
+def gmm_variance(X, theta):
+    # Compute the residuals for X and theta    
+    initial_sigma = np.sqrt(np.mean(X ** 2))
+    sigma = np.sqrt(compute_squared_sigmas(X, initial_sigma, theta))
+    e = X / sigma
+
+    # Compute the squared moments
+    m1 = e ** 2
+    m2 = (e ** 2 - 1) ** 2
+    m3 = standardized_moment(e, np.mean(e), np.std(e), 3) ** 2
+    m4 = (standardized_moment(e, np.mean(e), np.std(e), 4) - 3) ** 2
+    
+    # Compute the covariance matrix g * g'
+    T = len(X)
+    s = np.ndarray((4, 1))
+    for t in range(T):
+        G = np.matrix([m1[t], m2[t], m3[t], m4[t]]).T
+        s = s + G * G.T
+    
+    return s / T
+```
+*Cell 17:*
+```python
+# Initialize GMM parameters
+W = np.identity(4)
+gmm_iterations = 10
+
+# First guess
+theta_gmm_estimate = theta_mle
+
+# Perform iterated GMM
+for i in range(gmm_iterations):
+    # Estimate new theta
+    objective = partial(gmm_objective, X, W)
+    result = scipy.optimize.minimize(objective, theta_gmm_estimate, constraints=cons)
+    theta_gmm_estimate = result.x
+    print 'Iteration ' + str(i) + ' theta: ' + str(theta_gmm_estimate)
+    
+    # Recompute W
+    W = np.linalg.inv(gmm_variance(X, theta_gmm_estimate))
+    
+
+check_theta_estimate(X, theta_gmm_estimate)
+```
+*Cell 18:*
+```python
+sigma_hats = np.sqrt(compute_squared_sigmas(X, np.sqrt(np.mean(X**2)), theta_mle))
+initial_sigma = sigma_hats[-1]
+initial_sigma
+```
+*Cell 19:*
+```python
+a0_estimate = theta_gmm_estimate[0]
+a1_estimate = theta_gmm_estimate[1]
+b1_estimate = theta_gmm_estimate[2]
+
+X_forecast, sigma_forecast = simulate_GARCH(100, a0_estimate, a1_estimate, b1_estimate, initial_sigma)
+```
+*Cell 20:*
+```python
+plt.plot(range(-100, 0), X[-100:], 'b-')
+plt.plot(range(-100, 0), sigma_hats[-100:], 'r-')
+plt.plot(range(0, 100), X_forecast, 'b--')
+plt.plot(range(0, 100), sigma_forecast, 'r--')
+plt.xlabel('Time')
+plt.legend(['X', 'sigma']);
+```
+*Cell 21:*
+```python
+plt.plot(range(-100, 0), X[-100:], 'b-')
+plt.plot(range(-100, 0), sigma_hats[-100:], 'r-')
+plt.xlabel('Time')
+plt.legend(['X', 'sigma'])
+
+
+max_X = [-np.inf]
+min_X = [np.inf]
+for i in range(100):
+    X_forecast, sigma_forecast = simulate_GARCH(100, a0_estimate, a1_estimate, b1_estimate, initial_sigma)
+    if max(X_forecast) > max(max_X):
+        max_X = X_forecast
+    elif min(X_forecast) < min(max_X):
+        min_X = X_forecast
+    plt.plot(range(0, 100), X_forecast, 'b--', alpha=0.05)
+    plt.plot(range(0, 100), sigma_forecast, 'r--', alpha=0.05)
+
+# Draw the most extreme X values specially
+plt.plot(range(0, 100), max_X, 'g--', alpha=1.0)
+plt.plot(range(0, 100), min_X, 'g--', alpha=1.0);
+```
+
+##### Autoregressive (AR) Models
+- **Original Path**: `notebooks\lectures\Autocorrelation_and_AR_Models\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 42 (Code: 19, Markdown: 23)
+- **Imports/Dependencies**: from scipy import stats, from statsmodels.stats.stattools import jarque_bera, from statsmodels.tsa.stattools import acf, pacf, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import statsmodels.api as sm, import statsmodels.tsa as tsa
+
+**Explanatory Notes:**
+# Autoregressive (AR) Models
+
+by Maxwell Margenot, Delaney Mackenzie, and Lee Tobey
+
+Lee Tobey is the founder of [Hedgewise](https://www.hedgewise.com/).
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+##AR Models
+An autoregressive, or AR$(p)$, model is created by regressing a time series on its past values, its lags. The simplest form of an autoregressive model is an AR$(1)$ model, signifying using only one lag term. A first order autocorrelation model like this for a time series $x_t$ is:
+
+$$
+x_t = b_0 + b_1 x_{t - 1} + \epsilon_t
+$$
+
+Where $x_{t - 1}$ represents the value of the time series at time $(t - 1)$ and $\epsilon_t$ is the error term. We can extend this to an AR$(p)$ model, denoted:
+
+$$
+x_t = b_0 + b_1 x_{t-1} + b_2 x_{t - 2} \ldots + b_p x_{t - p} + \epsilon_t
+$$
+
+For an AR model to function properly, we must require that the time series is covariance stationary. This means that it follows three conditions:
+
+1. The expected value of the time series is constant and finite at all times, i.e. $E[y_t] = \mu$ and $\mu < \infty$ for all values of $t$.
+2. The variance of the time series is constant and finite for all time periods.
+3. The covariance of the time series with itself for a fixed number of periods in either the future or the past is constant and finite for all time periods, i.e
+
+$$
+COV(y_t, y_{t - s}) = \lambda, \  |\lambda| < \infty, \text{ $\lambda$ constant}, \  t = 1, 2, \ \ldots, T; \  s = 0, \pm 1, \pm 2, \ldots, \pm T
+$$
+
+Note that this mathematical representation includes condition 2.
+
+If these conditions are not satisfied, our estimation results will not have real-world meaning. Our estimates for the parameters will be biased, making any tests that we try to form using the model invalid. Unfortunately, it can be a real pain to find a covariance-stationary time series in the wild in financial markets. For example, when we look at the stock price of Apple, we can clearly see an upward trend. The mean is increasing with time. There are ways, however to make a non-stationary time series stationary. Once we have performed this transformation, we can build an autoregressive models under the above assumptions.
+
+##Simulating Data
+
+Here we will draw data samples from a simulated AR$(3)$ process.
+
+Note how this process fluctuates around some central value. This value is the mean of our time series. As we have a constant mean throughout time and the fluctuations seem to all stray within a given distance from the mean, we might hypothesize that this series is stationary. We would want to rigorously test that in practice, which we will explore lightly in the examples at the end of this lecture. Also see the [stationarity lecture](https://www.educational_platform.com/lectures/integration-cointegration-and-stationarity) from the Educational Platform Lecture Series.
+
+In this case, however, we have constructed the model to be stationary, so no need to worry about testing for stationarity right now.
+
+##Tail Risk
+
+Autoregressive processes will tend to have more extreme values than data drawn from say a normal distribution. This is because the value at each time point is influenced by recent values. If the series randomly jumps up, it is more likely to stay up than a non-autoregressive series. This is known as 'fat-tailledness' (fat-tailed distribution) because the extremes on the pdf will be fatter than in a normal distribution.
+
+Much talk of tail risk in finance comes from the fact that tail events do occur and are hard to model due to their infrequent occurrence. If we have reason to suspect that a process is autoregressive, we should expect risk from extreme tail events and adjust accordingly.
+
+AR models are just one of the sources of tail risk, so don't assume that because a series is non-AR, it does not have tail risk.
+
+We'll check for that behavior now.
+
+##Estimations of Variance Will be Wrong
+
+Because an AR process has a tail heavy and non-normal distribution of outcomes, estimates of variance on AR processes will be wrong. This is dangerous because variance is used to calculate many quantities in staistics, most importantly confidence intervals and p-values. Because the width of the confidence interval is often based on a variance estimate, we can no longer trust p-values that come from AR processes. For more information on p-values please see the Hypothesis Testing notebook in the [Educational Platform Lecture Series](https://www.educational_platform.com/lectures).
+
+Let's check this here. First we'll define some helper functions that compute a naive 95% confidence interval for the true value of the mean on some input series.
+
+Now we'll run an experiment 1000 times in which we compute an AR series, then estimate the mean and take a naive 95% confidence interval around it. Then we'll check if the confidence interval contains 0, the true long-term mean of our series, and record that in our `outcomes` array.
+
+Finally let's check, if our test is calibrated correctly, then we should have the confidence interval contain 0, 95% of the time.
+
+Looks like something is severly wrong. What's going on here is that the AR series moves around a lot more, but the estimate of variance assumes stationarity and doesn't take into account all of that motion. As a result the confidence intervals are way smaller than they should be and don't contain the correct value nearly enough.
+
+This gives us a false sense of security. Stationarity tests should usually catch AR behavior and let us know that estimates of variance will be wrong. For more information please see the Integration, Cointegration, and Stationarity lecture of the [Educational Platform Lecture Series](https://www.educational_platform.com/lectures).
+
+####Correcting for Variance
+
+In practice it can be very difficult to accurately estimate variance on an AR series, but one attempt to do this is the Newey-West estimation. You can find information on it [here](https://en.wikipedia.org/wiki/Newey%E2%80%93West_estimator).
+
+##Testing for AR Behavior
+
+In order to determine the order, $p$, of an AR$(p)$ model, we look at the autocorrelations of the time series. These are the correlations of the series with its past values. The $k$-th order autocorrelation is
+
+$$
+\rho_k = \frac{COV(x_t, x_{t - k})}{\sigma_x^2} = \frac{E[(x_t - \mu)(x_{t - k} - \mu)}{\sigma_x^2}
+$$
+
+Where $k$ represents the number of periods lagged. We cannot directly observe the autocorrelations so we estimate them as 
+
+$$
+\hat{\rho}_k = \frac{\sum_{t = k + 1}^T[(x_t - \bar{x})(x_{t - k} - \bar{x})]}{\sum_{t = 1}^T (x_t - \bar{x})^2}
+$$
+
+For our purposes, we can use a pair of tools called the autocorrelation function (ACF) and the partial autocorrelation function (PACF) in order to determine the order of our model. The PACF controls for shorter lags, unlike the ACF. These functions are included with many statistical packages and compute the sample autocorrelations for us, allowing us to determine the appropriate value of $p$.
+
+We will demonstrate these functions on our above example of a stationary series:
+
+Let's plot out the values now.
+
+####Statistical Testing
+
+Just looking at the graphs alone isn't enough. We need to use some degree of statistical rigor. The `acf` and `pacf` functions will return confidence intervals on all the autocorrelations. We can check if these intervals overlap with zero. If they do then we say that zero is within the set confidence interval for the true parameter value, and don't treat the lag as having any meaningful autocorrelation.
+
+NOTE: This only works if the assumptions underlying the confidence interval computations are satisfied. Please check these assumptions before you assume the test is meaningful. The assumptions will differ in every case, so please read the statistical documentation of your own test and go from there.
+
+After getting the confidence interval data, we'll write a function to plot it.
+
+Notice how for the PACF, only the first three lags are the only ones that appear to be significantly different from $0$, which makes sense because we directly constructed an AR model of order $3$. However, these results may vary for each random series generated in this notebook.
+
+
+In a real-world time series, we use these plots to determine the order of our model. We would then attempt to fit a model using a maximum likelihood function.
+
+##Fitting a Model
+
+We'll use one of the functions already implemented in Python to fit an AR model. We'll try this on our simulated data first.
+
+The `model` object has a lot of useful information on it, use the `?` notation to find out more. We'll be focusing on a few attributes, starting with `model.params` the estimated parameters in the model, one for each lag, and `model.bse`, the estimated standard error for each of the parameters.
+
+### Choosing the Number of Lags
+
+#### Estimations Will Yield Too Many Lags
+
+We can see our model estimated quite a few parameters. In this case we know there are too many because we simulated the data as an AR(3) process. The reason that AR models will estimate many more lags than is actually the case is due to indirect dependency. If $X_t$ depends on $X_{t-1}$, then indirectly and to a lesser extent it will depend on $X_{t-2}$. In the presence of more than one lag in the data generating process, we will get potentially complex harmonic structures in the lags. These indirect dependencies will be picked up by a simple estimation.
+
+#### You Want the Fewest Parameters That Yield a Decent Model
+
+In general it's rarely the case that you can get anything useful out of a model with many parameters, see the Overfitting lecture for why in the Educational Platform Lecture Series. In this case we want to select a number of lags that we believe explains what is happening, but without overfitting and choosing a model with way too many lags. 
+
+Observing the ACF and PACF indicates that only the first 3 lags may be useful. However, we will expand the number of lags to 10 to double-check our initial data. We will use information criterion, specifically Akaike Information Criterion (AIC) and Bayes Information Criterion (BIC) to decide the correct number of parameters. For more information on choosing models using information criterion, please see the corresponding lecture in the Educational Platform Lecture Series.
+
+Interpreting the AIC and BIC is done as follows. Compute the AIC and BIC for all models we wish to consider, and note the smallest AIC and BIC recorded $AIC_{min}$ and $BIC_{min}$. These are the models which minimize information loss under each metric. For each type of IC We then can compute the *relative likelihood* of each model $i$ by taking 
+
+$$l = e^{(IC_{min} - IC_{i})/2}$$
+
+We can interpret $l$ as model $i$ is $l$ times as likely to minimize information loss, compared to the minimum AIC model. It might take a few reads to understand this, so let's just see it in action.
+
+Our conclusion is that the AIC estimates the 4 parameter model as most likely, whereas the BIC estimates 3. Because we are always looking for reasons to knock off a parameter, we choose the 3. In this case it happened to be the exact right answer, but this will not always be the case, especially in noisy real data. Don't assume that using this method will always get you the right answer.
+
+### Evaluating Residuals
+
+One final step we might do before performing an out of sample test for this model would be to evaluate its residual behavior. The AIC and BIC already do this to an extent, effectively measuring how much information is left on the table (in the residuals) after the model has made its predictions. For more information on residuals analysis see the Violations of Regression Models lecture. Here we'll just check for normality of the residuals.
+
+The residuals seem normally distributed. There are more model validation steps that could be done, but these are the core ones for an AR model. The next steps would be testing the model out of sample, and then using it to make predictions on your data.

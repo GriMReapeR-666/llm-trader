@@ -1,0 +1,11 @@
+# Sample Mean vs. Population Mean
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Sample Mean vs. Population Mean
+
+Sample means and population means are different. Generally, we want to know about a population mean, but we can only calculate a sample mean. We then want to use the sample mean to estimate the population mean. We use confidence intervals in an attempt to determine how accurately our sample mean estimates the population mean.

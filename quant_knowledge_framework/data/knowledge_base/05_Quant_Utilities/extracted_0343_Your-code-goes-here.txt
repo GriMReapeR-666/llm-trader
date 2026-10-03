@@ -1,0 +1,48 @@
+# Your code goes here
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python
+
+---
+
+## Your code goes here
+
+# Fetch values of Beta and parameters of SE from the matrix
+beta = result.params[i]
+c = SE[i,i]
+
+print beta - z * c, beta + z * c
+```
+*Cell 6:*
+```python
+# Creat an empty numpy array (float values). 
+# Find the predicted value of f for every c in celsius (given by f = 32 + 1.8c)
+fpred = np.array([])
+f = [32 + 1.8*a for a in celsius] ## Your code goes here (fill in the values of Beta, and X1)
+ypredicted = np.append(f, fpred)
+```
+*Cell 7:*
+```python
+# Calucate the difference between the predicted values of y and the actual values of y, 
+# Find the square of the difference
+# Sum the Squares
+
+ypred_yact = [a - b for a, b in zip(ypredicted, fahrenheit)] ## your code goes here (a - b)
+diff1squared = [a**2 for a in ypred_yact] ## Your code goes here (a**2)
+sumsquares1 = sum(diff1squared) ## Your code goes here 
+```
+*Cell 8:*
+```python
+# Calucate the difference between the predicted values of y and mean of y. 
+# Find the square of the difference
+# Sum the Squares
+
+mean = sum(fahrenheit)/len(fahrenheit) ## Your code goes here
+ypred_mean = [x - mean for x in ypredicted] ## Your code goes here (x-mean)
+ypred_meansquared = [a**2 for a in ypred_mean] ## Your code goes here (a**2)
+sumsquares2 = sum(ypred_meansquared) ## Your code goes here
+
+```
+*Cell 9:*
+```python

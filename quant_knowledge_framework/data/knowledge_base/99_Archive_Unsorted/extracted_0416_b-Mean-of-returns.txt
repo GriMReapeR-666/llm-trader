@@ -1,0 +1,14 @@
+# b. Mean of returns
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Mean of returns
+Find the mean of the returns of Iteris Inc. (ITI).
+
+---
+
+# Exercise 2 : Median

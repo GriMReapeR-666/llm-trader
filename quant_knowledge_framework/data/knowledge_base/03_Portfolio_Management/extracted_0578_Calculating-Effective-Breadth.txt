@@ -1,0 +1,19 @@
+# Calculating Effective Breadth
+
+Topic: 03_Portfolio_Management
+Confidence: 0.67
+Keywords: correlation, portfolio
+
+---
+
+## Calculating Effective Breadth
+
+This section is based on "How to calculate breadth: An evolution of the fundamental law of active portfolio management", by David Buckle; Vol. 4, 6, 393-405, 2003, _Journal of Asset Management_. Buckle derives the "semi-generalised fundamental law of active management" under several weak assumptions. The key result of this paper (for us) is a closed-form calculaiton of effective breadth as a function of the correlation between bets. Buckle shows that breadth, $BR$, can be modeled as
+
+$$BR = \frac{N}{1 + \rho(N -1)}$$
+
+where N is the number of stocks in the portfolio and $\rho$ is the assumed single correlation of the expected variation around the forecast.
+
+Here we see that in the case of the long-only portfolio, where the average correlation is 0.56, we are *effectively making only approximately 2 bets*. When we hedge beta, with a resulting average correlation of 0.22, things get a little better, *three effective bets*. When we add the sector hedge, we get close to zero correlation, and in this case the number of bets equals the number of assets, 6.
+
+**More independent bets with the same IC leads to higher Sharpe ratio.**

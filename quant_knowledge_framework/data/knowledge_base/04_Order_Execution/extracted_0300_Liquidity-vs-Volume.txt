@@ -1,0 +1,18 @@
+# Liquidity vs. Volume
+
+Topic: 04_Order_Execution
+Confidence: 0.67
+Keywords: slippage, bid-ask spread, spread
+
+---
+
+## Liquidity vs. Volume
+Liquidity and volume are not the same thing. Liquidity is the important property that affects how easily we can trade. Volume is a related but indirect proxy for liquidity. In general people use volume as one of the main ways to determine how liquid a trading environemnt will be. If there is high volume, it's likely you'll be able to execute a trade quickly and with minimal slippage. If you're a high percentage of the volume, then you're in trouble. In general the higher the volume, the lower your percentage and the better things will be.
+
+Although volume is central to liquidity, one can have cases of high volume with low liquidity.
+
+### One-Sided Market
+A market may have high volume, but with a lot of demand in one direction. This can occur during a panic event in which case many people want to sell. This can result in large bid-ask spreads and, while trades may be closing, they will be closing at prices far away from what you would like (AKA high slippage). The high slippage indicates that this is an illiquid market. It is also more difficult to determine a fair market price when spreads and volatility are high. Momentum strategies can have higher slippage due to the fact that you're jumping into the same side of the market as everybody else.
+
+### Non-Continuous Prices
+Sometimes there can be large block transactions occuring in a single instrument. Imagine that a large shareholder is trying to get rid of their stake in a company. Rather than selling it on the open market and exposing themselves to a massive amount of slippage, they trade it through other routes. There will still be a large amount of trading volume, but because it's not accessible to you, any trades you place will be exposed to the same illiquid conditions as without that volume.

@@ -1,0 +1,23 @@
+# Slope of 52-Week Trendline
+
+Topic: 02_Strategy_Development
+Confidence: 0.67
+Keywords: ev, strategy
+
+---
+
+## Slope of 52-Week Trendline
+
+One of the oldest indicators of price momentum is the trendline. The basic idea is to create a bounding line around stock prices that predict when a price should pivot. A trendline that predicts a ceiling is called a resistance trendline, and one that predicts a floor is a support trendline. 
+
+To calculate a support trendline here, we take a lagged series, and find its pronounced local minima (here, a local minimum is defined as a data point lower than the five previous and five proceeding points). We then connect the first local minimum and the last local minimum by a straight line. For a resistance trendline, the process is the same, except it uses local maxima. This is just one of many methodologies for calculating trendlines.
+
+Let us code up a function to return the gradient of the trendline. We will include a boolean variable `support` that, when set to `True` gives a support trendline and when set to `False` gives a resistance trendline. Let us have a look at the same dataset of AAPL stock and plot its trendlines. 
+
+NB: The y-intercepts used here are purely aesthetic and have no meaning as the indicator itself is only based on the slope of the trendline  
+
+As you can see, at the beginning of the time frame these lines seem to describe the pivot points of the curve well. Therefore it appears that betting against the stock when its price nears the resistance line and betting on the stock when its price nears the support line is a decent strategy. One issue with this is that these trendlines change over time. Even at the end of the above graph, it appears that the lines need to be redrawn in order to accomodate new prevailing price trends.
+
+Now let us create our factor. In order to maintain flexibility between the types of trendlines, we need a way to pass the variable `support` into our Pipeline calculation. To do this we create a function that returns a `CustomFactor class` that *can* take a variable that is in scope of our indicator.
+
+Also, we have abstracted out the trendline calculation so that we can use the builtin Numpy function `apply_along_axis` instead of creating and appending the results of the trendline calculation for each column to a list, which is a slower process.

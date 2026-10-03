@@ -1,0 +1,15 @@
+# Introduction to Bayesian optimization (Scott)
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Introduction to Bayesian optimization (Scott)
+
+[Bayesian Optimization](https://en.wikipedia.org/wiki/Bayesian_optimization) is a powerful tool that is particularly useful when optimizing anything that is both time consuming and expensive to evaluate (like trading algorithms). At the core, Bayesian Optimization attempts to leverage historical observations to make optimal suggestions on the best variation of parameters to sample (maximizing some objective like expected returns). This field has been actively studied in academia for decades, from the seminal paper ["Efficient Global Optimization of Expensive Black-Box Functions"](http://www.ressources-actuarielles.net/EXT/ISFA/1226.nsf/0/f84f7ac703bf5862c12576d8002f5259/$FILE/Jones98.pdf) by Jones et al. in 1998 to more recent contributions like ["Practical Bayesian Optimization of Machine Learning Algorithms"](http://papers.nips.cc/paper/4522-practical-bayesian-optimization-of-machine-learning-algorithms.pdf) by Snoek et al. in 2012.
+
+Many of these approaches take a similar route to solving the problem: they map the observed evaluations onto a [Gaussian Process](http://blog.sigopt.com/post/130275376068/sigopt-fundamentals-intuition-behind-gaussian) (GP), [fit the best possible GP model](http://blog.sigopt.com/post/131498069303/sigopt-fundamentals-intuition-behind-covariance), perform optimization on this model, then return a new set of suggestions for the user to evaluate. At the core, these methods balance the tradeoff between exploration (learning more about the model, the length scales over which they vary, and how they combine to influence the overall objective) and exploitation (using the knowledge already gained to return the best possible expected result). By efficiently and automatically making these tradeoffs, Bayesian Optimization techniques can quickly find the global optima of these difficult to optimize problems, often much faster than traditional methods like brute force or localized search.
+
+At every Bayesian Optimization iteration, the point of highest Expected Improvement is returned; this is the set of parameters that, in expectation, will most improve upon the best objective value observed thus far. SigOpt wraps these powerful optimization techniques behind a simple API so that any expert in any field can optimize their models without resorting to expensive trial and error. More information about how SigOpt works, as well as other examples of using Bayesian Optimization to perform parameter optimization, can be found on our [research page](https://sigopt.com/research).

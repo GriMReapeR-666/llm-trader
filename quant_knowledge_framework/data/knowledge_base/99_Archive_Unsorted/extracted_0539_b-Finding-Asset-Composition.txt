@@ -1,0 +1,11 @@
+# b. Finding Asset Composition
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Finding Asset Composition
+
+Use the pipeline API with the QTradableStocksUS as a screen to find and print the list of equities included in the QTradableStocksUS on 2016-07-01.

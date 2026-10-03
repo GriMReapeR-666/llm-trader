@@ -1,0 +1,10 @@
+# a. Indexing
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Indexing
+Form a DataFrame out of `dict_data` with `l` as its index.

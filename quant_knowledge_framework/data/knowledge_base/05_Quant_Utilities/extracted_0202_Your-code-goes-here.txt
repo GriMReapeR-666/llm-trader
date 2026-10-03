@@ -1,0 +1,139 @@
+# Your code goes here
+
+Topic: 05_Quant_Utilities
+Confidence: 0.43
+Keywords: numpy, python, pandas
+
+---
+
+## Your code goes here
+spot_price[0] =  # Starting Spot Price 
+futures_price[0] = spot_price[0]*np.exp(cost_of_carry*N)
+
+for n in range(1, N): 
+    spot_price[n] = spot_price[n-1]*(1 + np.random.normal(0, 0.05))
+    futures_price[n] = spot_price[n]*np.exp(cost_of_carry*(N - n))
+
+spot_price.plot()
+futures_price.plot()
+plt.legend()
+
+plt.title('Contango')
+plt.xlabel('Time')
+plt.ylabel('Price');
+```
+
+##### Introduction to NumPy
+- **Original Path**: `notebooks\lectures\Introduction_to_NumPy\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 81 (Code: 37, Markdown: 44)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np
+
+**Explanatory Notes:**
+# Introduction to NumPy
+by Maxwell Margenot
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+NumPy is an incredibly powerful package in Python that is ubiquitous throughout the Educational Platform platform. It has strong integration with Pandas, another tool we will be covering in the lecture series. NumPy adds support for multi-dimensional arrays and mathematical functions that allow you to easily perform linear algebra calculations. This lecture will be a collection of linear algebra examples computed using NumPy.
+
+### Basic NumPy arrays
+
+The most basic way that we could make use of NumPy in finance is calculating the mean return of a portfolio. Say that we have a list containing the historical return of several stocks.
+
+We can make an array by calling a function on the list:
+
+You'll notice that the type of our array is 'ndarray', not just 'array'. This is because NumPy arrays can be created with multiple dimensions. If we pass np.array() a list of lists, it will create a 2-dimensional array. If we pass a list of lists of lists, it will create a 3-dimensional array, and so on and so forth.
+
+We can access the dimensions of an array by looking at its `shape` member variable.
+
+Arrays are indexed in much the same way as lists in Python. Elements of a list begin indexing from $0$ and end at $n - 1$, where $n$ is the length of the array.
+
+We can take a slice of an array using a colon, just like in a list.
+
+A slice of an array, like in a list, will select a group of elements in the array starting from the first element indicated and going up to (but not including) the last element indicated.
+
+In the case of multidimensional arrays, many of the same conventions with slicing and indexing hold. We can access the first column of a 2-dimensional array like so:
+
+And the first row of a 2-dimensional array like so:
+
+Notice that each slice of the array returns yet another array!
+
+Passing only one index to a 2-dimensional array will result in returning the row with the given index as well, providing us with another way to access individual rows.
+
+Accessing the index of an individual element will return only the element.
+
+#### Array functions
+
+Functions built into NumPy can be easily called on arrays. Most functions are applied to an array element-wise (as scalar multiplication is). For example, if we call `log()` on an array, the logarithm will be taken of each element.
+
+Some functions return a single value. This is because they treat the array as a collection (similar to a list), performing the designated function. For example, the `mean()` function will do exactly what you expect, calculating the mean of an array.
+
+Or the `max()` function will return the maximum element of an array.
+
+For further reading on the universal functions in NumPy, check out the [documentation](https://docs.scipy.org/doc/numpy/user/quickstart.html#universal-functions).
+
+### Return to the returns
+
+Now let's modify our returns array with scalar values. If we add a scalar value to an array it will be added to every element of the array. If we multiply an array by a scalar value it will be multiplied against every element of the array. If we do both, both will happen!
+
+NumPy also has functions specifically built to operate on arrays. Let's take the mean and standard deviation of this group of returns.
+
+Let's simulate a universe of stocks using NumPy's functions. First we need to create the arrays to hold the assets and returns that we will use to build a portfolio. This is because arrays are created with a fixed size. Their dimensions can't be changed without creating a new array.
+
+This function, `zeroes()`, creates a NumPy array with the given dimensions that is entirely filled in with $0$. We can pass a single value or a tuple of as many dimensions as we like. Passing in the tuple `(N, 100)`, will return a two-dimensional array with $N$ rows and $100$ columns. Our result is a $N \times 100$ array.
+
+Now we will simulate a base asset. We want the universe of stocks to be correlated with each other so we will use this initial value to generate the others.
+
+The `random` module in NumPy is exceedingly useful. It contains methods for sampling from many different probability distributions, some of which are covered in the [random variables lecture](https://www.educational_platform.com/lectures/random-variables) in the Educational Platform lecture series. In this case we draw $N = 100$ random samples from a normal distribution with mean $1.01$ and standard deviation $0.03$. We treat these as the daily percentage returns of our asset and take the cumulative product of these samples to get the current price.
+
+The way we have generated our universe, the the individual $R_i$ vectors are each 1-dimensional arrays and the `returns` and `assets` variables contain 2-dimensional arrays. Above, we set the initial row of both `returns` and `assets` to be the first $R_i$ vector and the cumulative asset price based on those returns, respectively.
+
+We will now use this base asset to create a few other random assets that are correlated with it.
+
+Here we generate the remaining $N - 1$ securities that we want in our universe by adding random noise to $R_1$. This ensures that our $N - 1$ other assets will be correlated with the base asset because they have some underlying information that is shared.
+
+Let's plot what the mean return of each asset looks like:
+
+### Calculating Expected Return
+
+So we have a universe of stocks. Great! Now let's put them together in a portfolio and calculate its expected return and risk.
+
+We will start off by generating $N$ random weights for each asset in our portfolio.
+
+We have to rescale the weights so that they all add up to $1$. We do this by scaling the weights vector by the sum total of all the weights. This step ensures that we will be using $100\%$ of the portfolio's cash.
+
+To calculate the mean return of the portfolio, we have to scale each asset's return by its designated weight. We can pull each element of each array and multiply them individually, but it's quicker to use NumPy's linear algebra methods. The function that we want is `dot()`. This will calculate the dot product between two arrays for us. So if $v = \left[ 1, 2, 3 \right]$ and $w = \left[4, 5, 6 \right]$, then:
+
+$$ v \cdot w = 1 \times 4 + 2 \times 5 + 3 \times 6 $$
+
+For a one-dimensional vector, the dot product will multiply each element pointwise and add all the products together! In our case, we have a vector of weights, $\omega = \left[ \omega_1, \omega_2, \dots \omega_N\right]$ and a vector of returns, $\mu = \left[ \mu_1, \mu_2, \dots, \mu_N\right]$. If we take the dot product of these two we will get:
+
+$$ \omega \cdot \mu = \omega_1\mu_1 + \omega_2\mu_2 + \dots + \omega_N\mu_N = \mu_P $$
+
+This yields the sum of all the asset returns scaled by their respective weights. This the the portfolio's overall expected return!
+
+Calculating the mean return is fairly intuitive and does not require too much explanation of linear algebra. However, calculating the variance of our portfolio requires a bit more background.
+
+#### Beware of NaN values
+
+Most of the time, all of these calculations will work without an issue. However, when working with real data we run the risk of having `nan` values in our arrays. This is NumPy's way of saying that the data there is missing or doesn't exist. These `nan` values can lead to errors in mathematical calculations so it is important to be aware of whether your array contains `nan` values and to know how to drop them.
+
+Let's see what happens when we try to take the mean of this array.
+
+Clearly, `nan` values can have a large impact on our calculations. Fortunately, we can check for `nan` values with the `isnan()` function.
+
+Calling `isnan()` on an array will call the function on each value of the array, returning a value of `True` if the element is `nan` and `False` if the element is valid. Now, knowing whether your array contains `nan` values is all well and good, but how do we remove `nan`s? Handily enough, NumPy arrays can be indexed by boolean values (`True` or `False`). If we use a boolean array to index an array, we will remove all values of the array that register as `False` under the condition. We use the `isnan()` function in create a boolean array, assigning a `True` value to everything that is *not* `nan` and a `False` to the `nan`s and we use that to index the same array.
+
+There are a few shortcuts to this process in the form of NumPy functions specifically built to handle them, such as `nanmean()`.
+
+The `nanmean()` function simply calculates the mean of the array as if there were no `nan` values at all! There are a few more of these functions, so feel free to read more about them in the [documentation](https://docs.scipy.org/doc/numpy/user/index.html). These indeterminate values are more an issue with data than linear algebra itself so it is helpful that there are ways to handle them.
+
+### Conclusion
+
+Linear algebra is pervasive in finance and in general. For example, the calculation of *optimal* weights according to modern portfolio theory is done using linear algebra techniques. The arrays and functions in NumPy allow us to handle these calculations in an intuitive way. For a quick intro to linear algebra and how to use NumPy to do more significant matrix calculations, proceed to the next section.

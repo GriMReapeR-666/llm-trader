@@ -1,0 +1,26 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+spot_price[0] =  # Starting Spot Price 
+futures_price[0] = spot_price[0]*np.exp(cost_of_carry*N)
+
+for n in range(1, N): 
+    spot_price[n] = spot_price[n-1]*(1 + np.random.normal(0, 0.05))
+    futures_price[n] = spot_price[n]*np.exp(cost_of_carry*(N - n))
+
+spot_price.plot()
+futures_price.plot()
+plt.legend()
+
+plt.title('Contango')
+plt.xlabel('Time')
+plt.ylabel('Price');
+```
+*Cell 7:*
+```python

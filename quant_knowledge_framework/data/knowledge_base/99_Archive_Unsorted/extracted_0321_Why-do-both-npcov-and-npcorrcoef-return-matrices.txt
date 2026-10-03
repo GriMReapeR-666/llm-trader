@@ -1,0 +1,19 @@
+# Why do both `np.cov` and `np.corrcoef` return matrices?
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Why do both `np.cov` and `np.corrcoef` return matrices?
+
+The covariance matrix is an important concept in statistics. Often people will refer to the covariance of two variables $X$ and $Y$, but in reality that is just one entry in the covariance matrix of $X$ and $Y$. For each input variable we have one row and one column. The diagonal is just the variance of that variable, or $Cov(X, X)$, entries off the diagonal are covariances between different variables. The matrix is symmetric across the diagonal. Let's check that this is true.
+
+Now let's see what two correlated sets of data look like.
+
+Let's dial down the relationship by introducing more noise.
+
+Finally, let's see what an inverse relationship looks like.
+
+We see a little bit of rounding error, but they are clearly the same value.

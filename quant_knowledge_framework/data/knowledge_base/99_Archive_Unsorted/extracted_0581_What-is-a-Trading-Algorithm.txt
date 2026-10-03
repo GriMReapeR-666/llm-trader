@@ -1,0 +1,11 @@
+# What is a Trading Algorithm?
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## What is a Trading Algorithm?
+
+A trading algorithm is a computer program that defines a set of rules for buying and selling assets. Most trading algorithms make decisions based on mathematical or statistical models that are derived from research conducted on historical data.

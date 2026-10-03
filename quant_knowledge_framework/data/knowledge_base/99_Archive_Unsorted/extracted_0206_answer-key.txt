@@ -1,0 +1,36 @@
+# answer key ##
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## answer key ##
+score, pvalue, _ = coint(A,B)
+
+confidence_level = 0.05
+
+if pvalue < confidence_level:
+    print ("A and B are cointegrated")
+    print pvalue
+else:
+    print ("A and B are not cointegrated")
+    print pvalue
+    
+A.name = "A"
+B.name = "B"
+pd.concat([A, B], axis=1).plot();
+```
+*Cell 5:*
+```python
+C_returns = np.random.normal(1, 1, 100) 
+C = pd.Series(np.cumsum(C_returns), name='X') + 100
+
+D_returns = np.random.normal(2, 1, 100)
+D = pd.Series(np.cumsum(D_returns), name='X') + 100
+
+#Your code goes here
+```
+*Cell 6:*
+```python

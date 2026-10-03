@@ -1,0 +1,24 @@
+# Alphalens (Factor Analysis)
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Alphalens (Factor Analysis)
+[Alphalens](https://github.com/educational_platform/alphalens) is a tool on Educational Platform for analyzing the predictve ability of a factor. In this notebook, we will use Alphalens to analyze the predictive ability of a **fantasy points per game** factor.
+
+The first step to analzing our factor is to define it. Here, we will define the fantasy points per game factor, `trailing_20_dk_score` to be the rolling mean fantasy points per game (using DK scoring rules) over the last 20 days.
+
+And then we need to define our objective metric, or 'what we want to maximize'. In finance, we want to maximize portfolio returns. In DraftKings DFS, we want to maximize our DraftKings score for the current day.
+
+Next, we need to import Alphalens so that we can use it to analyze our factors.
+
+Before using Alphalens, we need to format our data in a way that it expects. Let's start with our points factor. The below function creates a DataFrame using our points factor and our DK scores. It also specifies `periods` to be 1, meaning we only care about the performance of the player on one day. The data will be categorized into 5 'quantiles' to remove some of the noise from the relationship.
+
+Now, let's plot the relationship between each of our points per game factor quantiles and see how strongly they predict DK points on a given day.
+
+It looks like our fantasy points per game factor is a strong predictor. We see a  narrow and distinct distribution around each quantile's mean DK points (y axis).
+
+Let's look at another visualization of the points per game factor and plot out the daily mean of each quantile.

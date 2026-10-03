@@ -1,0 +1,92 @@
+# Correlation
+
+Topic: 03_Portfolio_Management
+Confidence: 0.38
+Keywords: correlation, matrix, ror
+
+---
+
+## Correlation
+
+The covariance of two variables is negative if, on average, one is above its expected value when the other is below its expected value, and vice versa. The covariance is positive if the two variables tend to be on the same side of their expected values at the same time (in particular, variance is always positive). However, the magnitude of the covariance doesn't tell us much. Therefore we define <i>correlation</i> as follows:
+
+$$ \rho(R_i, R_j) = \frac{Cov(R_i, R_j)}{\sigma(R_i)\sigma(R_j)} $$
+
+The correlation is normalized and unitless, so its value is always between -1 and 1. Since $\sigma$ is always positive, the same sign rules apply to correlation as to covariance. Additionally, we can say that the smaller $\rho$ is in absolute value, the weaker the linear relationship ($R_1 = a + b R_2 + $ error) between the variables. A positive correlation means that $b>0$, and the variables are called correlated. A variable has a correlation of 1 with itself, which indicates a perfect linear relationship. A negative correlation indicates an inverse linear relationship ($b<0$), and we say that the variables are anticorrelated. If $\rho = 0$, then $b=0$ in this relationship, and the variables are uncorrelated.
+
+Two independent variables are always uncorrelated, but the converse is not always true.
+
+Below we compute the correlation matrix for some returns, and plot the most and the least correlated pairs.
+
+All of the means are approximately 0, so we can intuitively see the correlation from the plot. The blue data is mostly in the top right and bottom left quadrants, so the variables are generally either both positive (i.e. both above their means, since both have mean approximately 0) or both negative. This means that they are positively correlated. The red data is scattered fairly evenly across the quadrants, so there is no relationship between the data; x and y are both positive or both negative about as often as they have opposite signs.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Import for plotting
+import matplotlib.pyplot as plt
+
+# Get returns data for 5 different assets
+assets = ['XLK', 'MIG', 'KO', 'ATHN', 'XLY']
+data = get_pricing(assets,fields='price',start_date='2014-01-01',end_date='2015-01-01').pct_change()[1:].T
+
+# Print pairwise correlations
+print 'Correlation matrix:\n', np.corrcoef(data)
+
+# Print the mean return of each
+print 'Means:\n', data.T.mean()
+```
+*Cell 2:*
+```python
+# Plot what we've identified as the most and the least correlated pairs from the matrix above
+plt.scatter(data.iloc[4], data.iloc[0], alpha=0.5)
+plt.scatter(data.iloc[2], data.iloc[1], color='r', alpha=0.4)
+plt.legend(['Correlated', 'Uncorrelated']);
+```
+
+##### Price Momentum Factor Notebook
+- **Original Path**: `drafts\Price Momentum Factor Notebook.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 37 (Code: 14, Markdown: 23)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.classifiers.morningstar import Sector, from educational_platform.pipeline.data import morningstar, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import CustomFactor, from educational_platform.pipeline.factors import Latest, from educational_platform.research import run_pipeline, from scipy.signal import argrelmin, argrelmax, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import statsmodels.api as sm, import talib
+
+**Explanatory Notes:**
+#Price Momentum Factor Algorithm
+
+By Gil Wassermann
+
+Strategy taken from "130/30: The New Long-Only" by Andrew Lo and Pankaj Patel
+
+Part of the Educational Platform Lecture Series:
+* www.educational_platform.com/lectures
+* github.com/educational_platform/research_public
+
+Notebook released under the Creative Commons Attribution 4.0 License. Please do not remove this attribution.
+
+Let us imagine that we are traders at a large bank, watching out screens as stock prices fluctuate up and down. Suddenly, everyone around us is buying one particular security. Demand has increased so the stock price increases. We panic. Is there some information that we missed out on -are we out of the loop? In our panic, we blindly decide to buy some shares so we do not miss the boat on the next big thing. Demand further increases as a result of the hype surrounding the stock, driving up the price even more. 
+
+Now let us take a step back. From the observational perspective of a quant, the price of the security is increasing because of the animal spirits of investors. In essence, the price is going up because the price is going up. As quants, if we can identify these irrational market forces, we can profit from them.
+
+In this notebook we will go step-by-step through the contruction of an algorithm to find and trade equities experiencing momentum in price.
+
+First, let us import all the necessary libraries for our algorithm.
+
+#Price Momentum
+
+In this notebook, we will use indicators outlined in "130/30: The New Long Only" by Andrew Lo and Pankaj Patel and combine them to create a single factor. It should be clarified that we are looking for long-term momentum as opposed to intra-day momentum. These indicators are:
+
+* Slope of the 52-Week Trendline (20-day Lag)
+* Percent Above 260-Day Low (20-day Lag)
+* 4/52-Week Oscillator (20-day Lag)
+* 39-Week Return (20-day Lag)
+
+##Lag
+
+One thing that all of the indicators have in common is that they are calculated using a 20-day lag. This lag is a way of smoothing out the stock signal so that we can filter out noise and focus on concrete, underlying trends. To calculate lag, we will take our desired data series and calculate its 20-day simple moving average, which is the arithmetic mean of window of the series' last 20 entries. 
+
+Let's see an example of this for the closing price of Apple (AAPL) stock from August 2014 to August 2015. We will abstract out the lag calculation into a helper function because we will be needing it so often in the algorithm.
+
+NB: we remove the first 20 entries of the results as these will always be undefined (here, NaN) as because there is not a 20-day window with which to calculate the lag. We also have a check to determine if the entire row of data in NaN, as this can cause issues with the TA-Lib library.
+
+As you can see from the graph, the lagged closing prices generally follow the same general pattern as the unlagged prices, but do not experience as extreme peaks and troughs. For the rest of the notebook we will use lagged prices as we are interested in long-term trends.

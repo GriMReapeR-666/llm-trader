@@ -1,0 +1,18 @@
+# beta_hedging
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+Beta Hedging
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: Risk Management
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+Beta hedging adjusts portfolio exposure to market movements by calculating the portfolio beta and taking offsetting positions. This separates strategy skill from market beta exposure.

@@ -1,0 +1,29 @@
+# How do I use leverage?
+
+Topic: 04_Order_Execution
+Confidence: 0.50
+Keywords: spread, execution, sor
+
+---
+
+## How do I use leverage?
+
+In the context of algorithmic trading we are specifically interested in margin and trading on margin. Trading on margin is a type of leverage as it involves taking out a loan from your broker and adding it to your capital base in order to increase the returns of your trading strategy. Since you are borrowing money to invest, you ideally only trade on margin when the returns of your strategy are greater than the interest that you pay on that debt. At many points in the execution of a trading strategy, you may attempt to make trades that would exceed your current capital. At this point, the broker checks if you are authorized to trade on margin (borrow money) and, if so, lends you the money necessary to execute the trade. Each person’s margin account will have different terms depending on their broker, size of account, risk of strategies, and other factors. 
+
+If you have a profitable strategy, using leverage can prop up the amount of money that you make overall by padding the money that you are working with. The involvement of the broker is an important factor to consider when constructing algorithmic trading strategies because your trading strategy will borrow automatically as needed when you need more money to cover a position. You may want to limit how much leverage your strategy can take on so that you are not borrowing more than you are comfortable with.
+
+We measure the current leverage of a portfolio by examining the leverage ratio. The leverage ratio of an algorithm is calculated as the sum of your debt and your capital base divided by your capital base. We limit the amount of leverage that our strategy uses by limiting the leverage ratio.
+
+$$ \text{Leverage Ratio} = \frac{\text{Debt} + \text{Capital Base}}{\text{Capital Base}}$$
+
+Let's look at a very simple example of how introducing leverage can affect a portfolio. Consider a single period model, consisting of today and tomorrow, in which we receive our returns tomorrow.
+
+This is what portfolio returns look like without leverage. Let's add some debt, leveraging the portfolio, and see how the returns change.
+
+This is the ideal situation, that someone would lend you money without asking for anything in return. It results in double the effective additive returns of an unlevered strategy, which is just delightful. However, we know that in the real world there is no way that this would actually happen. Let's consider what happens when we add in the effects of an interest payment in our one-period model.
+
+That makes a lot more sense. It would be unreasonable for us to assume that we can add someone else's money to our portfolio without some sort of repayment schedule. Our returns are not as high as they were in the levered portfolio with no interest, but we are still gaining a greater amount of wealth by using leverage, despite the interest rates. As long as we have a reliable strategy that can make sufficient returns to offset the cost of debt we will be able to benefit from levering a portfolio.
+
+Our additive returns have increased over our unlevered strategy, but overall we are gaining a lower percentage return. This is not entirely a bad thing, as with a larger amount of money to trade on we are able to add more overall value to our portfolio. However, if we are not careful with how we manage leverage, we could potentially end up spending all of our profits trying to pay off the interest that we accrued to make them in the first place.
+
+This single-period model is only a small piece of the story. Loans are rarely, if ever, paid off in one period. Payments are spread out over the life of a loan, ensuring that you do not simply get the money for free. In this context, to properly earn a profit using the leverage, we obviously have to be making more money than we are paying out.

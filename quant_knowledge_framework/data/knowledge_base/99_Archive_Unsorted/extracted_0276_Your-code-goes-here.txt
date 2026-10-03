@@ -1,0 +1,20 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+```
+*Cell 19:*
+```python
+# Filter the data for prices to only print out values where
+# BP > 30
+
+# XOM < 100
+
+# BP > 30 AND XOM < 100
+
+# The union of (BP > 30 AND XOM < 100) with TOT being non-nan

@@ -1,0 +1,14 @@
+# Load and Format Data
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Load and Format Data
+The first step to most quantitative problems is to get data. In this study, the data was collected and uploaded to the Educational Platform research environment as a .csv file. Let's load it into a [pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html) using [local_csv](https://www.educational_platform.com/help#educational_platform_research_local_csv) (a Educational Platform-specific function).
+
+It is important to know what our data looks like, so here is a preview of the first few rows of our DataFrame.
+
+And here is a look at a single row where we can see all of the columns.

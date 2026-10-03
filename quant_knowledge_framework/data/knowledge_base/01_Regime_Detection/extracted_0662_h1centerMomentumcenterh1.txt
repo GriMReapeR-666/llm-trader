@@ -1,0 +1,112 @@
+# <h1><center>Momentum</center></h1>
+
+Topic: 01_Regime_Detection
+Confidence: 0.56
+Keywords: scaling, volatility
+
+---
+
+## <h1><center>Momentum</center></h1>
+<h2><center>Still Relevant Today?</center></h2>
+
+<h4>
+QuantCon Singapore 2016<br>
+Anthony Ng<br>
+anthony@gmail.com<br>
+11 Nov 2016<br>
+</h4>
+
+
+<h1>Disclaimer</h1>
+
+* None of the contents constitute an offer to sell, a solicitation to buy, or a recommendation or endorsement for any security or strategy, nor does it constitute an offer to provide investment advisory services<br>
+* Past performance is no indicator of future performance<br>
+* Provided for informational purposes only<br> 
+* All investments involve risk, including loss of principal<br>
+
+
+<h1><center>Momentum</center></h1>
+* **[Cross-Sectional Momentum. Jegadeesh and Titman (1993)](http://www.bauer.uh.edu/rsusmel/phd/jegadeesh-titman93.pdf)**<br>
+  Rank the cross-section of stocks each month based on their return over the past 6 mths
+Form decile portfolios each month
+
+
+
+* **[Time Series Momentum. Moskowitz, Ooi and Pedersen (2012)](http://quantpedia.com/screener/Details/118)**<br>
+  Takes long or short position on an asset by only looking back at its own performance during the formation period, and not based on its relative rank across a cross-section
+
+
+<h1>Approach and Data</h1>
+
+In this notebook, we aim to replicate the **Time Series Momentum(TSMOM) Moskowitz, Ooi and Pedersen (MOP)** paper. We examined the TSMOM performance by using the same futures contracts and time period (1984 - 2009). After which, we extended the testing period to include Oct 2016. As a form of benchmark, we also examined the buy-and-hold with and without volatility scaling strategy as advocated by **Kim, Tse and Wald** in their **Time Series Momentum and Volatility Scaling** (2016) paper. Data were sourced from Bloomberg.
+
+* 9 developed countries index futures
+* 24 commodities futures
+* 13 bond futures
+* 9 currencies futures
+* Jul 1959 - Oct 2016
+
+# Volatility Scaling
+
+In MOP paper, under section 2.4, they discussed using ex ante volatility estimate to scale capital allocation to different futures contract based on each future contracts volatility. The basic idea is very similar to risk bedgeting or risk parity. The following is their explanation:
+
+  *...Since volatility varies dramatically across our assets, we scale the returns by their volatilities in order to make meaningful comparisons across assets. We estimate each instrument's ex ante volatility $\sigma_t$ at each point in time using an extremely simple model: the exponential weighted lagged squared daily returns (i.e., similar to a simple univatiate GARCH model). Specifically, the ex ante annualized variance $\sigma^2_t$ for each instrument is calculated as follows*:
+$$\sigma^2_t=261\sum^\infty_{i=0}(1-\delta)\delta^i(r_{t-1-i}-\bar{r}_t)^2$$
+
+  *where the scalar 261 scales the variance to be annual, the weights $(1-\delta)\delta^i$ add up to one, and $\bar{r}_t$ is the exponentially weighted average return computed similarly. The parameter $\delta$ is chosen so that the center of mass of the weights is $\sum^{\infty}_{i=0}(1-\delta)\delta^ii=\delta/(1-\delta)=60$ days. The volatility model is the same for all assets at all times... *
+
+# 1. Trading Strategy - TSMOM with Volatility Scaling (1984 - 2009)
+As per MOP paper covering 1984 - 2009
+
+# 1a. Individual Futures Performance
+
+### Individual Futures Contracts Performance
+These are annualized performance.
+
+# 1b. Trading Strategy - TSMOM with Volatility Scaling (1984 - 2009)
+
+
+Perform a Time Series Momentum strategy on each price series.
+* Long those with positive momentum
+* Short those with negative momentum
+
+# Other Strategies
+
+The performance of Time Series Momentum with volatility scaling (MOP strategy) up to and including Sep 2016 (not shown) is:
+
+* Annualized Sharpe Ratio =  1.32240147363
+* Annualized Mean Returns =  0.144648073277
+* Annualized Standard Deviations =  0.107003671777
+* Max Drawdown =  -0.140726203354
+* Calmar ratio =  1.02786879649
+
+The performance of Time Series Momentum without volatility scaling is:
+
+* Annualized Sharpe Ratio =  1.18250924383
+* Annualized Mean Returns =  0.0593476792819
+* Annualized Standard Deviations =  0.0499137056686
+* Max Drawdown =  -0.125187506104
+* Calmar ratio =  0.474070305648
+
+*****
+
+# Further Analysis
+
+# 2. Buy-and-Hold Without Volatility Scaling Strategy (1984 - 2009)
+Buy-and-hold with and without volatility scaling strategy as advocated by **Kim, Tse and Wald** in their **Time Series Momentum and Volatility Scaling** (2016) paper.
+
+The performance with volatility scaling is not shown in this notebook. It can be easily accomodated by adding this two addition line:
+* vol_flag = 1
+* target_vol = 0.4
+
+With volatility scaling, the result is:
+* Annualized Sharpe Ratio =  -0.0882482424146
+* Annualized Mean Returns =  -0.022460936792
+* Annualized Standard Deviations =  0.142189626101
+* Max Drawdown =  -0.793868253586
+* Calmar ratio =  -0.0282930280818
+
+
+
+
+# Factor Analysis

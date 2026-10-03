@@ -1,0 +1,62 @@
+# Approach One: Portfolio Construction
+
+Topic: 03_Portfolio_Management
+Confidence: 0.50
+Keywords: correlation, portfolio, ror
+
+---
+
+## Approach One: Portfolio Construction
+
+The first approach consists of using the fundamental data as a ranking scheme and creating a [long-short equity portfolio](https://www.quantopian.com/lectures/long-short-equity) based on each factor. We then use the return streams associated with each portfolio as our model factors. 
+
+One of the most well-known examples of this approach is the Fama-French model. The Fama-French model, and later the Carhart four factor model, adds market cap, book-to-price ratios, and momentum to the original CAPM, which only included market risk. 
+
+Historically, certain groups of stocks were seen as outperforming the market, namely those with small market caps, high book-to-price ratios, and those that had previously done well (i.e., they had momentum). Empirically, Fama & French found that the returns of these particular types of stocks tended to be better than what was predicted by the security market line of the CAPM.
+
+In order to capture these phenomena, we will use those factors to create a ranking scheme that will be used in the creation of long short equity portfolios. The factors will be $SMB$, measuring the excess return of small market cap companies minus big, $HML$, measuring the excess return of companies with high book-to-price ratios versus low, $MOM$, measuring the excess returns of last month's winners versus last month's losers, and $EXMRKT$ which is a measure of the market risk.
+
+In general, this approach can be used as an asset pricing model or to hedge our portfolios. The latter uses Fama-Macbeth regressions to calculate risk premia, as demonstrated in the CAPM lecture. Hedging can be achieved through a linear regression of portfolio returns on the returns from the long-short factor portfolios. Below are examples of both.
+
+### Portfolio Construction as an Asset Pricing Model
+
+First we import the relevant libraries.
+
+Use pipeline to get all of our factor data that we will use in the rest of the lecture.
+
+Now we can go through the data and build the factor portfolios we want
+
+Now that we've constructed our portfolios, let's look at our performance if we were to hold each one.
+
+Now, as we did in the CAPM lecture, we'll calculate the risk premia on each of these factors using the Fama-Macbeth regressions.
+
+
+
+Our asset returns data is asset and date specific, whereas our factor portfolio returns are only date specific. Therefore, we'll need to spread each day's portfolio return across all the assets for which we have data for on that day.
+
+#### Returns Prediction
+As discussed in the CAPM lecture, factor modeling can be used to predict future returns based on current fundamental factors. As well, it could be used to determine when an asset may be mispriced in order to arbitrage the difference, as shown in the CAPM lecture.
+
+Modeling future returns is accomplished by offsetting the returns in the regression, so that rather than predict for current returns, you are predicting for future returns. Once you have a predictive model, the most canonical way to create a strategy is to attempt a long-short equity approach.
+
+### Portfolio Construction for Hedging
+
+Once we've determined that we are exposed to a factor, we may want to avoid depending on the performance of that factor by taking out a hedge. This is discussed in more detail in the Beta Hedging and Risk Factor Exposure lectures. The essential idea is to take the exposure your return stream has to a factor, and short the proportional value. So, if your total portfolio value was $V$, and the exposure you calculated to a certain factor return stream was $\beta$, you would short $\beta V$ amount of that return stream.
+
+The following is an example using the Fama-French factors we used before.
+
+Let's look at a graph of our two portfolio return streams
+
+We'll check for normality, homoskedasticity, and autocorrelation in this model. For more information on the tests below, check out the [Violations of Regression Models](https://www.quantopian.com/lectures/violations-of-regression-models#notebook) lecture.
+
+For normality, we'll run a Jarque-Bera test, which tests whether our data's skew/kurtosis matches that of a normal distribution. As the standard, we'll reject the null hypothesis that our data is normally distributed if our p-value falls under our confidence level of 5%.
+
+To test for heteroskedasticity, we'll run a Breush-Pagan test, which tests whether the variance of the errors in a linear regression is related to the values of the independent variables. In this case, our null hypothesis is that the data is homoskedastic.
+
+Autocorrelation is tested for using the Durbin-Watson statistic, which looks at the lagged relationship between the errors in a regression. This will give you a number between 0 and 4, with 2 meaning no autocorrelation. 
+
+Based on the Jarque-Bera p-value, we would reject the null hypothesis that the data is normally distributed. This means there is strong evidence that our data follows some other distribution.
+
+The test for homoskedasticity suggests that the data is heteroskedastic. However, we need to be careful about this test as we saw that our data may not be normally distributed.
+
+Finally, the Durbin-Watson statistic can be evaluated by looking at the critical values of the statistic. At a confidence level of 95% and 4 explanatory variables, we cannot reject the null hypothesis of no autocorrelation.

@@ -1,0 +1,18 @@
+# ai_trading
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+AI and Machine Learning in Trading
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: AI / Machine Learning
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+AI in trading ranges from pure ML models to hybrid architectures. Centaur trading embeds human judgment into the training pipeline.

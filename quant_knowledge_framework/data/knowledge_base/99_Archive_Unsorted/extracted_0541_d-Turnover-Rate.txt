@@ -1,0 +1,13 @@
+# d. Turnover Rate
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## d. Turnover Rate
+
+Use the pipeline API with the QTradableStocksUS as a screen and the `calculate_daily_turnover` helper function to find and plot the turnover of the universe during 2016.
+
+# Exercise 2: Examining Tradability

@@ -1,0 +1,74 @@
+# Is Volatility in Fed Sentiment a Useful Signal?
+
+Topic: 01_Regime_Detection
+Confidence: 0.40
+Keywords: vix, volatility
+
+---
+
+## Is Volatility in Fed Sentiment a Useful Signal?
+By John Loeber
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+### Abstract
+
+We try to measure the volatility in the sentiment of the Federal Reserve Bank, and try to find relationships between this volatility and the volatility of some macro-tracking ETFs.
+
+### Introduction
+
+We explore the [Prattle](http://prattle.co/) Central Bank Sentiment Dataset: this dataset contains weekly *sentiment data* from the Federal Reserve Bank. The sentiment data wraps up all publications of the Fed from every week (between about 1998 and 2015) into a single real number representing the general sentiment of the Fed that week.
+
+We use standard deviation to create a volatility metric for this Fed Sentiment. We then try to find a relationship between the sentiment volatility over time and the volatility over time of the following ETFs:
+- SPY
+- DIA
+- GLD
+- TLT
+
+We chose these ETFs in particular due to a [previous investigation](https://www.quantopian.com/posts/does-federal-reserve-sentiment-predict-prices-of-macro-tracking-etfs), to which this notebook is a follow-up. Though this notebook is a stand-alone, it may be beneficial to also read the previous notebook.
+
+The difficult question is: how do we construct the volatility metric for the Fed data? We pick an easy and plausible solution: just like we construct [volatility for equities](http://bit.ly/1HVMNhi).
+
+We pick a particular timespan over which we wish to calculate volatility -- $d$ days -- and compute the standard deviation of the fed sentiment scores in that timespan, then divide by $d$. This lets us create a rolling measure of volatility. But first, let's look at the data.
+
+We plot the data and its Kalman-filtered moving average on it, just to get a feel for it as we move forward.
+
+As we can see, the plot is quite noisy. There is a significant spread about the mean. Remarkably, the least spread appears to be around late 2007/early 2008. Though that's hardly information we can act on, it is historically interesting.
+
+Anyway, we proceed to calculate rolling volatility. We'll test some different volatility windows. Note that since we only have weekly data, we have to use a somewhat long window anyway, just to get a useful sample size.
+
+We should take a moment to think about what the volatility in sentiment actually *means*. A high volatility over some window implies great variance in the weekly sentiments (i.e. a large spread of positive and negative sentiments). Low volatility implies homogeneity in weekly sentiments during that period.
+
+We single out some periods for comment:
+- The period encompassing late 2007/early 2008 has exceptionally low volatility. It follows that sentiment at the fed was quite homogeneous, in light of the overarching economic crisis. (Though, curiously, if we look at the scatterplot from the earlier section, we see that the sentiment at that time was not particularly negative.) 
+- Another low-volatility period was around late 2013/early 2014. This may be due to the almost overwhelmingly bullish outlook on the economy at the time, which is also reflected in the scatterplot, which shows that the Fed sentiment sustained a significant high for that period.
+
+Next, we'll try to see whether the sentiment volatility for these windows corresponds to price volatilities of our four ETFs. In the [last notebook](https://www.quantopian.com/posts/does-federal-reserve-sentiment-predict-prices-of-macro-tracking-etfs) we found that SPY and DIA both correspond strongly to Fed sentiment, whereas GLD probably doesn't (i.e. that relationship is obscured by other macroeconomic factors and international trade), and TLT seems to have a weak correspondence.
+
+### SPY
+
+With a market cap of \$177bn, SPY is one of the largest ETFs, tracking the Standard & Poor's 500 Index. Since our pricing dataset starts in 2002, we'll consider SPY's movements since `2002-03-03`.
+
+Now we calculate some rolling volatilities using different windows for SPY, and plot that. Note: we could've used VIX for this purpose, which tracks the volatility of SPY. It didn't occur to me at the time.
+
+We see the biggest spikes in volatility in late 2002 and in 2012. This is commensurate with [news at the time](http://www.bloomberg.com/news/articles/2012-07-02/volatility-surging-in-s-p-500-with-volume-lowest-in-decade-1-). 
+
+Now we want to overlay the SPY volatility plot and the Fed sentiment volatility plot. We'll do this separately for each window.
+
+Visually, this is quite messy and it's hard to say if there is a relationship here. Looking at the 180 day window in particular,  it looks as though there might be an inverse relationship: when Fed sentiment volatility is high, SPY volatility is low, and vice-versa. We can test this proposition with [Spearman's Rho](https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient). 
+
+To check that this reduction worked and did not lose important data (at least not such that it is visually apparent), you may choose to plot this "reduced" dataset, similar to how we plotted the overlays above. I did check this, but have chosen to omit the overlaid plots in the interest of space.
+
+Interestingly, these numerical results show significant positive correlations. It is possible that there's a signal here. Intuitvely, this makes sense: we found in the [previous notebook](https://www.quantopian.com/posts/does-federal-reserve-sentiment-predict-prices-of-macro-tracking-etfs) that SPY and Fed Sentiment correlated very strongly visually. It is reassuring that we now find a significant correlation among their volatilities -- this strengthens our conclusion that SPY and Fed Sentiment share a strong relationship.
+
+
+
+### DIA
+
+Next, we look at **DIA**, which tracks the Dow Jones Industrial Average. DIA stores about \$11bn in assets. DIA started trading on `1998-01-20`. Since we have data only from 2002 onwards, we'll start our investigation at `2002-03-03`.
+
+Before doing anything else, we'll check the correspondence between DIA and SPY.
+
+It is clearly apparent that DIA and SPY correlate extremely strongly, both in price and in their volatilities. Thus, trying to relate DIA and Fed Sentiment will have almost the exact same results as trying to relate SPY and Fed Sentiment. We can therefore skip this part of the investigation.

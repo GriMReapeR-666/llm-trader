@@ -1,0 +1,321 @@
+# References
+
+Topic: 05_Quant_Utilities
+Confidence: 0.43
+Keywords: numpy, python, pandas
+
+---
+
+## References
+* "Analysis of Financial Time Series", by Ruey Tsay
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Import libraries
+import numpy as np
+import pandas as pd
+from statsmodels import regression
+import statsmodels.api as sm
+import statsmodels.stats.diagnostic as smd
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+import math
+```
+*Cell 2:*
+```python
+def linreg(X,Y):
+    # Running the linear regression
+    X = sm.add_constant(X)
+    model = sm.OLS(Y, X).fit()
+    B0 = model.params[0]
+    B1 = model.params[1]
+    X = X[:, 1]
+
+    # Return summary of the regression and plot results
+    X2 = np.linspace(X.min(), X.max(), 100)
+    Y_hat = X2 * B1 + B0
+    plt.scatter(X, Y, alpha=1) # Plot the raw data
+    plt.plot(X2, Y_hat, 'r', alpha=1);  # Add the regression line, colored in red
+    plt.xlabel('X Value')
+    plt.ylabel('Y Value')
+    return model, B0, B1
+```
+*Cell 3:*
+```python
+n = 50
+X = np.random.randint(0, 100, n)
+epsilon = np.random.normal(0, 1, n)
+
+Y = 10 + 0.5 * X + epsilon
+
+linreg(X,Y)[0];
+print "Line of best fit: Y = {0} + {1}*X".format(linreg(X, Y)[1], linreg(X, Y)[2])
+```
+*Cell 4:*
+```python
+model, B0, B1 = linreg(X,Y)
+
+residuals = model.resid
+plt.errorbar(X,Y,xerr=0,yerr=[residuals,0*residuals],linestyle="None",color='Green');
+```
+*Cell 5:*
+```python
+residuals = model.resid
+print residuals
+```
+*Cell 6:*
+```python
+plt.scatter(model.predict(), residuals);
+plt.axhline(0, color='red')
+plt.xlabel('Predicted Values');
+plt.ylabel('Residuals');
+plt.xlim([1,50]);
+```
+*Cell 7:*
+```python
+n = 50
+X = np.random.randint(0, 50, n)
+epsilon = np.random.normal(0, 1, n)
+Y_nonlinear = 10 - X**1.2 + epsilon
+
+model = sm.OLS(Y_nonlinear, sm.add_constant(X)).fit()
+B0, B1 = model.params
+residuals = model.resid
+
+print 'beta_0: ', B0
+print 'beta_1: ', B1
+plt.scatter(model.predict(), residuals);
+plt.axhline(0, color='red')
+plt.xlabel('Predicted Values');
+plt.ylabel('Residuals');
+```
+*Cell 8:*
+```python
+n = 50
+X = np.random.randint(0, 100, n)
+epsilon = np.random.normal(0, 1, n)
+Y_heteroscedastic = 100 + 2*X + epsilon*X
+
+model = sm.OLS(Y_heteroscedastic, sm.add_constant(X)).fit()
+B0, B1 = model.params
+residuals = model.resid
+
+plt.scatter(model.predict(), residuals);
+plt.axhline(0, color='red')
+plt.xlabel('Predicted Values');
+plt.ylabel('Residuals');
+```
+*Cell 9:*
+```python
+breusch_pagan_p = smd.het_breushpagan(model.resid, model.model.exog)[1]
+print breusch_pagan_p
+if breusch_pagan_p > 0.05:
+    print "The relationship is not heteroscedastic."
+if breusch_pagan_p < 0.05:
+    print "The relationship is heteroscedastic."
+```
+*Cell 10:*
+```python
+# Finding first-order differences in Y_heteroscedastic
+Y_heteroscedastic_diff = np.diff(Y_heteroscedastic)
+```
+*Cell 11:*
+```python
+model = sm.OLS(Y_heteroscedastic_diff, sm.add_constant(X[1:])).fit()
+B0, B1 = model.params
+residuals = model.resid
+
+plt.scatter(model.predict(), residuals);
+plt.axhline(0, color='red')
+plt.xlabel('Predicted Values');
+plt.ylabel('Residuals');
+```
+*Cell 12:*
+```python
+breusch_pagan_p = smd.het_breushpagan(residuals, model.model.exog)[1]
+print breusch_pagan_p
+if breusch_pagan_p > 0.05:
+    print "The relationship is not heteroscedastic."
+if breusch_pagan_p < 0.05:
+    print "The relationship is heteroscedastic."
+```
+*Cell 13:*
+```python
+# Taking the log of the previous data Y_heteroscedastic and saving it in Y_heteroscedastic_log
+Y_heteroscedastic_log = np.log(Y_heteroscedastic)
+```
+*Cell 14:*
+```python
+model = sm.OLS(Y_heteroscedastic_log, sm.add_constant(X)).fit()
+B0, B1 = model.params
+residuals = model.resid
+
+plt.scatter(model.predict(), residuals);
+plt.axhline(0, color='red')
+plt.xlabel('Predicted Values');
+plt.ylabel('Residuals');
+```
+*Cell 15:*
+```python
+# Running and interpreting a Breusch-Pagan test
+breusch_pagan_p = smd.het_breushpagan(residuals, model.model.exog)[1]
+print breusch_pagan_p
+if breusch_pagan_p > 0.05:
+    print "The relationship is not heteroscedastic."
+if breusch_pagan_p < 0.05:
+    print "The relationship is heteroscedastic."
+```
+*Cell 16:*
+```python
+# Finding a power transformation adjusted Y_heteroscedastic
+Y_heteroscedastic_box_cox = stats.boxcox(Y_heteroscedastic)[0]
+```
+*Cell 17:*
+```python
+model = sm.OLS(Y_heteroscedastic_box_cox, sm.add_constant(X)).fit()
+B0, B1 = model.params
+residuals = model.resid
+
+plt.scatter(model.predict(), residuals);
+plt.axhline(0, color='red')
+plt.xlabel('Predicted Values');
+plt.ylabel('Residuals');
+```
+*Cell 18:*
+```python
+# Running and interpreting a Breusch-Pagan test
+breusch_pagan_p = smd.het_breushpagan(residuals, model.model.exog)[1]
+print breusch_pagan_p
+if breusch_pagan_p > 0.05:
+    print "The relationship is not heteroscedastic."
+if breusch_pagan_p < 0.05:
+    print "The relationship is heteroscedastic."
+```
+*Cell 19:*
+```python
+n = 50
+X = np.linspace(0, n, n)
+Y_autocorrelated = np.zeros(n)
+Y_autocorrelated[0] = 50
+for t in range(1, n):
+    Y_autocorrelated[t] = Y_autocorrelated[t-1] + np.random.normal(0, 1) 
+
+# Regressing X and Y_autocorrelated
+model = sm.OLS(Y_autocorrelated, sm.add_constant(X)).fit()
+B0, B1 = model.params
+residuals = model.resid
+
+plt.scatter(model.predict(), residuals);
+plt.axhline(0, color='red')
+plt.xlabel('Predicted Values');
+plt.ylabel('Residuals');
+```
+*Cell 20:*
+```python
+ljung_box = smd.acorr_ljungbox(residuals, lags = 10)
+print "Lagrange Multiplier Statistics:", ljung_box[0]
+print "\nP-values:", ljung_box[1], "\n"
+
+if any(ljung_box[1] < 0.05):
+    print "The residuals are autocorrelated."
+else:
+    print "The residuals are not autocorrelated."
+```
+*Cell 21:*
+```python
+# Finding first-order differences in Y_autocorrelated
+Y_autocorrelated_diff = np.diff(Y_autocorrelated)
+```
+*Cell 22:*
+```python
+model = sm.OLS(Y_autocorrelated_diff, sm.add_constant(X[1:])).fit()
+B0, B1 = model.params
+residuals = model.resid
+
+plt.scatter(model.predict(), residuals);
+plt.axhline(0, color='red')
+plt.xlabel('Predicted Values');
+plt.ylabel('Residuals');
+
+# Running and interpreting a Ljung-Box test
+ljung_box = smd.acorr_ljungbox(residuals, lags = 10)
+print "P-values:", ljung_box[1], "\n"
+
+if any(ljung_box[1] < 0.05):
+    print "The residuals are autocorrelated."
+else:
+    print "The residuals are not autocorrelated."
+```
+*Cell 23:*
+```python
+start = '2014-01-01'
+end = '2015-01-01'
+asset = get_pricing('TSLA', fields='price', start_date=start, end_date=end)
+benchmark = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+
+# We have to take the percent changes to get to returns
+# Get rid of the first (0th) element because it is NAN
+r_a = asset.pct_change()[1:].values
+r_b = benchmark.pct_change()[1:].values
+
+# Regressing the benchmark b and asset a
+r_b = sm.add_constant(r_b)
+model = sm.OLS(r_a, r_b).fit()
+r_b = r_b[:, 1]
+B0, B1 = model.params
+
+# Plotting the regression
+A_hat = (B1*r_b + B0)
+plt.scatter(r_b, r_a, alpha=1) # Plot the raw data
+plt.plot(r_b, A_hat, 'r', alpha=1);  # Add the regression line, colored in red
+plt.xlabel('TSLA Returns')
+plt.ylabel('SPY Returns')
+
+# Print our result
+print "Estimated TSLA Beta:", B1
+
+# Calculating the residuals
+residuals = model.resid
+```
+*Cell 24:*
+```python
+plt.scatter(model.predict(), residuals);
+plt.axhline(0, color='red')
+plt.xlabel('TSLA Returns');
+plt.ylabel('Residuals');
+```
+*Cell 25:*
+```python
+bp_test = smd.het_breushpagan(residuals, model.model.exog)
+
+print "Lagrange Multiplier Statistic:", bp_test[0]
+print "P-value:", bp_test[1]
+print "f-value:", bp_test[2]
+print "f_p-value:", bp_test[3], "\n"
+if bp_test[1] > 0.05:
+    print "The relationship is not heteroscedastic."
+if bp_test[1] < 0.05:
+    print "The relationship is heteroscedastic."
+```
+*Cell 26:*
+```python
+ljung_box = smd.acorr_ljungbox(r_a)
+print "P-Values:", ljung_box[1], "\n"
+if any(ljung_box[1] < 0.05):
+    print "The residuals are autocorrelated."
+else:
+    print "The residuals are not autocorrelated."
+```
+
+##### b. Spearman Rank Correlation
+- **Original Path**: `notebooks\lectures\Spearman_Rank_Correlation\answers\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 21 (Code: 10, Markdown: 11)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.classifiers.morningstar import Sector, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import CustomFactor, Returns, RollingLinearRegressionOfReturns, from educational_platform.pipeline.filters import QTradableStocksUS, from educational_platform.research import run_pipeline, from time import time, import math, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy.stats as stats
+
+**Explanatory Notes:**
+#Exercises: Spearman Rank Correlation

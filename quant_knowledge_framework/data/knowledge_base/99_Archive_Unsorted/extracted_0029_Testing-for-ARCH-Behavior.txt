@@ -1,0 +1,20 @@
+# Testing for ARCH Behavior
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Testing for ARCH Behavior
+The first step is to test for ARCH conditions. To do this we run a regression on $x_t$ fitting the following model.
+
+$$x_t^2 = a_0 + a_1 x_{t-1}^2 + \dots + a_p x_{t-p}^2$$
+
+We use OLS to estimate $\hat\theta = (\hat a_0, \hat a_1, \dots, \hat a_p)$ and the covariance matrix $\hat\Omega$. We can then compute the test statistic
+
+$$F = \hat\theta \hat\Omega^{-1} \hat\theta'$$
+
+We will reject if $F$ is greater than the 95% confidence bars in the $\mathcal(X)^2(p)$ distribution.
+
+To test, we'll set $p=20$ and see what we get.

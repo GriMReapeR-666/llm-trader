@@ -1,0 +1,30 @@
+# This was discrete (binary), what about the continuous case?
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## This was discrete (binary), what about the continuous case?
+
+returns ~ Normal($\mu$, $\sigma^2$)
+
+# How to estimate $\mu$ and $\sigma$?
+
+* Naive: point estimate
+* Set `mu = mean(data)` and `sigma = std(data)`
+* Maximum Likelihood Estimate
+* Correct answer as $n \rightarrow \infty$
+
+# Bayesian analysis
+* Most of the time $n \neq \infty$...
+* *Uncertainty* about $\mu$ and $\sigma$
+* Turn $\mu$ and $\sigma$ into random variables
+* How to estimate?
+
+# Bayes Formula!
+
+<img src="bayes_formula.svg">
+
+Use prior knowledge and data to update our *beliefs*.

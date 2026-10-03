@@ -1,0 +1,449 @@
+# Custom Factors
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python, pandas
+
+---
+
+## Custom Factors
+When we first looked at factors, we explored the set of built-in factors. Frequently, a desired computation isn't included as a built-in factor. One of the most powerful features of the Pipeline API is that it allows us to define our own custom factors. When a desired computation doesn't exist as a built-in, we define a custom factor.
+
+Conceptually, a custom factor is identical to a built-in factor. It accepts `inputs`, `window_length`, and `mask` as constructor arguments, and returns a `Factor` object each day.
+
+Let's take an example of a computation that doesn't exist as a built-in: standard deviation. To create a factor that computes the [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation) over a trailing window, we can subclass `educational_platform.pipeline.CustomFactor` and implement a compute method whose signature is:
+
+
+```
+def compute(self, today, asset_ids, out, *inputs):
+    ...
+```
+
+- `*inputs` are M x N [numpy arrays](http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html), where M is the `window_length` and N is the number of securities (usually around ~8000 unless a `mask` is provided). `*inputs` are trailing data windows. Note that there will be one M x N array for each `BoundColumn` provided in the factor's `inputs` list. The data type of each array will be the `dtype` of the corresponding `BoundColumn`.
+- `out` is an empty array of length N. `out` will be the output of our custom factor each day. The job of compute is to write output values into out.
+- `asset_ids` will be an integer [array](http://docs.scipy.org/doc/numpy-1.10.0/reference/generated/numpy.array.html) of length N containing security ids corresponding to the columns in our `*inputs` arrays.
+- `today` will be a [pandas Timestamp](http://pandas.pydata.org/pandas-docs/stable/timeseries.html#converting-to-timestamps) representing the day for which `compute` is being called.
+
+Of these, `*inputs` and `out` are most commonly used.
+
+An instance of `CustomFactor` that’s been added to a pipeline will have its compute method called every day. For example, let's define a custom factor that computes the standard deviation of the close price over the last 5 days. To start, let's add `CustomFactor` and `numpy` to our import statements.
+
+Next, let's define our custom factor to calculate the standard deviation over a trailing window using [numpy.nanstd](http://docs.scipy.org/doc/numpy-dev/reference/generated/numpy.nanstd.html):
+
+Finally, let's instantiate our factor in `make_pipeline()`:
+
+When this pipeline is run, `StdDev.compute()` will be called every day with data as follows:
+
+- `values`: An M x N [numpy array](http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html), where M is 5 (`window_length`), and N is ~8000 (the number of securities in our database on the day in question).
+- `out`: An empty array of length N (~8000). In this example, the job of `compute` is to populate `out` with an array storing of 5-day close price standard deviations.
+
+### Default Inputs
+When writing a custom factor, we can set default `inputs` and `window_length` in our `CustomFactor` subclass. For example, let's define the `TenDayMeanDifference` custom factor to compute the mean difference between two data columns over a trailing window using [numpy.nanmean](http://docs.scipy.org/doc/numpy-dev/reference/generated/numpy.nanmean.html). Let's set the default `inputs` to `[USEquityPricing.close, USEquityPricing.open]` and the default `window_length` to 10:
+
+<i>Remember in this case that `close` and `open` are each 10 x ~8000 2D [numpy arrays.](http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html)</i>
+
+If we call `TenDayMeanDifference` without providing any arguments, it will use the defaults.
+
+The defaults can be manually overridden by specifying arguments in the constructor call.
+
+### Further Example
+Let's take another example where we build a [momentum](http://www.investopedia.com/terms/m/momentum.asp) custom factor and use it to create a filter. We will then use that filter as a `screen` for our pipeline.
+
+Let's start by defining a `Momentum` factor to be the division of the most recent close price by the close price from `n` days ago where `n` is the `window_length`.
+
+Now, let's instantiate our `Momentum` factor (twice) to create a 10-day momentum factor and a 20-day momentum factor. Let's also create a `positive_momentum` filter returning `True` for securities with both a positive 10-day momentum and a positive 20-day momentum.
+
+Next, let's add our momentum factors and our `positive_momentum` filter to `make_pipeline`. Let's also pass `positive_momentum` as a `screen` to our pipeline.
+
+Running this pipeline outputs the standard deviation and each of our momentum computations for securities with positive 10-day and 20-day momentum.
+
+Custom factors allow us to define custom computations in a pipeline. They are frequently the best way to perform computations on [partner datasets](https://www.educational_platform.com/data) or on multiple data columns. The full documentation for CustomFactors is available [here](https://www.educational_platform.com/help#custom-factors).
+
+In the next lesson, we'll use everything we've learned so far to create a pipeline for an algorithm.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.pipeline.factors import SimpleMovingAverage, AverageDollarVolume
+```
+*Cell 2:*
+```python
+from educational_platform.pipeline import CustomFactor
+import numpy
+```
+*Cell 3:*
+```python
+class StdDev(CustomFactor):
+    def compute(self, today, asset_ids, out, values):
+        # Calculates the column-wise standard deviation, ignoring NaNs
+        out[:] = numpy.nanstd(values, axis=0)
+```
+*Cell 4:*
+```python
+def make_pipeline():
+    std_dev = StdDev(inputs=[USEquityPricing.close], window_length=5)
+
+    return Pipeline(
+        columns={
+            'std_dev': std_dev
+        }
+    )
+```
+*Cell 5:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+result
+```
+*Cell 6:*
+```python
+class TenDayMeanDifference(CustomFactor):
+    # Default inputs.
+    inputs = [USEquityPricing.close, USEquityPricing.open]
+    window_length = 10
+    def compute(self, today, asset_ids, out, close, open):
+        # Calculates the column-wise mean difference, ignoring NaNs
+        out[:] = numpy.nanmean(close - open, axis=0)
+```
+*Cell 7:*
+```python
+# Computes the 10-day mean difference between the daily open and close prices.
+close_open_diff = TenDayMeanDifference()
+```
+*Cell 8:*
+```python
+# Computes the 10-day mean difference between the daily high and low prices.
+high_low_diff = TenDayMeanDifference(inputs=[USEquityPricing.high, USEquityPricing.low])
+```
+*Cell 9:*
+```python
+class Momentum(CustomFactor):
+    # Default inputs
+    inputs = [USEquityPricing.close]
+
+    # Compute momentum
+    def compute(self, today, assets, out, close):
+        out[:] = close[-1] / close[0]
+```
+*Cell 10:*
+```python
+ten_day_momentum = Momentum(window_length=10)
+twenty_day_momentum = Momentum(window_length=20)
+
+positive_momentum = ((ten_day_momentum > 1) & (twenty_day_momentum > 1))
+```
+*Cell 11:*
+```python
+def make_pipeline():
+
+    ten_day_momentum = Momentum(window_length=10)
+    twenty_day_momentum = Momentum(window_length=20)
+
+    positive_momentum = ((ten_day_momentum > 1) & (twenty_day_momentum > 1))
+
+    std_dev = StdDev(inputs=[USEquityPricing.close], window_length=5)
+
+    return Pipeline(
+        columns={
+            'std_dev': std_dev,
+            'ten_day_momentum': ten_day_momentum,
+            'twenty_day_momentum': twenty_day_momentum
+        },
+        screen=positive_momentum
+    )
+```
+*Cell 12:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+result
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\2_pipeline_lesson11\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 23 (Code: 11, Markdown: 12)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data import Fundamentals, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import SimpleMovingAverage, AverageDollarVolume, from educational_platform.pipeline.filters import QTradableStocksUS, from educational_platform.pipeline.filters.fundamentals import IsPrimaryShare, from educational_platform.research import run_pipeline
+
+**Explanatory Notes:**
+##Putting It All Together
+Now that we've covered the basic components of the Pipeline API, let's construct a pipeline that we might want to use in an algorithm.
+
+To start, let's first create a filter to narrow down the types of securities coming out of our pipeline. In this example, we will create a filter to select for securities that meet all of the following criteria:
+- Is a primary share
+- Is listed as a common stock
+- Is not a [depositary receipt](http://www.investopedia.com/terms/d/depositaryreceipt.asp) (ADR/GDR)
+- Is not trading [over-the-counter](http://www.investopedia.com/terms/o/otc.asp) (OTC)
+- Is not [when-issued](http://www.investopedia.com/terms/w/wi.asp) (WI)
+- Doesn't have a name indicating it's a [limited partnership](http://www.investopedia.com/terms/l/limitedpartnership.asp) (LP)
+- Doesn't have a company reference entry indicating it's a LP
+- Is not an [ETF](http://www.investopedia.com/terms/e/etf.asp) (has Morningstar fundamental data)
+
+
+####Why These Criteria?
+Selecting for primary shares and common stock helps us to select only a single security for each company. In general, primary shares are a good representative asset of a company so we will select for these in our pipeline.
+
+ADRs and GDRs are issuances in the US equity market for stocks that trade on other exchanges. Frequently, there is inherent risk associated with depositary receipts due to currency fluctuations so we exclude them from our pipeline.
+
+OTC, WI, and LP securities are not tradeable with most brokers. As a result, we exclude them from our pipeline.
+
+###Creating Our Pipeline
+Let's create a filter for each criterion and combine them together to create a `tradeable_stocks` filter. First, we need to import the Morningstar `DataSet` as well as the `IsPrimaryShare` builtin filter.
+
+Now we can define our filters:
+
+Note that when defining our filters, we used several `Classifier` methods that we haven't yet seen including `notnull`, `startswith`, `endswith`, and `matches`. Documentation on these methods is available [here](https://www.educational_platform.com/help#educational_platform_pipeline_classifiers_Classifier).
+
+Next, let's create a filter for the top 30% of tradeable stocks by 20-day average dollar volume. We'll call this our `base_universe`.
+
+####Built-in Base Universe
+
+We have just defined our own base universe to select 'tradeable' securities with high dollar volume. However, Educational Platform has several built-in filters that do something similar, the best and newest of which is the [QTradableStocksUS](https://www.educational_platform.com/help#educational_platform_pipeline_filters_QTradableStocksUS). The QTradableStocksUS is a built-in pipeline filter that selects a daily universe of stocks that are filtered in three passes and adhere to a set of criteria to yield the most liquid universe possible without any size constraints. The QTradableStocksUS therefore has no size cutoff unlike its predecessors, the [Q500US](https://www.educational_platform.com/help#educational_platform_pipeline_filters_Q500US) and the [Q1500US](https://www.educational_platform.com/help#educational_platform_pipeline_filters_Q1500US). More detail on the selection criteria of the QTradableStocksUS can be found [here](https://www.educational_platform.com/posts/working-on-our-best-universe-yet-qtradablestocksus).
+
+To simplify our pipeline, let's replace what we've already written for our `base_universe` with the `QTradableStocksUS` built-in filter. First, we need to import it.
+
+Then, let's set our base_universe to the `QTradableStocksUS`.
+
+Now that we have a filter `base_universe` that we can use to select a subset of securities, let's focus on creating factors for this subset. For this example, let's create a pipeline for a mean reversion strategy. In this strategy, we'll look at the 10-day and 30-day moving averages (close price). Let's plan to open equally weighted long positions in the 75 securities with the least (most negative) percent difference and equally weighted short positions in the 75 with the greatest percent difference. To do this, let's create two moving average factors using our `base_universe` filter as a mask. Then let's combine them into a factor computing the percent difference.
+
+Next, let's create filters for the top 75 and bottom 75 equities by `percent_difference`.
+
+Let's then combine `shorts` and `longs` to create a new filter that we can use as the screen of our pipeline:
+
+Since our earlier filters were used as masks as we built up to this final filter, when we use `securities_to_trade` as a screen, the output securities will meet the criteria outlined at the beginning of the lesson (primary shares, non-ETFs, etc.). They will also have high dollar volume.
+
+Finally, let's instantiate our pipeline. Since we are planning on opening equally weighted long and short positions later, the only information that we actually need from our pipeline is which securities we want to trade (the pipeline index) and whether or not to open a long or a short position. Let's add our `longs` and `shorts` filters to our pipeline and set our screen to be `securities_to_trade`.
+
+Running this pipeline will result in a DataFrame containing 2 columns. Each day, the columns will contain boolean values that we can use to decide whether we want to open a long or short position in each security.
+
+In the next lesson, we'll add this pipeline to an algorithm.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.pipeline.factors import SimpleMovingAverage, AverageDollarVolume
+```
+*Cell 2:*
+```python
+from educational_platform.pipeline.data import Fundamentals
+from educational_platform.pipeline.filters.fundamentals import IsPrimaryShare
+```
+*Cell 3:*
+```python
+# Filter for primary share equities. IsPrimaryShare is a built-in filter.
+primary_share = IsPrimaryShare()
+
+# Equities listed as common stock (as opposed to, say, preferred stock).
+# 'ST00000001' indicates common stock.
+common_stock = Fundamentals.security_type.latest.eq('ST00000001')
+
+# Non-depositary receipts. Recall that the ~ operator inverts filters,
+# turning Trues into Falses and vice versa
+not_depositary = ~Fundamentals.is_depositary_receipt.latest
+
+# Equities not trading over-the-counter.
+not_otc = ~Fundamentals.exchange_id.latest.startswith('OTC')
+
+# Not when-issued equities.
+not_wi = ~Fundamentals.symbol.latest.endswith('.WI')
+
+# Equities without LP in their name, .matches does a match using a regular
+# expression
+not_lp_name = ~Fundamentals.standard_name.latest.matches('.* L[. ]?P.?$')
+
+# Equities with a null value in the limited_partnership Morningstar
+# fundamental field.
+not_lp_balance_sheet = Fundamentals.limited_partnership.latest.isnull()
+
+# Equities whose most recent Morningstar market cap is not null have
+# fundamental data and therefore are not ETFs.
+have_market_cap = Fundamentals.market_cap.latest.notnull()
+
+# Filter for stocks that pass all of our previous filters.
+tradeable_stocks = (
+    primary_share
+    & common_stock
+    & not_depositary
+    & not_otc
+    & not_wi
+    & not_lp_name
+    & not_lp_balance_sheet
+    & have_market_cap
+)
+```
+*Cell 4:*
+```python
+base_universe = AverageDollarVolume(window_length=20, mask=tradeable_stocks).percentile_between(70, 100)
+```
+*Cell 5:*
+```python
+from educational_platform.pipeline.filters import QTradableStocksUS
+```
+*Cell 6:*
+```python
+base_universe = QTradableStocksUS()
+```
+*Cell 7:*
+```python
+# 10-day close price average.
+mean_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10, mask=base_universe)
+
+# 30-day close price average.
+mean_30 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30, mask=base_universe)
+
+percent_difference = (mean_10 - mean_30) / mean_30
+```
+*Cell 8:*
+```python
+# Create a filter to select securities to short.
+shorts = percent_difference.top(75)
+
+# Create a filter to select securities to long.
+longs = percent_difference.bottom(75)
+```
+*Cell 9:*
+```python
+securities_to_trade = (shorts | longs)
+```
+*Cell 10:*
+```python
+def make_pipeline():
+    
+    # Base universe filter.
+    base_universe = QTradableStocksUS()
+    
+    # 10-day close price average.
+    mean_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10, mask=base_universe)
+
+    # 30-day close price average.
+    mean_30 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30, mask=base_universe)
+
+    # Percent difference factor.
+    percent_difference = (mean_10 - mean_30) / mean_30
+    
+    # Create a filter to select securities to short.
+    shorts = percent_difference.top(75)
+
+    # Create a filter to select securities to long.
+    longs = percent_difference.bottom(75)
+    
+    # Filter for the securities that we want to trade.
+    securities_to_trade = (shorts | longs)
+    
+    return Pipeline(
+        columns={
+            'longs': longs,
+            'shorts': shorts
+        },
+        screen=securities_to_trade
+    )
+```
+*Cell 11:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+result.head()
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\2_pipeline_lesson2\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 13 (Code: 6, Markdown: 7)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.research import run_pipeline
+
+**Explanatory Notes:**
+##Creating a Pipeline
+In this lesson, we will take a look at creating an empty pipeline. First, let's import the Pipeline class:
+
+In a new cell, let's define a function to create our pipeline. Wrapping our pipeline creation in a function sets up a structure for more complex pipelines that we will see later on. For now, this function simply returns an empty pipeline:
+
+In a new cell, let's instantiate our pipeline by running `make_pipeline()`:
+
+###Running a Pipeline
+
+Now that we have a reference to an empty Pipeline, `my_pipe` let's run it to see what it looks like. Before running our pipeline, we first need to import `run_pipeline`, a research-only function that allows us to run a pipeline over a specified time period.
+
+Let's run our pipeline for one day (2015-05-05) with `run_pipeline` and display it. Note that the 2nd and 3rd arguments are the start and end dates of the simulation, respectively.
+
+A call to `run_pipeline` returns a [pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html) indexed by date and securities. Let's see what the empty pipeline looks like:
+
+The output of an empty pipeline is a DataFrame with no columns. In this example, our pipeline has an index made up of all 8000+ securities (truncated in the display) for May 5th, 2015, but doesn't have any columns.
+
+In the following lessons, we'll take a look at how to add columns to our pipeline output, and how to filter down to a subset of securities.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from educational_platform.pipeline import Pipeline
+```
+*Cell 2:*
+```python
+def make_pipeline():
+    return Pipeline()
+```
+*Cell 3:*
+```python
+my_pipe = make_pipeline()
+```
+*Cell 4:*
+```python
+from educational_platform.research import run_pipeline
+```
+*Cell 5:*
+```python
+result = run_pipeline(my_pipe, '2015-05-05', '2015-05-05')
+```
+*Cell 6:*
+```python
+result
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\2_pipeline_lesson3\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 20 (Code: 8, Markdown: 12)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import SimpleMovingAverage, from educational_platform.pipeline.factors import VWAP, from educational_platform.research import run_pipeline
+
+**Explanatory Notes:**
+##Factors
+A factor is a function from an asset and a moment in time to a number.
+```
+F(asset, timestamp) -> float
+```
+In Pipeline, [Factors](https://www.educational_platform.com/help#educational_platform_pipeline_factors_Factor) are the most commonly-used term, representing the result of any computation producing a numerical result. Factors require a column of data and a window length as input.
+
+The simplest factors in Pipeline are [built-in Factors](https://www.educational_platform.com/help#built-in-factors). Built-in Factors are pre-built to perform common computations. As a first example, let's make a factor to compute the average close price over the last 10 days. We can use the `SimpleMovingAverage` built-in factor which computes the average value of the input data (close price) over the specified window length (10 days). To do this, we need to import our built-in `SimpleMovingAverage` factor and the [USEquityPricing dataset](https://www.educational_platform.com/help#importing-datasets).
+
+###Creating a Factor
+Let's go back to our `make_pipeline` function from the previous lesson and instantiate a `SimpleMovingAverage` factor. To create a `SimpleMovingAverage` factor, we can call the `SimpleMovingAverage` constructor with two arguments: inputs, which must be a list of `BoundColumn` objects, and window_length, which must be an integer indicating how many days worth of data our moving average calculation should receive. (We'll discuss `BoundColumn` in more depth later; for now we just need to know that a `BoundColumn` is an object indicating what kind of data should be passed to our Factor.).
+
+The following line creates a `Factor` for computing the 10-day mean close price of securities.
+
+It's important to note that creating the factor does not actually perform a computation. Creating a factor is like defining the function. To perform a computation, we need to add the factor to our pipeline and run it.
+
+###Adding a Factor to a Pipeline
+Let's update our original empty pipeline to make it compute our new moving average factor. To start, let's move our factor instantatiation into `make_pipeline`. Next, we can tell our pipeline to compute our factor by passing it a `columns` argument, which should be a dictionary mapping column names to factors, filters, or classifiers. Our updated `make_pipeline` function should look something like this:
+
+To see what this looks like, let's make our pipeline, run it, and display the result.
+
+Now we have a column in our pipeline output with the 10-day average close price for all 8000+ securities (display truncated). Note that each row corresponds to the result of our computation for a given security on a given date stored. The `DataFrame` has a [MultiIndex](http://pandas.pydata.org/pandas-docs/version/0.16.2/advanced.html) where the first level is a datetime representing the date of the computation and the second level is an [Equity](http://localhost:3000/help#api-sidinfo) object corresponding to the security. For example, the first row (`2015-05-05 00:00:00+00:00`, `Equity(2 [AA])`) will contain the result of our `mean_close_10` factor for AA on May 5th, 2015.
+
+If we run our pipeline over more than one day, the output looks like this.
+
+Note: factors can also be added to an existing `Pipeline` instance using the `Pipeline.add` method. Using `add` looks something like this:
+    >>> my_pipe = Pipeline()
+    >>> f1 = SomeFactor(...)
+    >>> my_pipe.add(f1, 'f1')
+
+###Latest
+The most commonly used built-in `Factor` is `Latest`. The `Latest` factor gets the most recent value of a given data column. This factor is common enough that it is instantiated differently from other factors. The best way to get the latest value of a data column is by getting its `.latest` attribute. As an example, let's update `make_pipeline` to create a latest close price factor and add it to our pipeline:
+
+And now, when we make and run our pipeline again, there are two columns in our output dataframe. One column has the 10-day mean close price of each security, and the other has the latest close price.
+
+`.latest` can sometimes return things other than `Factors`. We'll see examples of other possible return types in later lessons.

@@ -1,0 +1,25 @@
+# Markowitz optimization and the Efficient Frontier
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Markowitz optimization and the Efficient Frontier
+
+Once we have a good representation of our portfolios as the blue dots show we can calculate the efficient frontier Markowitz-style. This is done by minimising
+
+$$ w^T C w$$
+
+for $w$ on the expected portfolio return $R^T w$ whilst keeping the sum of all the
+weights equal to 1:
+
+$$ \sum_{i}{w_i} = 1 $$
+Here we parametrically run through $R^T w = \mu$ and find the minimum variance
+for different $\mu$‘s. This can be done with `scipy.optimise.minimize` but we have
+to define quite a complex problem with bounds, constraints and a Lagrange multiplier. Conveniently, the `cvxopt` package, a convex solver, does all of that for us. We used one of their [examples]() with some modifications as shown below. You will notice that there are some conditioning expressions in the code. They are simply needed to set up the problem. For more information please have a look at the `cvxopt` example.
+
+The `mus` vector produces a series of expected return values $\mu$ in a non-linear and more appropriate way. We will see later that we don‘t need to calculate a lot of these as they perfectly fit a parabola, which can safely be extrapolated for higher values.
+
+In yellow you can see the optimal portfolios for each of the desired returns (i.e. the `mus`). In addition, we get the one optimal portfolio returned:

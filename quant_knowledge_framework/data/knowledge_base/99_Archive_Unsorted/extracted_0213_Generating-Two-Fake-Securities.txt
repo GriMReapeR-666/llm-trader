@@ -1,0 +1,12 @@
+# Generating Two Fake Securities
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Generating Two Fake Securities
+We model X's daily returns by drawing from a normal distribution. Then we perform a cumulative sum to get the value of X on each day.
+
+Now we generate Y. Remember that Y is supposed to have a deep economic link to X, so the price of Y should vary pretty similarly. We model this by taking X, shifting it up and adding some random noise drawn from a normal distribution.

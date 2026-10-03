@@ -1,0 +1,23 @@
+# Simulating a GARCH(1, 1) Case
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Simulating a GARCH(1, 1) Case
+We'll start by using Monte Carlo sampling to simulate a GARCH(1, 1) process. Our dynamics will be
+
+$$\sigma_1 = \sqrt{\frac{a_0}{1-a_1-b_1}} \\
+\sigma_t^2 = a_0 + a_1 x_{t-1}^2+b_1 \sigma_{t-1}^2 \\
+x_t = \sigma_t \epsilon_t \\
+\epsilon \sim \mathcal{N}(0, 1)$$
+
+Our parameters will be $a_0 = 1$, $a_1=0.1$, and $b_1=0.8$. We will drop the first 10% (burn-in) of our simulated values.
+
+Now we'll compare the tails of the GARCH(1, 1) process with normally distributed values. We expect to see fatter tails, as the GARCH(1, 1) process will experience extreme values more often.
+
+Sure enough, the tails of the GARCH(1, 1) process are fatter. We can also look at this graphically, although it's a little tricky to see.
+
+What we're looking at here is the GARCH process in blue and the normal process in green. The 1 and 3 std bars are drawn on the plot. We can see that the blue GARCH process tends to cross the 3 std bar much more often than the green normal one.

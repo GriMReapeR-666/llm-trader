@@ -1,0 +1,36 @@
+# c. Plotting
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python
+
+---
+
+## c. Plotting
+Plot the data for SBUX stock price as a function of time. Remember to label your axis and title the graph. 
+
+---
+
+# Exercise 4 : Best fits plots
+Here we have a scatter plot of two data sets. Vary the `a`  and `b` parameter in the code to try to draw a line that 'fits' our data nicely. The line should seem as if it is describing a pattern in the data. *While quantitative methods exist to do this automatically, we would like you to try to get an intuition for what this feels like.*
+
+---
+
+Congratulations on completing the Plotting exercises!
+
+As you learn more about writing trading algorithms and the Educational Platform platform, be sure to check out the daily [Educational Platform Contest](https://www.educational_platform.com/contest), in which you can compete for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Functions
+import numpy as np
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python

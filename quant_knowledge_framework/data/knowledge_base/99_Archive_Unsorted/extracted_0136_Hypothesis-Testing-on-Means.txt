@@ -1,0 +1,35 @@
+# Hypothesis Testing on Means
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Hypothesis Testing on Means
+
+A $z$-distribution, or a standard normal distribution, is an essential probability distribution in finance. We like it when things are normally distributed because it entails many useful properties. On top of this, many fundamental methods require an assumption of normality in order to proceed. However, in most cases a $z$-distribution will be inappropriate for our data. We rarely know the true parameter values (mean and variance) of our data and must rely upon approximations. In these cases, we should use the $t$-distribution, and approximation of the normal distribution. The $t$-distribution is more forgiving when it comes to small sample sizes and is meant to be used with sample mean and variance. It has fatter tails and a lower peak, giving more flexibility compared to a normal distribution.
+
+Both the $t$ and $z$-distributions rely upon an underlying assumption of normality, which is typically the case when we are analyzing financial data. As such, in addition to testing individual means, it makes sense to use them to compare between two or more mean values. We can use a hypothesis test to determine whether the means of several data-sets are statistically different from one another. Here, we will use a $t$-distribution to demonstrate. We will compare the mean returns of the S&P500 and Apple stock with a hypothesis test to see if the differences are statistically significant or not.
+
+While these returns look to have the same mean, we still don't have enough evidence to say for sure. We use a hypothesis test to ground our suspicions in a statistical basis.
+
+When comparing two means, our hypothesis tests are stated as the following:
+
+1. $H_0: \mu_1 - \mu_2 = \theta_0, \ H_A: \mu_1 - \mu_2 \neq \theta_0$
+2. $H_0: \mu_1 - \mu_2 \leq \theta_0, \ H_A: \mu_1 - \mu_2 > \theta_0$
+3. $H_0: \mu_1 - \mu_2 \geq \theta_0, \ H_A: \mu_1 - \mu_2 < \theta_0$
+
+Where $\mu_1, \mu_2$ are the respective means of SPY and AAPL and $\theta_0$ is the parameter we are testing. We will use the first hypothesis test to test the equality of the two returns. If we assume that the population variances are equal, our test statistic is calculated as:
+
+$$ t = \frac{(\bar{X}_1 - \bar{X}_2) - (\mu_1 - \mu_2)}{(\frac{s_p^2}{n_1} + \frac{s_p^2}{n_2})^{1/2}} = \frac{\bar{X}_1 - \bar{X}_2}{(\frac{s_p^2}{n_1} + \frac{s_p^2}{n_2})^{1/2}}$$
+
+With $s_p^2 = \frac{(n_1 - 1)s_1^2 + (n_2 - 1)s_2^2)}{n_1 + n_2 - 2}$ as the estimator of the common variance, known as the pooled variance, and $n_1 + n_2 - 2$ as the number of degrees of freedom ($n_1 - 1$ and $n_2 - 1$ for each dataset). A typical $t$-test on a mean assumes that all variances involved are equal with underlying normal distributions. If we are assuming that the variances are not equal, we have to calculate our test statistic differently. Our test statistic in this case is:
+
+$$ t = \frac{(\bar{X}_1 - \bar{X}_2) - (\mu_1 - \mu_2)}{(\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2})^{1/2}} = \frac{\bar{X}_1 - \bar{X}_2}{(\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2})^{1/2}}$$
+
+Where the number of degrees of freedom used to find the critical statistic is the modified degrees of freedom, the number of values that are free to vary, $df = \frac{(\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2})^2}{\frac{(s_1^2/n_1)^2}{n_1} + \frac{(s_2^2/n_2)^2}{n_2}}$. This preserves the underlying normality of the data being tested while accounting for differing variances. Calculating the statistic this way removes a lot of problems that can occur if we have unequal variances, especially if the sample sizes of the underlying data differ as well. This specific case of a $t$-test is referred to as ["Welch's unequal variances $t$-test"](https://en.wikipedia.org/wiki/Welch%27s_t-test).
+
+For this example, we are assuming that the variances of SPY and AAPL returns are different. We think that AAPL will be riskier than SPY so we will use the second formulation of the test statistic. Let's say that $\alpha = 0.05$ so we are computing a $95\%$ hypothesis test.
+
+Looking at a [t-table](https://en.wikipedia.org/wiki/Student%27s_t-distribution#Table_of_selected_values), we determine that the critical values for our two-sided hypothesis test are $-1.96$ and $1.96$.  Our test statistic is between these values so we **fail to reject** the null hypothesis and determine that the difference between SPY and AAPL returns is **not** significantly different from $0$.

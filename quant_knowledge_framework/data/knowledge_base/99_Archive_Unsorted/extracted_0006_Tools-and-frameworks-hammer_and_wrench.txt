@@ -1,0 +1,19 @@
+# **Tools and frameworks** :hammer_and_wrench:
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Tools and frameworks** :hammer_and_wrench:
+
+I'd suggest everyone use [**The Volatility Framework**](https://github.com/volatilityfoundation/volatility/) for analysing the memory images.
+
+Please execute the [**setup.sh**](./setup.sh) file to install all the required dependencies in your system.
+
+> **Note**: Windows users can download the executable file from [here](https://www.volatilityfoundation.org/26).
+
+As these labs are quite introductory, there is no need for installing more tools. However, if the user wishes, they can install many other forensic tools.
+
+The preferred OS would be Linux. However, you can also use Windows (WSL) or macOS.

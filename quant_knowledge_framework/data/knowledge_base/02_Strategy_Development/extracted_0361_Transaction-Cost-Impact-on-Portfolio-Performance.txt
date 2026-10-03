@@ -1,0 +1,28 @@
+# Transaction Cost Impact on Portfolio Performance
+
+Topic: 02_Strategy_Development
+Confidence: 0.40
+Keywords: ev, strategy
+
+---
+
+## Transaction Cost Impact on Portfolio Performance
+
+Let’s consider a hypothetical mid-frequency statistical arbitrage\* portfolio :
+
+Algo Attribute| Qty 
+---|----
+Holding Period (weeks) |1 
+Leverage | 2 
+AUM (million) | 100 
+Trading Days per year | 252
+Fraction of AUM traded per day | 0.4
+
+
+This means we trade in and out of a new portfolio roughly 50 times a year. At 2 times leverage, on 100 million in AUM,  we trade 20 billion dollars per year. 
+
+**Q: For this level of churn what is the impact of 1 bps of execution cost to the fund’s returns?**
+
+This means for every basis point ($0.01\%$) of transaction cost we lose $2\%$ off algo performance. 
+
+\* To clarify, a mid-freqency strategy refers roughly to a daily turnover between $0.05$ - $0.67$. This represents a holding period between a day and a week. Statistical arbitrage refers to the use computational algorithms to simultaneously buy and sell stocks according to a statistical model.

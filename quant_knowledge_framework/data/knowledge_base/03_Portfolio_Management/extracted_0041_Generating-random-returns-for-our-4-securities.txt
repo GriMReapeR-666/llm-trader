@@ -1,0 +1,493 @@
+# Generating random returns for our 4 securities
+
+Topic: 03_Portfolio_Management
+Confidence: 0.38
+Keywords: capital allocation, allocation, portfolio
+
+---
+
+## Generating random returns for our 4 securities
+return_vec = np.random.randn(n_assets, n_obs)
+
+def rand_weights(n):
+    ''' 
+    Produces n random weights that sum to 1 
+    '''
+    k = np.random.rand(n)
+    return k / sum(k)
+
+def random_portfolio(returns):
+    ''' 
+    Returns the mean and standard deviation of returns for a random portfolio
+    '''
+
+    p = np.asmatrix(np.mean(returns, axis=1))
+    w = np.asmatrix(rand_weights(returns.shape[0]))
+    C = np.asmatrix(np.cov(returns))
+    
+    mu = w * p.T
+    sigma = np.sqrt(w * C * w.T)
+    
+    # This recursion reduces outliers to keep plots pretty
+    if sigma > 2:
+        return random_portfolio(returns)
+    return mu, sigma
+
+def optimal_portfolios(returns):
+    n = len(returns)
+    returns = np.asmatrix(returns)
+    
+    N = 100000
+    
+    # Creating a list of returns to optimize the risk for
+    mus = [100**(5.0 * t/N - 1.0) for t in range(N)]
+    
+    # Convert to cvxopt matrices
+    S = opt.matrix(np.cov(returns))
+    pbar = opt.matrix(np.mean(returns, axis=1))
+    
+    # Create constraint matrices
+    G = -opt.matrix(np.eye(n))   # negative n x n identity matrix
+    h = opt.matrix(0.0, (n ,1))
+    A = opt.matrix(1.0, (1, n))
+    b = opt.matrix(1.0)
+    
+    # Calculate efficient frontier weights using quadratic programming
+    portfolios = [solvers.qp(mu*S, -pbar, G, h, A, b)['x'] 
+                  for mu in mus]
+    
+    ## Calculate the risk and returns of the frontier
+    returns = [blas.dot(pbar, x) for x in portfolios]
+    risks = [np.sqrt(blas.dot(x, S*x)) for x in portfolios]
+    
+    return returns, risks
+
+n_portfolios = 50000
+
+means, stds = np.column_stack([random_portfolio(return_vec) for x in range(n_portfolios)])
+
+returns, risks = optimal_portfolios(return_vec)
+
+plt.plot(stds, means, 'o', markersize=2, color='navy')
+plt.xlabel('Risk')
+plt.ylabel('Return')
+plt.title('Mean and Standard Deviation of Returns of Randomly Generated Portfolios');
+
+plt.plot(risks, returns, '-', markersize=3, color='red');
+plt.legend(['Portfolios', 'Efficient Frontier']);
+```
+*Cell 6:*
+```python
+def maximize_sharpe_ratio(return_vec, risk_free_rate):
+    """
+    Finds the CAPM optimal portfolio from the efficient frontier 
+    by optimizing the Sharpe ratio.
+    """
+    
+    def find_sharpe(weights):
+        
+        means = [np.mean(asset) for asset in return_vec]
+        
+        numerator = sum(weights[m]*means[m] for m in range(len(means))) - risk_free_rate
+        
+        weight = np.array(weights)
+        
+        denominator = np.sqrt(weights.T.dot(np.corrcoef(return_vec).dot(weights)))
+        
+        return numerator/denominator
+    
+    guess = np.ones(len(return_vec)) / len(return_vec)
+    
+    def objective(weights):
+        return -find_sharpe(weights)
+    
+    # Set up equality constrained
+    cons = {'type':'eq', 'fun': lambda x: np.sum(np.abs(x)) - 1} 
+
+    # Set up bounds for individual weights
+    bnds = [(0, 1)] * len(return_vec)
+    
+    results = optimize.minimize(objective, guess,
+                            constraints=cons, bounds=bnds, 
+                            method='SLSQP', options={'disp': False})
+    
+    return results
+
+risk_free_rate = np.mean(R_F)
+
+results = maximize_sharpe_ratio(return_vec, risk_free_rate)
+
+# Applying the optimal weights to each assset to get build portfolio
+optimal_mean = sum(results.x[i]*np.mean(return_vec[i]) for i in range(len(results.x)))
+
+optimal_std = np.sqrt(results.x.T.dot(np.corrcoef(return_vec).dot(results.x)))
+
+# Plot of all possible portfolios
+plt.plot(stds, means, 'o', markersize=2, color='navy')
+plt.ylabel('Return')
+plt.xlabel('Risk')
+
+# Line from the risk-free rate to the optimal portfolio
+eqn_of_the_line = lambda x : ( (optimal_mean-risk_free_rate) / optimal_std ) * x + risk_free_rate    
+
+xrange = np.linspace(0., 1., num=11)
+
+plt.plot(xrange, [eqn_of_the_line(x) for x in xrange], color='red', linestyle='-', linewidth=2)
+
+# Our optimal portfolio
+plt.plot([optimal_std], [optimal_mean], marker='o', markersize=12, color="navy")
+
+plt.legend(['Portfolios', 'Capital Allocation Line', 'Optimal Portfolio']);
+```
+*Cell 7:*
+```python
+for a in range(len(return_vec)): 
+    print "Return and Risk of Asset", a, ":", np.mean(return_vec[a]), ",",np.std(return_vec[a])   
+    
+print "Return and Risk of Optimal Portfolio", optimal_mean, optimal_std
+```
+*Cell 8:*
+```python
+risk_free_rate = np.mean(R_F)
+
+# We have two coordinates that we use to map the SML: (0, risk-free rate) and (1, market return)
+
+eqn_of_the_line = lambda x : ( (np.mean(M)-risk_free_rate) / 1.0) * x + risk_free_rate        
+xrange = np.linspace(0., 2.5, num=2)
+plt.plot(xrange, [eqn_of_the_line(x) for x in xrange], color='red', linestyle='-', linewidth=2)
+
+plt.plot([1], [np.mean(M)], marker='o', color='navy', markersize=10)
+plt.annotate('Market', xy=(1, np.mean(M)), xytext=(0.9, np.mean(M)+0.00004))
+
+# Next, we will compare to see whether stocks in more cyclical industries have higher betas
+# Of course, a more thorough analysis is required to rigorously answer this question
+
+# Non-Cyclical Industry Stocks
+non_cyclical = ['PG', 'DUK', 'PFE']
+non_cyclical_returns = get_pricing(
+    non_cyclical,
+    fields='price',
+    start_date=start_date,
+    end_date=end_date
+).pct_change()[1:]
+non_cyclical_returns.columns = map(lambda x: x.symbol, non_cyclical_returns.columns)
+
+non_cyclical_betas = [
+    regression.linear_model.OLS(
+        non_cyclical_returns[asset],
+        sm.add_constant(M)
+    ).fit().params[1]
+     for asset in non_cyclical
+]
+
+for asset, beta in zip(non_cyclical, non_cyclical_betas):
+    plt.plot([beta], [np.mean(non_cyclical_returns[asset])], marker='o', color='g', markersize=10)
+    plt.annotate(
+        asset,
+        xy=(beta, np.mean(non_cyclical_returns[asset])),
+        xytext=(beta + 0.015, np.mean(non_cyclical_returns[asset]) + 0.000025)
+    )
+
+# Cyclical Industry Stocks
+cyclical = ['RIO', 'SPG', 'ING']
+cyclical_returns = get_pricing(
+    cyclical,
+    fields='price',
+    start_date=start_date,
+    end_date=end_date
+).pct_change()[1:]
+cyclical_returns.columns = map(lambda x: x.symbol, cyclical_returns.columns)
+
+cyclical_betas = [
+    regression.linear_model.OLS(
+        cyclical_returns[asset],
+        sm.add_constant(M)
+    ).fit().params[1]
+     for asset in cyclical
+]
+
+for asset, beta in zip(cyclical, cyclical_betas):
+    plt.plot([beta], [np.mean(cyclical_returns[asset])], marker='o', color='y', markersize=10)
+    plt.annotate(
+        asset,
+        xy=(beta, np.mean(cyclical_returns[asset])),
+        xytext=(beta + 0.015, np.mean(cyclical_returns[asset]) + 0.000025)
+    )
+
+# drawing the alpha, which is the difference between expected return and the actual return
+plt.plot(
+    [cyclical_betas[2], cyclical_betas[2]],
+    [np.mean(cyclical_returns.iloc[:, 2]), eqn_of_the_line(cyclical_betas[2])],
+    color='grey'
+)
+plt.annotate(
+    'Alpha',
+    xy=(
+        cyclical_betas[2] + 0.05,
+        (eqn_of_the_line(cyclical_betas[2])-np.mean(cyclical_returns.iloc[:,2]))/2+np.mean(cyclical_returns.iloc[:,2])
+    ),
+    xytext=(
+        cyclical_betas[2] + 0.05,
+        (eqn_of_the_line(cyclical_betas[2])-np.mean(cyclical_returns.iloc[:,2]))/2+np.mean(cyclical_returns.iloc[:,2])
+    )
+)
+
+plt.xlabel("Beta")
+plt.ylabel("Return")
+
+plt.legend(['Security Market Line']);
+```
+*Cell 9:*
+```python
+from quantopian.pipeline import Pipeline
+from quantopian.pipeline.data import Fundamentals
+from quantopian.pipeline.factors import Returns, Latest
+from quantopian.pipeline.filters import Q1500US
+from quantopian.research import run_pipeline
+from quantopian.pipeline.classifiers.fundamentals import Sector
+import itertools
+```
+*Cell 10:*
+```python
+def make_pipeline():
+    
+    pipe = Pipeline()
+
+    # Add our factors to the pipeline
+    purchase_of_biz = Latest([Fundamentals.purchase_of_business])
+    pipe.add(purchase_of_biz, 'purchase_of_business')
+    
+    RD = Latest([Fundamentals.research_and_development])
+    pipe.add(RD, 'RD')
+    
+    operating_cash_flow = Latest([Fundamentals.operating_cash_flow])
+    pipe.add(operating_cash_flow, 'operating_cash_flow')
+    
+    # Create factor rankings and add to pipeline
+    purchase_of_biz_rank = purchase_of_biz.rank()
+    RD_rank = RD.rank()
+    operating_cash_flow_rank = operating_cash_flow.rank()
+
+    pipe.add(purchase_of_biz_rank, 'purchase_of_biz_rank')
+    pipe.add(RD_rank, 'RD_rank')
+    pipe.add(operating_cash_flow_rank, 'operating_cash_flow_rank')
+    
+    most_biz_bought = purchase_of_biz_rank.top(1000)
+    least_biz_bought = purchase_of_biz_rank.bottom(1000)
+    
+    most_RD = RD_rank.top(1000)
+    least_RD = RD_rank.bottom(1000)
+    
+    most_cash = operating_cash_flow_rank.top(1000)
+    least_cash = operating_cash_flow_rank.bottom(1000)
+    
+    pipe.add(most_biz_bought, 'most_biz_bought')
+    pipe.add(least_biz_bought, 'least_biz_bought')
+    
+    pipe.add(most_RD, 'most_RD')
+    pipe.add(least_RD, 'least_RD')
+    
+    pipe.add(most_cash, 'most_cash')
+    pipe.add(least_cash, 'least_cash')
+    
+    # We also get daily returns
+    returns = Returns(window_length=2)
+    
+    # and sector types
+    sectors = Sector()
+
+    pipe.add(returns, "Returns")
+    
+    # We will focus on technology stocks in the Q1500
+    pipe.set_screen(
+        (Q1500US() & sectors.eq(311)) & 
+        most_biz_bought | least_biz_bought | 
+        most_RD | least_RD |
+        most_cash | least_cash
+    )
+    
+    return pipe
+
+pipe = make_pipeline()
+results = run_pipeline(pipe, start_date, end_date)
+
+results.head()
+```
+*Cell 11:*
+```python
+most_biz_bought = results[results.most_biz_bought]['Returns'].groupby(level=0).mean()
+least_biz_bought = results[results.least_biz_bought]['Returns'].groupby(level=0).mean()
+
+most_RD = results[results.most_RD]['Returns'].groupby(level=0).mean()
+least_RD = results[results.least_RD]['Returns'].groupby(level=0).mean()
+
+most_cash = results[results.most_cash]['Returns'].groupby(level=0).mean()
+least_cash = results[results.least_cash]['Returns'].groupby(level=0).mean()
+
+# Calculating our factor return streams
+biz_purchase_portfolio = most_biz_bought - least_biz_bought
+RD_portfolio = most_RD - least_RD
+cash_flow_portfolio = most_cash - least_cash
+```
+*Cell 12:*
+```python
+# putting all of our data from pipeline into a DataFrame for convenience
+# we'll have to first do some data manipulating since our factor return streams are date specific,
+# but our asset returns are both date and asset specific
+
+data = results[['Returns']].set_index(results.index)
+asset_list_sizes = [group[1].size for group in data.groupby(level=0)]
+
+purchase_of_biz_column = [
+    [biz_purchase_portfolio.loc[group[0]]] * size
+     for group, size in zip(data.groupby(level=0), asset_list_sizes)
+]
+data['Purchase of Business'] = list(itertools.chain(*purchase_of_biz_column))
+
+RD_column = [
+    [RD_portfolio.loc[group[0]]] * size
+     for group, size in zip(data.groupby(level=0), asset_list_sizes)
+]
+data['RD'] = list(itertools.chain(*RD_column))
+
+cash_flow_column = [
+    [cash_flow_portfolio.loc[group[0]]] * size
+     for group, size in zip(data.groupby(level=0), asset_list_sizes)
+]
+data['Operating Cash Flow'] = list(itertools.chain(*cash_flow_column))
+
+data = sm.add_constant(data.dropna())
+
+# Our list of assets from pipeline
+assets = data.index.levels[1].unique()
+
+X = [data.xs(asset, level=1)['Returns'] for asset in assets] 
+Y = [
+    data.xs(asset, level=1)[['Purchase of Business', 'RD', 'Operating Cash Flow', 'const']]
+     for asset in assets
+]
+
+# First regression step: estimating the betas
+reg_results = [
+    regression.linear_model.OLS(x-risk_free_rate, y).fit().params
+     for x, y in zip(X, Y) if not(x.empty or y.empty)
+]
+indices = [asset for x, y, asset in zip(X, Y, assets) if not(x.empty or y.empty)]
+
+betas = pd.DataFrame(reg_results, index=indices)
+betas = sm.add_constant(betas.drop('const', axis=1))
+
+R = data['Returns'].mean(axis=0, level=1)
+
+# Second regression step: estimating the risk premia
+final_results = regression.linear_model.OLS(R - risk_free_rate, betas).fit()
+
+final_results.summary()
+```
+*Cell 13:*
+```python
+# smoke test for multicollinearity
+print data[['Purchase of Business', 'RD', 'Operating Cash Flow']].corr()
+```
+*Cell 14:*
+```python
+# this is our actual model!
+expected_return = risk_free_rate \
+    + betas['Purchase of Business']*final_results.params[1] \
+    + betas['RD']*final_results.params[2] \
+    + betas['Operating Cash Flow']*final_results.params[3]
+
+year_of_returns = get_pricing(
+    expected_return.index,
+    start_date,
+    end_date,
+    fields='close_price'
+).pct_change()[1:]
+
+plt.plot(year_of_returns[expected_return.index[1]], color='purple')
+plt.plot(pd.DataFrame({'Expected Return': expected_return.iloc[0]}, index=year_of_returns.index), color='red')
+plt.legend(['AAPL Returns', 'APT Prediction']);
+```
+*Cell 15:*
+```python
+# Compare AAPL prediction of CAPM vs. our APT model
+M_annual_return = get_pricing('SPY', start_date=start_date, end_date=end_date, fields='price').pct_change()[1:]
+
+# We'll take the market beta we calculated from the beginning of the lecture
+CAPM_AAPL_prediction = risk_free_rate + AAPL_beta*(M_annual_return.mean() - risk_free_rate)
+
+# Let's take a closer look
+year_of_returns = year_of_returns[:25]
+
+plt.plot(year_of_returns[expected_return.index[1]], color='purple')
+plt.plot(pd.DataFrame({'Expected Return': expected_return.iloc[0]}, index=year_of_returns.index), color='red')
+plt.plot(pd.DataFrame({'Expected Return': year_of_returns.mean()[0]}, index=year_of_returns.index), color='navy')
+plt.plot(pd.DataFrame({'Expected Return': CAPM_AAPL_prediction}, index=year_of_returns.index), color='green')
+plt.legend(['AAPL Returns', 'APT Prediction', 'AAPL Average Returns', 'CAPM Prediction']);\
+```
+*Cell 16:*
+```python
+market_betas = [
+    regression.linear_model.OLS(x[1:], sm.add_constant(M_annual_return)).fit().params[1]
+     for x in X if (x[1:].size == M_annual_return.size)
+]
+indices = [asset for x, asset in zip(X, assets) if (x[1:].size == M_annual_return.size)]
+
+market_return = pd.DataFrame({'Market': M_annual_return.mean()}, index = indices)
+
+CAPM_predictions = risk_free_rate + market_betas*(market_return['Market'] - risk_free_rate)
+CAPM_predictions.sort_values(inplace=True, ascending=False)
+
+CAPM_portfolio = [CAPM_predictions.head(5).index, CAPM_predictions.tail(5).index]
+CAPM_long = get_pricing(
+    CAPM_portfolio[0],
+    start_date=start_date,
+    end_date=end_date,
+    fields='price'
+).pct_change()[1:].mean(axis=1)
+CAPM_short = get_pricing(
+    CAPM_portfolio[1],
+    start_date=start_date,
+    end_date=end_date,
+    fields='price'
+).pct_change()[1:].mean(axis=1)
+
+CAPM_returns = CAPM_long - CAPM_short
+
+expected_return.sort_values(inplace=True, ascending=False)
+
+APT_portfolio = [expected_return.head(5).index, expected_return.tail(5).index]
+APT_long = get_pricing(
+    APT_portfolio[0],
+    start_date=start_date,
+    end_date=end_date,
+    fields='price'
+).pct_change()[1:].mean(axis=1)
+APT_short = get_pricing(
+    APT_portfolio[1],
+    start_date=start_date,
+    end_date=end_date,
+    fields='price'
+).pct_change()[1:].mean(axis=1)
+
+APT_returns = APT_long - APT_short
+
+plt.plot(CAPM_returns)
+plt.plot(APT_returns)
+plt.plot(pd.DataFrame({'Mean Return': CAPM_returns.mean()}, index=CAPM_returns.index))
+plt.plot(pd.DataFrame({'Mean Return': APT_returns.mean()}, index=APT_returns.index))
+plt.legend(['CAPM Portfolio', 'APT Portfolio', 'CAPM Mean', 'APT Mean'])
+
+print "Returns after a year: APT versus CAPM"
+print ((APT_returns[-1]/APT_returns[0]) - 1) - ((CAPM_returns[-1]/CAPM_returns[0])-1)
+```
+
+##### Exercises: Comparing ETFs - Answer Key
+- **Original Path**: `notebooks\lectures\Case_Study_Comparing_ETFs\answers\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 25 (Code: 12, Markdown: 13)
+- **Imports/Dependencies**: from scipy import stats, import matplotlib.pyplot as plt, import numpy as np, import seaborn as sns
+
+**Explanatory Notes:**
+# Exercises: Comparing ETFs - Answer Key
+By Christopher van Hoecke, Maxwell Margenot, and Delaney Mackenzie

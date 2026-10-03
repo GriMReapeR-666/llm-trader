@@ -1,0 +1,21 @@
+# What is Liquidity?
+
+Topic: 04_Order_Execution
+Confidence: 0.67
+Keywords: slippage, execution
+
+---
+
+## What is Liquidity?
+Before we can define liquidity, we need to define a few key execution parameters. This is certainly not an exhaustive list of parameters that can decribe execution conditions, but they are the key ones for our purposes here.
+
+### Execution Parameters
+* Trade Size $s$
+* Market Price $p_m$
+* Time to Fill $t$
+* Realized Fill Price $p_f$
+
+### Defining Liquidity in Terms of Execution Feasibility
+Liquidity is a somewhat ambiguous term. There are different ways of defining it and therefore different ways of measuring it. In general it's the ability to execute large trades quickly without experiencing slippage. Another way to think about it is how easy it is to convert a held asset to cash quickly. Rather than having one precise definition, people often descibe liquidity according to their trading needs. For instance, if one regularly needs to execute trades of size $s$=100,000USD, and market $M_1$ can regularly support that with fills coming within $t$=1s and slippage or $p_f / p_m$ < 1.0001 (0.01% error), then we'd say that market $M$ is sufficiently liquid for one's purposes. On the other hand if another market $M_2$ can support trades of larger size, fill them in shorter time, or has consistently less slippage, then we would say that $M_2$ is *more* liquid.
+
+The takeaway is that liquidity depends on what you are trying to trade and how, and once you've established a benchmark you can compare it to other potential instruments, markets, brokers, or trading methods.

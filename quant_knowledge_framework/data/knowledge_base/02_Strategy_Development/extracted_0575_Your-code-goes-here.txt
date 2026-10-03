@@ -1,0 +1,61 @@
+# Your code goes here
+
+Topic: 02_Strategy_Development
+Confidence: 0.33
+Keywords: ev, expected value
+
+---
+
+## Your code goes here
+```
+*Cell 11:*
+```python
+asset1 = get_pricing('AAPL', fields='open_price', start_date='2016-01-01', end_date='2017-01-01')
+asset2 = get_pricing('XLF', fields='open_price', start_date='2016-01-01', end_date='2017-01-01')
+
+cov = np.cov(asset1, asset2)[0,1]
+
+w1 = ## Your code goes here.
+w2 = 1 - w1
+
+v1 = np.var(asset1)
+v2 = np.var(asset2)
+
+pvariance = (w1**2)*v1+(w2**2)*v2+(2*w1*w2)*cov
+
+print 'Portfolio variance: ', pvariance
+```
+
+##### Violations of Regression Models
+- **Original Path**: `notebooks\lectures\Violations_of_Regression_Models\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 26 (Code: 12, Markdown: 14)
+- **Imports/Dependencies**: from math import sqrt, from scipy.stats import pearsonr, from statsmodels import regression, stats, import matplotlib.pyplot as plt, import numpy as np, import statsmodels, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Violations of Regression Models
+By Evgenia "Jenny" Nitishinskaya and Delaney Mackenzie
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+---
+
+When using a regression to fit a model to our data, the assumptions of regression analysis must be satisfied in order to ensure good parameter estimates and accurate fit statistics. We would like parameters to be:
+* unbiased (expected value over different samples is the true value)
+* consistent (converging to the true value with many samples), and
+* efficient (minimized variance)
+
+Below we investigate the ways in which these assumptions can be violated and the effect on the parameters and fit statistics. We'll be using single-variable linear equations for the examples, but the same considerations apply to other models. We'll also assume that our model is correctly specified; that is, that the functional form we chose is valid. We discuss model specification errors along with the assumption violations and other problems that they cause in another notebook.
+
+# Focus on the Residuals
+
+Rather than focusing on your model construction, it is possible to gain a huge amount of information from your residuals (errors). Your model may be incredibly complex and impossible to analyze, but as long as you have predictions and observed values, you can compute residuals. Once you have your residuals you can perform many statistical tests.
+
+If your residuals do not follow a given distribution (usually normal, but depends on your model), then you know that something is wrong and you should be concerned with the accuracy of your predictions.
+
+# Residuals not normally-distributed
+
+If the error term is not normally distributed, then our tests of statistical significance will be off. Fortunately, the central limit theorem tells us that, for large enough data samples, the coefficient distributions will be close to normal even if the errors are not. Therefore our analysis will still be valid for large data datasets.

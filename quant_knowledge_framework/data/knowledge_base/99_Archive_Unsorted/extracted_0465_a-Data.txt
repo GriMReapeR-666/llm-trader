@@ -1,0 +1,10 @@
+# a. Data
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Data
+Start by collecting the close prices of McDonalds Corp. (MCD) and Starbucks (SBUX) for the last 5 years with daily frequency.

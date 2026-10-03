@@ -1,0 +1,19 @@
+# Why is liquidity important?
+
+Topic: 02_Strategy_Development
+Confidence: 0.40
+Keywords: ev, strategy
+
+---
+
+## Why is liquidity important?
+Why do we actually care about modeling, forecasting, and understanding liquidity?
+
+### It's a bottleneck to trading any strategy.
+The final step of implementing any trading strategy is actually trading it. If you have statistically verified a mathematical model and it's pumping out target positions, that's not useful unless you can turn those positions into reality by trading in the market. Liquidity essentially defines your ability to move from current positions to desired future positions. With low liquidity you will not be able to execute on desired trades and there will be large infidelities between your model's requests and your real positions.
+
+#### There's no perfect case.
+You cannot completely eliminate liquidity concerns. Each instrument will have variable liquidity and there may be exogenous system shocks. As with any other quantity you can just model it and then try to trade instruments for which you expect good liquidity. Every strategy will have some liquidity drag during actual trading, but you can just try to make it as small as possible by avoiding instruments with high liquidity risk.
+
+### Capital Base vs. Liquidity
+The more capital you trade, the harder it is to fill trades without experiencing slippage, so the more expensive your trading will be. In general all strategies have capital ranges in which they are profitable. The upper limit is defined by liquidity constraints. Once you become too large a part of the market the slippage will eat all your returns. The lower end is defined by broker comissions and position errors. If you're attempting to trade a small amount of capital, flat trading costs from your broker may exceed returns. Likewise, if you are trading 100,000USD and place 1% of your portfolio into a single stock, you will not be able to buy precisely 100USD worth of the stock. The lack of fractional shares will result in large portfolio infidelities from your desired positions. Because trading few instruments results in [position concentration risk](https://www.quantopian.com/lectures/position-concentration-risk), trading small amounts of capital is often difficult.

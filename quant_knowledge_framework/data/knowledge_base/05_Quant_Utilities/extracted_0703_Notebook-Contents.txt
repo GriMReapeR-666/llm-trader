@@ -1,0 +1,240 @@
+# Notebook Contents
+
+Topic: 05_Quant_Utilities
+Confidence: 0.44
+Keywords: numpy, python, pandas, standardize
+
+---
+
+## Notebook Contents
+
+There are two ways to access the data and you'll find both of them listed below. Just click on the section you'd like to read through.
+
+- <a href='#interactive'><strong>Interactive overview</strong></a>: This is only available on Research and uses blaze to give you access to large amounts of data. Recommended for exploration and plotting.
+- <strong>Pipeline overview</strong> (Not Available Yet): Data is made available through pipeline which is available on both the Research & Backtesting environment. Recommended for custom factor development and moving back & forth between research/backtesting.
+
+### Free samples and limits
+One key caveat: we limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free sample includes data until 2 months prior to the current date.
+
+To access the most up-to-date values for this data set for trading a live algorithm (as with other partner sets), you need to purchase acess to the full set.
+
+With preamble in place, let's get started:
+
+<a id='interactive'></a>
+#Interactive Overview
+### Accessing the data with Blaze and Interactive on Research
+Partner datasets are available on Educational Platform Research through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets, in an interactive, generic manner.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to reduce your dataset in size, convert it over to Pandas and then to use Pandas for further computation, manipulation and visualization.
+
+Helpful links:
+* [Query building for Blaze](http://blaze.readthedocs.io/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-sql.html).
+
+Once you've limited the size of your Blaze object, you can convert it to a Pandas DataFrames using:
+> `from odo import odo`  
+> `odo(expr, pandas.DataFrame)`
+
+
+###To see how this data can be used in your algorithm, search for the `Pipeline Overview` section of this notebook or head straight to <a href='#pipeline'>Pipeline Overview</a>
+
+Let's go over the columns:
+- **symbol**: the ticker symbol of the company.
+- **comp_name**: the name of the company.
+- **comp_name_2**: the name of the company.
+- **exchange**: what the exchange stock is currently trading 
+- **currency_code**: currency code
+- **per_type**: period type (e.g. Q for quarter)
+- **sid**: the equity's unique identifier. Use this instead of ticker or name. 
+- **eps_mean_est**: Earnings per share (EPS) mean estimate for the period
+- **eps_act**: Earnings per share (EPS) actual for the period
+- **eps_amt_diff_surp**: Earnings per share (EPS) surprise amount for the period
+- **eps_pct_diff_surp**: Earnings per share (EPS) surprise percent for the period
+- **eps_std_dev_est**: Earnings per share (EPS) standard deviation in estimate for the period
+- **eps_cnt_est**: Number of estimates for the period
+- **eps_act_zacks_adj**: Estimated earnings per share (EPS) (Zacks adjustment)
+- **per_fisc_year**: Period fiscal year
+- **per_fisc_qtr**: Period fiscal quarter
+- **per_end_date**: Period end date
+- **per_cal_year**: Period calendar year
+- **per_cal_qtr**: Period calender quarter
+- **act_rpt_code**: Actual report time of day code (BTO - before the open, DTM - during the market, AMC - after market close)
+- **act_rpt_desc**: Actual report time of day description
+- **act_rpt_date_time**: Actual report timestamp (eastern time)
+- **m_ticker**: Master ticker or trading symbol
+- **asof_date**: The date to which this data applies/Actual report date
+- **timestamp**: This is our timestamp on when we registered the data.
+
+We've done much of the data processing for you. Fields like `timestamp` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, we'll fetch all entries for the sid 24 (AAPL) and plot the earnings surprises for that.
+
+Let's convert `aapl` to a DataFrame.
+
+<a id='pipeline'></a>
+
+#Pipeline Overview
+
+### Accessing the data in your algorithms & research
+The only method for accessing partner data within algorithms running on Educational Platform is via the pipeline API. Different data sets work differently but in the case of this data, you can add this data to your pipeline as follows:
+
+Import the data set here
+> `from educational_platform.pipeline.data.zacks import (`
+> `EarningsSurprises`
+> `)`
+
+Then in intialize() you could do something simple like adding the raw value of one of the fields to your pipeline:
+> `pipe.add(zacks.eps_mean_est.latest, 'EPS mean estimate')`
+
+Now that we've imported the data, let's take a look at which fields are available for each dataset.
+
+You'll find the dataset, the available fields, and the datatypes for each of those fields.
+
+Now that we know what fields we have access to, let's see what this data looks like when we run it through Pipeline.
+
+
+This is constructed the same way as you would in the backtester. For more information on using Pipeline in Research view this thread:
+https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.zacks import earnings_surprises as dataset
+
+# or if you want to import the paid dataset, use:
+# from educational_platform.interactive.data.zacks import earnings_surprises_free
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+dataset.timestamp.min()
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+dataset.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+dataset[:3]
+```
+*Cell 5:*
+```python
+aapl = dataset[dataset.sid==24][['eps_pct_diff_surp','eps_mean_est', 'eps_act', 'eps_std_dev_est', 'asof_date']].sort('asof_date')
+aapl
+```
+*Cell 6:*
+```python
+aapl_surprise = odo(aapl, pd.DataFrame)
+# suppose we want the rows to be indexed by timestamp.
+aapl_surprise.index = list(aapl_surprise['asof_date'])
+aapl_surprise.drop('asof_date',1,inplace=True)
+# display the first three rows. DataFrames, when printed, display 60 rows at a time.
+aapl_surprise[:3]
+```
+*Cell 7:*
+```python
+# Import necessary Pipeline modules
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+```
+*Cell 8:*
+```python
+# For use in your algorithms
+# Using the full/sample paid dataset in your pipeline algo
+from educational_platform.pipeline.data.zacks import EarningsSurprises
+```
+*Cell 9:*
+```python
+print "Here are the list of available fields per dataset:"
+print "---------------------------------------------------\n"
+
+def _print_fields(dataset):
+    print "Dataset: %s\n" % dataset.__name__
+    print "Fields:"
+    for field in list(dataset.columns):
+        print "%s - %s" % (field.name, field.dtype)
+    print "\n"
+
+for data in (EarningsSurprises,):
+    _print_fields(data)
+
+
+print "---------------------------------------------------\n"
+```
+*Cell 10:*
+```python
+# Let's see what this data looks like when we run it through Pipeline
+# This is constructed the same way as you would in the backtester. For more information
+# on using Pipeline in Research view this thread:
+# https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+
+# Setting some basic liquidity strings (just for good habit)
+dollar_volume = AverageDollarVolume(window_length=20)
+top_1000_most_liquid = dollar_volume.rank(ascending=False) < 1000
+
+pipe = Pipeline(
+    columns={
+        'EPS mean estimate': EarningsSurprises.eps_mean_est.latest,
+        'Zacks adj': EarningsSurprises.eps_act_zacks_adj.latest,
+        'eps_act': EarningsSurprises.eps_act.latest
+    },
+    screen=(top_1000_most_liquid & EarningsSurprises.eps_mean_est.latest.notnan())
+)
+```
+*Cell 11:*
+```python
+# The show_graph() method of pipeline objects produces a graph to show how it is being calculated.
+pipe.show_graph(format='png')
+```
+*Cell 12:*
+```python
+# run_pipeline will show the output of your pipeline
+pipe_output = run_pipeline(pipe, start_date='2016-03-01', end_date='2016-03-02')
+pipe_output
+```
+
+#### Category: Drafts
+##### Different definitions of momentum
+- **Original Path**: `advanced_sample_analyses\drafts\Different definitions of momentum.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 11 (Code: 7, Markdown: 4)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Different definitions of momentum
+By Evgenia "Jenny" Nitishinskaya
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+A momentum strategy is one that buys stocks whose prices seem to be rising and sells those whose prices seem to be falling. That is, it assumes that if a stock price has a lot of momentum in some direction, it will keep moving in that direction. In this notebook I try out the different definitions of momentum described in http://arxiv.org/pdf/1208.2775.pdf. They define 4 different measures, called $p^{(1)}$, $p^{(0)}$, $p^{(2)}$, and $p^{(3)}$.
+
+Their approach is based in physics, where the momentum is defined as $p = mv$, the product of the mass and the velocity. First, they define $x(t)$ to be the log of the price of the security. Conveniently, the return on the security is then the derivative of $x(t)$, which is called the velocity $v(t)$. Then they suggest a number of different definitions of mass $m(t)$; in the examples below, we'll use the inverse of standard deviation and turnover rate as mass. This works with our analogy because the more volatile or the less liquid an asset (the smaller its mass), the easier it is to move its price (i.e. change its position). The different momenta are then defined (for a lookback window $k$) as:
+$$p^{(0)}(t) = \sum_{i=0}^{k-1} v(t-i)$$
+$$p^{(1)}(t) = \sum_{i=0}^{k-1} m(t-i) v(t-i)$$
+$$p^{(2)}(t) = \frac{\sum_{i=0}^{k-1} m(t-i) v(t-i)}{\sum_{i=0}^{k-1} m(t-i)}$$
+$$p^{(3)}(t) = \frac{\mu(v(t-k+1),\ldots, v(t))}{\sigma(v(t-k+1),\ldots, v(t))} $$
+
+First, let's just implement the different momentum definitions, and plot the rolling momenta for one stock:
+
+In order to use this in a strategy, we should wrap our momentum calculator in a function:
+
+Now we implement the strategy described in the paper: pick a holding period, and every period rebalance your portfolio to be long \$1000 each in the highest-momentum stocks and short \$1000 each in the lowest-momentum stocks. In the code below, my holding period is simply twice the lookback period.

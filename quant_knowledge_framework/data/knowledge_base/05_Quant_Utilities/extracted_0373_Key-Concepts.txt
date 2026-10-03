@@ -1,0 +1,384 @@
+# Key Concepts
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python, pandas
+
+---
+
+## Key Concepts
+Normal Distribution MLE Estimators: 
+
+$$
+\hat\mu = \frac{1}{T}\sum_{t=1}^{T} x_t \\\qquad \hat\sigma = \sqrt{\frac{1}{T}\sum_{t=1}^{T}{(x_t - \hat\mu)^2}}
+$$
+
+
+
+Exponential Distribution MLE Estimators: 
+$$\hat\lambda = \frac{\sum_{t=1}^{T} x_t}{T}$$
+
+----
+
+# Exercise 1: Normal Distribution
+- Given the equations above, write down functions to calculate the MLE estimators $\hat{\mu}$ and $\hat{\sigma}$ of the normal distribution. 
+- Given the sample normally distributed set, find the maximum likelihood $\hat{\mu}$ and $\hat{\sigma}$.
+- Fit the data to a normal distribution using SciPy. Compare SciPy's calculated parameters with your calculated values of $\hat{\mu}$ and $\hat{\sigma}$.
+- Plot a normal distribution PDF with your estimated parameters
+
+------
+
+# Exercise 2: Exponential Distribution
+- Given the equations above, write down functions to calculate the MLE estimator $\hat{\lambda}$ of the exponential distribution
+- Given the sample exponentially distributed set, find the maximum likelihood
+- Fit the data to an exponential distribution using SciPy. Compare SciPy's calculated parameter with your calculated values of  $\hat{\lambda}$
+- Plot an exponential distribution PDF with your estimated parameter
+
+----
+
+# Exercise 3 : Fitting Data Using MLE
+- Using the MLE estimators laid out in the lecture, fit the returns for SPY from 2014 to 2015 to a normal distribution.   
+- Check for normality using the Jarque-Bera test
+
+Recall that this fit **only** makes sense **if** we have normally distributed data.
+
+---
+
+Congratulations on completing the Maximum Likelihood Estimation exercises!
+
+As you learn more about writing trading models and the Educational Platform platform, enter the daily [Educational Platform Contest](https://www.educational_platform.com/contest). Your strategy will be evaluated for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Libraries
+import pandas as pd
+import math
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy
+import scipy.stats as stats
+```
+*Cell 2:*
+```python
+# Normal mean and standard deviation MLE estimators
+def normal_mu(X):
+    # Get the number of observations
+    T = len(X)
+    # Sum the observations
+    s = sum(X)
+    return 1.0/T * s
+
+def normal_sigma(X):
+    T = len(X)
+    # Get the mu MLE
+    mu = normal_mu(X)
+    # Sum the square of the differences
+    s = sum( np.power((X - mu), 2) )
+    # Compute sigma^2
+    sigma_squared = 1.0/T * s
+    return math.sqrt(sigma_squared)
+```
+*Cell 3:*
+```python
+# Normal Distribution Sample Data
+TRUE_MEAN = 40
+TRUE_STD = 10
+X = np.random.normal(TRUE_MEAN, TRUE_STD, 10000000)
+
+# Use your functions to compute the MLE mu and sigma
+mu = normal_mu(X)
+std = normal_sigma(X)
+
+print 'Maximum likelihood value of mu:', mu
+print 'Maximum likelihood value for sigma:', std
+```
+*Cell 4:*
+```python
+# Fit the distribution using SciPy and compare those parameters with yours 
+scipy_mu, scipy_std = scipy.stats.norm.fit(X)
+print 'Scipy Maximum likelihood value of mu:', scipy_mu
+print 'Scipy Maximum likelihood value for sigma:', scipy_std
+```
+*Cell 5:*
+```python
+# Get the PDF, fill it with your calculated parameters, and plot it along x
+x = np.linspace(0, 80, 80)
+
+plt.hist(X, bins=x, normed='true')
+plt.plot(scipy.stats.norm.pdf(x, loc=mu, scale=std), color='red')
+plt.xlabel('Value')
+plt.ylabel('Observed Frequency')
+plt.legend(['Fitted Distribution PDF', 'Observed Data', ]);
+```
+*Cell 6:*
+```python
+# Exponential lambda MLE estimator
+def exp_lambda(X):
+    T = len(X)
+    s = sum(X)
+    return s/T
+```
+*Cell 7:*
+```python
+# Exponential distribution sample data
+TRUE_LAMBDA = 5
+X = np.random.exponential(TRUE_LAMBDA, 1000)
+
+# Use your functions to compute the MLE lambda
+lam = exp_lambda(X)
+print "Lambda estimate: ", lam
+```
+*Cell 8:*
+```python
+# Fit the distribution using SciPy and compare that parameter with yours 
+_, l = scipy.stats.expon.fit(X)
+print 'Scipy lambds estimate: ', l
+```
+*Cell 9:*
+```python
+# Get the PDF, fill it with your calculated parameter, and plot it along x
+x = range(0, 80)
+
+plt.hist(X, bins=x, normed='true')
+plt.plot(scipy.stats.expon.pdf(x, scale=l), color = 'red')
+plt.xlabel('Value')
+plt.ylabel('Observed Frequency')
+plt.legend(['Fitted Distribution PDF', 'Observed Data', ]);
+```
+*Cell 10:*
+```python
+prices = get_pricing('SPY', 
+                     fields='price', 
+                     start_date='2016-01-04', 
+                     end_date='2016-01-05', 
+                     frequency = 'minute')
+returns = prices.pct_change()[1:]
+```
+*Cell 11:*
+```python
+mu = normal_mu(returns)
+std = normal_sigma(returns)
+
+x = np.linspace(returns.min(), returns.max(), num=1000)
+h = plt.hist(returns, bins=50, normed='true')
+l = plt.plot(x, scipy.stats.norm.pdf(x, loc=mu, scale=std), color = 'red')
+plt.show(h, l);
+```
+*Cell 12:*
+```python
+alpha = 0.05
+stat, pval = scipy.stats.mstats.normaltest(returns)
+print pval
+
+if pval > alpha: 
+    print 'Accept our null hypothesis'
+if pval < alpha: 
+    print 'Reject our null hypothesis'
+```
+
+##### notebook
+- **Original Path**: `notebooks\lectures\Maximum_Likelihood_Estimation\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 29 (Code: 15, Markdown: 14)
+- **Imports/Dependencies**: from statsmodels.stats.stattools import jarque_bera, import math, import matplotlib.pyplot as plt, import numpy as np, import scipy, import scipy.stats
+
+**Explanatory Notes:**
+#Maximum Likelihood Estimates (MLEs)
+
+By Delaney Granizo-Mackenzie and Andrei Kirilenko developed as part of the Masters of Finance curriculum at MIT Sloan.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+In this tutorial notebook, we'll do the following things:
+1. Compute the MLE for a normal distribution.
+2. Compute the MLE for an exponential distribution.
+3. Fit a normal distribution to asset returns using MLE.
+
+First we need to import some libraries
+
+##Normal Distribution
+We'll start by sampling some data from a normal distribution.
+
+Now we'll define functions that, given our data, will compute the MLE for the $\mu$ and $\sigma$ parameters of the normal distribution.
+
+Recall that
+
+$$\hat\mu = \frac{1}{T}\sum_{t=1}^{T} x_t$$
+
+$$\hat\sigma = \sqrt{\frac{1}{T}\sum_{t=1}^{T}{(x_t - \hat\mu)^2}}$$
+
+Now let's try our functions out on our sample data and see how they compare to the built-in `np.mean` and `np.std`
+
+Now let's estimate both parameters at once with scipy's built in `fit()` function.
+
+Now let's plot the distribution PDF along with the data to see how well it fits. We can do that by accessing the pdf provided in `scipy.stats.norm.pdf`.
+
+##Exponential Distribution
+Let's do the same thing, but for the exponential distribution. We'll start by sampling some data.
+
+`numpy` defines the exponential distribution as
+$$\frac{1}{\lambda}e^{-\frac{x}{\lambda}}$$
+
+So we need to invert the MLE from the lecture notes. There it is
+
+$$\hat\lambda = \frac{T}{\sum_{t=1}^{T} x_t}$$
+
+Here it's just the reciprocal, so
+
+$$\hat\lambda = \frac{\sum_{t=1}^{T} x_t}{T}$$
+
+##MLE for Asset Returns
+
+Now we'll fetch some real returns and try to fit a normal distribution to them using MLE.
+
+Let's use `scipy`'s fit function to get the $\mu$ and $\sigma$ MLEs.
+
+Of course, this fit is meaningless unless we've tested that they obey a normal distribution first. We can test this using the Jarque-Bera normality test. The Jarque-Bera test will reject the hypothesis of a normal distribution if the p-value is under a c.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import math
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy
+import scipy.stats
+```
+*Cell 2:*
+```python
+TRUE_MEAN = 40
+TRUE_STD = 10
+X = np.random.normal(TRUE_MEAN, TRUE_STD, 1000)
+```
+*Cell 3:*
+```python
+def normal_mu_MLE(X):
+    # Get the number of observations
+    T = len(X)
+    # Sum the observations
+    s = sum(X)
+    return 1.0/T * s
+
+def normal_sigma_MLE(X):
+    T = len(X)
+    # Get the mu MLE
+    mu = normal_mu_MLE(X)
+    # Sum the square of the differences
+    s = sum( np.power((X - mu), 2) )
+    # Compute sigma^2
+    sigma_squared = 1.0/T * s
+    return math.sqrt(sigma_squared)
+```
+*Cell 4:*
+```python
+print "Mean Estimation"
+print normal_mu_MLE(X)
+print np.mean(X)
+print "Standard Deviation Estimation"
+print normal_sigma_MLE(X)
+print np.std(X)
+```
+*Cell 5:*
+```python
+mu, std = scipy.stats.norm.fit(X)
+print "mu estimate: " + str(mu)
+print "std estimate: " + str(std)
+```
+*Cell 6:*
+```python
+pdf = scipy.stats.norm.pdf
+# We would like to plot our data along an x-axis ranging from 0-80 with 80 intervals
+# (increments of 1)
+x = np.linspace(0, 80, 80)
+plt.hist(X, bins=x, normed='true')
+plt.plot(pdf(x, loc=mu, scale=std))
+plt.xlabel('Value')
+plt.ylabel('Observed Frequency')
+plt.legend(['Fitted Distribution PDF', 'Observed Data', ]);
+```
+*Cell 7:*
+```python
+TRUE_LAMBDA = 5
+X = np.random.exponential(TRUE_LAMBDA, 1000)
+```
+*Cell 8:*
+```python
+def exp_lamda_MLE(X):
+    T = len(X)
+    s = sum(X)
+    return s/T
+```
+*Cell 9:*
+```python
+print "lambda estimate: " + str(exp_lamda_MLE(X))
+```
+*Cell 10:*
+```python
+# The scipy version of the exponential distribution has a location parameter
+# that can skew the distribution. We ignore this by fixing the location
+# parameter to 0 with floc=0
+_, l = scipy.stats.expon.fit(X, floc=0)
+```
+*Cell 11:*
+```python
+pdf = scipy.stats.expon.pdf
+x = range(0, 80)
+plt.hist(X, bins=x, normed='true')
+plt.plot(pdf(x, scale=l))
+plt.xlabel('Value')
+plt.ylabel('Observed Frequency')
+plt.legend(['Fitted Distribution PDF', 'Observed Data', ]);
+```
+*Cell 12:*
+```python
+prices = get_pricing('TSLA', fields='price', start_date='2014-01-01', end_date='2015-01-01')
+# This will give us the number of dollars returned each day
+absolute_returns = np.diff(prices)
+# This will give us the percentage return over the last day's value
+# the [:-1] notation gives us all but the last item in the array
+# We do this because there are no returns on the final price in the array.
+returns = absolute_returns/prices[:-1]
+```
+*Cell 13:*
+```python
+mu, std = scipy.stats.norm.fit(returns)
+pdf = scipy.stats.norm.pdf
+x = np.linspace(-1,1, num=100)
+h = plt.hist(returns, bins=x, normed='true')
+l = plt.plot(x, pdf(x, loc=mu, scale=std))
+```
+*Cell 14:*
+```python
+from statsmodels.stats.stattools import jarque_bera
+jarque_bera(returns)
+```
+*Cell 15:*
+```python
+jarque_bera(np.random.normal(0, 1, 100))
+```
+
+##### Exercises: Maximum Likelihood Estimation
+- **Original Path**: `notebooks\lectures\Maximum_Likelihood_Estimation\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 23 (Code: 12, Markdown: 11)
+- **Imports/Dependencies**: import math, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy, import scipy.stats as stats
+
+**Explanatory Notes:**
+# Exercises: Maximum Likelihood Estimation 
+By Christopher van Hoecke, Max Margenot, and Delaney Mackenzie

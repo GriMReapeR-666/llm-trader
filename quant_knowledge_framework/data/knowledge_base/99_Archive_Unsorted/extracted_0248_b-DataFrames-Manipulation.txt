@@ -1,0 +1,16 @@
+# b. DataFrames Manipulation
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. DataFrames Manipulation
+- Concatenate the following two series to form a dataframe. 
+- Rename the columns to `Good Numbers` and `Bad Numbers`. 
+- Change the index to be a datetime index starting on `2016-01-01`.
+
+----
+
+# Exercise 6 : Accessing DataFrame elements.

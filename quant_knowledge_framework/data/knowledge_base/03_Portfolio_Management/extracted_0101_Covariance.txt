@@ -1,0 +1,35 @@
+# Covariance
+
+Topic: 03_Portfolio_Management
+Confidence: 0.50
+Keywords: portfolio, ror
+
+---
+
+## Covariance
+
+In statistics and probability, the covariance is a measure of the joint variability of two random variables. When random variables exhibit similar behavior, there tends to be a high covariance between them. Mathematically, we express the covariance of X with respect to Y as:
+
+$$ COV(X, Y) = E[(X - E[X])(Y - E[Y])]$$
+
+Notice that if we take the covariance of $X$ with itself, we get:
+
+$$ COV(X, X) = E[(X - E[X])(X - E[X])] = E[(X - E[X])^2] = VAR(X) $$
+
+We can use covariance to quantify the similarities between different assets in much the same way. If two assets have a high covariance, they will generally behave the same way. Assets with particularly high covariance can essentially replace each other.
+
+Covariance matrices form the backbone of Modern Portfolio theory (MPT). MPT focuses on maximizing return for a given level of risk, making essential the methods with which we estimate that risk. We use covariances to quantify the joint risk of assets, forming how we view the risk of an entire portfolio. What is key is that investing in assets that have high pairwise covariances provides little diversification because of how closely their fluctuations are related.
+
+Let's take the covariance of two closely related variables, $X$ and $Y$. Say that $X$ is some randomly drawn set and that $Y =  5X + \epsilon$, where $\epsilon$ is some extra noise. We can compute the covariance using the formula above to get a clearer picture of how $X$ evolves with respect to asset $Y$.
+
+We can also compute the covariance between $X$ and $Y$ with a single function.
+
+This gives us the covariance matrix between $X$ and $Y$. The diagonals are their respective variances and the indices $(i, j)$ refer to the covariance between assets indexed $i$ and $j$.
+
+In this case, we only have two assets so we only have indices $(0, 1)$ and $(1, 0)$. Covariance matrices are symmetric, since $COV(X, Y) = COV(Y, X)$, which is why the off-diagonals mirror each other.
+
+We can intuitively think of this as how much $Y$ changes when $X$ changes and vice-versa. As such, our covariance value of about 5 could have been anticipated from the definition of the relationship between $X$ and $Y$.
+
+Here is a scatterplot between $X$ and $Y$ with a line of best fit down the middle.
+
+Between the covariance, the linear regression, and our knowledge of how $X$ and $Y$ are related, we can easily assess the relationship between our toy variables. With real data, there are two main complicating factors. The first is that we are exmaining significantly more relationships. The second is that we do not know any of their underlying relationships. These hindrances speak to the benefit of having accurate estimates of covariance matrices.

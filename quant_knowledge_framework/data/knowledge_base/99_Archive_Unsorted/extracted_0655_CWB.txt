@@ -1,0 +1,15 @@
+# CWB
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## CWB
+
+Next, we look at **CWB**, which is the Barclays Capital Convertible Securities, which tracks the Barclays U.S. Convertible Bond \$500MM Index. CWB includes bonds with an outstanding issue size of more than \$500m and more than 31 days to maturity. CWB stores about \$3bn in assets. CWB started trading on `2009-04-16`.
+
+It's not clear whether there is a relationship here -- both moving averages follow a reasonably clear upward trajectory, and there appear to be some corresponding dips and rises. On the other hand, if we propose that the two variables are related, then CWB Price appears to be the causal variable, because wherever in this plot we see CWB and Fed Sentiment moving in some corresponding way, CWB will move first. 
+
+But that's barely plausible: a price change in CWB or TLT is unlikely to change Fed Sentiment, because these ETFs are far too small to be of economic concern. We'll discuss this in more detail in the next section.

@@ -1,0 +1,20 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+r = 1 - sumsquares1/sumsquares2
+
+print 'R-squared = ', r
+```
+*Cell 10:*
+```python
+asset1 = get_pricing('SPY', fields='price', start_date='2005-01-01', end_date='2010-01-01')
+asset2 = get_pricing('GS', fields='price', start_date='2005-01-01', end_date='2010-01-01')
+
+returns1 = asset1.pct_change()[1:]
+returns2 = asset2.pct_change()[1:]

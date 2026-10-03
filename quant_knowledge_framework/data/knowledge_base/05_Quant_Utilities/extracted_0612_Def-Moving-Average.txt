@@ -1,0 +1,789 @@
+# Def: Moving Average
+
+Topic: 05_Quant_Utilities
+Confidence: 0.48
+Keywords: rolling window, pandas, cointegration, python, numpy, z-score
+
+---
+
+## Def: Moving Average
+A moving average is just an average over the last $n$ datapoints for each given time. It will be undefined for the first $n$ datapoints in our series.
+
+We can use the moving averages to compute the z-score of the difference at each given time. This will tell us how extreme the difference is and whether it's a good idea to enter a position at this time. Let's take a look at the z-score now.
+
+The z-score doesn't mean much out of context, let's plot it next to the prices to get an idea of what it looks like. We'll take the negative of the z-score because the differences were all negative and that's kinda confusing.
+
+##This notebook contained some simple introductory approaches. In practice one should use more sophisticated statistics, some of which are listed here.
+
+* Augmented-Dickey Fuller test 
+* Hurst exponent
+* Half-life of mean reversion inferred from an Ornstein–Uhlenbeck process
+* Kalman filters
+
+(this is *not* an endorsement) But, a very good practical resource for learning more about pair trading is Dr. Ernie Chan's book:  Algorithmic Trading: Winning Strategies and Their Rationale
+http://www.amazon.com/Algorithmic-Trading-Winning-Strategies-Rationale/dp/1118460146/
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+
+import statsmodels
+from statsmodels.tsa.stattools import coint
+# just set the seed for the random number generator
+np.random.seed(107)
+
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+X_returns = np.random.normal(0, 1, 100) # Generate the daily returns
+# sum them and shift all the prices up into a reasonable range
+X = pd.Series(np.cumsum(X_returns), name='X') + 50
+X.plot()
+```
+*Cell 3:*
+```python
+some_noise = np.random.normal(0, 1, 100)
+Y = X + 5 + some_noise
+Y.name = 'Y'
+pd.concat([X, Y], axis=1).plot()
+```
+*Cell 4:*
+```python
+(Y-X).plot() # Plot the spread
+plt.axhline((Y-X).mean(), color='red', linestyle='--') # Add the mean
+```
+*Cell 5:*
+```python
+# compute the p-value of the cointegration test
+# will inform us as to whether the spread btwn the 2 timeseries is stationary
+# around its mean
+score, pvalue, _ = coint(X,Y)
+print pvalue
+```
+*Cell 6:*
+```python
+X.corr(Y)
+```
+*Cell 7:*
+```python
+X_returns = np.random.normal(1, 1, 100)
+Y_returns = np.random.normal(2, 1, 100)
+
+X_diverging = pd.Series(np.cumsum(X_returns), name='X')
+Y_diverging = pd.Series(np.cumsum(Y_returns), name='Y')
+
+pd.concat([X_diverging, Y_diverging], axis=1).plot()
+```
+*Cell 8:*
+```python
+print 'Correlation: ' + str(X_diverging.corr(Y_diverging))
+score, pvalue, _ = coint(X_diverging,Y_diverging)
+print 'Cointegration test p-value: ' + str(pvalue)
+```
+*Cell 9:*
+```python
+Y2 = pd.Series(np.random.normal(0, 1, 1000), name='Y2') + 20
+Y3 = Y2.copy()
+```
+*Cell 10:*
+```python
+# Y2 = Y2 + 10
+Y3[0:100] = 30
+Y3[100:200] = 10
+Y3[200:300] = 30
+Y3[300:400] = 10
+Y3[400:500] = 30
+Y3[500:600] = 10
+Y3[600:700] = 30
+Y3[700:800] = 10
+Y3[800:900] = 30
+Y3[900:1000] = 10
+```
+*Cell 11:*
+```python
+Y2.plot()
+Y3.plot()
+plt.ylim([0, 40])
+```
+*Cell 12:*
+```python
+# correlation is nearly zero
+print 'Correlation: ' + str(Y2.corr(Y3))
+score, pvalue, _ = coint(Y2,Y3)
+print 'Cointegration test p-value: ' + str(pvalue)
+```
+*Cell 13:*
+```python
+def find_cointegrated_pairs(securities_panel):
+    n = len(securities_panel.minor_axis)
+    score_matrix = np.zeros((n, n))
+    pvalue_matrix = np.ones((n, n))
+    keys = securities_panel.keys
+    pairs = []
+    for i in range(n):
+        for j in range(i+1, n):
+            S1 = securities_panel.minor_xs(securities_panel.minor_axis[i])
+            S2 = securities_panel.minor_xs(securities_panel.minor_axis[j])
+            result = coint(S1, S2)
+            score = result[0]
+            pvalue = result[1]
+            score_matrix[i, j] = score
+            pvalue_matrix[i, j] = pvalue
+            if pvalue < 0.05:
+                pairs.append((securities_panel.minor_axis[i], securities_panel.minor_axis[j]))
+    return score_matrix, pvalue_matrix, pairs
+```
+*Cell 14:*
+```python
+symbol_list = ['ABGB', 'ASTI', 'CSUN', 'DQ', 'FSLR','SPY']
+securities_panel = get_pricing(symbol_list, fields=['price']
+                               , start_date='2014-01-01', end_date='2015-01-01')
+securities_panel.minor_axis = map(lambda x: x.symbol, securities_panel.minor_axis)
+```
+*Cell 15:*
+```python
+securities_panel.loc['price'].head(5)
+```
+*Cell 16:*
+```python
+securities_panel.minor_xs('SPY').head(5)
+```
+*Cell 17:*
+```python
+# Heatmap to show the p-values of the cointegration test between each pair of
+# stocks. Only show the value in the upper-diagonal of the heatmap
+# (Just showing a '1' for everything in lower diagonal)
+
+scores, pvalues, pairs = find_cointegrated_pairs(securities_panel)
+import seaborn
+seaborn.heatmap(pvalues, xticklabels=symbol_list, yticklabels=symbol_list, cmap='RdYlGn_r' 
+                , mask = (pvalues >= 0.95)
+                )
+print pairs
+```
+*Cell 18:*
+```python
+S1 = securities_panel.loc['price']['ABGB']
+S2 = securities_panel.loc['price']['FSLR']
+```
+*Cell 19:*
+```python
+score, pvalue, _ = coint(S1, S2)
+pvalue
+```
+*Cell 20:*
+```python
+diff_series = S1 - S2
+diff_series.plot()
+plt.axhline(diff_series.mean(), color='black')
+```
+*Cell 21:*
+```python
+def zscore(series):
+    return (series - series.mean()) / np.std(series)
+```
+*Cell 22:*
+```python
+zscore(diff_series).plot()
+plt.axhline(zscore(diff_series).mean(), color='black')
+plt.axhline(1.0, color='red', linestyle='--')
+plt.axhline(-1.0, color='green', linestyle='--')
+
+```
+*Cell 23:*
+```python
+# Get the difference in prices between the 2 stocks
+difference = S1 - S2
+difference.name = 'diff'
+
+# Get the 10 day moving average of the difference
+diff_mavg10 = pd.rolling_mean(difference, window=10)
+diff_mavg10.name = 'diff 10d mavg'
+
+# Get the 60 day moving average
+diff_mavg60 = pd.rolling_mean(difference, window=60)
+diff_mavg60.name = 'diff 60d mavg'
+
+pd.concat([diff_mavg60, diff_mavg10], axis=1).plot()
+# pd.concat([diff_mavg60, diff_mavg10, difference], axis=1).plot()
+```
+*Cell 24:*
+```python
+# Take a rolling 60 day standard deviation
+std_60 = pd.rolling_std(difference, window=60)
+std_60.name = 'std 60d'
+
+# Compute the z score for each day
+zscore_60_10 = (diff_mavg10 - diff_mavg60)/std_60
+zscore_60_10.name = 'z-score'
+zscore_60_10.plot()
+plt.axhline(0, color='black')
+plt.axhline(1.0, color='red', linestyle='--')
+plt.axhline(-1.0, color='green', linestyle='--')
+```
+*Cell 25:*
+```python
+two_stocks = securities_panel.loc['price'][['ABGB', 'FSLR']]
+# Plot the prices scaled down along with the negative z-score
+# just divide the stock prices by 10 to make viewing it on the plot easier
+pd.concat([two_stocks/10, zscore_60_10], axis=1).plot()
+```
+
+##### MIT Sloan Likelihood Estimation
+- **Original Path**: `presentations\MIT Sloan Likelihood Estimation.ipynb`
+- **Use Case**: Workshops/Presentations
+- **Cell Count**: 25 (Code: 13, Markdown: 12)
+- **Imports/Dependencies**: import math, import matplotlib.pyplot as plt, import numpy as np, import scipy, import scipy.stats
+
+**Explanatory Notes:**
+#Performing Maximum Likelihood Estimates (MLEs) in IPython
+By Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+In this tutorial notebook we'll do the following things:
+1. Compute the MLE for a normal distribution.
+2. Compute the MLE for an exponential distribution.
+3. Fit a normal distribution to asset returns using MLE.
+
+First we need to import some libraries
+
+##Normal Distribution
+We'll start by sampling some data from a normal distribution.
+
+Now we'll define functions that given our data, will compute the MLE for the $\mu$ and $\sigma$ parameters of the normal distribution.
+
+Recall that
+
+$$\hat\mu = \frac{1}{T}\sum_{t=1}^{T} x_t$$
+
+$$\hat\sigma = \sqrt{\frac{1}{T}\sum_{t=1}^{T}{(x_t - \hat\mu)^2}}$$
+
+Now let's try our functions out on our sample data and see how they compare to the built-in `np.mean` and `np.std`
+
+Now let's estimate both parameters at once with scipy's built in `fit()` function.
+
+Now let's plot the distribution PDF along with the data to see how well it fits. We can do that by accessing the pdf provided in `scipy.stats.norm.pdf`.
+
+##Exponential Distribution
+Let's do the same thing, but for the exponential distribution. We'll start by sampling some data.
+
+`numpy` defines the exponential distribution as
+$$\frac{1}{\lambda}e^{-\frac{x}{\lambda}}$$
+
+So we need to invert the MLE from the lecture notes. There it is
+
+$$\hat\lambda = \frac{T}{\sum_{t=1}^{T} x_t}$$
+
+Here it's just the reciprocal, so
+
+$$\hat\lambda = \frac{\sum_{t=1}^{T} x_t}{T}$$
+
+##MLE for Asset Returns
+
+Now we'll fetch some real returns and try to fit a normal distribution to them using MLE.
+
+Let's use `scipy`'s fit function to get the $\mu$ and $\sigma$ MLEs.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import math
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy
+import scipy.stats
+```
+*Cell 2:*
+```python
+TRUE_MEAN = 40
+TRUE_STD = 10
+X = numpy.random.normal(TRUE_MEAN, TRUE_STD, 1000)
+```
+*Cell 3:*
+```python
+def normal_mu_MLE(X):
+    # Get the number of observations
+    T = len(data)
+    # Sum the observations
+    s = sum(X)
+    return 1.0/T * s
+
+def normal_sigma_MLE(X):
+    T = len(X)
+    # Get the mu MLE
+    mu = normal_mu_mle(X)
+    # Sum the square of the differences
+    s = sum( math.pow((X - mu), 2) )
+    # Compute sigma^2
+    sigma_squared = 1.0/T * s
+    return math.sqrt(sigma_squared)
+```
+*Cell 4:*
+```python
+print "Mean Estimation"
+print normal_mu_mle(X)
+print np.mean(X)
+print "Standard Deviation Estimation"
+print normal_sigma_mle(X)
+print np.std(X)
+```
+*Cell 5:*
+```python
+mu, std = scipy.stats.norm.fit(X)
+print "mu estimate: " + str(mu)
+print "std estimate: " + str(std)
+```
+*Cell 6:*
+```python
+pdf = scipy.stats.norm.pdf
+# We would like to plot our data along an x-axis ranging from 0-80 with 80 intervals
+# (increments of 1)
+x = np.linspace(0, 80, 80)
+h = plt.hist(X, bins=x, normed='true')
+l = plt.plot(pdf(x, loc=mu, scale=std))
+```
+*Cell 7:*
+```python
+TRUE_LAMBDA = 5
+X = np.random.exponential(TRUE_LAMBDA, 1000)
+```
+*Cell 8:*
+```python
+def exp_lamda_MLE(X):
+    T = len(X)
+    s = sum(X)
+    return s/T
+```
+*Cell 9:*
+```python
+print "lambda estimate: " + str(exp_lamda_MLE(X))
+```
+*Cell 10:*
+```python
+# The scipy version of the exponential distribution has a location parameter
+# that can skew the distribution. We ignore this by fixing the location
+# parameter to 0 with floc=0
+_, l = scipy.stats.expon.fit(X, floc=0)
+```
+*Cell 11:*
+```python
+pdf = scipy.stats.expon.pdf
+x = range(0, 80)
+h = plt.hist(X, bins=x, normed='true')
+l = plt.plot(pdf(x, scale=l))
+```
+*Cell 12:*
+```python
+prices = get_pricing('TSLA', fields='price', start_date='2014-01-01', end_date='2015-01-01')
+# This will give us the number of dollars returned each day
+absolute_returns = np.diff(prices)
+# This will give us the percentage return over the last day's value
+# the [:-1] notation gives us all but the last item in the array
+# We do this because there are no returns on the final price in the array.
+returns = absolute_returns/prices[:-1]
+```
+*Cell 13:*
+```python
+mu, std = scipy.stats.norm.fit(returns)
+pdf = scipy.stats.norm.pdf
+x = np.linspace(-1,1, num=100)
+h = plt.hist(returns, bins=x, normed='true')
+l = plt.plot(x, pdf(x, loc=mu, scale=std))
+```
+
+##### Risk
+- **Original Path**: `presentations\tufts_overview.ipynb`
+- **Use Case**: Workshops/Presentations
+- **Cell Count**: 32 (Code: 29, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.eventvestor import clinical_trials_free as clinical_trials, from statsmodels import regression, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Risk
+
+# Regression & Plotting
+
+# Data
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+start = '2002-01-02'
+end = '2015-11-09'
+df = get_pricing('SPY', fields=['close_price'], start_date=start, end_date=end)
+```
+*Cell 2:*
+```python
+df.plot()
+```
+*Cell 3:*
+```python
+daily_returns = (df.close_price.shift(-1) - df.close_price) / df.close_price
+df = df.ix[1:] # remove empty value
+df['daily_returns'] = daily_returns
+```
+*Cell 4:*
+```python
+mean_annual_return = df.daily_returns.mean() * 252
+annualized_std = df.daily_returns.std() * (252**.5)
+```
+*Cell 5:*
+```python
+mean_excess_return = mean_annual_return - .04
+sharpe_ratio = mean_excess_return / annualized_std
+opt_leverage = mean_excess_return / (annualized_std**2)
+```
+*Cell 6:*
+```python
+print sharpe_ratio
+```
+*Cell 7:*
+```python
+print opt_leverage
+```
+*Cell 8:*
+```python
+capital = 100000
+purchase = int(capital * opt_leverage)
+print "If the kelly optimal leverage is {} and you have {} to invest, you should \
+buy (and/or borrow to buy) {} worth of SPY, under the assumption you believe the \
+expected values of your returns and standard deviations (which \
+assumes they are normally distributed)".format(opt_leverage, capital, purchase)
+```
+*Cell 9:*
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 10:*
+```python
+start = '2003-09-22'
+end = '2013-09-17'
+prices = get_pricing('WFM', fields='price', start_date=start, end_date=end)
+prices.plot()
+```
+*Cell 11:*
+```python
+prices.describe()
+```
+*Cell 12:*
+```python
+pd.rolling_mean(prices, 30).plot()
+```
+*Cell 13:*
+```python
+import numpy as np
+from statsmodels import regression
+import statsmodels.api as sm
+```
+*Cell 14:*
+```python
+prices.index
+```
+*Cell 15:*
+```python
+prices.values
+```
+*Cell 16:*
+```python
+def linreg(X, Y):
+    # fit
+    X = sm.add_constant(X)
+    model = regression.linear_model.OLS(Y, X).fit()
+    a = model.params[0]
+    b = model.params[1]
+    X = X[:, 1]
+
+    # summarize and plot
+    X2 = np.linspace(X.min(), X.max(), 100)
+    Y_hat = X2 * b + a
+    plt.scatter(X, Y, alpha=0.3) # Plot the raw data
+    plt.plot(X2, Y_hat, 'r', alpha=0.9);  # Add the regression line, colored in red
+    plt.xlabel('SPY')
+    plt.ylabel('WFM')
+    return model.summary()
+```
+*Cell 17:*
+```python
+start = '2002-01-02'
+end = '2015-11-09'
+asset = get_pricing('WFM', fields='price', start_date=start, end_date=end)
+benchmark = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+
+# We have to take the percent changes to get to returns
+# Get rid of the first (0th) element because it is NAN
+r_a = asset.pct_change()[1:]
+r_b = benchmark.pct_change()[1:]
+
+linreg(r_b.values, r_a.values)
+```
+*Cell 18:*
+```python
+from odo import odo
+import pandas as pd
+from educational_platform.interactive.data.eventvestor import clinical_trials_free as clinical_trials
+```
+*Cell 19:*
+```python
+# Blaze
+clinical_trials.dshape
+```
+*Cell 20:*
+```python
+clinical_trials.count()
+```
+*Cell 21:*
+```python
+clinical_trials[:3]
+```
+*Cell 22:*
+```python
+phase_three = clinical_trials[clinical_trials.clinical_phase == "Phase III"][['timestamp', 'sid','product_name']].sort('timestamp')
+phase_three
+```
+*Cell 23:*
+```python
+gsk_sid = symbols('GSK').sid
+gsk = clinical_trials[clinical_trials.sid == gsk_sid].sort('timestamp', ascending=False)
+gsk_df = odo(gsk, pd.DataFrame)
+# filter down to the Phase 4 trials
+gsk_df = gsk_df[gsk_df.clinical_phase == "Phase III"]
+```
+*Cell 24:*
+```python
+gsk_df.head(1)
+```
+*Cell 25:*
+```python
+gsk_df.drop(gsk_df.columns[[0, 2, 3, 7, 11, 12]], axis=1, inplace=True)
+```
+*Cell 26:*
+```python
+gsk_df = gsk_df[gsk_df.clinical_result != u'NaN']
+```
+*Cell 27:*
+```python
+gsk_df.head()
+```
+*Cell 28:*
+```python
+gsk_prices = get_pricing('GSK', fields='price', start_date='2008-01-01', end_date='2014-01-01')
+```
+*Cell 29:*
+```python
+gsk_prices.plot()
+```
+
+##### Simple Example that implement a basic moving-average crossover strategy with SPY
+- **Original Path**: `workshops\StartupML_05_12_2016\Zipline_simple_example.ipynb`
+- **Use Case**: Workshops/Presentations
+- **Cell Count**: 14 (Code: 11, Markdown: 3)
+- **Imports/Dependencies**: from datetime import datetime, from zipline.algorithm import TradingAlgorithm, from zipline.api import order_target_percent, record, symbol, history, add_history, from zipline.utils.factory import load_bars_from_yahoo, import numpy as np, import pytz
+
+**Explanatory Notes:**
+# Simple Example that implement a basic moving-average crossover strategy with SPY
+### Buy SPY if 50-day moving-average cross above 200-day moving-average
+
+#### From: http://www.zipline.io/beginner-tutorial.html#ipython-notebook
+
+#### Working example: Dual Moving Average Crossover
+The Dual Moving Average (DMA) is a classic momentum strategy. It’s probably not used by any serious trader anymore but is still very instructive. The basic idea is that we compute two rolling or moving averages (mavg) – one with a longer window that is supposed to capture long-term trends and one shorter window that is supposed to capture short-term trends. Once the short-mavg crosses the long-mavg from below we assume that the stock price has upwards momentum and long the stock. If the short-mavg crosses from above we exit the positions as we assume the stock to go down further.
+
+As we need to have access to previous prices to implement this strategy we need a new concept: History
+
+history() is a convenience function that keeps a rolling window of data for you. The first argument is the number of bars you want to collect, the second argument is the unit (either '1d' for '1m' but note that you need to have minute-level data for using 1m). For a more detailed description history()‘s features, see the Educational Platform docs. While you can directly use the history() function on Educational Platform, in zipline you have to register each history container you want to use with add_history() and pass it the same arguments as the history function below. Lets look at the strategy which should make this clear:
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+%pylab inline --no-import-all
+```
+*Cell 2:*
+```python
+import pytz
+from datetime import datetime
+
+from zipline.algorithm import TradingAlgorithm
+from zipline.utils.factory import load_bars_from_yahoo
+
+# Load data manually from Yahoo! finance
+start = datetime(2000, 1, 1, 0, 0, 0, 0, pytz.utc)
+end = datetime(2016, 5, 4, 0, 0, 0, 0, pytz.utc)
+
+data = load_bars_from_yahoo(stocks=['SPY'], start=start,
+                            end=end)
+```
+*Cell 3:*
+```python
+from zipline.api import order_target_percent, record, symbol, history, add_history
+import numpy as np
+
+def initialize(context):
+    # Register 2 histories that track daily prices,
+    # one with a 50 window and one with a 200 day window
+    add_history(50, '1d', 'price')
+    add_history(200, '1d', 'price')
+
+    context.trade_count = 0
+    
+    context.i = 0
+
+def handle_data(context, data):
+    # Skip first 200 days to get full windows of data before running any trading logic
+    context.i += 1
+    if context.i < 200:
+        return
+
+    # Compute moving-averages below
+    # history() has to be called with the same params as used above in the initialize method 'add_history' calls
+    # history() returns a pandas dataframe.
+    
+    short_mavg = history(50, '1d', 'price').mean()
+    long_mavg = history(200, '1d', 'price').mean()
+    
+    # Trading logic
+    if short_mavg[0] > long_mavg[0]:
+        # only enter this trade if you are not already in a previous trade
+        if len(context.portfolio.positions) < 1:
+            context.trade_count += 1
+            print "Trade: " + str(context.trade_count)
+            # order_target_percent orders as many shares as needed to invest X% of your account value.
+            order_target_percent(symbol('SPY'), 1.0)
+    elif short_mavg[0] < long_mavg[0]:
+        order_target_percent(symbol('SPY'), 0)
+
+    # Save values for later inspection
+    record(SPY_price=data[symbol('SPY')].price,
+           short_mavg=short_mavg[0],
+           long_mavg=long_mavg[0])
+```
+*Cell 4:*
+```python
+# Create algorithm object passing in initialize() and handle_data() functions
+algo_obj = TradingAlgorithm(initialize=initialize,
+                            handle_data=handle_data)
+
+# Run algorithm
+perf_manual = algo_obj.run(data)
+```
+*Cell 5:*
+```python
+figsize(13,5)
+
+perf_manual.portfolio_value.plot()
+
+plt.ylabel("Portfolio Value")
+```
+*Cell 6:*
+```python
+figsize(13,2)
+# gross_leverage shows you how much of your portfolio was invested each day
+# in this case it goes between 0 and 1 depending on if we were holding AAPL in our algo,
+# if we were trading on margin, gross_leverage could be > 1.
+
+perf_manual.gross_leverage.plot()
+
+plt.ylabel("Amount of Account Invested")
+```
+*Cell 7:*
+```python
+# net_leverage nets your long exposure with your short exposure, and reports the difference.
+# in this case since we do not short with this strategy, net_leverage == gross_leverage
+perf_manual.net_leverage.plot()
+```
+*Cell 8:*
+```python
+perf_manual.columns
+```
+*Cell 9:*
+```python
+perf_manual.tail()
+```
+*Cell 10:*
+```python
+perf_manual[['SPY_price', 'short_mavg', 'long_mavg']].tail()
+```
+*Cell 11:*
+```python
+
+```
+
+#### Category: Research
+##### About me
+- **Original Path**: `research\bayesian_risk_perf_v3.ipynb`
+- **Use Case**: Research
+- **Cell Count**: 87 (Code: 36, Markdown: 51)
+- **Imports/Dependencies**: from IPython.display import Image, from IPython.html.widgets import interact, interactive, from matplotlib import rc, from pymc3 import *, from pymc3.distributions.timeseries import GaussianRandomWalk, from scipy import stats, import itertools, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import pymc3 as pm, import scipy, import scipy as sp, import scipy.stats as stats, import seaborn as sns, import theano.tensor as T
+
+**Explanatory Notes:**
+<center><h1>Probabilistic Programming in Quantitative Finance</h1><br>
+<h3>Thomas Wiecki</h3><br>
+<h3>@twiecki</h3><br>
+<img width=40% src="http://i2.wp.com/stuffled.com/wp-content/uploads/2014/09/Educational Platform-Logo-EPS-vector-image.png?resize=1020%2C680">
+</center>
+
+# About me
+
+* Lead Data Scientist at [Educational Platform Inc](https://www.educational_platform.com): Building a crowd sourced hedge fund.
+* Previous: PhD from Brown University -- research on computational neuroscience and machine learning using Bayesian modeling.
+
+# Data Science Motivation
+
+<center><img src="model-inference1.svg">
+
+<center><img src="model-inference2.svg">
+
+# What's wrong with statistics
+
+* Models should not be built for mathematical convenience (e.g. normality assumption), but to most accurately model the data.
+* Pre-specified models, like frequentist statistics, make many assumptions that are all to easily violated.
+
+<center><img src="general_vs_insight_wo_pp.svg">
+
+<center><img src="general_vs_insight.svg">
+
+# "The purpose of computation is insight, not numbers." -- Richard Hamming
+<center><img src="http://upload.wikimedia.org/wikipedia/en/0/08/Richard_Hamming.jpg">
+
+# Quantitative Finance motivation
+
+# <center>Types of risk</center>
+
+<center><img src="risk_first.svg"></center>
+
+# <center>Types of risk</center>
+
+<center><img src="risk_full.svg"></center>
+
+# Probabilistic Programming
+
+* Model **unknown causes** of a phenomenon as **random variables**.
+* Write a **programmatic story** in **code** of how **unknown causes** result in **observable data** -> **generative framework**
+* Use **Bayes formula** to invert generative model to infer **unknown causes**.
+* Inference is **completely automatic** (when things go well)!
+* -> No math, great flexibility and freedom when building models.
+* The catch: At the cost of increased computational demands. 
+
+# Motivating the problem we face at Educational Platform
+
+# Web based backtester for trading algorithms & live trading
+<center><img src='educational_platform.png' width=85%>
+
+# Crowd sourced hedge fund
+
+* "15 uncorrelated return streams are the holy grail of investing"
+* -> Search for diverse trading strategies.
+* Perfect problem for crowd sourcing!
+
+# Our problem today
+
+* How do we identify the best trading algorithms?

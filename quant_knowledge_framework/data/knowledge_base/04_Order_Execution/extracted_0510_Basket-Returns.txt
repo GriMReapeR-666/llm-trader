@@ -1,0 +1,19 @@
+# Basket Returns
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Basket Returns
+
+The next step is to compute the returns of baskets taken out of our ranking. If we rank all equities and then split them into $n$ groups, what would the mean return be of each group? We can answer this question in the following way. The first step is to create a function that will give us the mean return in each basket in a given the month and a ranking factor.
+
+The first thing we'll do with this function is compute this for each month and then average. This should give us a sense of the relationship over a long timeframe.
+
+### Spread Consistency
+
+Of course, that's just the average relationship. To get a sense of how consistent this is, and whether or not we would want to trade on it, we should look at it over time. Here we'll look at the monthly spreads for the first year. We can see a lot of variation, and further analysis should be done to determine whether Market Cap is tradeable.
+
+We'll repeat the same analysis for PE Ratio.

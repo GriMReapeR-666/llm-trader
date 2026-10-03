@@ -1,0 +1,10 @@
+# Forward Contract Issues
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Forward Contract Issues
+Of course, we seldom know exactly when we will need an asset. In addition, entering into a private agreement with another party exposes you to **counterparty risk**, the risk that one or the other party in a transaction will renege on a deal. How the contract is actually settled is also up to the two parties, whether it be with an exchange of assets or a simple cash reconciliation. Forward contracts leave the delivery date, delivery method, and quantity up for debate. Their OTC nature gives a large degree of customizability, but directly contributes to the aforementioned issues and a lack of liquidity. It is unlikely that another party will be willing to take on an agreement that is highly customized to someone else's terms. There are definitely merits for the various possibilities for hedging that forward contracts provide, however, which is where futures contracts come in.

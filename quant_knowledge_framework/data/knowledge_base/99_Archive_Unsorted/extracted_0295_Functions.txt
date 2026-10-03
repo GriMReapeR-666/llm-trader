@@ -1,0 +1,41 @@
+# Functions
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Functions
+
+A function is a reusable block of code that you can call repeatedly to make calculations, output data, or really do anything that you want. This is one of the key aspects of using a programming language. To add to the built-in functions in Python, you can define your own!
+
+Functions are defined with `def`, a function name, a list of parameters, and a colon. Everything indented below the colon will be included in the definition of the function.
+
+We can have our functions do anything that you can do with a normal block of code. For example, our `hello_world()` function prints a string every time it is called. If we want to keep a value that a function calculates, we can define the function so that it will `return` the value we want. This is a very important feature of functions, as any variable defined purely within a function will not exist outside of it.
+
+ The **scope** of a variable is the part of a block of code where that variable is tied to a particular value. Functions in Python have an enclosed scope, making it so that variables defined within them can only be accessed directly within them. If we pass those values to a return statement we can get them out of the function. This makes it so that the function call returns values so that you can store them in variables that have a greater scope.
+ 
+In this case specifically, including a return statement allows us to keep the string value that we define in the function.
+
+Just as we can get values out of a function, we can also put values into a function. We do this by defining our function with parameters.
+
+In this example we only had one parameter for our function, `x`. We can easily add more parameters, separating everything with a comma.
+
+If we want to, we can define a function so that it takes an arbitrary number of parameters. We tell Python that we want this by using an asterisk (`*`).
+
+The time to use `*args` as a parameter for your function is when you do not know how many values may be passed to it, as in the case of our sum function. The asterisk in this case is the syntax that tells Python that you are going to pass an arbitrary number of parameters into your function. These parameters are stored in the form of a tuple.
+
+We can put as many elements into the `args` tuple as we want to when we call the function. However, because `args` is a tuple, we cannot modify it after it has been created.
+
+The `args` name of the variable is purely by convention. You could just as easily name your parameter `*vars` or `*things`. You can treat the `args` tuple like you would any other tuple, easily accessing `arg`'s values and iterating over it, as in the above `sum_values(*args)` function.
+
+Our functions can return any data type. This makes it easy for us to create functions that check for conditions that we might want to monitor.
+
+Here we define a function that returns a boolean value. We can easily use this in conjunction with if-statements and  other situations that require a boolean.
+
+This above function returns an ordered pair of the input parameters, stored as a tuple.
+
+And that one calculates the slope between two points!
+
+With the proper syntax, you can define functions to do whatever calculations you want. This makes them an indispensible part of programming in any language.

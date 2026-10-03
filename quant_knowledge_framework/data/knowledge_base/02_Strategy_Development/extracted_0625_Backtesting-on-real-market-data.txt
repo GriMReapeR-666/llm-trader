@@ -1,0 +1,18 @@
+# Backtesting on real market data
+
+Topic: 02_Strategy_Development
+Confidence: 0.60
+Keywords: ev, backtest, strategy
+
+---
+
+## Backtesting on real market data
+This is all very interesting but not very applied. We next demonstrate how you can create a simple algorithm in [`zipline`](http://github.com/educational_platform/zipline) -- the open-source backtester that powers [Educational Platform](https://www.educational_platform.com) -- to test this optimization on actual historical stock data.
+
+First, lets load in some historical data using [Educational Platform](https://www.educational_platform.com)'s data (if we are running in the [Educational Platform Research Platform](http://blog.educational_platform.com/educational_platform-research-your-backtesting-data-meets-ipython-notebook/), or the `load_bars_from_yahoo()` function from `zipline`.
+
+Next, we'll create a `zipline` algorithm by defining two functions -- `initialize()` which is called once before the simulation starts, and `handle_data()` which is called for every trading bar. We then instantiate the algorithm object.
+
+If you are confused about the syntax of `zipline`, check out the [tutorial](http://nbviewer.ipython.org/github/educational_platform/zipline/blob/master/docs/tutorial.ipynb).
+
+As you can see, the performance here is pretty good, even through the 2008 financial crisis. This is most likey due to our universe selection and shouldn't always be expected. Increasing the number of stocks in the universe might reduce the volatility as well. Please let us know in the comments section if you had any success with this strategy and how many stocks you used.

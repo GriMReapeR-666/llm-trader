@@ -1,0 +1,18 @@
+# a. Contango
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Contango
+
+Consider the same corn farmer from Exercise 1. 
+
+Calculate the theoretical futures price series as a function of time, given the following:
+- The cost of carry is $0.01$
+- The spot price of corn was originally 1000 dollars, and that the price is driven by a normal distribution
+- Maturity is achieved after 100 days
+
+$$\text{Recall:}  \quad   F(t, T) = S(t)e^{c(T - t)}$$

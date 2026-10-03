@@ -1,0 +1,23 @@
+# Simulations
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Simulations
+
+Assume that we have 4 assets, each with a return series of length 1000. We can use `numpy.random.randn` to sample returns from a normal distribution.
+
+We can create different portfolios by including more or less of each asset. We will give the assets weights to represent the composition of our portfolio. The weights for all the assets must sum to one. To generate a random portfolio, we need to generate random weights:
+
+In order to compare risks and returns across different possible portfolios, we'll generate random ones and compute the mean return and the average absolute deviation for each. Unlike in the standard deviation picture of volatility, where we square the difference between the mean return and the actual return, here we are taking the absolute value of that difference. This will allow us to have only linear constraints on what our portfolio can be, and no quadratic ones.
+
+The formula we are using for risk here is
+$$\frac{1}{T} \sum_{t=1}^T \lvert return(t) - \mu \rvert$$
+where the return on the portfolio is the weighted sum of the returns on the included assets.
+
+Let's generate the mean returns and volatility for 500 random portfolios:
+
+Just like with the standard deviation formula for risk in regular Markowitz optimization, the means and returns of these portfolios form the characteristic parabolic shape called the ‘Markowitz bullet‘, whose upper boundary is called the 'efficient frontier'. The efficient frontier gives the highest possible return  at a given volatility, and conversely the lowest possible volatility at a given return.

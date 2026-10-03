@@ -1,0 +1,17 @@
+# Setup
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Setup
+
+The first thing we do is compute a year's worth of factor returns. 
+
+### NOTE
+
+The process for doing this is described in the Fundamental Factor Models lecture and uses pipeline. For more information please see that lecture.
+
+How did each factor do over 2014?

@@ -1,0 +1,18 @@
+# value_growth
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+Value vs Growth Investing
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: Factor Investing
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+The value premium arises from buying cheap assets versus expensive growth assets. The cycle is driven by interest rates, regimes, and sentiment.

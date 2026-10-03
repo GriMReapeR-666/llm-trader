@@ -1,0 +1,18 @@
+# Futures Calendar
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Futures Calendar
+An important feature of futures markets is the calendar used to trade them. Futures markets are open long after the equity markets close, though the effective periods within which you can trade with large amounts of liquidity tend to overlap. The specific high points in volume for futures contracts vary greatly from underlying to underlying. Despite this, the  majority of the volume for many contracts typically falls within normal EST market hours.
+
+Let's have a look at a day in the life of the S&P 500 Index E-Mini futures contract that was deliverable in March 2017.
+
+This is one of the most liquid futures contracts and we see this significant increase in volume traded during normal equity trading hours. These hours can be even more tight for less liquid commodities. For example, let's look at how Feeder Cattle trades during the same time period on the same day.
+
+If we are trying to trade multiple different underlyings with futures contracts in the same algorithm, we need to be conscious of their volume relative to each other. All trading algorithms are dependent on orders being executed as determined by their calculations. Some contracts are so illiquid that entering into even the smallest position will amount to becoming a large part of the volume for a given day. This could heavily impact slippage
+
+Unsurprisingly, volume will also vary for different expiries on the same underlying. The front month contract, the contract closest to delivery, has the largest amount of volume. As we draw closer to delivery the front month's volume is eclipsed by the next expiry date as participants in the market close out their positions and roll them forward.

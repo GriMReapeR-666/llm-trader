@@ -1,0 +1,27 @@
+# Lecture Link
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Lecture Link
+
+https://www.educational_platform.com/lectures/hypothesis-testing
+
+###IMPORTANT NOTE: 
+This lecture corresponds to the Hypothesis Testing lecture, which is part of the Educational Platform lecture series. This homework expects you to rely heavily on the code presented in the corresponding lecture. Please copy and paste regularly from that lecture when starting to work on the problems, as trying to do them from scratch will likely be too difficult.
+
+When you feel comfortable with the topics presented here, see if you can create an algorithm that qualifies for the Educational Platform Contest. Participants are evaluated on their ability to produce risk-constrained alpha and the top 10 contest participants are awarded cash prizes on a daily basis.
+
+https://www.educational_platform.com/contest
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+----
+
+# Exercise 1: Hypothesis Testing.

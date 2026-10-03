@@ -1,0 +1,188 @@
+# d. Newey-West Correction
+
+Topic: 05_Quant_Utilities
+Confidence: 0.30
+Keywords: numpy, python, pandas
+
+---
+
+## d. Newey-West Correction
+
+Run 100 samples of the following autocorrelated distribution, this time accounting for the autocorrelation by using a Newey-West correction on the standard error, and measure how many of their 95% confidence intervals actually contain the true mean to see if the correction works. (Use the helper function `newey_west_SE` to find the corrected standard error)
+
+---
+
+Congratulations on completing the Confidence Intervals exercises!
+
+As you learn more about writing trading models and the Educational Platform platform, enter the daily [Educational Platform Contest](https://www.educational_platform.com/contest). Your strategy will be evaluated for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solic
+itation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+def generate_autocorrelated_data(theta, mu, sigma, N):
+    X = np.zeros((N, 1))
+    for t in range(1, N):
+        X[t] = theta * X[t-1] + np.random.normal(mu, sigma)
+    return X
+
+def newey_west_SE(data):
+    ind = range(0, len(data))
+    ind = sm.add_constant(ind)
+    model = regression.linear_model.OLS(data, ind).fit(cov_type='HAC',cov_kwds={'maxlags':1})
+    return model.bse[0]
+
+def newey_west_matrix(data):
+    ind = range(0, len(data))
+    ind = sm.add_constant(ind)
+    model = regression.linear_model.OLS(data, ind).fit()
+    return sw.cov_hac(model)
+```
+*Cell 2:*
+```python
+# Useful Libraries
+import numpy as np
+import seaborn as sns
+from scipy import stats
+import matplotlib.pyplot as plt
+from statsmodels.stats.stattools import jarque_bera
+import statsmodels.stats.sandwich_covariance as sw
+from statsmodels import regression
+import statsmodels.api as sm
+```
+*Cell 3:*
+```python
+np.random.seed(11)
+POPULATION_MU = 105
+POPULATION_SIGMA = 20
+sample_size = 50
+```
+*Cell 4:*
+```python
+sample = np.random.normal(POPULATION_MU, POPULATION_SIGMA, sample_size)
+
+#Your code goes here
+```
+*Cell 5:*
+```python
+#Your code goes here
+```
+*Cell 6:*
+```python
+#Your code goes here
+```
+*Cell 7:*
+```python
+#Your code goes here
+```
+*Cell 8:*
+```python
+n = 1000
+correct = 0
+samples = [np.random.normal(loc=POPULATION_MU, scale=POPULATION_SIGMA, size=sample_size) for i in range(n)]
+
+#Your code goes here
+```
+*Cell 9:*
+```python
+n = 500
+normal_samples = [np.mean(np.random.normal(loc=POPULATION_MU, scale=POPULATION_SIGMA, size=sample_size)) for i in range(n)]
+
+#Your code goes here
+```
+*Cell 10:*
+```python
+n = 500
+expo_samples = [np.mean(np.random.exponential(POPULATION_MU, sample_size)) for i in range(n)]
+
+#Your code goes here
+```
+*Cell 11:*
+```python
+n = 500
+autocorrelated_samples = [(generate_autocorrelated_data(0.5, 0, 1, sample_size) + POPULATION_MU) for i in range(n)]
+autocorrelated_means = [np.mean(autocorrelated_samples[i]) for i in range(n)]
+
+#Your code goes here
+```
+*Cell 12:*
+```python
+n = 500
+autocorrelated_samples = [(generate_autocorrelated_data(0.5, 0, 1, sample_size) + POPULATION_MU) for i in range(n)]
+autocorrelated_stds = [np.std(autocorrelated_samples[i]) for i in range(n)]
+
+#Your code goes here
+```
+*Cell 13:*
+```python
+n = 100
+small_size = 3
+correct = 0
+samples = [np.random.normal(loc=POPULATION_MU, scale=POPULATION_SIGMA, size=small_size) for i in range(n)]
+    
+#Your code goes here
+```
+*Cell 14:*
+```python
+n = 100
+small_size = 5
+correct = 0
+samples = [np.random.normal(loc=POPULATION_MU, scale=POPULATION_SIGMA, size=small_size) for i in range(n)]
+
+#Your code goes here
+```
+*Cell 15:*
+```python
+n = 100
+correct = 0
+theta = 0.5
+noise_mu = 0
+noise_sigma = 1
+
+#Your code goes here
+```
+*Cell 16:*
+```python
+n = 100
+correct = 0
+
+#Your code goes here
+```
+*Cell 17:*
+```python
+X = generate_autocorrelated_data(theta, noise_mu, noise_sigma, sample_size) + POPULATION_MU
+
+#Your code goes here
+```
+*Cell 18:*
+```python
+n = 100
+correct = 0
+
+#Your code goes here
+```
+
+##### Estimation of Covariance Matrices
+- **Original Path**: `notebooks\lectures\Estimating_Covariance_Matrices\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 39 (Code: 19, Markdown: 20)
+- **Imports/Dependencies**: from sklearn import covariance, from statsmodels import regression, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy.stats as stats, import seaborn as sns, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Estimation of Covariance Matrices
+By Christopher van Hoecke and Max Margenot
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+Volatility has long been a thorn in the side of investors in the market. Successfully measuring volatility would allow for more accurate modeling of the returns and more stable investments leading to greater returns, but forecasting volatility accurately is a difficult problem.

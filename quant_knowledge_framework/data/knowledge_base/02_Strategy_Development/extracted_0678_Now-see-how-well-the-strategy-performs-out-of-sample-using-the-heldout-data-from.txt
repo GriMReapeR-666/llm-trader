@@ -1,0 +1,13 @@
+# Now see how well the strategy performs out-of-sample using the heldout data from 2010-2016
+
+Topic: 02_Strategy_Development
+Confidence: 1.00
+Keywords: strategy, out-of-sample
+
+---
+
+## Now see how well the strategy performs out-of-sample using the heldout data from 2010-2016
+
+# (Above) Seeing how poorly the strategy performs out-of-sample shows how important it is to perform additional analysis (cross-validation, out-of-sample testing, etc) after using parameter optimization to discover a global maximum
+
+#Using SigOpt for Optimization

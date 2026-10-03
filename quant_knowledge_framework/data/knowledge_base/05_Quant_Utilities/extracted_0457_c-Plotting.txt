@@ -1,0 +1,132 @@
+# c. Plotting
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python
+
+---
+
+## c. Plotting
+Plot the data for SBUX stock price as a function of time. Remember to label your axis and title the graph. 
+
+---
+
+# Exercise 4 : Best fits plots
+Here we have a scatter plot of two data sets. Vary the `a`  and `b` parameter in the code to try to draw a line that 'fits' our data nicely. The line should seem as if it is describing a pattern in the data. *While quantitative methods exist to do this automatically, we would like you to try to get an intuition for what this feels like.*
+
+---
+
+Congratulations on completing the answer key to the Plotting exercises!
+
+As you learn more about writing trading algorithms and the Educational Platform platform, be sure to check out the daily [Educational Platform Contest](https://www.educational_platform.com/contest), in which you can compete for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Functions
+import numpy as np
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+data = get_pricing('SPY', fields='price', start_date='2010-01-01', end_date='2017-01-01')
+returns = data.pct_change()[1:]
+```
+*Cell 3:*
+```python
+plt.hist(returns, bins = 30);
+plt.xlabel('Random Numbers');
+plt.ylabel('Number of Times Observed');
+plt.title('Frequency Distribution of randomly generated number');
+```
+*Cell 4:*
+```python
+plt.hist(returns, bins = 30, cumulative='true');
+```
+*Cell 5:*
+```python
+SPY  = get_pricing('SPY', fields='close_price', start_date='2013-06-19', end_date='2018-06-19', frequency='daily')
+SBUX = get_pricing('SBUX', fields='close_price', start_date='2013-06-19', end_date='2018-06-19', frequency='daily')
+```
+*Cell 6:*
+```python
+plt.scatter(SPY, SBUX);
+plt.title('Scatter plot of spy and sbux');
+plt.xlabel('SPY Price');
+plt.ylabel('SBUX Price');
+```
+*Cell 7:*
+```python
+SPY_R = SPY.pct_change()[1:]
+SBUX_R = SBUX.pct_change()[1:]
+
+plt.scatter(SPY_R, SBUX_R);
+plt.title('Scatter plot of spy and starbucks returns');
+plt.xlabel('SPY Return');
+plt.ylabel('SBUX Return');
+```
+*Cell 8:*
+```python
+data = get_pricing(['SBUX', 'DNKN'], fields='open_price', start_date = '2015-01-01', end_date='2017-01-01') ## Your code goes here. 
+data.head()
+```
+*Cell 9:*
+```python
+data.columns = [e.symbol for e in data.columns] 
+data['SBUX'].head()
+```
+*Cell 10:*
+```python
+plt.plot(data['SBUX']);
+plt.xlabel('Time');
+plt.ylabel('Price');
+plt.title('Price vs Time');
+```
+*Cell 11:*
+```python
+data1 = get_pricing('SBUX', fields='open_price', start_date='2013-01-01', end_date='2014-01-01')
+data2 = get_pricing('SPY', fields='open_price', start_date = '2013-01-01', end_date='2014-01-01')
+
+rdata1= data1.pct_change()[1:]
+rdata2= data2.pct_change()[1:]
+plt.scatter(rdata2, rdata1);
+```
+*Cell 12:*
+```python
+plt.scatter(rdata2, rdata1)
+
+# Answer
+a = 0.0004
+b = 1.14
+#Answer
+
+x = np.arange(-0.02, 0.03, 0.01)
+y = a + (b*x)
+plt.plot(x,y, color='r');
+```
+
+##### Graphical Representations of Data
+- **Original Path**: `notebooks\lectures\Plotting_Data\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 23 (Code: 11, Markdown: 12)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np
+
+**Explanatory Notes:**
+# Graphical Representations of Data
+By Evgenia "Jenny" Nitishinskaya, Maxwell Margenot, and Delaney Granizo-Mackenzie.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+
+Representing data graphically can be incredibly useful for learning how the data behaves and seeing potential structure or flaws. Care should be taken, as humans are incredibly good at seeing only evidence that confirms our beliefs, and visual data lends itself well to that. Plots are good to use when formulating a hypothesis, but should not be used to test a hypothesis.
+
+We will go over some common plots here.

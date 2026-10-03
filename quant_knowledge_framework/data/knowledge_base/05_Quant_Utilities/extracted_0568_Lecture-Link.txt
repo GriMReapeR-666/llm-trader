@@ -1,0 +1,78 @@
+# Lecture Link :
+
+Topic: 05_Quant_Utilities
+Confidence: 0.43
+Keywords: numpy, python, pandas
+
+---
+
+## Lecture Link :
+https://www.educational_platform.com/lectures/variance
+
+### IMPORTANT NOTE: 
+This lecture corresponds to the Variance lecture, which is part of the Educational Platform lecture series. This homework expects you to rely heavily on the code presented in the corresponding lecture. Please copy and paste regularly from that lecture when starting to work on the problems, as trying to do them from scratch will likely be too difficult.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+-----
+
+#### Data:
+
+---
+
+# Exercise 1: 
+Using the skills aquired in the lecture series, find the following parameters of the list X above:
+- Range
+- Mean Absolute Deviation
+- Variance and Standard Deviation
+- Semivariance and Semideviation
+- Target variance (with B = 60)
+
+---
+
+# Exercise 2:
+Using the skills aquired in the lecture series, find the following parameters of prices for AT&T stock over a year:
+- 30 days rolling variance 
+- 15 days rolling Standard Deviation
+
+---
+
+# Exercise 3 : 
+The portfolio variance is calculated as
+
+$$\text{VAR}_p = \text{VAR}_{s1} (w_1^2) + \text{VAR}_{s2}(w_2^2) + \text{COV}_{S_1, S_2} (2 w_1 w_2)$$
+
+Where $w_1$ and $w_2$ are the weights of $S_1$ and $S_2$.
+
+Find values of $w_1$ and $w_2$ to have a portfolio variance of 50. 
+
+---
+
+Congratulations on completing the Variance exercises!
+
+As you learn more about writing trading models and the Educational Platform platform, enter a daily [Educational Platform Contest](https://www.educational_platform.com/contest). Your strategy will be evaluated for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+X = np.random.randint(100, size = 100)
+```
+*Cell 3:*
+```python
+# Range of X
+range_X =

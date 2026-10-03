@@ -1,0 +1,143 @@
+# Exercise 4 :  Kurtosis
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python
+
+---
+
+## Exercise 4 :  Kurtosis
+- Check the kurtosis of the two assets, using the scipy library. 
+- Using the seaborn library, plot the distribution of XLE and XLI returns. 
+
+Recall: 
+- Kurtosis > 3 is leptokurtic, a highly peaked, narrow deviation from the mean
+- Kurtosis = 3 is mesokurtic. The most significant mesokurtic distribution is the normal distribution family. 
+- Kurtosis < 3 is platykurtic, a lower-peaked, broad deviation from the mean 
+
+We can clearly see from the two graphs that as our kurtosis gets lower, the distribution gets more flat.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful functions
+def normal_test(X):
+    z, pval = stats.normaltest(X)
+    if pval < 0.05:
+        print 'Values are not normally distributed.'
+    else: 
+        print 'Values are normally distributed.'
+    return
+```
+*Cell 2:*
+```python
+# Useful Libraries
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+import seaborn as sns
+```
+*Cell 3:*
+```python
+# Get pricing data for an energy (XLE) and industrial (XLI) ETF
+xle = get_pricing('XLE', fields = 'price', start_date = '2016-01-01', end_date = '2017-01-01')
+xli = get_pricing('XLI', fields = 'price', start_date = '2016-01-01', end_date = '2017-01-01')
+
+# Compute returns
+xle_returns = xle.pct_change()[1:]
+xli_returns = xli.pct_change()[1:]
+```
+*Cell 4:*
+```python
+xle = plt.hist(xle_returns, bins=30)
+xli = plt.hist(xli_returns, bins=30, color='r')
+
+plt.xlabel('returns')
+plt.ylabel('Frequency')
+plt.title('Histogram of the returns of XLE and XLI')
+plt.legend(['XLE returns', 'XLI returns']);
+```
+*Cell 5:*
+```python
+# Checking for normality using function above. 
+
+print 'XLE'
+normal_test(xle_returns)
+print 'XLI'
+normal_test(xli_returns)
+```
+*Cell 6:*
+```python
+# Because the data is not normally distributed, we must use the levene and not the F-test of variance. 
+
+stats.levene(xle_returns, xli_returns)
+```
+*Cell 7:*
+```python
+# Manually calculating the t-statistic
+
+N1 = len(xle_returns)
+N2 = len(xli_returns)
+
+m1 = xle_returns.mean()
+m2 = xli_returns.mean()
+
+s1 = xle_returns.std()
+s2 = xli_returns.std()
+
+test_statistic = (m1 - m2) / (s1**2 / N1 + s2**2 / N2)**0.5
+print 't-test statistic:', test_statistic
+```
+*Cell 8:*
+```python
+# Alternative form, using the scipy library on python. 
+
+stats.ttest_ind(xle_returns, xli_returns, equal_var=False)
+```
+*Cell 9:*
+```python
+# Calculate the mean and median of xle and xli using the numpy library
+
+xle_mean = np.mean(xle_returns)
+xle_median = np.median(xle_returns)
+print 'Mean of XLE returns = ', xle_mean, '; median = ', xle_median
+
+xli_mean = np.mean(xli_returns)
+xli_median = np.median(xli_returns)
+print 'Mean of XLI returns = ', xli_mean, '; median = ', xli_median
+```
+*Cell 10:*
+```python
+# Print values of Skewness for xle and xli returns 
+
+print 'Skew of XLE returns:', stats.skew(xle_returns)
+print 'Skew of XLI returns:',  stats.skew(xli_returns)
+```
+*Cell 11:*
+```python
+# Print value of Kurtosis for xle and xli returns 
+
+print 'kurtosis:', stats.kurtosis(xle_returns)
+print 'kurtosis:', stats.kurtosis(xli_returns)
+```
+*Cell 12:*
+```python
+# Distribution plot of XLE returns in red (for Kurtosis of 1.6). 
+# Distribution plot of XLI returns in blue (for Kurtosis of 2.0).
+
+xle = sns.distplot(xle_returns, color = 'r', axlabel  = 'xle')
+xli = sns.distplot(xli_returns, axlabel = 'xli');
+```
+
+##### Exercises: Comparing ETFs
+- **Original Path**: `notebooks\lectures\Case_Study_Comparing_ETFs\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 23 (Code: 12, Markdown: 11)
+- **Imports/Dependencies**: from scipy import stats, import matplotlib.pyplot as plt, import numpy as np, import seaborn as sns
+
+**Explanatory Notes:**
+# Exercises: Comparing ETFs
+By Christopher van Hoecke, Maxwell Margenot, and Delaney Mackenzie

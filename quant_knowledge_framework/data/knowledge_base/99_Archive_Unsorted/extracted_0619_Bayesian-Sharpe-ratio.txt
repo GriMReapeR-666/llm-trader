@@ -1,0 +1,17 @@
+# Bayesian Sharpe ratio
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Bayesian Sharpe ratio
+
+$\mu \sim \text{Normal}(0, .1^2)$ $\leftarrow \text{Prior}$
+
+$\sigma \sim \text{HalfNormal}(.1^2)$ $\leftarrow \text{Prior}$
+
+$\text{returns} \sim \text{Normal}(\mu, \sigma^2)$ $\leftarrow \text{Observed!}$
+
+$\text{Sharpe} = \frac{\mu}{\sigma}$

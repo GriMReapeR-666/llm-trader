@@ -1,0 +1,18 @@
+# Your code goes here.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here. 
+
+plt.title('Binomial Distributino with p=0.25 and n=20')
+plt.xlabel('Value')
+plt.ylabel('Occurences')
+plt.legend(['Die Rolls']);
+```
+*Cell 6:*
+```python
+# Finding x which occurs most often

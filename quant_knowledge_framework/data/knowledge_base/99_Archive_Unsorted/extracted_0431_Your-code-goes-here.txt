@@ -1,0 +1,13 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+```
+*Cell 11:*
+```python
+price = get_pricing('C', fields='open_price', start_date='2005-01-01', end_date='2010-01-01')

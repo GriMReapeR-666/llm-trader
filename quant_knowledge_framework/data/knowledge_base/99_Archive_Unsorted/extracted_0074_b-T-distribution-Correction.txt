@@ -1,0 +1,15 @@
+# b. T-distribution Correction
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. T-distribution Correction
+
+Run 100 samples of size `small_size`, this time accouting for the small sample size using a t-distribution, and measure how many of their 95% confidence intervals actually contain the true mean.
+
+----
+
+# Exercise 5: Dependence

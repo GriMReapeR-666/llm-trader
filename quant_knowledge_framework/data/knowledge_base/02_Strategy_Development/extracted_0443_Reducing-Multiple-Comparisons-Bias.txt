@@ -1,0 +1,59 @@
+# Reducing Multiple Comparisons Bias
+
+Topic: 02_Strategy_Development
+Confidence: 1.00
+Keywords: ev, out-of-sample
+
+---
+
+## Reducing Multiple Comparisons Bias
+
+You can't really eliminate multiple comparisons bias, but you can reduce how much it impacts you. To do so we have two options.
+
+### Option 1: Run fewer tests.
+
+This is often the best option. Rather than just sweeping around hoping you hit an interesting signal, use your expert knowledge of the system to develop a great hypothesis and test that. This process of exploring the data, coming up with a hypothesis, then gathering more data and testing the hypothesis on the new data is considered the gold standard in statistical and scientific research. It's crucial that the data set on which you develop your hypothesis is not the one on which you test it. Because you found the effect while exploring, the test will likely pass and not really tell you anything. What you want to know is how consistent the effect is. Moving to new data and testing there will not only mean you only run one test, but will be an 'unbiased estimator' of whether your hypothesis is true. We discuss this a lot in other lectures.
+
+### Option 2: Adjustment Factors and Bon Ferroni Correction
+
+#### WARNING: This section gets a little technical. Unless you're comfortable with significance levels, we recommend looking at the code examples first and maybe reading the linked articles before fully diving into the text.
+
+If you must run many tests, try to correct your p-values. This means applying a correction factor to the cutoff you desire to obtain the one actually used when determining whether p-values are significant. The most conservative and common correction factor is Bon Ferroni.
+
+### Example: Bon Ferroni Correction
+
+The concept behind Bon Ferroni is quite simple. It just says that if we run $m$ tests, and we have a significance level/cutoff of $a$, then we should use $a/m$ as our new cutoff when determining significance. The math works out because of the following.
+
+Let's say we run $m$ tests. We should expect to see $ma$ false positives based on random chance that pass out cutoff. If we instead use $a/m$ as our cutoff, then we should expect to see $ma/m = a$ tests that pass our cutoff. Therefore we are back to our desired false positive rate of $a$.
+
+Let's try it on our experiment above.
+
+As you can see, our number of significant results is now far lower on average. Which is good because the data was random to begin with.
+
+### These are Often Overly Conservative
+
+Because Bon Ferroni is so stringent, you can often end up passing over real relationships. There is a good example in the following article
+
+https://en.wikipedia.org/wiki/Multiple_comparisons_problem
+
+Effectively, it assumes that all the tests you are running are independent, and doesn't take into account any structure in your data. You may be able to design a more finely tuned correction factor, but this is adding a layer of complexity and therefore a point of failure to your research. In general any time you relax your stringency, you need to be very careful not to make a mistake.
+
+Because of the over-zealousness of Bon Ferroni, often running fewer tests is the better option. Or, if you must run many tests, reserve multiple sets of data so your candidate signals can undergo an out-of-sample round of testing. For example, you might have the following flow:
+
+ * Let's say there are 100,000 possible relationships.
+ * Run a test on each possible relationship, and pick those that passed the test.
+ * With these candidates, run a test on a new out-of-sample set of data. Because you have many fewer candidates, you can now apply a Bon Ferroni correction to these p-values, or if necessary repeat another round of out-of-sample testing.
+
+# What is p-Hacking?
+
+p-hacking is just intentional or accidental abuse of multiple comparisons bias. It is surprisingly common, even in academic literature. The excellent statistical news website FiveThirtyEight has a great visualization here:
+
+https://fivethirtyeight.com/features/science-isnt-broken/
+
+Wikipedia's article is also informative:
+
+https://en.wikipedia.org/wiki/Data_dredging
+
+In general, the concept is simple. By running many tests or experiments and then focusing only on the ones that worked, you can present false positives as real results. Keep in mind that this also applies to running many different models or different types of experiments and on different data sets. Imagine that you spend a summer researching a new model to forecast corn future prices. You try 50 different models until finally one succeeds. Is this just luck at this point? Certainly you would want to be more careful about validating that model and testing it out-of-sample on new data before believing that it works.
+
+# Final Notes

@@ -1,0 +1,14 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+```
+*Cell 15:*
+```python
+s1 = pd.Series([2, 3, 5, 7, 11, 13], name='prime')
+s2 = pd.Series([1, 4, 6, 8, 9, 10], name='other')

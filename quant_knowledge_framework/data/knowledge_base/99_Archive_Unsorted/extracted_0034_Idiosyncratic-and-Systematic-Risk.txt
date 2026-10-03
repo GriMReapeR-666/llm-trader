@@ -1,0 +1,11 @@
+# Idiosyncratic and Systematic Risk
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Idiosyncratic and Systematic Risk
+
+In general, portfolios and assets can face two types of risk: idiosyncratic and systematic risk. **Idiosyncratic risk** refers to risks that are firm-specific and can be diversified away, such as a management change or a faulty production, while **systematic risk** is market-wide and affects all market participants. An example could be a slowing of the economy or a change in the interest rate. Because all firms are exposed to systematic risk, it cannot be diversified away.

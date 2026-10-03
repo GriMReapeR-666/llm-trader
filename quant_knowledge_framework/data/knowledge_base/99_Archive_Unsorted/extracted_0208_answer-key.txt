@@ -1,0 +1,35 @@
+# answer key ##
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## answer key ##
+score, pvalue, _ = coint(ual, aal)
+
+confidence_level = 0.05
+
+if pvalue < confidence_level:
+    print ("UAL and AAL are cointegrated")
+    print pvalue
+else:
+    print ("UAL and AAL are not cointegrated")
+    print pvalue
+
+ual.name = "UAL"
+aal.name = "AAL"
+pd.concat([ual, aal], axis=1).plot();
+```
+*Cell 9:*
+```python
+fcau = get_pricing('FCAU', fields=['price'], 
+                        start_date='2015-01-01', end_date='2016-01-01')['price']
+hmc = get_pricing('HMC', fields=['price'], 
+                        start_date='2015-01-01', end_date='2016-01-01')['price']
+
+#Your code goes here
+```
+*Cell 10:*
+```python

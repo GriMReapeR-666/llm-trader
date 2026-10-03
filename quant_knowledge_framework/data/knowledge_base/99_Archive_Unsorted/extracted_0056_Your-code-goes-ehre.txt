@@ -1,0 +1,15 @@
+# Your code goes ehre
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes ehre
+```
+*Cell 7:*
+```python
+# Manually calculating the t-statistic
+# Note that the test also requires information about the degrees of freedom
+# We will not compute that here

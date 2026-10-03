@@ -1,0 +1,360 @@
+# Notebook Contents
+
+Topic: 05_Quant_Utilities
+Confidence: 0.43
+Keywords: python, pandas, standardize
+
+---
+
+## Notebook Contents
+There are two ways to access the data and you'll find both of them listed below. Just click on the section you'd like to read through.
+
+- <a href="#interactive"><strong>Interactive overview</strong></a>: This is only available on Research and uses blaze to give you access to large amounts of data. Recommended for exploration and plotting.
+- <a href="#pipeline"><strong>Pipeline overview</strong></a>: Data is made available through pipeline which is available in both the Research & Backtesting environments. Recommended for factor development and moving back & forth between research/backtesting.
+
+### Free samples and limits
+The result of any expression is limited to 10,000 rows to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free sample includes data until 2 months prior to the current date.
+
+To access the most up-to-date values for this data set for trading a live algorithm (as with other partner sets), you need to purchase access to the full set.
+
+<a></a></a>
+
+# Interactive Overview
+### Accessing the data with Blaze and Interactive on Research
+Partner datasets are available on Educational Platform Research through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets, in an interactive, generic manner.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to perform a reduction expression on your dataset so that you don't have to pull the whole dataset into memory. You can convert the result of a blaze expression to a Pandas data structure (e.g. a [DataFrame](http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html)) and perform further computation, manipulation, and visualization on that structure.
+
+Helpful links:
+
+* [Query building for Blaze](http://blaze.readthedocs.io/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-sql.html).
+
+Once you have a Blaze expression that reduces the dataset to less than 10,000 rows, you can convert it to a Pandas DataFrames using:
+
+> `from odo import odo`
+> `odo(expr, pandas.DataFrame)`
+
+#### To see how to create a factor using this data, search for the `Pipeline Overview` section of this notebook or head straight to <a href="#pipeline">Pipeline Overview</a>.
+
+Let's go over the columns:
+
+- **symbol**: The ticker symbol of the company.
+- **sid**: The security ID (see [here](https://www.educational_platform.com/tutorials/getting-started#lesson3) for explanation).
+- **name**: The name of the company.
+- **asof_date**: The date to which this data applies/actual report date
+- **timestamp**: This is our timestamp on when we registered the data.
+- **predicted_five_day_log_return**: The predicted log return for the security over the next 5 days
+
+Fields like `timestamp` and `sid` are standardized across all Educational Platform Store Datasets, so the datasets are easy to combine. The `sid` field is also standardized across all Educational Platform equity databases.
+
+Now that we understand the data a bit better, let's get the `predicted_five_day_log_return` data for Apple (sid 24) and visualize it with a chart.
+
+<a></a></a>
+
+# Pipeline Overview
+[Pipeline](https://www.educational_platform.com/tutorials/pipeline) is a tool that can be used to define computations called factors, filters, or classifiers. These computations can be used in an algorithm to dynamically select securities, compute portfolio weights, compute risk factors, and more. 
+
+In research, pipeline is mostly used to explore these computations.
+
+The only method for accessing partner data within an algorithm on Educational Platform is in a pipeline. Before moving to [the IDE](https://www.educational_platform.com/algorithms) to work on an algorithm, it's a good idea to define your pipeline in research, so that you can iterate on an idea and analyze the output.
+
+To start, we need to import the following:
+
+To access partner data in pipeline, you must import the dataset. If the data is in a format that's difficult to use (e.g. event-based datasets), the data is sometimes available via built-in factors or filters. There are no such built-ins for the Alpha Vertex dataset as the prediction data is in a nice, usable format.
+
+Let's import the pipeline version of the Alpha Vertex dataset:
+
+Now that we've imported the data, let's take a look at which fields are available for each dataset, along with their datatypes.
+
+Now that we know what fields we have access to, let's define a [pipeline](https://www.educational_platform.com/tutorials/pipeline) that gets the latest predicted five day log return for the PreCog 500 dataset for stocks in the [Q1500US](https://www.educational_platform.com/tutorials/pipeline#lesson11).
+
+The set of ~500 stocks in the PreCog top 500 is derived from market cap at the beginning of each year, which we can see above!
+
+Now, you can to try writing an algorithm using this pipeline. The [final lesson in the Pipeline Tutorial](https://www.educational_platform.com/tutorials/pipeline#lesson12) gives an example of moving from research to the IDE.
+
+There is also an example algorithm using the PreCog 500 that can be found [here](https://www.educational_platform.com/posts/alpha-vertex-precog-dataset).
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the free sample of the dataset
+from educational_platform.interactive.data.alpha_vertex import (
+    # Top 100 Securities
+    precog_top_100 as dataset_100,
+    # Top 500 Securities
+    precog_top_500 as dataset_500
+)
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+dataset_500.asof_date.max()
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+dataset_500.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first few rows.
+dataset_500.peek()
+```
+*Cell 5:*
+```python
+# We start by defining a Blaze expression that gets the rows where symbol == AAPL.
+aapl_data = dataset_500[dataset_500.symbol == 'AAPL']
+
+# We then convert the Blaze expression to a pandas DataFrame, which is populated
+# with the data resulting from our Blaze expression.
+aapl_df = odo(aapl_data, pd.DataFrame)
+
+# Display the first few rows of the DataFrame.
+aapl_df.head()
+```
+*Cell 6:*
+```python
+# For plotting purposes, set the index of the DataFrame to the asof_date.
+aapl_df.set_index('asof_date', inplace=True)
+```
+*Cell 7:*
+```python
+# Plot the predicted 5-day log return data.
+aapl_df['predicted_five_day_log_return'].plot()
+```
+*Cell 8:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+```
+*Cell 9:*
+```python
+# These imports can be found in the store panel for each dataset
+# (https://www.educational_platform.com/data). Note that not all store datasets
+# can be used in pipeline yet.
+from educational_platform.pipeline.data.alpha_vertex import (
+    # Top 100 Securities
+    precog_top_100 as dataset_100,
+    # Top 500 Securities|
+    precog_top_500 as dataset_500
+)
+```
+*Cell 10:*
+```python
+print "Here are the list of available fields per dataset:"
+print "---------------------------------------------------\n"
+
+def _print_fields(dataset):
+    print "Dataset: %s\n" % dataset.__name__
+    print "Fields:"
+    for field in list(dataset.columns):
+        print "%s - %s" % (field.name, field.dtype)
+    print "\n"
+
+_print_fields(dataset_500)
+
+
+print "---------------------------------------------------\n"
+```
+*Cell 11:*
+```python
+# Import the Q1500US pipeline filter.
+from educational_platform.pipeline.filters.morningstar import Q1500US
+```
+*Cell 12:*
+```python
+# We only want to get the signal for stocks in the Q1500US that have a non-null
+# latest predicted_five_day_log_return.
+universe = (Q1500US() & dataset_500.predicted_five_day_log_return.latest.notnull())
+
+# Define our pipeline to return the latest prediction for the stocks in `universe`.
+pipe = Pipeline(columns= {
+                    'prediction': dataset_500.predicted_five_day_log_return.latest,
+                },
+                screen=universe)
+
+# Run our pipeline (this gets the data).
+pipe_output = run_pipeline(pipe, start_date='2014-01-01', end_date='2017-01-01')
+```
+*Cell 13:*
+```python
+# The result is a pandas DataFrame with a MultiIndex.
+pipe_output.head()
+```
+*Cell 14:*
+```python
+# Let's see how many securities we have a prediction for each day.
+pipe_output.groupby(pipe_output.index.get_level_values(0)).count().plot()
+```
+
+##### Estimize: Analyst-by-Analyst Estimates
+- **Original Path**: `notebooks\data\estimize.estimates\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 21 (Code: 12, Markdown: 9)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.estimize import estimates_free, from educational_platform.interactive.data.estimize import revisions_free, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Estimize: Analyst-by-Analyst Estimates
+
+In this notebook, we'll take a look at Estimizes's *Analyst-by-Analyst Estimates* dataset, available on the [Educational Platform](https://www.educational_platform.com/store). This dataset spans January, 2010 through the current day.
+
+This data contains a record for every estimate made by an individual on the Estimize product. By comparison, the Estimize Revisions product provides rolled-up consensus numbers for each possible earnings announcement.
+
+In this notebook, we'll examine these detailed estimates and pull in that consensus data as well.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform Store data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform Store data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+### Free samples and limits
+A few key caveats:
+
+1) We limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+2) There is a *free* version of this dataset as well as a paid one. The free one includes about three years of historical data, though not up to the current day.
+
+With preamble in place, let's get started:
+
+Let's go over the columns:
+- **analyst_id**: the unique identifier assigned by Estimize for the person making the estimate.
+- **asof_date**: Estimize's timestamp of event capture.
+- **eps**: EPS estimate made by the analyst on the `asof_date`
+- **fiscal_quarter**: fiscal quarter for which this estimate is made, related to `fiscal_year`
+- **fiscal_year**: fiscal year for which this estimate is made, related to `fiscal_quarter`
+- **revenue**: revenue estimate made by the analyst on the `asof_date`
+- **symbol**: ticker symbol provided by Estimize for the company for whom these estimates have been made
+- **username**: Estimize username of the analyst making this estimate
+- **timestamp**: the datetime when Educational Platform registered the data. For data loaded up via initial, historic loads, this timestamp is an estimate.
+- **sid**: the equity's unique identifier. Use this instead of the symbol. Derived by Educational Platform using the symbol and our market data
+
+We've done much of the data processing for you. Fields like `asof_date` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, let's just look at the estimates made for TSLA for a particular quarter. Also, we're filtering out some spurious data:
+
+How many records do we have now?
+
+Let's break it down by user:
+
+Let's convert it over to a Pandas DataFrame so we can chart it and examine it closer
+
+That's neat. But let's add in some data from another dataset -- the Estimize Revisions data. For the same timeframe, the revisions data provides each revision to the overall consensus estimates. So where `estimates_free` data provides every single estimate made by an individual on the Estimize site, `revisions_free` provides rolled up summaries of the estimates.
+
+For this quick demonstration, let's just grab the consensus mean from the `revisions_free` data set and convert it over to Pandas. Note, we need to rename the `mean` column name because it causes problems otherwise:
+
+Let's chart that in the same chart again so we get a trend of the mean over time, overlayed on a chart of each individual analyst estimate:
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the free sample of the dataset
+from educational_platform.interactive.data.estimize import estimates_free
+
+# or if you want to import the full dataset, use:
+# from educational_platform.interactive.data.estimize import estimates
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+estimates_free.dshape
+```
+*Cell 3:*
+```python
+# And how many rows are in this free sample?
+# N.B. we're using a Blaze function to do this, not len()
+estimates_free.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+estimates_free.head(3)
+```
+*Cell 5:*
+```python
+stocks = symbols('TSLA')
+one_quarter = estimates_free[(estimates_free.sid == stocks.sid) &
+                 (estimates_free.fiscal_year == '2014') &
+                 (estimates_free.fiscal_quarter == '1') &
+                 (estimates_free.eps < 100)
+                ]
+one_quarter.head(5)
+```
+*Cell 6:*
+```python
+one_quarter.count()
+```
+*Cell 7:*
+```python
+one_quarter.username.count_values()
+```
+*Cell 8:*
+```python
+one_q_df = odo(one_quarter.sort('asof_date'), pd.DataFrame)
+plt.plot(one_q_df.asof_date, one_q_df.eps, marker='.', linestyle='None', color='r')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("EPS Estimate")
+plt.title("Analyst by Analyst EPS Estimates for TSLA")
+plt.legend(["Individual Estimate"], loc=2)
+```
+*Cell 9:*
+```python
+from educational_platform.interactive.data.estimize import revisions_free
+consensus = revisions_free[(revisions_free.sid == stocks.sid) &
+                 (revisions_free.fiscal_year == '2014') &
+                 (revisions_free.fiscal_quarter == '1') &
+                 (revisions_free.source == 'estimize') &
+                 (revisions_free.metric == 'eps')
+                ]
+```
+*Cell 10:*
+```python
+consensus.head(3)
+```
+*Cell 11:*
+```python
+consensus_df = odo(consensus[['asof_date', 'mean']].sort('asof_date'), pd.DataFrame)
+consensus_df.rename(columns={'mean':'eps_mean'}, inplace=True)
+```
+*Cell 12:*
+```python
+plt.plot(consensus_df.asof_date, consensus_df.eps_mean)
+plt.plot(one_q_df.asof_date, one_q_df.eps, marker='.', linestyle='None', color='r')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("EPS Estimate")
+plt.title("EPS Estimates for TSLA")
+plt.legend(["Mean Estimate", "Individual Estimates"], loc=2)
+```
+
+##### EventVestor: 13D Filings
+- **Original Path**: `notebooks\data\eventvestor._13d_filings\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 23 (Code: 15, Markdown: 8)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.algorithm import attach_pipeline, pipeline_output, from educational_platform.interactive.data.eventvestor import _13d_filings_free as dataset, from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.eventvestor import _13DFilings, from educational_platform.pipeline.factors import AverageDollarVolume, from educational_platform.pipeline.factors.eventvestor import BusinessDaysSince13DFilingsDate, from educational_platform.research import run_pipeline, import pandas as pd
+
+**Explanatory Notes:**
+# EventVestor: 13D Filings
+
+In this notebook, we'll take a look at EventVestor's *13D Filings* dataset, available on the [Educational Platform Store](https://www.educational_platform.com/store). This dataset spans January 01, 2007 through the current day, and documents 13D filings with the SEC by activist shareholders disclosing a beneficial ownership of 5% or more.

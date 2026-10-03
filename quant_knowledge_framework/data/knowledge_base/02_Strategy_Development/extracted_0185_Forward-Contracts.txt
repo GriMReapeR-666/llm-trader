@@ -1,0 +1,32 @@
+# Forward Contracts
+
+Topic: 02_Strategy_Development
+Confidence: 0.67
+Keywords: ev, payoff
+
+---
+
+## Forward Contracts
+A futures contract at its heart is based on a derivative called a forward contract. This is an agreement between two parties to pay a delivery price, $K$, for an asset at some predetermined point in the future. Forward contracts are basic over the counter (OTC) derivatives, typically used for hedging. They are used for neutralizing risk by locking the price for an asset, obligating both sides of the contract to follow through.
+
+Entering into a long position on a forward contract entails agreeing to buy the underlying asset while entering into a short position entails agreeing to sell the underlying. Let's say that the price of the good is denotated by $S_i$, indexed with time, with $T$ being the maturity date of the forward contract. Then the **payoff** of a long position in a forward contract is:
+
+$$ S_T - K $$
+
+And the payoff of a short position in a forward contract is:
+
+$$ K - S_T$$
+
+Where $S_T$ is the value of the underlying at maturity and $K$ is the value agreed upon for the underlying at maturity. The specific value of $K$ is negotiated between the parties entering into a forward contract together so it can vary quite a bit, depending on the relevant parties.
+
+The payoff of a derivative is simply the realized cash value at the end of its life. This settlement can take place with either the delivery and exchange of actual goods or a simple cash settlement. As we can see in the following graphs, a forward contract has a linear payoff.
+
+This is the long side payoff:
+
+And this is the short side payoff:
+
+For a long position on a forward contract, you benefit if the price at expiry is greater than the delivery price, while the opposite holds with a short position. However, even if you do not make a profit on your position there can be advantages. A forward contract locks in a price for a transaction, removing any uncertainty that you may have about a sale or purchase in the future. This is advantageous in cases where you know what you will need at some point in the future (or have a good idea of what you will need due to your models).
+
+Hedging with a forward contract serves to help remove any sort of uncertainty about the price that you will pay (or be paid) for a good. If you are a producer, you can easily protect yourself against falling prices by using a short position in a forward contract with a delivery price that you find amenable. Similarly, if you are a buyer, you can easily protect yourself with a long position.
+
+Say that you need a certain quantity of copper for circuit board production in May. You could wait until May to purchase the appropriate amount, but you will be at the mercy of the **spot market**, the market where assets are traded for immediate delivery. Depending on your risk model and the cost of housing large amounts of copper, it may be more reasonable to enter into a forward contract for delivery in May with a distributor today. This way you are more prepared to meet your production demands.

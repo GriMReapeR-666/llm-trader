@@ -1,0 +1,195 @@
+# Other Resources
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: numpy, python, pandas
+
+---
+
+## Other Resources
+Some of the content featured here is adapted from "Quantitative Investment Analysis", by DeFusco, McLeavey, Pinto, and Runkle.
+
+More common test statistics and tests can be found [here](https://en.wikipedia.org/wiki/Statistical_hypothesis_testing#Common_test_statistics).
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+start = "2015-01-01"
+end = "2016-01-01"
+pricing_sample = get_pricing("MSFT", start_date = start, end_date = end, fields = 'price')
+
+#transform it into returns
+returns_sample = pricing_sample.pct_change()[1:]
+
+# plot it
+plt.plot(pricing_sample.index, pricing_sample.values)
+plt.ylabel('Price');
+```
+*Cell 3:*
+```python
+plt.plot(returns_sample.index, returns_sample.values)
+plt.ylabel('Returns');
+```
+*Cell 4:*
+```python
+# Plot a standard normal distribution and mark the critical regions with shading
+x = np.linspace(-3, 3, 100)
+norm_pdf = lambda x: (1/np.sqrt(2 * np.pi)) * np.exp(-x * x / 2)
+y = norm_pdf(x)
+
+fig, ax = plt.subplots(1, 1, sharex=True)
+ax.plot(x, y)
+ax.fill_between(x, 0, y, where = x > 1.96)
+ax.fill_between(x, 0, y, where = x < -1.96)
+plt.title('Rejection regions for a two-tailed hypothesis test at 95% confidence')
+plt.xlabel('x')
+plt.ylabel('p(x)');
+```
+*Cell 5:*
+```python
+n = len(returns_sample)
+test_statistic = ((returns_sample.mean() - 0) /
+                (returns_sample.std()/np.sqrt(n)))
+print 't test statistic: ', test_statistic
+```
+*Cell 6:*
+```python
+from scipy.stats import t
+```
+*Cell 7:*
+```python
+p_val = 2 * (1 - t.cdf(test_statistic, n - 1))
+print 'P-value is: ', p_val
+```
+*Cell 8:*
+```python
+symbol_list = ["SPY", "AAPL"]
+start = '2015-01-01'
+end = '2016-01-01'
+pricing_sample = get_pricing(symbol_list, start_date = start, end_date = end, fields='price')
+pricing_sample.columns = map(lambda x: x.symbol, pricing_sample.columns)
+returns_sample = pricing_sample.pct_change()[1:]
+returns_sample.plot()
+plt.ylabel('Returns');
+```
+*Cell 9:*
+```python
+# Sample mean values
+mu_spy, mu_aapl = returns_sample.mean()
+s_spy, s_aapl = returns_sample.std()
+n_spy = len(returns_sample['SPY'])
+n_aapl = len(returns_sample['AAPL'])
+
+test_statistic = ((mu_spy - mu_aapl) - 0)/((s_spy**2/n_spy) + (s_aapl**2/n_aapl))**0.5
+df = ((s_spy**2/n_spy) + (s_aapl**2/n_aapl))**2/(((s_spy**2 / n_spy)**2 /n_spy)+((s_aapl**2 / n_aapl)**2/n_aapl))
+
+print 't test statistic: ', test_statistic
+print 'Degrees of freedom (modified): ', df
+```
+*Cell 10:*
+```python
+from scipy.stats import chi2
+```
+*Cell 11:*
+```python
+# Here we show what a chi-square looks like
+x = np.linspace(0, 8, 100)
+y_1 = chi2.pdf(x, 1)
+y_2 = chi2.pdf(x, 2)
+y_3 = chi2.pdf(x, 3)
+y_4 = chi2.pdf(x, 4)
+y_6 = chi2.pdf(x, 6)
+y_9 = chi2.pdf(x, 9)
+
+fig, ax = plt.subplots()
+ax.plot(x, y_1, label = 'k = 1')
+ax.plot(x, y_2, label = 'k = 2')
+ax.plot(x, y_3, label = 'k = 3')
+ax.plot(x, y_4, label = 'k = 4')
+ax.plot(x, y_6, label = 'k = 6')
+ax.plot(x, y_9, label = 'k = 9')
+ax.legend()
+plt.title('Chi-Square distribution with k degrees of freedom')
+plt.xlabel('x')
+plt.ylabel('p(x)');
+```
+*Cell 12:*
+```python
+start = "2015-01-01"
+end = "2016-01-01"
+pricing_sample = get_pricing("MSFT", start_date = start, end_date = end, fields = 'price')
+returns_sample = pricing_sample.pct_change()[1:]
+plt.plot(returns_sample.index, returns_sample.values)
+plt.ylabel('Returns');
+```
+*Cell 13:*
+```python
+test_statistic = (len(returns_sample) - 1) * returns_sample.std()**2 / 0.0001
+print 'Chi-square test statistic: ', test_statistic
+```
+*Cell 14:*
+```python
+# Here we calculate the critical value directly because our df is too high for most chisquare tables
+crit_value = chi2.ppf(0.99, len(returns_sample) - 1)
+print 'Critical value at a = 0.01 with 251 df: ', crit_value
+```
+*Cell 15:*
+```python
+symbol_list = ["SPY", "AAPL"]
+start = "2015-01-01"
+end = "2016-01-01"
+pricing_sample = get_pricing(symbol_list, start_date = start, end_date = end, fields = 'price')
+pricing_sample.columns = map(lambda x: x.symbol, pricing_sample.columns)
+returns_sample = pricing_sample.pct_change()[1:]
+```
+*Cell 16:*
+```python
+# Take returns from above, AAPL and SPY, and compare their variances
+spy_std_dev, aapl_std_dev = returns_sample.std()
+print 'SPY standard deviation is: ', spy_std_dev
+print 'AAPL standard deviation is: ', aapl_std_dev
+```
+*Cell 17:*
+```python
+test_statistic = (aapl_std_dev / spy_std_dev)**2
+print "F Test statistic: ", test_statistic
+```
+*Cell 18:*
+```python
+# Since these values are taken over the same time period, they will have the same number of degrees of freedom
+df1 = len(returns_sample['AAPL']) - 1
+df2 = len(returns_sample['SPY']) - 1
+
+print 'Degrees of freedom for SPY: ', df2
+print 'Degrees of freedom for AAPL: ', df1
+```
+*Cell 19:*
+```python
+from scipy.stats import f
+```
+*Cell 20:*
+```python
+upper_crit_value = f.ppf(0.975, df1, df2)
+lower_crit_value = f.ppf(0.025, df1, df2)
+print 'Upper critical value at a = 0.05 with df1 = {0} and df2 = {1}: '.format(df1, df2), upper_crit_value
+print 'Lower critical value at a = 0.05 with df1 = {0} and df2 = {1}: '.format(df1, df2), lower_crit_value
+```
+
+##### Exercise 1: Hypothesis Testing.
+- **Original Path**: `notebooks\lectures\Hypothesis_Testing\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 27 (Code: 11, Markdown: 16)
+- **Imports/Dependencies**: from scipy.stats import f, from scipy.stats import t, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy.stats
+
+**Explanatory Notes:**
+#Exercises: Hypothesis Testing
+By Christopher van Hoecke and Maxwell Margenot

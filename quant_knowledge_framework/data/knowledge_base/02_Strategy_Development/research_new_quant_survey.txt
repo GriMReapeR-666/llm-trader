@@ -1,0 +1,58 @@
+# The New Quant: LLMs in Financial Prediction and Trading
+
+**Source**: arxiv:2510.05533 (October 2025)
+
+## Overview
+Survey of LLM applications in quantitative investing, focusing on equity return prediction and trading systems.
+
+## Task Taxonomy
+
+### 1. Sentiment and Event Extraction
+- Financial news sentiment
+- Earnings call analysis
+- SEC filing parsing
+- Event detection (mergers, guidance changes)
+
+### 2. Numerical and Economic Reasoning
+- Financial statement analysis
+- Ratio calculations
+- Economic impact assessment
+
+### 3. Multimodal Understanding
+- Text + price charts
+- Earnings call transcripts + audio
+- Financial reports + tables
+
+### 4. Retrieval-Augmented Generation (RAG)
+- Timestamped evidence citations
+- Document availability checks
+- Embargo period enforcement
+
+### 5. Time Series Prompting
+- Historical pattern matching
+- Regime-aware prompts
+- Temporal context integration
+
+### 6. Agentic Systems
+- Research automation
+- Backtesting coordination
+- Execution monitoring
+
+## Design Patterns for Faithfulness
+- **Retrieval First**: Ground responses in verified documents
+- **Tool-Verified Numerics**: Calculate via code, not generation
+- **Time-Safe Evaluation**: Enforce document availability dates
+- **Audit Logging**: Record all prompts, retrievals, tool calls
+
+## Production Challenges
+- Temporal leakage in pretrained models
+- Hallucination in financial reasoning
+- Data coverage and structure issues
+- Deployment economics (cost, latency)
+- Interpretability and governance
+- Safety and policy compliance
+
+## Evaluation Principles
+1. Separate signal generation from portfolio allocation
+2. Bind language to evidence with timestamped citations
+3. Evaluate like a practitioner: costs, slippage, turnover, capacity

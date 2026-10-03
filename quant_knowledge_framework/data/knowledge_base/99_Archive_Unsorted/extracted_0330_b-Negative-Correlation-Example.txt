@@ -1,0 +1,15 @@
+# b. Negative Correlation Example
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Negative Correlation Example
+
+Construct a variable $W$ which has a weak, negative correlation with $Z$ $(-0.3 < Corr(Z,W) < 0)$, and plot their relationship.
+
+----
+
+# Exercise 3: Correlation of Real Assets

@@ -1,0 +1,41 @@
+# Information Coefficient
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Information Coefficient
+
+We use the information coefficient (IC) to assess the predictive power of a factor. The IC of a factor is its Spearman Rank Correlation. For more background on the mathematics associated with the IC, check out the [Spearman Rank Correlation Lecture](https://www.quantopian.com/lectures#Spearman-Rank-Correlation). To break it down, we calculate the IC between the factor values and the forward returns for each period. The IC assesses the monotonic relationship between factors and returns. What this means, intuitively, is that it provides a measure for whether higher factor values can be associated with higher returns.
+
+A higher IC indicates that higher factor values are more closely associated with higher return values (and lower factor values with lower return values). A very negative IC indicates that higher factor values are closely associated with lower return values. An IC of $0$ indicates no relationship.
+
+### Information Tear Sheet
+
+Similarly to the returns tear sheet, we can also create a tear sheet that just gives us data on the information coefficient.
+
+#### IC Point Estimates
+
+This first table provides us with statistics around the distribution of the information coefficient for each time horizon. This includes mean, standard deviation, skewness, and kurtosis, to give us a clear view of how the distribution is shaped.
+
+#### IC Time Series
+
+Here we plot the IC as a time series for each period along with a 1-month moving average to smooth it out. What we want here is consistency over time and a consistently informative signal.
+
+#### IC Histograms
+
+Histograms are good to show us the distribution of the IC. These will clearly show any strange outliers and how they affect the overall curve.
+
+#### IC QQ-Plots
+
+A QQ-plot compares the distribution of the IC to the normal distribution. It plots the quantiles of one distribution against the quantiles of the other, typically with a reference line at $y = x$. If the points in the QQ-plot fall entirely along this line, this indicates that the two distributions are the same. In practice, a QQ-plot serves as a measure of similarity between distributions. Generally, what we want to see here is an S-shaped curve. This indicates that the tails of the IC distribution are fatter and contain more information.
+
+#### IC Heat Plots
+
+The following heat plots show the monthly mean IC, providing us with another visual of consistency.
+
+#### IC by Group
+
+Looking at the returns by quantile for each individual sector in the returns tear sheet helps to show which sectors are driving the bulk of our returns as well as whether quantiles in each sector are broken out how they should be (with the lowest quantiles giving the lowest returns up to the highest quantiles giving the highest returns). If an individual sector has little to no signal (IC), it makes sense for the quantile returns to be all over the place. Looking at IC by group helps to make sure that everything is behaving nicely.

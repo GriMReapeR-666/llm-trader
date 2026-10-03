@@ -1,0 +1,11 @@
+# c. Out of Sample Test
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c. Out of Sample Test
+
+Find the skew of the historical retunrs of AMC from the first half of 2016 to determine if the skew from part b holds outside of the original sample.

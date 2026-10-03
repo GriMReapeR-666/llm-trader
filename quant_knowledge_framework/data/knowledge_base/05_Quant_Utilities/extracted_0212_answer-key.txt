@@ -1,0 +1,44 @@
+# answer key ##
+
+Topic: 05_Quant_Utilities
+Confidence: 0.82
+Keywords: pandas, cointegration, stationarity, python, numpy
+
+---
+
+## answer key ##
+
+spread = S2_out - b * S1_out
+spread.plot()
+plt.axhline(spread.mean(), color='black')
+plt.legend(['Spread']);
+
+print "p-value for spread stationarity: ", adfuller(spread)[1]
+# Our p-value is greater than 0.05 so we conclude that this calculation of
+# the spread is non-stationary out of sample
+```
+*Cell 17:*
+```python
+# No solution provided for extra credit exercises.
+```
+
+##### Introduction to Pairs Trading
+- **Original Path**: `notebooks\lectures\Introduction_to_Pairs_Trading\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 62 (Code: 29, Markdown: 33)
+- **Imports/Dependencies**: from statsmodels.tsa.stattools import coint, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import seaborn, import statsmodels, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Introduction to Pairs Trading
+By Delaney Mackenzie and Maxwell Margenot
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+
+Pairs trading is a classic example of a strategy based on mathematical analysis. The principle is as follows. Let's say you have a pair of securities X and Y that have some underlying economic link. An example might be two companies that manufacture the same product, or two companies in one supply chain. If we can model this economic link with a mathematical model, we can make trades on it. We'll start by constructing a toy example.
+
+Before we proceed, note that the content in this lecture depends heavily on the [Stationarity, Integration, and Cointegration lecture](https://www.educational_platform.com/lectures/integration-cointegration-and-stationarity) in order to properly understand the mathematical basis for the methodology that we employ here. It is recommended that you go through that lecture before this continuing.

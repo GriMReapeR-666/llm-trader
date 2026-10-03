@@ -1,0 +1,141 @@
+# b. Backwardation
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python, pandas
+
+---
+
+## b. Backwardation
+Consider the corn farmer again.
+
+Calculate the futures price as a function of time, given the following:
+
+- The cost of carry is -0.01
+- The spot price of corn was originally \$1000, and that the price is driven by a normal distribution
+- Maturity is achieved after 100 days
+
+---
+
+Congratulations on completing the Introduction to Futures exercises!
+
+As you learn more about writing trading models and the Educational Platform platform, enter the daily [Educational Platform Contest](https://www.educational_platform.com/contest). Your strategy will be evaluated for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+bushels = 15000
+spot_symbol = 'CORN'
+futures_contract = symbols('CNU16')
+spot_prices = get_pricing(spot_symbol, start_date = '2016-06-01', end_date = '2016-09-15', fields = 'price')
+futures_prices = get_pricing(futures_contract, start_date = '2016-06-01',end_date='2016-09-15', fields='price')
+
+# Sale date of corn
+sale_date = '2016-09-14'
+
+# Plotting
+plt.plot(spot_prices);
+plt.axvline(sale_date, linestyle='dashed', color='r', label='Sale Date')
+plt.legend();
+```
+*Cell 3:*
+```python
+p = spot_prices.loc[sale_date]
+
+market_profits = p * (bushels//6)
+
+print 'profits from market price: $', market_profits
+```
+*Cell 4:*
+```python
+futures_entry_date = '2016-06-01'
+
+futures_profits = futures_prices.loc[futures_entry_date] * bushels
+print 'profits from future contract: $', futures_profits
+```
+*Cell 5:*
+```python
+lost_profits = futures_profits - market_profits
+print 'Profits the producer lost in a year: $', int(lost_profits)
+```
+*Cell 6:*
+```python
+# A toy example to show Contango
+N = 100 # Days to expiry of futures contract
+cost_of_carry = 0.01
+
+spot_price = pd.Series(np.ones(N), name = "Spot Price")
+futures_price = pd.Series(np.ones(N), name = "Futures Price")
+
+spot_price[0] = 1000
+futures_price[0] = spot_price[0]*np.exp(cost_of_carry*N)
+
+for n in range(1, N): 
+    spot_price[n] = spot_price[n-1]*(1 + np.random.normal(0, 0.05))
+    futures_price[n] = spot_price[n]*np.exp(cost_of_carry*(N - n))
+
+spot_price.plot()
+futures_price.plot()
+plt.legend()
+
+plt.title('Contango')
+plt.xlabel('Time')
+plt.ylabel('Price');
+```
+*Cell 7:*
+```python
+# A toy example to show Contango
+N = 100 # Days to expiry of futures contract
+cost_of_carry = -0.01
+
+spot_price = pd.Series(np.ones(N), name = "Spot Price")
+futures_price = pd.Series(np.ones(N), name = "Futures Price")
+
+spot_price[0] = 1000
+futures_price[0] = spot_price[0]*np.exp(cost_of_carry*N)
+
+for n in range(1, N): 
+    spot_price[n] = spot_price[n-1]*(1 + np.random.normal(0, 0.05))
+    futures_price[n] = spot_price[n]*np.exp(cost_of_carry*(N - n))
+
+spot_price.plot()
+futures_price.plot()
+plt.legend()
+
+plt.title('Contango')
+plt.xlabel('Time')
+plt.ylabel('Price');
+```
+
+##### Introduction to Futures Contracts
+- **Original Path**: `notebooks\lectures\Introduction_to_Futures\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 46 (Code: 19, Markdown: 27)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Introduction to Futures Contracts
+by Maxwell Margenot and Delaney Mackenzie
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+
+Futures contracts are derivatives and they are fundamentally different from equities, so it is important to understand what they are and how they work. In this lecture we will detail the basic unit of a futures contract, the forward contract, specifics on the valuation of futures contracts, and some things to keep in mind when handling futures. Our goal here is to cover what makes futures tick before we get into performing any sort of statistical analysis of them.

@@ -1,0 +1,10 @@
+# b. Graphing
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Graphing
+Using the techniques laid out in lecture, plot a histogram of the returns

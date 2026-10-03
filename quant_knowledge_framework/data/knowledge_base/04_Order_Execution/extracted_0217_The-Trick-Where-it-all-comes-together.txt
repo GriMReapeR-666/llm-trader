@@ -1,0 +1,19 @@
+# The Trick: Where it all comes together
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## The Trick: Where it all comes together
+Because the securities drift towards and apart from each other, there will be times when the distance is high and times when the distance is low. The trick of pairs trading comes from maintaining a hedged position across X and Y. If both securities go down, we neither make nor lose money, and likewise if both go up. We make money on the spread of the two reverting to the mean. In order to do this we'll watch for when X and Y are far apart, then short Y and long X. Similarly we'll watch for when they're close together, and long Y and short X.
+
+### Going Long the Spread
+This is when the spread is small and we expect it to become larger. We place a bet on this by longing Y and shorting X.
+
+### Going Short the Spread
+This is when the spread is large and we expect it to become smaller. We place a bet on this by shorting Y and longing X.
+
+### Specific Bets
+One important concept here is that we are placing a bet on one specific thing, and trying to reduce our bet's dependency on other factors such as the market.

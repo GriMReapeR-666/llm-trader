@@ -1,0 +1,275 @@
+# Lecture Link
+
+Topic: 05_Quant_Utilities
+Confidence: 0.38
+Keywords: numpy, python, pandas
+
+---
+
+## Lecture Link
+
+This exercise notebook refers to this lecture. Please use the lecture for explanations and sample code.
+
+https://www.educational_platform.com/lectures#Spearman-Rank-Correlation
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+#Exercise 1: Finding Correlations of Non-Linear Relationships
+
+##a. Traditional (Pearson) Correlation
+
+Find the correlation coefficient for the relationship between `x` and `y`.
+
+# b. Spearman Rank Correlation
+
+Find the Spearman rank correlation coefficient for the relationship between `x` and `y` using the `stats.rankdata` function and the formula 
+
+$$r_S = 1 - \frac{6 \sum_{i=1}^n d_i^2}{n(n^2 - 1)}$$
+
+where $d_i$ is the difference in rank of the `i`th pair of `x` and `y` values.
+
+Check your results against scipy's Spearman rank function. `stats.spearmanr`
+
+#Exercise 2: Limitations of Spearman Rank Correlation
+
+##a. Lagged Relationships
+
+First, create a series `b` that is identical to `a` but lagged one step (`b[i] = a[i-1]`). Then, find the Spearman rank correlation coefficient of the relationship between `a` and `b`.
+
+
+##b. Non-Monotonic Relationships
+
+First, create a series `d` using the relationship $d=10c^2 - c + 2$. Then, find the Spearman rank rorrelation coefficient of the relationship between `c` and `d`.
+
+#Exercise 3: Real World Example
+
+##a. Factor and Forward Returns
+
+Here we'll define a simple momentum factor (model). To evaluate it we'd need to look at how its predictions correlate with future returns over many days. We'll start by just evaluating the Spearman rank correlation between our factor values and forward returns on just one day.
+
+Compute the Spearman rank correlation between factor values and 10 trading day forward returns on 2015-1-2.
+
+For help on the pipeline API, see this tutorial: https://www.educational_platform.com/tutorials/pipeline
+
+##b. Rolling Spearman Rank Correlation
+
+Repeat the above correlation for the first 60 days in the dataframe as opposed to just a single day. You should get a time series of Spearman rank correlations. From this we can start getting a better sense of how the factor correlates with forward returns.
+
+What we're driving towards is known as an information coefficient. This is a very common way of measuring how predictive a model is. All of this plus much more is automated in our open source alphalens library. In order to see alphalens in action you can check out these resources:
+
+A basic tutorial:
+https://www.educational_platform.com/tutorials/getting-started#lesson4
+
+An in-depth lecture:
+https://www.educational_platform.com/lectures/factor-analysis
+
+##b. Rolling Spearman Rank Correlation
+
+Plot out the rolling correlation as a time series, and compute the mean and standard deviation.
+
+---
+
+Congratulations on completing the Spearman rank correlation exercises!
+
+As you learn more about writing trading models and the Educational Platform platform, enter a daily [Educational Platform Contest](https://www.educational_platform.com/contest). Your strategy will be evaluated for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solic
+itation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+import math
+```
+*Cell 2:*
+```python
+n = 100
+x = np.linspace(1, n, n)
+y = x**5
+
+#Your code goes here
+
+corr = np.corrcoef(x, y)[1][0]
+
+print corr
+
+plt.plot(x, y);
+```
+*Cell 3:*
+```python
+#Your code goes here
+
+xrank = stats.rankdata(x, method='average')
+
+yrank = stats.rankdata(y, method='average')
+
+diffs = xrank - yrank
+
+spr_corr = 1 - 6*np.sum( diffs*diffs )/( n*( n**2 - 1 ) )
+
+print "Because the ranks of the two data sets are perfectly correlated,\
+the relationship between x and y has a Spearman rank correlation coefficient of", spr_corr
+```
+*Cell 4:*
+```python
+# Your code goes here
+
+stats.spearmanr(x, y)
+```
+*Cell 5:*
+```python
+n = 100
+a = np.random.normal(0, 1, n)
+
+#Your code goes here
+
+b = [0] + list(a[:(n-1)])
+
+results = stats.spearmanr(a, b)
+
+print "Despite the underlying relationship being a perfect correlation,\
+the one-step lag led to a Spearman rank correlation coefficient of\n", results.correlation, \
+", meaning the test failed to detect the strong relationship."
+```
+*Cell 6:*
+```python
+n = 100
+c = np.random.normal(0, 2, n)
+
+#Your code goes here
+
+d = 10*c**2 - c + 2
+
+results = stats.spearmanr(c, d)
+
+print "Despite an exact underlying relationship of d = 10c^2 - c + 2,\
+the non-monotonic nature of the relationship led to a Spearman rank Correlation coefficient of", \
+results.correlation, ", meaning the test failed to detect the relationship."
+plt.scatter(c, d);
+```
+*Cell 7:*
+```python
+#Pipeline Setup
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.pipeline.factors import CustomFactor, Returns, RollingLinearRegressionOfReturns
+from educational_platform.pipeline.classifiers.morningstar import Sector
+from educational_platform.pipeline.filters import QTradableStocksUS
+from time import time
+
+#MyFactor is our custom factor, based off of asset price momentum
+
+class MyFactor(CustomFactor):
+        """ Momentum factor """
+
+        inputs = [USEquityPricing.close] 
+        window_length = 60
+
+        def compute(self, today, assets, out, close):       
+            out[:] = close[-1]/close[0]
+            
+universe = QTradableStocksUS()
+
+pipe = Pipeline(
+    columns = {
+            'MyFactor' : MyFactor(mask=universe),
+    },
+    screen=universe
+)
+
+start_timer = time()
+results = run_pipeline(pipe, '2015-01-01', '2015-06-01')
+end_timer = time()
+results.fillna(value=0);
+
+print "Time to run pipeline %.2f secs" % (end_timer - start_timer)
+
+my_factor = results['MyFactor']
+```
+*Cell 8:*
+```python
+n = len(my_factor)
+
+asset_list = results.index.levels[1].unique()
+prices_df = get_pricing(asset_list, start_date='2015-01-01', end_date='2016-01-01', fields='price')
+
+# Compute 10-day forward returns, then shift the dataframe back by 10
+forward_returns_df = prices_df.pct_change(10).shift(-10)
+
+# The first trading day is actually 2015-1-2
+single_day_factor_values = my_factor['2015-1-2']
+
+# Because prices are indexed over the total time period, while the factor values dataframe
+# has a dynamic universe that excludes hard to trade stocks, each day there may be assets in 
+# the returns dataframe that are not present in the factor values dataframe. We have to filter down
+# as a result.
+single_day_forward_returns = forward_returns_df.loc['2015-1-2'][single_day_factor_values.index]
+
+#Your code goes here
+r = stats.spearmanr(single_day_factor_values,
+                          single_day_forward_returns)
+
+print "A Spearman rank rorrelation test yielded a coefficient of %s" %(r.correlation)
+```
+*Cell 9:*
+```python
+rolling_corr = pd.Series(index=None, data=None)
+
+#Your code goes here
+
+for dt in prices_df.index[:60]:
+    # The first trading day is actually 2015-1-2
+    single_day_factor_values = my_factor[dt]
+
+    # Because prices are indexed over the total time period, while the factor values dataframe
+    # has a dynamic universe that excludes hard to trade stocks, each day there may be assets in 
+    # the returns dataframe that are not present in the factor values dataframe. We have to filter down
+    # as a result.
+    single_day_forward_returns = forward_returns_df.loc[dt][single_day_factor_values.index]
+
+    rolling_corr[dt] = stats.spearmanr(single_day_factor_values,
+                              single_day_forward_returns).correlation
+```
+*Cell 10:*
+```python
+# Your code goes here
+print 'Spearman rank correlation mean: %s' %(np.mean(rolling_corr))
+print 'Spearman rank correlation std: %s' %(np.std(rolling_corr))
+plt.plot(rolling_corr);
+```
+
+##### Measuring Monotonic Relationships
+- **Original Path**: `notebooks\lectures\Spearman_Rank_Correlation\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 23 (Code: 9, Markdown: 14)
+- **Imports/Dependencies**: import math, import matplotlib.pyplot as plt, import numpy as np, import scipy.stats as stats
+
+**Explanatory Notes:**
+# Measuring Monotonic Relationships
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie with example algorithms by David Edwards
+
+Reference: DeFusco, Richard A. "Tests Concerning Correlation: The Spearman Rank Correlation Coefficient." Quantitative Investment Analysis. Hoboken, NJ: Wiley, 2007
+
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+The Spearman Rank Correlation Coefficient allows us to determine whether or not two data series move together; that is, when one increases (decreases) the other also increases (decreases). This is more general than a linear relationship; for instance, $y = e^x$ is a monotonic function, but not a linear one. Therefore, in computing it we compare not the raw data but the ranks of the data.
+
+This is useful when your data sets may be in different units, and therefore not linearly related (for example, the price of a square plot of land and its side length, since the price is more likely to be linear in the area). It's also suitable for data sets which not satisfy the assumptions that other tests require, such as the observations being normally distributed as would be necessary for a t-test.

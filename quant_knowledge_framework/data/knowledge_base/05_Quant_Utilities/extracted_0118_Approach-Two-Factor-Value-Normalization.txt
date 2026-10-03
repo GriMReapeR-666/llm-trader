@@ -1,0 +1,346 @@
+# Approach Two: Factor Value Normalization
+
+Topic: 05_Quant_Utilities
+Confidence: 0.55
+Keywords: pandas, data cleaning, normalize, python, numpy, z-score
+
+---
+
+## Approach Two: Factor Value Normalization
+
+Another approach is to normalize factor values for each day and see how predictive of that day's returns they were. This is also known as cross-sectional factor analysis. We do this by computing a normalized factor value $b_{a,j}$ for each asset $a$ in the following way. 
+
+$$b_{a,j} = \frac{F_{a,j} - \mu_{F_j}}{\sigma_{F_j}}$$
+
+$F_{a,j}$ is the value of factor $j$ for asset $a$ during this time, $\mu_{F_j}$ is the mean factor value across all assets, and $\sigma_{F_j}$ is the standard deviation of factor values over all assets. Notice that we are just computing a z-score to make asset specific factor values comparable across different factors.
+
+The exceptions to this formula are indicator variables, which are set to 1 for true and 0 for false. One example is industry membership: the coefficient tells us whether the asset belongs to the industry or not. 
+
+After we calculate all of the normalized scores during time $t$, we can estimate factor $j$'s returns $F_{j,t}$, using a cross-sectional regression (i.e. at each time step, we perform a regression using the equations for all of the assets). Specifically, once we have returns for each asset $R_{a,t}$, and normalized factor coefficients $b_{a,j}$, we construct the following model and estimate the $F_j$s and $a_t$
+
+$$R_{a,t} = a_t + b_{a,F_1}F_1 + b_{a, F_2}F_2 + \dots + b_{a, F_K}F_K$$
+
+You can think of this as slicing through the other direction from the first analysis, as now the factor returns are unknowns to be solved for, whereas originally the coefficients were the unknowns. Another way to think about it is that you're determining how predictive of returns the factor was on that day, and therefore how much return you could have squeezed out of that factor.
+
+Following this procedure, we'll get the cross-sectional returns on 2016-11-22, and compute the coefficients for all assets:
+
+We can take the fundamental data we got from the pipeline call above.
+
+#### Problem: The Data is Weirdly Distributed
+Notice how there are big outliers in the dataset that cause the z-scores to lose a lot of information. Basically the presence of some very large outliers causes the rest of the data to occupy a relatively small area. We can get around this issue using some data cleaning techniques, such as winsorization.
+
+#### Winsorization
+Winzorization takes the top $n\%$ of a dataset and sets it all equal to the least extreme value in the top $n\%$. For example, if your dataset ranged from 0-10, plus a few crazy outliers, those outliers would be set to 0 or 10 depending on their direction. The following is an example.
+
+We'll apply the same technique to our data and grab the returns to all the assets in our universe. Then we'll run a linear regression to estimate $F_j$.
+
+To expand this analysis, you would simply loop through days, running this every day and getting an estimated factor return.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import pandas as pd
+import numpy as np
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.data import Fundamentals
+from educational_platform.pipeline.factors import CustomFactor, Returns, Latest
+from educational_platform.pipeline.classifiers import Classifier
+from educational_platform.pipeline.filters import QTradableStocksUS
+from educational_platform.research import run_pipeline
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+class Momentum(CustomFactor):
+    # will give us the returns from last month
+    inputs = [Returns(window_length=20)]
+    window_length = 20
+    
+    def compute(self, today, assets, out, lag_returns):
+        out[:] = lag_returns[0]
+
+
+def make_pipeline():
+    # define our fundamental factor pipeline
+    pipe = Pipeline()
+    
+    # market cap and book-to-price data gets fed in here
+    market_cap = Latest([Fundamentals.market_cap])
+    book_to_price = 1/Latest([Fundamentals.pb_ratio])
+    # and momentum as lagged returns (1 month lag)
+    momentum = Momentum()
+    # we also get daily returns
+    returns = Returns(window_length=2)
+    
+    # we compute a daily rank of both factors, this is used in the next step,
+    # which is computing portfolio membership
+    market_cap_rank = market_cap.rank(mask=QTradableStocksUS())
+    book_to_price_rank = book_to_price.rank(mask=QTradableStocksUS())
+    momentum_rank = momentum.rank(mask=QTradableStocksUS())
+    
+    # Grab the top and bottom 1000 for each factor
+    biggest = market_cap_rank.top(1000)
+    smallest = market_cap_rank.bottom(1000)
+    
+    highpb = book_to_price_rank.top(1000)
+    lowpb = book_to_price_rank.bottom(1000)
+    
+    top = momentum_rank.top(1000)
+    bottom = momentum_rank.bottom(1000)
+    
+    # Define our universe, screening out anything that isn't in the top or bottom
+    universe = QTradableStocksUS() & (biggest | smallest | highpb | lowpb | top | bottom)
+    
+    pipe = Pipeline(
+        columns = {
+            'market_cap':market_cap,
+            'book_to_price':book_to_price,
+            'momentum':momentum,
+            'Returns':returns,
+            'market_cap_rank':market_cap_rank,
+            'book_to_price_rank':book_to_price_rank,
+            'momentum_rank':momentum_rank,
+            'biggest':biggest,
+            'smallest':smallest,
+            'highpb':highpb,
+            'lowpb':lowpb,
+            'top':top,
+            'bottom':bottom
+        },
+        screen=universe
+    )
+    
+    return pipe
+
+# Initializing the pipe
+pipe = make_pipeline()
+
+# Now let's start the pipeline
+start_date, end_date = '2016-01-01', '2016-12-31' 
+
+results = run_pipeline(pipe, start_date, end_date)
+
+results.head()
+```
+*Cell 3:*
+```python
+# group_by(level=0).mean() gives you the average return of each day for a particular group of stocks
+R_biggest = results[results.biggest]['Returns'].groupby(level=0).mean()
+R_smallest = results[results.smallest]['Returns'].groupby(level=0).mean()
+
+R_highpb = results[results.highpb]['Returns'].groupby(level=0).mean()
+R_lowpb = results[results.lowpb]['Returns'].groupby(level=0).mean()
+
+R_top = results[results.top]['Returns'].groupby(level=0).mean()
+R_bottom = results[results.bottom]['Returns'].groupby(level=0).mean()
+
+# risk-free proxy
+R_F = get_pricing('BIL', fields='price', start_date=start_date, end_date=end_date).pct_change()[1:]
+
+# find it's beta against market
+M = get_pricing('SPY', start_date=start_date, end_date=end_date, fields='price').pct_change()[1:]
+
+# Defining our final factors
+EXMRKT = M - R_F
+SMB = R_smallest - R_biggest # small minus big
+HML = R_highpb - R_lowpb # high minus low
+MOM = R_top - R_bottom # momentum
+```
+*Cell 4:*
+```python
+plt.plot(SMB.index, SMB.values)
+plt.ylabel('Daily Percent Return')
+plt.legend(['SMB Portfolio Returns']);
+```
+*Cell 5:*
+```python
+plt.plot(HML.index, HML.values)
+plt.ylabel('Daily Percent Return')
+plt.legend(['HML Portfolio Returns']);
+```
+*Cell 6:*
+```python
+plt.plot(MOM.index, MOM.values)
+plt.ylabel('Daily Percent Return')
+plt.legend(['MOM Portfolio Returns']);
+```
+*Cell 7:*
+```python
+import itertools
+import statsmodels.api as sm
+from statsmodels import regression,stats
+import scipy
+```
+*Cell 8:*
+```python
+data = results[['Returns']].set_index(results.index)
+asset_list_sizes = [group[1].size for group in data.groupby(level=0)]
+
+# Spreading the factor portfolio data across all assets for each day
+SMB_column = [[SMB.loc[group[0]]] * size for group, size \
+              in zip(data.groupby(level=0), asset_list_sizes)]
+data['SMB'] = list(itertools.chain(*SMB_column))
+
+HML_column = [[HML.loc[group[0]]] * size for group, size \
+              in zip(data.groupby(level=0), asset_list_sizes)]
+data['HML'] = list(itertools.chain(*HML_column))
+
+MOM_column = [[MOM.loc[group[0]]] * size for group, size \
+              in zip(data.groupby(level=0), asset_list_sizes)]
+data['MOM'] = list(itertools.chain(*MOM_column))
+
+EXMRKT_column = [[EXMRKT.loc[group[0]]]*size if group[0] in EXMRKT.index else [None]*size \
+                 for group, size in zip(data.groupby(level=0), asset_list_sizes)]
+
+data['EXMRKT'] = list(itertools.chain(*EXMRKT_column))
+
+data = sm.add_constant(data.dropna())
+
+# Our list of assets from pipeline
+assets = data.index.levels[1].unique()
+
+# gathering our data to be asset-specific
+Y = [data.xs(asset, level=1)['Returns'] for asset in assets] 
+X = [data.xs(asset, level=1)[['EXMRKT','SMB', 'HML', 'MOM', 'const']] for asset in assets]
+
+# First regression step: estimating the betas
+reg_results = [regression.linear_model.OLS(y, x).fit().params \
+               for y, x in zip(Y, X) if not(x.empty or y.empty)]
+indices = [asset for y, x, asset in zip(Y, X, assets) if not(x.empty or y.empty)]
+
+betas = pd.DataFrame(reg_results, index=indices)
+betas = sm.add_constant(betas.drop('const', axis=1))
+
+R = data['Returns'].mean(axis=0, level=1)
+
+# Second regression step: estimating the risk premia
+risk_free_rate = np.mean(R_F)
+
+final_results = regression.linear_model.OLS(R - risk_free_rate, betas).fit()
+
+final_results.summary()
+```
+*Cell 9:*
+```python
+# we'll take a random sample of 500 assets from QTradableStocksUS in order to build a random portfolio
+random_assets = list(np.random.choice(assets, size=500, replace=False))
+
+portfolio_data = data[data.index.isin(random_assets, level=1)]
+
+# this is the return of our portfolio with no hedging
+R_portfolio_time_series = portfolio_data['Returns'].mean(level=0)
+```
+*Cell 10:*
+```python
+# next, we calculate the exposure of our portfolio to each of the Fama-French factors
+portfolio_exposure = regression.linear_model.OLS(portfolio_data['Returns'], \
+                                portfolio_data[['EXMRKT', 'SMB', 'HML', 'MOM', 'const']]).fit()
+
+print portfolio_exposure.summary()
+
+# our hedged return stream
+hedged_portfolio = R_portfolio_time_series - \
+                portfolio_exposure.params[0]*EXMRKT - \
+                portfolio_exposure.params[1]*SMB - \
+                portfolio_exposure.params[2]*HML - \
+                portfolio_exposure.params[3]*MOM 
+
+print 'Mean, Std of Hedged Portfolio:', np.mean(hedged_portfolio), np.std(hedged_portfolio)
+print 'Mean, Std of Unhedged Portfolio:', np.mean(R_portfolio_time_series), np.std(R_portfolio_time_series)
+
+```
+*Cell 11:*
+```python
+plt.plot(hedged_portfolio)
+
+plt.plot(R_portfolio_time_series)
+
+plt.legend(['Hedged', 'Unhedged']);
+```
+*Cell 12:*
+```python
+# testing for normality: jarque-bera
+_, pvalue_JB, _, _ = stats.stattools.jarque_bera(portfolio_exposure.resid)
+print "Jarque-Bera p-value: ", pvalue_JB
+
+# testing for homoskedasticity: breush pagan
+_, pvalue_BP, _, _ = stats.diagnostic.het_breushpagan(portfolio_exposure.resid, \
+                                            portfolio_data[['EXMRKT', 'SMB', 'HML', 'MOM', 'const']])
+print "Breush Pagan p-value: ", pvalue_BP
+
+# testing for autocorrelation
+dw = stats.stattools.durbin_watson(portfolio_exposure.resid)
+print "Durbin Watson statistic: ", dw
+```
+*Cell 13:*
+```python
+date = '2016-11-22'
+
+BTP = results['book_to_price'][date]
+z_score = (BTP - BTP.mean()) / BTP.std()
+z_score.dropna(inplace=True)
+
+plt.hist(z_score)
+plt.xlabel('Z-Score')
+plt.ylabel('Frequency');
+```
+*Cell 14:*
+```python
+# Get some random data
+random_data = np.random.normal(0, 1, 100)
+
+# Put in some outliers
+random_data[0] = 1000
+random_data[1] = -1000
+
+# Perform winsorization
+print 'Before winsorization', np.min(random_data), np.max(random_data)
+scipy.stats.mstats.winsorize(random_data, inplace=True, limits=0.01)
+print 'After winsorization', np.min(random_data), np.max(random_data)
+```
+*Cell 15:*
+```python
+BTP = scipy.stats.mstats.winsorize(results['book_to_price'][date], limits=0.01)
+BTP_z = (BTP - np.mean(BTP)) / np.std(BTP)
+
+MC = scipy.stats.mstats.winsorize(results['market_cap'][date], limits=0.01)
+MC_z = (MC - np.mean(MC)) / np.std(MC)
+
+Lag_Ret = scipy.stats.mstats.winsorize(results['momentum'][date], limits=0.01)
+Lag_Ret_z = (Lag_Ret - np.mean(Lag_Ret)) / np.std(Lag_Ret)
+
+returns = results['Returns'][date]
+
+df_day = pd.DataFrame({'R': returns,
+              'BTP_z': BTP_z,
+              'MC_z': MC_z,
+              'Lag_Ret_z': Lag_Ret_z,
+              'Constant': 1}).dropna()
+
+cross_sectional_results = \
+    regression.linear_model.OLS(df_day['R'], df_day[['BTP_z', 'MC_z', 'Lag_Ret_z', 'Constant']]).fit()
+
+cross_sectional_results.summary()
+```
+
+##### Futures Trading Considerations
+- **Original Path**: `notebooks\lectures\Futures_Trading_Considerations\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 24 (Code: 11, Markdown: 13)
+- **Imports/Dependencies**: from educational_platform.research.experimental import continuous_future, history, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Futures Trading Considerations
+by Maxwell Margenot and Delaney Mackenzie
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+
+In this lecture we will consider some practical implications for trading futures contracts. We will discuss the futures calendar and how it impacts trading as well as how to maintain futures positions across expiries.

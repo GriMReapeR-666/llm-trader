@@ -1,0 +1,14 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+lost_profits =
+print 'Profits the producer lost in a year:', int(lost_profits), '$'
+```
+*Cell 6:*
+```python

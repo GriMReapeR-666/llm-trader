@@ -1,0 +1,39 @@
+# Tesla and Gasoline
+
+Topic: 02_Strategy_Development
+Confidence: 0.67
+Keywords: ev, strategy
+
+---
+
+## Tesla and Gasoline
+By John Loeber
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+### Introduction
+
+Is the stock price of Tesla Motors (TSLA) linked to the price of gasoline? 
+
+Some people think that cheap gasoline incentivizes the purchase of gas-fuelled cars, lowering demand for Teslas, thus causing a drop in TSLA stock price. I try to find out whether that is true: I investigate the relationship between the price of TSLA and the price of UGA, an ETF tracking the price of gasoline.
+
+
+### Conclusion
+
+The price of <strong>TSLA roughly follows the price of gasoline, with a lag of about 50 business days.</strong> However, statistical correlations show only very weak results, which is likely due to two reasons:
+1. The price of TSLA is not only impacted by gas -- there are other factors: earnings reports, rumours, etc. They cause occasional (smaller) movements in TSLA that are not related to the price of gas.
+2. The lag is not necessarily constant --  there's no reason why the offset should always be 50 business days. Sometimes TSLA may take longer to respond, and at other times it may respond more quickly. This makes it hard to fit the time-series to each other in a way that yields a strong correlation.
+
+
+### Going Further
+
+Use the result, that TSLA roughly follows the price of gasoline with a lag of about 50 business days, to construct a trading strategy. It will be worthwhile to [write an algorithm](https://www.educational_platform.com/algorithms) to attempt to trade on this pattern.
+
+To expand further upon this project:
+ - Test against crude oil and energy ETFs to search for other signals in the data.
+ - Query the [Educational Platform Fundamentals](https://www.educational_platform.com/help/fundamentals) and use quarterly sales/revenue data to see how these details correspond to the price of gasoline. 
+ - Consider commodity prices from NYMEX or other potentially more informative datasets.
+ 
+Have questions? Post to the [community](https://www.educational_platform.com/posts) or send us an email: feedback@educational_platform.com.

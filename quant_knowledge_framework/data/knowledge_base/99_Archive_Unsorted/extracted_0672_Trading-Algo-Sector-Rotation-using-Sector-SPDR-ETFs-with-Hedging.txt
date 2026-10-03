@@ -1,0 +1,9 @@
+# Trading Algo:  Sector Rotation, using Sector SPDR ETF's, with Hedging
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Trading Algo:  Sector Rotation, using Sector SPDR ETF's, with Hedging

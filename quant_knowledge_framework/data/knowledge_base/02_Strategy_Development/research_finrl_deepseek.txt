@@ -1,0 +1,53 @@
+# FinRL-DeepSeek: LLM-Infused Risk-Sensitive Reinforcement Learning
+
+**Source**: arxiv:2502.07393 (February 2025)
+
+## Overview
+Hybrid RL-LLM trading agent incorporating financial news insights at both action and risk levels.
+
+## Architecture
+
+### Base Algorithm
+- **PPO (Proximal Policy Optimization)**: Stable policy gradient
+- **CVaR-PPO**: Conditional Value-at-Risk optimization
+- **LLM-Infused Variant**: Adds news-derived signals
+
+### LLM Integration
+1. **Stock Recommendations (S_f)**: Buy/sell/hold signals from news
+2. **Risk Assessment Scores (R_f)**: News-derived risk indicators
+
+### Infusion Mechanism
+```
+Influenced Action = Original_Action * (1 + LLM_Perturbation)
+LLM_Perturbation range: 0.1% to 10%
+```
+
+## Models Tested
+- DeepSeek V3
+- Qwen 2.5
+- Llama 3.3
+
+## Dataset
+- FNSPID: Financial news dataset in time series
+- Nasdaq-100 benchmark
+- Training: 2019-2022
+- Testing: 2023
+
+## Key Findings
+- **10% LLM infusion**: Consistently improves PPO cumulative returns
+- **Stronger infusion (0.1%-10%)**: Mostly degrades performance
+- **CPPO-DeepSeek**: Benefits from stronger LLM infusion
+- PPO-DeepSeek: Stronger infusion degrades performance
+
+## Performance Results
+| Model | Information Ratio | CVaR | Rachev Ratio |
+|-------|-------------------|------|--------------|
+| PPO | 0.0100 | -0.0394 | 1.0637 |
+| CPPO | -0.0148 | -0.0439 | 1.0404 |
+| PPO-DeepSeek | -0.0093 | -0.0338 | 0.9890 |
+| CPPO-DeepSeek | 0.0078 | -0.0437 | 0.9818 |
+
+## Future Directions
+- Optimize RAM usage for longer training
+- Reduce decision-making timescale
+- Improve news signal quality

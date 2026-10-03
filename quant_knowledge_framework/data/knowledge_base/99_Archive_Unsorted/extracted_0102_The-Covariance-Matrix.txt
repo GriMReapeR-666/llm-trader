@@ -1,0 +1,20 @@
+# The Covariance Matrix
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## The Covariance Matrix
+
+As the number of assets we are curious about increases, so too do the dimensions of the covariance matrix that describes their relationships. If we take the covariance between $N$ assets, we will get out a $N \times N$ covariance matrix. This allows us to efficiently express the relationships between many arrays at once. As with the simple $2\times 2$ case, the $i$-th diagonal is the variance of the $i$-th asset and the values at $(i, j)$ and $(j, i)$ refer to the covariance between asset $i$ and asset $j$. We display this with the following notation:
+
+$$ \Sigma = \left[\begin{matrix}
+VAR(X_1) & COV(X_1, X_2) & \cdots & COV(X_1, X_N) \\
+COV(X_2, X_0) & VAR(X_2) & \cdots & COV(X_2, X_N) \\
+\vdots & \vdots & \ddots & \vdots \\
+COV(X_N, X_1) & COV(X_N, X_2) & \cdots & VAR(X_N)
+\end{matrix}\right] $$  
+
+When trying to find the covariance of many assets, it quickly becomes apparent why the matrix notation is more favorable.

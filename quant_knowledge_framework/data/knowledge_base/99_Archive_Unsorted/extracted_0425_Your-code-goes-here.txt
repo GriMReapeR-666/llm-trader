@@ -1,0 +1,14 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here       
+```
+*Cell 5:*
+```python
+price = get_pricing('ITI', fields='price', start_date='2005-01-01', end_date='2010-01-01')
+returns = price.pct_change()[1:]

@@ -1,0 +1,308 @@
+# References
+
+Topic: 03_Portfolio_Management
+Confidence: 0.30
+Keywords: correlation, portfolio, ror
+
+---
+
+## References
+* "Quantitative Investment Analysis", by DeFusco, McLeavey, Pinto, and Runkle
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Import all the libraries we'll be using
+import numpy as np
+import statsmodels.api as sm
+from statsmodels import regression, stats
+import statsmodels
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+residuals = np.random.normal(0, 1, 100)
+
+_, pvalue, _, _ = statsmodels.stats.stattools.jarque_bera(residuals)
+print pvalue
+
+residuals = np.random.poisson(size = 100)
+
+_, pvalue, _, _ = statsmodels.stats.stattools.jarque_bera(residuals)
+print pvalue
+```
+*Cell 3:*
+```python
+# Artificially create dataset with constant variance around a line
+xs = np.arange(100)
+y1 = xs + 3*np.random.randn(100)
+
+# Get results of linear regression
+slr1 = regression.linear_model.OLS(y1, sm.add_constant(xs)).fit()
+
+# Construct the fit line
+fit1 = slr1.params[0] + slr1.params[1]*xs
+
+# Plot data and regression line
+plt.scatter(xs, y1)
+plt.plot(xs, fit1)
+plt.title('Homoskedastic errors');
+plt.legend(['Predicted', 'Observed'])
+plt.xlabel('X')
+plt.ylabel('Y');
+```
+*Cell 4:*
+```python
+# Artificially create dataset with changing variance around a line
+y2 = xs*(1 + .5*np.random.randn(100))
+
+# Perform linear regression
+slr2 = regression.linear_model.OLS(y2, sm.add_constant(xs)).fit()
+fit2 = slr2.params[0] + slr2.params[1]*xs
+
+# Plot data and regression line
+plt.scatter(xs, y2)
+plt.plot(xs, fit2)
+plt.title('Heteroskedastic errors')
+plt.legend(['Predicted', 'Observed'])
+plt.xlabel('X')
+plt.ylabel('Y')
+
+# Print summary of regression results
+slr2.summary()
+```
+*Cell 5:*
+```python
+residuals1 = y1-fit1
+residuals2 = y2-fit2
+
+xs_with_constant = sm.add_constant(xs)
+
+_, jb_pvalue1, _, _ = statsmodels.stats.stattools.jarque_bera(residuals1)
+_, jb_pvalue2, _, _ = statsmodels.stats.stattools.jarque_bera(residuals2)
+print "p-value for residuals1 being normal", jb_pvalue1
+print "p-value for residuals2 being normal", jb_pvalue2
+
+_, pvalue1, _, _ = stats.diagnostic.het_breushpagan(residuals1, xs_with_constant)
+_, pvalue2, _, _ = stats.diagnostic.het_breushpagan(residuals2, xs_with_constant)
+print "p-value for residuals1 being heteroskedastic", pvalue1
+print "p-value for residuals2 being heteroskedastic", pvalue2
+```
+*Cell 6:*
+```python
+print slr2.summary()
+print slr2.get_robustcov_results().summary()
+```
+*Cell 7:*
+```python
+# Load pricing data for an asset
+start = '2014-01-01'
+end = '2015-01-01'
+y = get_pricing('DAL', fields='price', start_date=start, end_date=end)
+x = np.arange(len(y))
+
+# Regress pricing data against time
+model = regression.linear_model.OLS(y, sm.add_constant(x)).fit()
+
+# Construct the fit line
+prediction = model.params[0] + model.params[1]*x
+
+# Plot pricing data and regression line
+plt.plot(x,y)
+plt.plot(x, prediction, color='r')
+plt.legend(['DAL Price', 'Regression Line'])
+plt.xlabel('Time')
+plt.ylabel('Price')
+
+# Print summary of regression results
+model.summary()
+```
+*Cell 8:*
+```python
+_, prices_qstats, prices_qstat_pvalues = statsmodels.tsa.stattools.acf(y, qstat=True)
+_, prices_qstats, prices_qstat_pvalues = statsmodels.tsa.stattools.acf(y-prediction, qstat=True)
+
+print 'Prices autocorrelation p-values', prices_qstat_pvalues
+print 'Residuals autocorrelation p-values', prices_qstat_pvalues
+
+_, jb_pvalue, _, _ = statsmodels.stats.stattools.jarque_bera(y-prediction)
+
+print 'Jarque-Bera p-value that residuals are normally distributed', jb_pvalue
+```
+*Cell 9:*
+```python
+from math import sqrt
+
+# Find the covariance matrix of the coefficients
+cov_mat = stats.sandwich_covariance.cov_hac(model)
+
+# Print the standard errors of each coefficient from the original model and from the adjustment
+print 'Old standard errors:', model.bse[0], model.bse[1]
+print 'Adjusted standard errors:', sqrt(cov_mat[0,0]), sqrt(cov_mat[1,1])
+```
+*Cell 10:*
+```python
+# Load pricing data for asset and two market indices
+start = '2014-01-01'
+end = '2015-01-01'
+b1 = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+b2 = get_pricing('MDY', fields='price', start_date=start, end_date=end)
+a = get_pricing('HPQ', fields='price', start_date=start, end_date=end)
+
+# Run multiple linear regression
+mlr = regression.linear_model.OLS(a, sm.add_constant(np.column_stack((b1,b2)))).fit()
+
+# Construct fit curve using dependent variables and estimated coefficients
+mlr_prediction = mlr.params[0] + mlr.params[1]*b1 + mlr.params[2]*b2
+
+# Print regression statistics 
+print 'R-squared:', mlr.rsquared_adj
+print 't-statistics of coefficients:\n', mlr.tvalues
+
+# Plot asset and model
+a.plot()
+mlr_prediction.plot()
+plt.legend(['Asset', 'Model']);
+plt.ylabel('Price')
+```
+*Cell 11:*
+```python
+# Perform linear regression
+slr = regression.linear_model.OLS(a, sm.add_constant(b1)).fit()
+slr_prediction = slr.params[0] + slr.params[1]*b1
+
+# Print fit statistics
+print 'R-squared:', slr.rsquared_adj
+print 't-statistics of coefficients:\n', slr.tvalues
+
+# Plot asset and model
+a.plot()
+slr_prediction.plot()
+plt.ylabel('Price')
+plt.legend(['Asset', 'Model']);
+```
+*Cell 12:*
+```python
+from scipy.stats import pearsonr
+
+# Construct Anscombe's arrays
+x1 = [10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5]
+y1 = [8.04, 6.95, 7.58, 8.81, 8.33, 9.96, 7.24, 4.26, 10.84, 4.82, 5.68]
+x2 = [10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5]
+y2 = [9.14, 8.14, 8.74, 8.77, 9.26, 8.10, 6.13, 3.10, 9.13, 7.26, 4.74]
+x3 = [10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5]
+y3 = [7.46, 6.77, 12.74, 7.11, 7.81, 8.84, 6.08, 5.39, 8.15, 6.42, 5.73]
+x4 = [8, 8, 8, 8, 8, 8, 8, 19, 8, 8, 8]
+y4 = [6.58, 5.76, 7.71, 8.84, 8.47, 7.04, 5.25, 12.50, 5.56, 7.91, 6.89]
+
+# Perform linear regressions on the datasets
+slr1 = regression.linear_model.OLS(y1, sm.add_constant(x1)).fit()
+slr2 = regression.linear_model.OLS(y2, sm.add_constant(x2)).fit()
+slr3 = regression.linear_model.OLS(y3, sm.add_constant(x3)).fit()
+slr4 = regression.linear_model.OLS(y4, sm.add_constant(x4)).fit()
+
+# Print regression coefficients, Pearson r, and R-squared for the 4 datasets
+print 'Cofficients:', slr1.params, slr2.params, slr3.params, slr4.params
+print 'Pearson r:', pearsonr(x1, y1)[0], pearsonr(x2, y2)[0], pearsonr(x3, y3)[0], pearsonr(x4, y4)[0]
+print 'R-squared:', slr1.rsquared, slr2.rsquared, slr3.rsquared, slr4.rsquared
+
+# Plot the 4 datasets with their regression lines
+f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2,2)
+xs = np.arange(20)
+ax1.plot(slr1.params[0] + slr1.params[1]*xs, 'r')
+ax1.scatter(x1, y1)
+ax1.set_xlabel('x1')
+ax1.set_ylabel('y1')
+ax2.plot(slr2.params[0] + slr2.params[1]*xs, 'r')
+ax2.scatter(x2, y2)
+ax2.set_xlabel('x2')
+ax2.set_ylabel('y2')
+ax3.plot(slr3.params[0] + slr3.params[1]*xs, 'r')
+ax3.scatter(x3, y3)
+ax3.set_xlabel('x3')
+ax3.set_ylabel('y3')
+ax4.plot(slr4.params[0] + slr4.params[1]*xs, 'r')
+ax4.scatter(x4,y4)
+ax4.set_xlabel('x4')
+ax4.set_ylabel('y4');
+```
+
+##### Why You Should Hedge Beta and Sector Exposures (Part I)
+- **Original Path**: `notebooks\lectures\Why_Hedge_I\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 25 (Code: 11, Markdown: 14)
+- **Imports/Dependencies**: from sklearn.covariance import LedoitWolf, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import seaborn as sns, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Why You Should Hedge Beta and Sector Exposures (Part I)
+by Jonathan Larkin and Maxwell Margenot
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+Whenever we have a trading strategy of any sort, we need to be considering the impact of systematic risk. There needs to be some risk involved in a strategy in order for there to be a return above the risk-free rate, but systematic risk poisons the well, so to speak. By its nature, systematic risk provides a commonality between the many securities in the market that cannot be diversified away. As such, we need to construct a hedge to get rid of it.
+
+# The Fundamental Law of Asset Management
+
+The primary driver of the value of any strategy is whether or not it provides a compelling risk-adjusted return, i.e., the Sharpe Ratio. As expressed in [The Foundation of Algo Success](https://blog.educational_platform.com/the-foundation-of-algo-success/) and "The Fundamental Law of Active Management", by Richard Grinold, Sharpe Ratio can be decomposed into two components, skill and breadth, as:
+
+$$IR = IC \sqrt{BR}$$
+
+Technically, this is the definition of the Information Ratio (IR), but for our purposes it is equivalent to the Sharpe Ratio. The IR is the ratio of the excess return of a portfolio over its benchmark per unit active risk, i.e., the excess return of a long-only portfolio less its benchmark per unit tracking error. In the time of Grinold’s publication, however, long/short investing was a rarity. Today, in the world of hedge funds and long/short investing, there is no benchmark. We seek absolute returns so, in this case, the IR is equivalent to the Sharpe ratio.
+
+In this equation, skill is measured by IC (Information Coefficient), calculated with [Alphalens](https://github.com/educational_platform/alphalens). The IC is essentially the Spearman rank correlation, used to correlate your prediction and its realization. Breadth is measured as the number of **independent** bets in the period. The takeaway from this "law" is that, with any strategy, we need to:
+
+1. Bet well (high IC),
+2. Bet often (high number of bets), *and*
+3. **Make independent bets**
+
+If the bets are completely independent, then breadth is the total number of bets we have made for every individual asset, the number of assets times the number of periods. If the bets are not independent then the **effective breadth** can be much much less than the number of assets. Let's see precisely what beta exposure and sector exposure do to **effective breadth**.
+
+<div class="alert alert-warning">
+<b>TL;DR:</b> Beta exposure and sector exposure lead to a significant increase in correlation among bets. Portfolios with beta and sector bets have very low effective breadth. In order to have high Sharpe then, these portfolios must have very high IC. It is easier to increase effective breadth by hedging beta and sector exposure than it is to increase your IC.
+</div>
+
+# Forecasts and Bet Correlation
+
+We define a bet as the forecast of the *residual* of a security return. This forecast can be implicit -- i.e., we buy a stock and thus implicity we forecast that the stock will go up. What though do we mean by *residual*? Without any fancy math, this simply means the return **less a hedge**. Let's work through three examples. We use the Ledoit-Wolf covariance estimator to assess our covariance in all cases. For more information on why we use Ledoit-Wolf instead of typical sample covariance, check out [Estimating Covariance Matrices](https://www.educational_platform.com/lectures/estimating-covariance-matrices).
+
+### Example 1: No Hedge!
+
+If we go long on a set of securities, but do not hold any short positions, there is no hedge! So the *residual* is the stock return itself.
+
+$$r_{resid,i} = r_i$$
+
+Let's see what the correlation of our bets are in this case.
+
+The result here is that we have six bets and they are all very highly correlated.
+
+### Example 2: Beta Hedge
+
+In this case, we will assume that each bet is hedged against the market (SPY). In this case, the residual is calculated as:
+
+$$ r_{resid,i} = r_i - \beta_i r_i $$
+
+where $\beta_i$ is the beta to the market of security $i$ calculated with the [CAPM](https://www.educational_platform.com/lectures/the-capital-asset-pricing-model-and-arbitrage-pricing-theory) and $r_i$ is the return of security $i$.
+
+The beta hedge has brought down the average correlation significanty. Theoretically, this should improve our breadth. It is obvious that we are left with two highly correlated clusters however. Let's see what happens when we hedge the sector risk.
+
+### Example 3: Sector Hedge
+
+The sector return and the market return are themselves highly correlated. As such, you cannot do a multivariate regression due to multicollinearity, a classic [violation of regression assumptions](https://www.educational_platform.com/lectures/violations-of-regression-models). To hedge against both the market and a given security's sector, you first estimate the market beta residuals and then calculate the sector beta on *those* residuals.
+
+$$
+r_{resid,i} = r_i - \beta_i r_i \\
+r_{resid_{SECTOR},i}= r_{resid,i} - \beta_{SECTOR,i}r_{resid,i}
+$$
+
+Here, $r_{resid, i}$ is the residual between the security return and a market beta hedge and $r_{resid_{SECTOR}, i}$ is the residual between *that* residual and a hedge of that residual against the relevant sector.
+
+There we go! The sector hedge brought down the correlation between our bets to close to zero.

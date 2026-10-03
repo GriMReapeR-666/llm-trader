@@ -1,0 +1,39 @@
+# **Flag submission** :triangular_flag_on_post:
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Flag submission** :triangular_flag_on_post:
+
+Please mail the flags of each lab to <memlabs.submit@gmail.com>
+
+Please have a look at the following example to better understand how to submit the solution.
+
+Suppose you find 3 flags in a particular lab,
+
++ flag{stage1_is_n0w_d0n3}
++ flag{stage2_is_n0w_d0n3}
++ flag{stage3_is_n0w_d0n3}
+
+Concatenate all the flags like this: **flag{stage1_is_n0w_d0n3} flag{stage2_is_n0w_d0n3} flag{stage3_is_n0w_d0n3}**
+
+**Note**: Place the flags in the right order. The content inside the flags indicates their place. The flags must be space-separated.
+
+All the labs will follow the same flag format unless specified otherwise.
+
+### **Email format**
+
+Please follow the following guidelines when sending the solution. Below is a sample:
+
+**Email Subject**: [MemLabs Solution Submission] [Lab-x]
+
+> **x** indicates the Lab number. Ex: 1,2,3 etc..
+
+![Email-Picture](./Images/Submission.png)
+
+Email your solution to memlabs.submit@gmail.com
+
+If the solution is correct, then the participant will receive a confirmation mail.

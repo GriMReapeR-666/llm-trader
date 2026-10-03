@@ -1,0 +1,26 @@
+# Key Concepts
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Key Concepts
+
+---
+
+# Exercise 1 : Uniform Distribution
+- Plot the histogram of 10 tosses with a fair coin (let 1 be heads and 2 be tails).  
+- Plot the histogram of 1000000 tosses of a fair coin 
+
+---
+
+# Exercise 2 :  Binomial Distributions.
+- Graph the histogram of 1000000 samples from a binomial distribution of probability 0.25 and $n = 20$
+- Find the value that occurs the most often
+- Calculate the probability of the value that occurs the most often occurring. *Use the factorial(x) function to find factorials*
+
+---
+
+# Exercise 3 : Normal Distributions

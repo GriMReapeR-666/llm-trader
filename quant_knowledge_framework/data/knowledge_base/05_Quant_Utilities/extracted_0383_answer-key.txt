@@ -1,0 +1,42 @@
+# answer key ##
+
+Topic: 05_Quant_Utilities
+Confidence: 0.67
+Keywords: numpy, stationarity, python, pandas
+
+---
+
+## answer key ##
+
+spread = cl_out - b * ho_out
+spread.plot()
+plt.axhline(spread.mean(), color='black')
+plt.legend(['Spread']);
+
+print "p-value for spread stationarity: ", adfuller(spread)[1]
+# Our p-value is less than 0.05 so we conclude that this calculation of
+# the spread is stationary out of sample
+```
+*Cell 14:*
+```python
+# No solution provided for extra credit exercises.
+```
+
+##### Mean Reversion on Futures
+- **Original Path**: `notebooks\lectures\Mean_Reversion_on_Futures\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 30 (Code: 14, Markdown: 16)
+- **Imports/Dependencies**: from educational_platform.research.experimental import continuous_future, history, from statsmodels.tsa.stattools import coint, adfuller, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Mean Reversion on Futures
+by Rob Reider and Maxwell Margenot
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+
+Introducing futures as an asset opens up trading opportunities that were previously unavailable.  In this lecture we will look at strategies involving one future against another. We will also look at strategies involving trades of futures and stocks at the same time. Other strategies, like trading calendar spreads (futures on the same commodity but with different delivery months) will be topics for future lectures.

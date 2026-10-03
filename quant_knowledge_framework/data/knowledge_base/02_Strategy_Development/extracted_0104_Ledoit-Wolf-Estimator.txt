@@ -1,0 +1,272 @@
+# Ledoit-Wolf Estimator.
+
+Topic: 02_Strategy_Development
+Confidence: 0.29
+Keywords: ev, in-sample, strategy, out-of-sample
+
+---
+
+## Ledoit-Wolf Estimator.
+
+In [their paper](http://ledoit.net/honey.pdf), Ledoit and Wolf  proposed an optimal $\delta$: 
+
+$$\hat\delta^* \max\{0, \min\{\frac{\hat\kappa}{T},1\}\}$$
+
+$\hat\kappa$ has a mathematical formulation that is beyond the scope of this lecture, but you can find its definition in the paper.
+
+The Ledoit-Wolf Estimator is the robust covariance estimate that uses this optimal $\hat\delta^*$ to shrink the sample covariance matrix. We can draw an implementation of it directly from `scikit-learn` for easy use.
+
+Here we calculate the in-sample Ledoit-Wolf estimator.
+
+### Calculating Errors
+
+We can quantify the difference between the in and out-of-sample estimates by taking the absolute difference element-by-element for the two matrices. We represent this mathematically as: 
+
+$$ \frac{1}{n} \sum_{i=1}^{n} |a_i - b_i| $$
+
+First, we calculate the out-of-sample estimate and then we compare.
+
+### Comparing to Sample Matrix
+
+We can check how much of an improvement this is by comparing the errors with the erros of the sample covariance.
+
+We can see that the improvement of Ledoit-Wolf over the sample covariance is pretty solid. This translates into decreased volatility and turnover rate in our portfolio, and thus increased returns when using the shrunk covariance matrix. 
+
+### Adding More Assets
+
+Now we bring this to more assets over a longer time period. Let's see how the errors change over a series of months.
+
+Here we calculate our different covariance estimates.
+
+Here we calculate the error for each time period.
+
+And here we plot the errors over time!
+
+We can see that the mean errors of Ledoit-Wolf are lower than those of the sample covariance matrix. This shows us that the sample sample covariance matrix is less robust. This example only used 50 assets, but as we add more, the Ledoit-Wolf estimator would likely perform even better as the number of assets outpaces the number of observations.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np 
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats as stats
+from sklearn import covariance
+```
+*Cell 2:*
+```python
+# Generate random values of x
+X = np.random.normal(size = 1000)
+epsilon = np.random.normal(0, 3, size = len(X))
+Y = 5*X + epsilon
+
+product = (X - np.mean(X))*(Y - np.mean(Y))
+expected_value = np.mean(product)
+
+print 'Value of the covariance between X and Y:', expected_value
+```
+*Cell 3:*
+```python
+np.cov([X, Y])
+```
+*Cell 4:*
+```python
+print np.var(X), np.var(Y)
+```
+*Cell 5:*
+```python
+# scatter plot of X and y
+from statsmodels import regression
+import statsmodels.api as sm
+def linreg(X,Y):
+    # Running the linear regression
+    X = sm.add_constant(X)
+    model = regression.linear_model.OLS(Y, X).fit()
+    a = model.params[0]
+    b = model.params[1]
+    X = X[:, 1]
+
+    # Return summary of the regression and plot results
+    X2 = np.linspace(X.min(), X.max(), 100)
+    Y_hat = X2 * b + a
+    plt.scatter(X, Y, alpha=0.3) # Plot the raw data
+    plt.plot(X2, Y_hat, 'r', alpha=0.9);  # Add the regression line, colored in red
+    plt.xlabel('X Value')
+    plt.ylabel('Y Value')
+    return model.summary()
+
+linreg(X, Y)
+plt.scatter(X, Y)
+plt.title('Scatter plot and linear equation of x as a function of y')
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.legend(['Linear equation', 'Scatter Plot']);
+```
+*Cell 6:*
+```python
+# Four asset example of the covariance matrix.
+start_date = '2016-01-01'
+end_date = '2016-02-01'
+
+returns = get_pricing(
+    ['SBUX', 'AAPL', 'GS', 'GILD'],
+    start_date=start_date,
+    end_date=end_date,
+    fields='price'
+).pct_change()[1:]
+returns.columns = map(lambda x: x.symbol, returns.columns)
+
+print 'Covariance matrix:'
+print returns.cov()
+```
+*Cell 7:*
+```python
+# Getting the return data of assets. 
+start = '2016-01-01'
+end = '2016-02-01'
+
+symbols = ['AAPL', 'MSFT', 'BRK-A', 'GE', 'FDX', 'SBUX']
+
+prices = get_pricing(symbols, start_date = start, end_date = end, fields = 'price')
+prices.columns = map(lambda x: x.symbol, prices.columns)
+returns = prices.pct_change()[1:]
+```
+*Cell 8:*
+```python
+returns.head()
+```
+*Cell 9:*
+```python
+in_sample_lw = covariance.ledoit_wolf(returns)[0]
+print in_sample_lw
+```
+*Cell 10:*
+```python
+oos_start = '2016-02-01'
+oos_end = '2016-03-01'
+oos_prices = get_pricing(symbols, start_date = oos_start, end_date = oos_end, fields = 'price')
+oos_prices.columns = map(lambda x: x.symbol, oos_prices.columns)
+oos_returns = oos_prices.pct_change()[1:]
+out_sample_lw = covariance.ledoit_wolf(oos_returns)[0]
+```
+*Cell 11:*
+```python
+lw_errors = sum(abs(np.subtract(in_sample_lw, out_sample_lw)))
+print "Average Ledoit-Wolf error: ", np.mean(lw_errors)
+```
+*Cell 12:*
+```python
+sample_errors = sum(abs(np.subtract(returns.cov().values, oos_returns.cov().values)))
+print 'Average sample covariance error: ', np.mean(sample_errors)
+```
+*Cell 13:*
+```python
+print 'Error improvement of LW over sample: {0:.2f}%'.format((np.mean(sample_errors/lw_errors)-1)*100)
+```
+*Cell 14:*
+```python
+sns.boxplot(
+    data = pd.DataFrame({
+        'Sample Covariance Error': sample_errors,
+        'Ledoit-Wolf Error': lw_errors
+    })
+)
+plt.title('Box Plot of Errors')
+plt.ylabel('Error');
+```
+*Cell 15:*
+```python
+start_date = '2016-01-01'
+end_date = '2017-06-01'
+
+symbols = [
+    'SPY', 'XLF', 'XLE', 'XLU','XLK', 'XLI', 'XLB', 'GE', 'GS', 'BRK-A', 'JPM', 'AAPL', 'MMM', 'BA',
+    'CSCO','KO', 'DIS','DD', 'XOM', 'INTC', 'IBM', 'NKE', 'MSFT', 'PG', 'UTX', 'HD', 'MCD', 'CVX', 
+    'AXP','JNJ', 'MRK', 'CAT', 'PFE', 'TRV', 'UNH', 'WMT', 'VZ', 'QQQ', 'BAC', 'F', 'C', 'CMCSA',
+    'MS', 'ORCL', 'PEP', 'HON', 'GILD', 'LMT', 'UPS', 'HP', 'FDX', 'GD', 'SBUX'
+]
+
+prices = get_pricing(symbols, start_date=start_date, end_date=end_date, fields='price')
+prices.columns = map(lambda x: x.symbol, prices.columns)
+returns = prices.pct_change()[1:]
+```
+*Cell 16:*
+```python
+dates = returns.resample('M').first().index
+```
+*Cell 17:*
+```python
+sample_covs = []
+lw_covs = []
+
+for i in range(1, len(dates)):
+    sample_cov = returns[dates[i-1]:dates[i]].cov().values
+    sample_covs.append(sample_cov)
+    
+    lw_cov = covariance.ledoit_wolf(returns[dates[i-1]:dates[i]])[0]
+    lw_covs.append(lw_cov)      
+```
+*Cell 18:*
+```python
+lw_diffs = []
+for pair in zip(lw_covs[:-1], lw_covs[1:]):
+    diff = np.mean(np.sum(np.abs(pair[0] - pair[1])))
+    lw_diffs.append(diff)
+    
+sample_diffs = []
+for pair in zip(sample_covs[:-1], sample_covs[1:]):
+    diff = np.mean(np.sum(np.abs(pair[0] - pair[1])))
+    sample_diffs.append(diff)
+```
+*Cell 19:*
+```python
+plt.plot(dates[2:], lw_diffs)
+plt.plot(dates[2:], sample_diffs)
+plt.xlabel('Time')
+plt.ylabel('Mean Error')
+plt.legend(['Ledoit-Wolf Errors', 'Sample Covariance Errors']);
+```
+
+##### Factor Analysis
+- **Original Path**: `notebooks\lectures\Factor_Analysis\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 62 (Code: 19, Markdown: 43)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.classifiers.fundamentals import Sector, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import CustomFactor, Returns, from educational_platform.pipeline.filters import QTradableStocksUS, from educational_platform.research import run_pipeline, from time import time, import alphalens as al, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Factor Analysis
+
+by Maxwell Margenot, Gil Wassermann, James Christopher Hall, and Delaney Granizo-Mackenzie.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [https://github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+---
+
+How can we tell whether an alpha factor is good or not? Unfortunately, there is no cut-off that tells you whether a factor is objectively useful. Instead, we need to compare a particular factor to other options before deciding whether to use it. Our end goal in defining and selecting the best factors is to use them to rank stocks in a long-short equity strategy, covered elsewhere in the [lecture series](https://www.educational_platform.com/lectures#Long-Short-Equity). The more independent predictive the factors we use, the better our ranking scheme and our overall strategy will be.
+
+
+What we want when comparing factors is to make sure the chosen signal is actually predictive of **relative price movements**. We do not want to predict the absolute amount the assets in our universe will move up or down. We only care that we can choose assets to long that will do better than the assets we short. In a long-short equity strategy, we hold a long basket and a short basket of assets, determined by the factor values associated with each asset in our universe. If our ranking scheme is predictive, this means that assets in the top basket will tend to outperform assets in the bottom basket. As long this spread is consistent over time our strategy will have a positive return.
+
+
+An individual factor can have a lot of moving parts to assess, but ideally it should be independent of other factors that you are already trading on in order to keep your portfolio diverse. We discuss the reasoning for this in [this lecture](https://www.educational_platform.com/lectures#Position-Concentration-Risk). 
+
+
+In this lecture, we detail and explain relevant statistics to evaluate your alpha factor before attempting to implement it in an algorithm. What's important to keep in mind is that all the metrics provided here are relative to other factors you may be trading or evaluating. 
+
+
+Let's have a look at a factor and try to assess its viability. We will calculate the factor values using Pipeline, so make sure you check out the [tutorial](https://www.educational_platform.com/tutorials/pipeline) if you are unfamiliar with how Pipeline works.
+
+### Momentum
+
+Here we will be using a **momentum** factor as our example. Momentum factors are a very common form of alpha factor and they come in many shapes and sizes. They all try to get at the same idea, however, that securities in motion will stay in motion. Momentum factors try to quantify trends in financial markets and to "ride the wave", so to speak.
+
+Let's say that we suspect that a momentum factor could potentially be predictive of stock returns. We define it as a `CustomFactor` so that we can easily pull its values when we run our Pipeline. We should get a factor value for every security in our universe.
+
+This momentum factor takes the change in price over the past year, up until a month ago, and standardizes it over the the change in price over the last month. This allows it to account for any changes over the past month and use them to temper its expectations of future movement.

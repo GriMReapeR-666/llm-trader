@@ -1,0 +1,18 @@
+# **Challenge file hash**
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Challenge file hash**
+
+The commpressed archive
++ MD5 hash: e657a2aec85a66dafa828cde25528116
+
+The memory dump
++ MD5 hash: 405985dc8ab7651c65cdbc04cb22961c
+
+Please follow the [flag submission rules](https://github.com/stuxnet999/MemLabs#flag-submission) when sending the email for solution verification.
+---

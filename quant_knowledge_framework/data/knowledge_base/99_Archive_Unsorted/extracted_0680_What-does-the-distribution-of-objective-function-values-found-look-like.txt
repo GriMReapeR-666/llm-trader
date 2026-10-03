@@ -1,0 +1,10 @@
+# What does the distribution of objective function values found look like?
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## What does the distribution of objective function values found look like?  
+##SigOpt vs. grid search

@@ -1,0 +1,59 @@
+# Spearman Rank Correlation
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Spearman Rank Correlation
+
+### Intuition
+
+The intution is now that instead of looking at the relationship between the two variables, we look at the relationship between the ranks. This is robust to outliers and the scale of the data.
+
+### Definition
+
+The argument `method='average'` indicates that when we have a tie, we average the ranks that the numbers would occupy. For example, the two 5's above, which would take up ranks 1 and 2, each get assigned a rank of $1.5$.
+
+To compute the Spearman rank correlation for two data sets $X$ and $Y$, each of size $n$, we use the formula
+$$r_S = 1 - \frac{6 \sum_{i=1}^n d_i^2}{n(n^2 - 1)}$$
+
+where $d_i$ is the difference between the ranks of the $i$th pair of observations, $X_i - Y_i$.
+
+The result will always be between $-1$ and $1$. A positive value indicates a positive relationship between the variables, while a negative value indicates an inverse relationship. A value of 0 implies the absense of any monotonic relationship. This does not mean that there is no relationship; for instance, if $Y$ is equal to $X$ with a delay of 2, they are related simply and precisely, but their $r_S$ can be close to zero:
+
+##Experiment
+
+Let's see what happens if we draw $X$ from a poisson distribution (non-normal), and then set $Y = e^X + \epsilon$ where $\epsilon$ is drawn from another poisson distribution. We'll take the spearman rank and the correlation coefficient on this data and then run the entire experiment many times. Because $e^X$ produces many values that are far away from the rest, we can this of this as modeling 'outliers' in our data. Spearman rank compresses the outliers and does better at measuring correlation. Normal correlation is confused by the outliers and on average will measure less of a relationship than is actually there.
+
+Let's take a look at the distribution of measured correlation coefficients and compare the spearman with the regular metric.
+
+Now let's see how the Spearman rank and Regular coefficients cope when we add more noise to the situation.
+
+We can see that the Spearman rank correlation copes with the non-linear relationship much better at most levels of noise. Interestingly, at very high levels, it seems to do worse than regular correlation.
+
+##Delay in correlation
+
+Of you might have the case that one process affects another, but after a time lag. Now let's see what happens if we add the delay.
+
+Sure enough, the relationship is not detected. It is important when using both regular and spearman correlation to check for lagged relationships by offsetting your data and testing for different offset values.
+
+##Built-In Function
+
+We can also use the `spearmanr` function in the `scipy.stats` library:
+
+We now have ourselves an $r_S$, but how do we interpret it? It's positive, so we know that the variables are not anticorrelated. It's not very large, so we know they aren't perfectly positively correlated, but it's hard to say from a glance just how significant the correlation is. Luckily, `spearmanr` also computes the p-value for this coefficient and sample size for us. We can see that the p-value here is above 0.05; therefore, we cannot claim that $X$ and $Y$ are correlated.
+
+##Real World Example: Mutual Fund Expense Ratio
+
+Now that we've seen how Spearman rank correlation works, we'll quickly go through the process again with some real data. For instance, we may wonder whether the expense ratio of a mutual fund is indicative of its three-year Sharpe ratio. That is, does spending more money on administration, management, etc. lower the risk or increase the returns? Educational Platform does not currently support mutual funds, so we will pull the data from Yahoo Finance. Our p-value cutoff will be the usual default of 0.05.
+
+### Data Source
+
+Thanks to [Matthew Madurski](https://github.com/dursk) for the data. To obtain the same data:
+
+1. Download the csv from this link. https://gist.github.com/dursk/82eee65b7d1056b469ab
+2. Upload it to the 'data' folder in your research account.
+
+Our p-value is below the cutoff, which means we accept the hypothesis that the two are correlated. The negative coefficient indicates that there is a negative correlation, and that more expensive mutual funds have worse sharpe ratios. However, there is some weird clustering in the data, it seems there are expensive groups with low sharpe ratios, and a main group whose sharpe ratio is unrelated to the expense. Further analysis would be required to understand what's going on here.

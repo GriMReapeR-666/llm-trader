@@ -1,0 +1,516 @@
+# Sometimes Factors are Just Other Factors
+
+Topic: 05_Quant_Utilities
+Confidence: 0.30
+Keywords: numpy, python, pandas
+
+---
+
+## Sometimes Factors are Just Other Factors
+
+Often times a new factor will be discovered that seems to induce spread, but it turns out that it is just a new and potentially more complicated way to compute a well known factor. Consider for instance the case in which you have poured tons of resources into developing a new factor, it looks great, but how do you know it's not just another factor in disguise?
+
+To check for this, there are many analyses that can be done.
+
+### Correlation Analysis
+
+One of the most intuitive ways is to check what the correlation of the factors is over time. We'll plot that here.
+
+And also the p-values because the correlations may not be that meaningful by themselves.
+
+There is interesting behavior, and further analysis would be needed to determine whether a relationship existed.
+
+##How to Choose  Ranking System
+
+The ranking system is the secret sauce of many strategies. Choosing a good ranking system, or factor, is not easy and the subject of much research. We'll discuss a few starting points here.
+
+### Clone and Tweak
+
+Choose one that is commonly discussed and see if you can modify it slightly to gain back an edge. Often times factors that are public will have no signal left as they have been completely arbitraged out of the market. However, sometimes they lead you in the right direction of where to go.
+
+### Pricing Models
+
+Any model that predicts future returns can be a factor. The future return predicted is now that factor, and can be used to rank your universe. You can take any complicated pricing model and transform it into a ranking.
+
+### Price Based Factors (Technical Indicators)
+
+Price based factors take information about the historical price of each equity and use it to generate the factor value. Examples could be 30-day momentum, or volatility measures.
+
+#### Reversion vs. Momentum
+
+It's important to note that some factors bet that prices, once moving in a direction, will continue to do so. Some factors bet the opposite. Both are valid models on different time horizons and assets, and it's important to investigate whether the underlying behavior is momentum or reversion based.
+
+### Fundamental Factors (Value Based)
+
+This is using combinations of fundamental values as we discussed today. Fundamental values contain information that is tied to real world facts about a company, so in many ways can be more robust than prices.
+
+### The Arms Race
+
+Ultimately, developing predictive factors is an arms race in which you are trying to stay one step ahead. Factors get arbitraged out of markets and have a lifespan, so it's important that you are constantly doing work to determine how much decay your factors are experiencing, and what new factors might be used to take their place.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import statsmodels.api as sm
+import scipy.stats as stats
+import scipy
+from statsmodels import regression
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+```
+*Cell 2:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.data import morningstar
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.pipeline.factors import CustomFactor, Returns
+        
+def make_pipeline():
+    """
+    Create and return our pipeline.
+    
+    We break this piece of logic out into its own function to make it easier to
+    test and modify in isolation.
+    """
+    
+    pipe = Pipeline(
+        columns = {
+            'Market Cap' : morningstar.valuation.market_cap.latest,
+            'PE Ratio' : morningstar.valuation_ratios.pe_ratio.latest,
+            'Monthly Returns': Returns(window_length=21),
+        })
+    
+    return pipe
+
+pipe = make_pipeline()
+```
+*Cell 3:*
+```python
+from educational_platform.research import run_pipeline
+
+start_date = '2013-01-01'
+end_date = '2015-02-01'
+
+data = run_pipeline(pipe, start_date, end_date)
+
+# remove NaN values
+data = data.dropna()
+
+# show data
+data
+```
+*Cell 4:*
+```python
+cap_data = data['Market Cap'].transpose().unstack() # extract series of data
+cap_data = cap_data.T.dropna().T # remove NaN values
+cap_data = cap_data.resample('M', how='last') # use last instance in month to aggregate
+
+pe_data = data['PE Ratio'].transpose().unstack()
+pe_data = pe_data.T.dropna().T
+pe_data = pe_data.resample('M', how='last')
+
+month_data = data['Monthly Returns'].transpose().unstack()
+month_data = month_data.T.dropna().T
+month_data = month_data.resample('M', how='last')
+```
+*Cell 5:*
+```python
+common_equities = cap_data.T.index.intersection(pe_data.T.index).intersection(month_data.T.index)
+```
+*Cell 6:*
+```python
+cap_data_filtered = cap_data[common_equities][:-1]
+month_forward_returns = month_data[common_equities][1:]
+pe_data_filtered = pe_data[common_equities][:-1]
+```
+*Cell 7:*
+```python
+cap_data_filtered.head()
+```
+*Cell 8:*
+```python
+cap_data_filtered.rank().head()
+```
+*Cell 9:*
+```python
+scores = np.zeros(24)
+pvalues = np.zeros(24)
+for i in range(24):
+    score, pvalue = stats.spearmanr(cap_data_filtered.iloc[i], month_forward_returns.iloc[i])
+    pvalues[i] = pvalue
+    scores[i] = score
+    
+plt.bar(range(1,25),scores)
+plt.hlines(np.mean(scores), 1, 25, colors='r', linestyles='dashed')
+plt.xlabel('Month')
+plt.xlim((1, 25))
+plt.legend(['Mean Correlation over All Months', 'Monthly Rank Correlation'])
+plt.ylabel('Rank correlation between Market Cap and 30-day forward returns');
+```
+*Cell 10:*
+```python
+scores = np.zeros(24)
+pvalues = np.zeros(24)
+for i in range(24):
+    score, pvalue = stats.spearmanr(pe_data_filtered.iloc[i], month_forward_returns.iloc[i])
+    pvalues[i] = pvalue
+    scores[i] = score
+    
+plt.bar(range(1,25),scores)
+plt.hlines(np.mean(scores), 1, 25, colors='r', linestyles='dashed')
+plt.xlabel('Month')
+plt.xlim((1, 25))
+plt.legend(['Mean Correlation over All Months', 'Monthly Rank Correlation'])
+plt.ylabel('Rank correlation between PE Ratio and 30-day forward returns');
+```
+*Cell 11:*
+```python
+def compute_basket_returns(factor_data, forward_returns, number_of_baskets, month):
+
+    data = pd.concat([factor_data.iloc[month-1],forward_returns.iloc[month-1]], axis=1)
+    # Rank the equities on the factor values
+    data.columns = ['Factor Value', 'Month Forward Returns']
+    data.sort('Factor Value', inplace=True)
+    
+    # How many equities per basket
+    equities_per_basket = np.floor(len(data.index) / number_of_baskets)
+
+    basket_returns = np.zeros(number_of_baskets)
+
+    # Compute the returns of each basket
+    for i in range(number_of_baskets):
+        start = i * equities_per_basket
+        if i == number_of_baskets - 1:
+            # Handle having a few extra in the last basket when our number of equities doesn't divide well
+            end = len(data.index) - 1
+        else:
+            end = i * equities_per_basket + equities_per_basket
+        # Actually compute the mean returns for each basket
+        basket_returns[i] = data.iloc[start:end]['Month Forward Returns'].mean()
+        
+    return basket_returns
+```
+*Cell 12:*
+```python
+number_of_baskets = 10
+mean_basket_returns = np.zeros(number_of_baskets)
+for m in range(1, 25):
+    basket_returns = compute_basket_returns(cap_data_filtered, month_forward_returns, number_of_baskets, m)
+    mean_basket_returns += basket_returns
+
+mean_basket_returns /= 24    
+
+# Plot the returns of each basket
+plt.bar(range(number_of_baskets), mean_basket_returns)
+plt.ylabel('Returns')
+plt.xlabel('Basket')
+plt.legend(['Returns of Each Basket']);
+```
+*Cell 13:*
+```python
+f, axarr = plt.subplots(3, 4)
+for month in range(1, 13):
+    basket_returns = compute_basket_returns(cap_data_filtered, month_forward_returns, 10, month)
+
+    r = np.floor((month-1) / 4)
+    c = (month-1) % 4
+    axarr[r, c].bar(range(number_of_baskets), basket_returns)
+    axarr[r, c].xaxis.set_visible(False) # Hide the axis lables so the plots aren't super messy
+    axarr[r, c].set_title('Month ' + str(month))
+```
+*Cell 14:*
+```python
+number_of_baskets = 10
+mean_basket_returns = np.zeros(number_of_baskets)
+for m in range(1, 25):
+    basket_returns = compute_basket_returns(pe_data_filtered, month_forward_returns, number_of_baskets, m)
+    mean_basket_returns += basket_returns
+
+mean_basket_returns /= 24    
+
+# Plot the returns of each basket
+plt.bar(range(number_of_baskets), mean_basket_returns)
+plt.ylabel('Returns')
+plt.xlabel('Basket')
+plt.legend(['Returns of Each Basket']);
+```
+*Cell 15:*
+```python
+f, axarr = plt.subplots(3, 4)
+for month in range(1, 13):
+    basket_returns = compute_basket_returns(pe_data_filtered, month_forward_returns, 10, month)
+
+    r = np.floor((month-1) / 4)
+    c = (month-1) % 4
+    axarr[r, c].bar(range(10), basket_returns)
+    axarr[r, c].xaxis.set_visible(False) # Hide the axis lables so the plots aren't super messy
+    axarr[r, c].set_title('Month ' + str(month))
+```
+*Cell 16:*
+```python
+scores = np.zeros(24)
+pvalues = np.zeros(24)
+for i in range(24):
+    score, pvalue = stats.spearmanr(cap_data_filtered.iloc[i], pe_data_filtered.iloc[i])
+    pvalues[i] = pvalue
+    scores[i] = score
+    
+plt.bar(range(1,25),scores)
+plt.hlines(np.mean(scores), 1, 25, colors='r', linestyles='dashed')
+plt.xlabel('Month')
+plt.xlim((1, 25))
+plt.legend(['Mean Correlation over All Months', 'Monthly Rank Correlation'])
+plt.ylabel('Rank correlation between Market Cap and PE Ratio');
+```
+*Cell 17:*
+```python
+scores = np.zeros(24)
+pvalues = np.zeros(24)
+for i in range(24):
+    score, pvalue = stats.spearmanr(cap_data_filtered.iloc[i], pe_data_filtered.iloc[i])
+    pvalues[i] = pvalue
+    scores[i] = score
+    
+plt.bar(range(1,25),pvalues)
+plt.xlabel('Month')
+plt.xlim((1, 25))
+plt.legend(['Mean Correlation over All Months', 'Monthly Rank Correlation'])
+plt.ylabel('Rank correlation between Market Cap and PE Ratio');
+```
+*Cell 18:*
+```python
+pe_dataframe = pd.DataFrame(pe_data_filtered.iloc[0])
+pe_dataframe.columns = ['F1']
+cap_dataframe = pd.DataFrame(cap_data_filtered.iloc[0])
+cap_dataframe.columns = ['F2']
+returns_dataframe = pd.DataFrame(month_forward_returns.iloc[0])
+returns_dataframe.columns = ['Returns']
+
+data = pe_dataframe.join(cap_dataframe).join(returns_dataframe)
+
+data = data.rank(method='first')
+
+heat = np.zeros((len(data), len(data)))
+
+for e in data.index:
+    F1 = data.loc[e]['F1']
+    F2 = data.loc[e]['F2']
+    R = data.loc[e]['Returns']
+    heat[F1-1, F2-1] += R
+    
+heat = scipy.signal.decimate(heat, 40)
+heat = scipy.signal.decimate(heat.T, 40).T
+
+p = sns.heatmap(heat, xticklabels=[], yticklabels=[])
+# p.xaxis.set_ticks([])
+# p.yaxis.set_ticks([])
+p.xaxis.set_label_text('F1 Rank')
+p.yaxis.set_label_text('F2 Rank')
+p.set_title('Sum Rank of Returns vs Factor Ranking');
+```
+
+##### Regression Model Instability
+- **Original Path**: `notebooks\lectures\Regression_Model_Instability\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 17 (Code: 9, Markdown: 8)
+- **Imports/Dependencies**: from statsmodels import regression, stats, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy as sp, import seaborn, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Regression Model Instability
+
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie. Algorithms by David Edwards.
+
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+Regression analysis allows us to estimate coefficients in a function which approximately relates multiple data sets. We hypothesize a specific form for this function and then find coefficients which fit the data well, working under the assumption that deviations from the model can be considered noise.
+
+When building such a model, we accept that it cannot perfectly predict the dependent variable. Here we would like to evaluate the accuracy of the model not by how well it explains the dependent variable, but by how <i>stable</i> it is (that is, how stable the regression coefficients are) with respect to our sample data. After all, if a model is truly a good fit, it should be similar, say, for two random halves of our data set that we model individually. Otherwise, we cannot assume that the model isn't simply an artifact of the particular sample of data we happened to choose, or that it will be predictive of new data points.
+
+We'll be using linear regressions here for illustration purposes, but the same considerations apply for all regression models. Below we define a wrapper function for the linear regression from `statsmodels` so we can use it later.
+
+# Biased noise
+
+The particular sample we choose for the data affects the model generated, and unevenly distributed noise can lead to an inaccurate model. Below we're drawing from a normal distribution, but because we do not have very many data points, we get a significant downward bias. If we took more measurements, both of the regression coefficients would move toward zero.
+
+Regression analysis is very sensitive to outliers. Sometimes these outliers contain information, in which case we want to take them into account; however, in cases like the above, they can simply be random noise. Although we often have many more data points than in the example above, we could have (for example) fluctuations on the order of weeks or months, which then significantly change the regression coefficients.
+
+# Regime changes
+
+A regime change (or structural break) is when something changes in the process generating the data, causing future samples to follow a different distribution. Below, we can see that there is a regime change at the end of 2007, and splitting the data there results in a much better fit (in red) than a regression on the whole data set (yellow). In this case our regression model will not be predictive of future data points since the underlying system is no longer the same as in the sample. In fact, the regression analysis assumes that the errors are uncorrelated and have constant variance, which is often not be the case if there is a regime change.
+
+Of course, the more pieces we break our data set into, the more precisely we can fit to it. It's important to avoid fitting to noise, which will always fluctuate and is not predictive. We can test for the existence of a structural break, either at a particular point we have identified or in general. Below we use a test from `statsmodels` which computes the probability of observing the data if there were no breakpoint.
+
+# Multicollinearity
+
+Above we were only considering regressions of one dependent variable against one independent one. However, we can also have multiple independent variables. This leads to instability if the independent variables are highly correlated.
+
+Imagine we are using two independent variables, $X_1$ and $X_2$, which are very highly correlated. Then the coefficients may shift drastically if we add a new observation that is slightly better explained by one of the two than by the other. In the extreme case, if $X_1 = X_2$, then the choice of coefficients will depend on the particular linear regression algorithm.
+
+Below, we run a multiple linear regression in which the independent variables are highly correlated. If we take our sample period to be 2013-01-01 to 2015-01-01, then the coefficients are approximately .25 and .1. But if we extend the period to 2015-06-01, the coefficients become approximately .18 and .20, respectively.
+
+We can check that our independent variables are correlated by computing their correlation coefficient. This number always lies between -1 and 1, and a value of 1 means that the two variables are perfectly correlated.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+from statsmodels import regression, stats
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+import scipy as sp
+
+def linreg(X,Y):
+    # Running the linear regression
+    x = sm.add_constant(X) # Add a row of 1's so that our model has a constant term
+    model = regression.linear_model.OLS(Y, x).fit()
+    return model.params[0], model.params[1] # Return the coefficients of the linear model
+```
+*Cell 2:*
+```python
+# Draw observations from normal distribution
+np.random.seed(107) # Fix seed for random number generation
+rand = np.random.randn(20)
+
+# Conduct linear regression on the ordered list of observations
+xs = np.arange(20)
+a, b = linreg(xs, rand)
+print 'Slope:', b, 'Intercept:', a
+
+# Plot the raw data and the regression line
+plt.scatter(xs, rand, alpha=0.7)
+Y_hat = xs * b + a
+plt.plot(xs, Y_hat, 'r', alpha=0.9);
+```
+*Cell 3:*
+```python
+import seaborn
+
+seaborn.regplot(xs, rand)
+```
+*Cell 4:*
+```python
+# Draw more observations
+rand2 = np.random.randn(100)
+
+# Conduct linear regression on the ordered list of observations
+xs2 = np.arange(100)
+a2, b2 = linreg(xs2, rand2)
+print 'Slope:', b2, 'Intercept:', a2
+
+# Plot the raw data and the regression line
+plt.scatter(xs2, rand2, alpha=0.7)
+Y_hat2 = xs2 * b2 + a2
+plt.plot(xs2, Y_hat2, 'r', alpha=0.9);
+```
+*Cell 5:*
+```python
+start = '2003-01-01'
+end = '2009-02-01'
+pricing = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+
+# Manually set the point where we think a structural break occurs
+breakpoint = 1200
+xs = np.arange(len(pricing))
+xs2 = np.arange(breakpoint)
+xs3 = np.arange(len(pricing) - breakpoint)
+
+# Perform linear regressions on the full data set, the data up to the breakpoint, and the data after
+a, b = linreg(xs, pricing)
+a2, b2 = linreg(xs2, pricing[:breakpoint])
+a3, b3 = linreg(xs3, pricing[breakpoint:])
+
+Y_hat = pd.Series(xs * b + a, index=pricing.index)
+Y_hat2 = pd.Series(xs2 * b2 + a2, index=pricing.index[:breakpoint])
+Y_hat3 = pd.Series(xs3 * b3 + a3, index=pricing.index[breakpoint:])
+
+# Plot the raw data
+pricing.plot()
+Y_hat.plot(color='y')
+Y_hat2.plot(color='r')
+Y_hat3.plot(color='r')
+plt.title('SPY Price')
+plt.ylabel('Price');
+```
+*Cell 6:*
+```python
+stats.diagnostic.breaks_cusumolsresid(
+    regression.linear_model.OLS(pricing, sm.add_constant(xs)).fit().resid)[1]
+```
+*Cell 7:*
+```python
+# Get pricing data for two benchmarks (stock indices) and a stock
+start = '2013-01-01'
+end = '2015-01-01'
+b1 = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+b2 = get_pricing('MDY', fields='price', start_date=start, end_date=end)
+asset = get_pricing('V', fields='price', start_date=start, end_date=end)
+
+mlr = regression.linear_model.OLS(asset, sm.add_constant(np.column_stack((b1, b2)))).fit()
+prediction = mlr.params[0] + mlr.params[1]*b1 + mlr.params[2]*b2
+print 'Constant:', mlr.params[0], 'MLR beta to S&P 500:', mlr.params[1], ' MLR beta to MDY', mlr.params[2]
+
+# Plot the asset pricing data and the regression model prediction, just for fun
+asset.plot()
+prediction.plot();
+plt.ylabel('Price')
+plt.legend(['Asset', 'Linear Regression Prediction']);
+```
+*Cell 8:*
+```python
+# Get pricing data for two benchmarks (stock indices) and a stock
+start = '2013-01-01'
+end = '2015-06-01'
+b1 = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+b2 = get_pricing('MDY', fields='price', start_date=start, end_date=end)
+asset = get_pricing('V', fields='price', start_date=start, end_date=end)
+
+mlr = regression.linear_model.OLS(asset, sm.add_constant(np.column_stack((b1, b2)))).fit()
+prediction = mlr.params[0] + mlr.params[1]*b1 + mlr.params[2]*b2
+print 'Constant:', mlr.params[0], 'MLR beta to S&P 500:', mlr.params[1], ' MLR beta to MDY', mlr.params[2]
+
+# Plot the asset pricing data and the regression model prediction, just for fun
+asset.plot()
+prediction.plot();
+plt.ylabel('Price')
+plt.legend(['Asset', 'Linear Regression Prediction']);
+```
+*Cell 9:*
+```python
+# Compute Pearson correlation coefficient
+sp.stats.pearsonr(b1,b2)[0] # Second return value is p-value
+```
+
+##### Residuals Analysis
+- **Original Path**: `notebooks\lectures\Residuals_Analysis\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 64 (Code: 26, Markdown: 38)
+- **Imports/Dependencies**: from statsmodels import regression, import math, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy.stats as stats, import statsmodels.api as sm, import statsmodels.stats.diagnostic as smd
+
+**Explanatory Notes:**
+# Residuals Analysis
+
+By Chris Fenaroli and Max Margenot 
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---

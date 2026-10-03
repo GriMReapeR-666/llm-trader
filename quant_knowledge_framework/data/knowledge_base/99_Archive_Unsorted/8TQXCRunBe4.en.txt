@@ -1,0 +1,9 @@
+# 8TQXCRunBe4.en
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+Okay, so the step by step is to download Okay, so the step by step is to download Okay, so the step by step is to download the price data. the price data. the price data. It has to give me a particular block of It has to give me a particular block of It has to give me a particular block of code and [music] I copy this and code and [music] I copy this and code and [music] I copy this and straight away I will paste this over straight away I will paste this over straight away I will paste this over here. here. here. And let's run this. Let's see what we And let's run this. Let's see what we And let's run this. Let's see what we got. Okay, so we have tickers SPY gold got. Okay, so we have tickers SPY gold got. Okay, so we have tickers SPY gold [music] start date 2020 and date 2024 [music] start date 2020 and date 2024 [music] start date 2020 and date 2024 December December December &gt;&gt; [music] &gt;&gt; [music] &gt;&gt; [music] &gt;&gt; and then have this code and finally got &gt;&gt; and then have this code and finally got &gt;&gt; and then have this code and finally got all that stored in data and it says all that stored in data and it says all that stored in data and it says inspect the columns to confirm the inspect the columns to confirm the inspect the columns to confirm the structure data.columns.

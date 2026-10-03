@@ -1,0 +1,11 @@
+# c. Jarque-Bera Test
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c. Jarque-Bera Test
+
+Use the `Jarque-Bera` function to determine the normality of Z.

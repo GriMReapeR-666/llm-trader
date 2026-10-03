@@ -1,0 +1,10 @@
+# a. Geometric Mean of random data set.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Geometric Mean of random data set.
+Find the Geometric mean of the random generated data set.

@@ -1,0 +1,11 @@
+# c. Standard Error
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c. Standard Error
+
+Using the standard deviation and `sample_size`, determine the standard error for the sample.

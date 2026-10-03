@@ -1,0 +1,39 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+seaborn.regplot(returns1.values, returns2.values, ci=95);
+```
+*Cell 5:*
+```python
+start = '2014-01-01'
+end = '2015-01-01'
+asset = get_pricing('KO', fields='price', start_date=start, end_date=end)
+benchmark = get_pricing('PEP', fields='price', start_date=start, end_date=end)
+
+X = asset.pct_change()[1:]
+Y = benchmark.pct_change()[1:]
+
+result = sm.OLS(Y,X).fit()
+
+# Convert X to Matrix (adding columns of one)
+X = np.vstack((X, np.ones( X.size ) ))
+X = np.matrix( X )
+
+# Matrix Multiplication and inverse calculation
+C = np.linalg.inv( X * X.T )
+C *= result.mse_resid
+SE = np.sqrt(C) # Calucaltion of Standard Error. 
+
+# Critical Values of the t-statistic
+N = result.nobs
+P = result.df_model
+dof = N - P - 1
+z = scipy.stats.t(dof).ppf(0.975)
+
+i = 0

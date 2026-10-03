@@ -1,0 +1,147 @@
+# Creating a Full Tear Sheet
+
+Topic: 05_Quant_Utilities
+Confidence: 0.43
+Keywords: numpy, python, pandas
+
+---
+
+## Creating a Full Tear Sheet
+
+To put these all together, we use a single function call to `bt.create_full_tear_sheet`.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import pyfolio as pf
+import matplotlib.pyplot as plt
+import empyrical
+```
+*Cell 2:*
+```python
+# Get benchmark returns
+benchmark_rets = pf.utils.get_symbol_rets('SPY')
+```
+*Cell 3:*
+```python
+# Get the backtest
+bt = get_backtest('58812b2977ca4c474bbf393f')
+```
+*Cell 4:*
+```python
+bt_returns = bt.daily_performance['returns']
+bt_positions = bt.pyfolio_positions
+bt_transactions = bt.pyfolio_transactions
+```
+*Cell 5:*
+```python
+print "The Sharpe Ratio of the backtest is: ", empyrical.sharpe_ratio(bt_returns)
+```
+*Cell 6:*
+```python
+print "The market beta of the backtest is: ", empyrical.beta(bt_returns,benchmark_rets)
+```
+*Cell 7:*
+```python
+print "The maxmimum drawdown of the backtest is: ", empyrical.max_drawdown(bt_returns)
+```
+*Cell 8:*
+```python
+# Cumulative Returns
+plt.subplot(2,1,1)
+pf.plotting.plot_rolling_returns(bt_returns, benchmark_rets)
+
+# Daily, Non-Cumulative Returns
+plt.subplot(2,1,2)
+pf.plotting.plot_returns(bt_returns)
+plt.tight_layout()
+```
+*Cell 9:*
+```python
+fig = plt.figure(1)
+plt.subplot(1,3,1)
+pf.plot_annual_returns(bt_returns)
+plt.subplot(1,3,2)
+pf.plot_monthly_returns_dist(bt_returns)
+plt.subplot(1,3,3)
+pf.plot_monthly_returns_heatmap(bt_returns)
+plt.tight_layout()
+fig.set_size_inches(15,5)
+```
+*Cell 10:*
+```python
+pf.plot_return_quantiles(bt_returns);
+```
+*Cell 11:*
+```python
+pf.plot_rolling_beta(bt_returns, benchmark_rets);
+```
+*Cell 12:*
+```python
+pf.plot_rolling_sharpe(bt_returns);
+```
+*Cell 13:*
+```python
+pf.plot_rolling_fama_french(bt_returns);
+```
+*Cell 14:*
+```python
+pf.plot_drawdown_periods(bt_returns);
+```
+*Cell 15:*
+```python
+pf.plot_drawdown_underwater(bt_returns);
+```
+*Cell 16:*
+```python
+pf.plot_gross_leverage(bt_returns, bt_positions);
+```
+*Cell 17:*
+```python
+pos_percent = pf.pos.get_percent_alloc(bt_positions)
+pf.plotting.show_and_plot_top_positions(bt_returns, pos_percent);
+```
+*Cell 18:*
+```python
+pf.plot_holdings(bt_returns, bt_positions);
+```
+*Cell 19:*
+```python
+pf.plot_turnover(bt_returns, bt_transactions, bt_positions);
+```
+*Cell 20:*
+```python
+pf.plotting.plot_daily_turnover_hist(bt_transactions, bt_positions);
+```
+*Cell 21:*
+```python
+pf.plotting.plot_daily_volume(bt_returns, bt_transactions);
+```
+*Cell 22:*
+```python
+pf.plotting.plot_txn_time_hist(bt_transactions);
+```
+*Cell 23:*
+```python
+pf.create_round_trip_tear_sheet(bt_returns, bt_positions, bt_transactions);
+```
+*Cell 24:*
+```python
+help(pf.plotting.plot_rolling_sharpe)
+```
+*Cell 25:*
+```python
+bt.create_full_tear_sheet(live_start_date="2014-08-01", round_trips=True)
+```
+
+##### notebook
+- **Original Path**: `notebooks\lectures\Position_Concentration_Risk\answers\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 20 (Code: 9, Markdown: 11)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.classifiers.morningstar import Sector, from educational_platform.pipeline.data import morningstar, from educational_platform.pipeline.factors import CustomFactor, from educational_platform.pipeline.filters import QTradableStocksUS, from educational_platform.research import run_pipeline, from time import time, import cvxpy, import math, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy.stats as stats
+
+**Explanatory Notes:**
+#Exercise Answer Key: Position Concentration Risk

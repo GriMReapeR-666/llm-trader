@@ -1,0 +1,18 @@
+# Roll-over
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Roll-over
+If we want to maintain a futures position across expiries, we need to "roll over" our contracts. This is the practice of switching to the next month's contract after closing your previous holding. The majority of futures positions are either closed or rolled over before ever reaching delivery.
+
+The futures contract with expiry closest to the current date is known as the "front month" contract. It usually enjoys the smallest spread between futures and spot prices as well as the most liquidity. In contrast, the futures contract that has the furthest expiration date in a set of contracts is known as the "back month" contract. Contracts that are further out have significantly less liquidity, though they still may contain vague information about future prices anticipated by the market.
+
+By rolling forward our positions, we can maintain a hedge on a particular underlying or simply maintain a position across time. Without rolling contracts over we would be required to develop trading strategies that work only on a short timescale.
+
+This graph illustrates the volume that results from rolling over contracts on the first date where the front month contract's volume is eclipsed by the following month on the same underlying.
+
+In this particular instance, our goal is to ride the wave of liquidity provided by the front contract.

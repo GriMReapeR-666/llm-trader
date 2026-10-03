@@ -1,0 +1,30 @@
+# Leverage in an algorithm
+
+Topic: 02_Strategy_Development
+Confidence: 0.43
+Keywords: ev, backtest, strategy
+
+---
+
+## Leverage in an algorithm
+
+Handling leverage gets significantly more complicated when we are dealing with an algorithm. Every time an algorithm rebalances its portfolio or makes a trade, there is a possibility of affecting the leverage ratio. If there isn't enough cash on hand to cover its positions it will need to borrow more. In the same vein, it may be utilizing overall less cash for the next set of trades, decreasing the leverage ratio.
+
+This is a backtest from our template long-short algorithm attached to our [long-short equity lecture](https://www.quantopian.com/lectures/long-short-equity) over the year 2015 (Note that an upgrade to this template algorithm is coming soon).
+
+Here is the leverage ratio of this algorithm plotted over time. Notice how it jumps around quite frequently. The ratio is below $1$ when it is not using all of its base capital and it spikes above $1$ whenever it makes a trade on margin. The algorithm associated with this leverage ratio is a long-short equity algorithm based on a combination of fundamental factors. For an overview of how a long-short equity strategy works, please see the [lectures](https://www.quantopian.com/lectures/long-short-equity) page.
+
+A key feature of this sort of strategy is that it can trade hundreds, sometimes even thousands of equities at once. As such, we run the risk of incurring some fairly large rebalancing costs, depending on how frequently we rebalance. This algorithm specifically rebalances on a monthly basis. As we can see on the above graph of the leverage ratio, a lot of the largest changes occur aroud the start of each month.
+
+To see how the rebalancing structure and maximum leverage can affect the leverage ratio of the algorithm when it is executed, go into the the template and modify these parameters. Changing the type of algorithm will also drastically affect how it uses leverage. Feel free to experiment.
+
+Things to try:
+1. Change the timing of the rebalancing between daily, monthly, and weekly.
+2. Modify the amount of leverage that the portfolio is allowed to take on
+3. Restrict the universe that the algorithm trades within by applying more filters to your trading universe.
+4. Instead of making all portfolio weights equally-weighted, use a portfolio optimization scheme like [Markowitz or Mean Absolute Deviation](https://www.quantopian.com/posts/mad-portfolio-an-alternative-to-markowitz) portfolio optimization.
+
+
+Here are the associated returns of this algorithm. The volatility of these returns is important to take into account when examining the leverage of a strategy.
+
+Using leverage can be dangerous when you are dealing with a more volatile strategy. Because you are trading with borrowed money, we are on the hook to return it. We have to make sure that the broker gets his money back before we get our profit. If we end up in a position where we get a margin call, we have to pony up more funds if we want to hold our positions. Monitoring your strategy's volatility and ensuring you are only taking on palatable amounts of debt are key aspects of determining the quality of your trading strategy.

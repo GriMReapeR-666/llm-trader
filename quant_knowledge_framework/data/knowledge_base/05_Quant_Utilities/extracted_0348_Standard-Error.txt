@@ -1,0 +1,104 @@
+# Standard Error
+
+Topic: 05_Quant_Utilities
+Confidence: 0.40
+Keywords: numpy, python
+
+---
+
+## Standard Error
+
+We can also find the standard error of estimate, which measures the standard deviation of the error term $\epsilon$, by getting the `scale` parameter of the model returned by the regression and taking its square root. The formula for standard error of estimate is
+$$ s = \left( \frac{\sum_{i=1}^n \epsilon_i^2}{n-2} \right)^{1/2} $$
+
+If $\hat{\alpha}$ and $\hat{\beta}$ were the true parameters ($\hat{\alpha} = \alpha$ and $\hat{\beta} = \beta$), we could represent the error for a particular predicted value of $Y$ as $s^2$ for all values of $X_i$. We could simply square the difference $(Y - \hat{Y})$ to get the variance because $\hat{Y}$ incorporates no error in the parameter estimates themselves. Because $\hat{\alpha}$ and $\hat{\beta}$ are merely estimates in our construction of the model of $Y$, any predicted values , $\hat{Y}$, will have their own standard error based on the distribution of the $X$ terms that we plug into the model. This forecast error is represented by the following:
+
+$$ s_f^2 = s^2 \left( 1 + \frac{1}{n} + \frac{(X - \mu_X)^2}{(n-1)\sigma_X^2} \right) $$
+
+where $\mu_X$ is the mean of our observations of $X$ and $\sigma_X$ is the standard deviation of $X$. This adjustment to $s^2$ incorporates the uncertainty in our parameter estimates. Then the 95% confidence interval for the prediction is $\hat{Y} \pm t_cs_f$, where $t_c$ is the critical value of the t-statistic for $n$ samples and a desired 95% confidence.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Import libraries
+import numpy as np
+from statsmodels import regression
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+import math
+```
+*Cell 2:*
+```python
+def linreg(X,Y):
+    # Running the linear regression
+    X = sm.add_constant(X)
+    model = regression.linear_model.OLS(Y, X).fit()
+    a = model.params[0]
+    b = model.params[1]
+    X = X[:, 1]
+
+    # Return summary of the regression and plot results
+    X2 = np.linspace(X.min(), X.max(), 100)
+    Y_hat = X2 * b + a
+    plt.scatter(X, Y, alpha=0.3) # Plot the raw data
+    plt.plot(X2, Y_hat, 'r', alpha=0.9);  # Add the regression line, colored in red
+    plt.xlabel('X Value')
+    plt.ylabel('Y Value')
+    return model.summary()
+```
+*Cell 3:*
+```python
+start = '2014-01-01'
+end = '2015-01-01'
+asset = get_pricing('TSLA', fields='price', start_date=start, end_date=end)
+benchmark = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+
+# We have to take the percent changes to get to returns
+# Get rid of the first (0th) element because it is NAN
+r_a = asset.pct_change()[1:]
+r_b = benchmark.pct_change()[1:]
+
+linreg(r_b.values, r_a.values)
+```
+*Cell 4:*
+```python
+X = np.random.rand(100)
+Y = np.random.rand(100)
+linreg(X, Y)
+```
+*Cell 5:*
+```python
+# Generate ys correlated with xs by adding normally-destributed errors
+Y = X + 0.2*np.random.randn(100)
+
+linreg(X,Y)
+```
+*Cell 6:*
+```python
+import seaborn
+
+start = '2014-01-01'
+end = '2015-01-01'
+asset = get_pricing('TSLA', fields='price', start_date=start, end_date=end)
+benchmark = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+
+# We have to take the percent changes to get to returns
+# Get rid of the first (0th) element because it is NAN
+r_a = asset.pct_change()[1:]
+r_b = benchmark.pct_change()[1:]
+
+seaborn.regplot(r_b.values, r_a.values);
+```
+
+##### Exercises: Linear Regression
+- **Original Path**: `notebooks\lectures\Linear_Regression\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 34 (Code: 14, Markdown: 20)
+- **Imports/Dependencies**: from statsmodels import regression, from statsmodels.stats import diagnostic, from statsmodels.stats.diagnostic import het_breushpagan, import math, import matplotlib.pyplot as plt, import numpy as np, import scipy as sp, import scipy.stats, import seaborn, import statsmodels.api as sm, import statsmodels.regression as smr
+
+**Explanatory Notes:**
+# Exercises: Linear Regression 
+By Christopher van Hoecke, Max Margenot, and Delaney Mackenzie

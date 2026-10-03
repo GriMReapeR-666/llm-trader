@@ -1,0 +1,59 @@
+# Example Zipline algorithm
+
+Topic: 02_Strategy_Development
+Confidence: 0.50
+Keywords: ev, strategy
+
+---
+
+## Example Zipline algorithm
+
+To illustrate how you can use Bayesian optimization on your [zipline](https://github.com/quantopian/zipline) trading algorithms and how it compares to other naive approaches (i.e. grid search) we will use a rather simple algorithm comprised of a trading trigger based on two commonly used signals from the ta-lib library, RSI [(Relative Strength Index)](http://www.investopedia.com/terms/r/rsi.asp) and ROC [(Rate of Change)](http://www.investopedia.com/terms/p/pricerateofchange.asp). 
+
+The trading algorithm will search for trades across these Select Sector SPDR ETF's: 
+* XLV, XLF, XLP, XLE, XLK, XLB, XLU, XLI. 
+
+By running the trading logic across all of these ETF's we will be implementing a simple sector-rotation strategy. 
+
+#####-----------------------------------------------------------------------------------------------------
+#####Strategy Specification
+*Buy the ETF only if it meets _both_ the RSI signal and ROC signal criteria.  When an ETF is bought long, then an equivalent dollar amount of SPY will be shorted, creating a hedged, dollar-neutral portfolio.*
+#####-----------------------------------------------------------------------------------------------------
+
+By hedging all of our trades, it serves to "tease-apart" the actual usefulness provided by these signals (RSI, ROC) since it extracts upward movement in the stock simply occurring because the rest of the stock market is going up.  As a result, the profit achieved by this hedged strategy can be perceived as more "pure alpha," rather than highly-correlated to the direction of the broad stock market.
+
+The 7 free parameters of our trading strategy are as follows:
+* RSI
+  * **(1)** Lookback window for # of prices used in the RSI calculation
+  * **(2)** Lower_bound value defining the trade entry condition
+  * **(3)** Range_width, which will be added to the Lower-bound
+    * Lower_bound + Range_width is the range of values over which our RSI signal will be considered `True`
+* ROC
+  * **(4)** Lookback window for # of prices used in the ROC calculation
+  * **(5)** Lower_bound value defining the trade entry condition
+  * **(6)** Range_width, which will be added to the Lower-bound
+    * Lower_bound + Range_width is the range of values over which our ROC signal will be considered `True`
+* Signal evaluation frequency
+  * **(7)** Number of days we wait between evaluating if our signals are valid
+    * Do we evaluate them every day, every week, every month, etc.
+
+It's worth noting that even with just 2 price based signals, we have 7 free parameters in this system!
+
+Reasonable Ranges for each of the 7 free parameters above (assuming each is an integer, with integer steps):
+1. 115 values: 5 to 120 
+2. 90 values: 0 to 90
+3. 20 values: 10 to 30
+4. 61 values: 2 to 63
+5. 30 values: 0 to 30
+6. 195 values: 5 to 200
+7. 18 values: 3 to 21
+
+Multiplying the valid ranges of each yields a total combination count of:
+* **1,329,623,100,000** theoretical combinations 
+  * 115 x 90 x 20 x 61 x 30 x 195 x 18 
+(TODO: check with Thomas on this math)
+  * Imagine how many combinations are possible if 3, 4, 5... 10 signals are added to a strategy
+
+Obviously grid-searching through all those combinations is unreasonable, though a skilled practitioner can prune the search space significantly by only grid-searching across each parameter using wider steps based on their intuition of the model they are building.  But even if the skilled practitioner can reduce the grid-search to 10,000 combinations even that number of combinations may be unwieldy if the objective function (e.g. trading strategy) takes 1-minute to evaluate, which is quite frequently the case with trading strategies.  This is where the benefit of having access to a Bayesian optimizer becomes _extremely_ helpful.  
+
+The ipython notebook below compares SigOpt's Bayesian Optimizer's results from 3 independent experiments, of only 300 trials each determined intelligently by their optimizer, to a "smart" grid-search of approximately 3500 combinations chosen intuitively from a reasonable interpretations of sensible RSI and ROC values.  Only 3500 trials were chosen for the grid-search approach, because even that few combinations took 48 hours to evaluate. 300 trials were chosen for the SigOpt approach because in practice the SigOpt optimizer is able to find good optima within 10 to 20 times the dimensionality of the parameter space being optimized. This linear number of evaluations with respect to the number of parameters allows for optimization of algorithms that would otherwise be intractable using standard methods like grid search, which grow exponentially with the number of parameters.

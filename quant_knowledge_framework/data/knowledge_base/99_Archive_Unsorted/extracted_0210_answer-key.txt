@@ -1,0 +1,25 @@
+# answer key ##
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## answer key ##
+scores, pvalues, pairs = find_cointegrated_pairs(prices_df)
+import seaborn
+seaborn.heatmap(pvalues, xticklabels=symbol_list, yticklabels=symbol_list, cmap='RdYlGn_r' 
+                , mask = (pvalues >= 0.99)
+                )
+print pairs
+```
+*Cell 13:*
+```python
+S1 = prices_df['MTRN']
+S2 = prices_df['SCCO']
+
+#Your code goes here
+```
+*Cell 14:*
+```python

@@ -1,0 +1,18 @@
+# Lecture Link
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Lecture Link
+
+This exercise notebook refers to this lecture. Please use the lecture for explanations and sample code.
+
+https://www.educational_platform.com/lectures#Universe-Selection
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)

@@ -1,0 +1,35 @@
+# Looking for Cointegrated Pairs of Alternative Energy Securities
+
+Topic: 05_Quant_Utilities
+Confidence: 0.57
+Keywords: normalize, python, z-score, pandas
+
+---
+
+## Looking for Cointegrated Pairs of Alternative Energy Securities
+I'm looking through a set of solar company stocks to see if any of them are cointegrated. We'll start by defining the list of securities we want to look through. Then we'll get the pricing data for each security for the year of 2014.
+
+get_pricing() is a Educational Platform method that pulls in stock data, and loads it into a Python Pandas DataPanel object.  Available fields are 'price', 'open_price', 'high', 'low', 'volume'.  But for this example we will just use 'price' which is the daily closing price of the stock.
+
+Example of how to get all the prices of all the stocks loaded using get_pricing() above in one pandas dataframe object
+
+Example of how to get just the prices of a single stock that was loaded using get_pricing() above
+
+Now we'll run our method on the list and see if any pairs are cointegrated.
+
+Looks like 'ABGB' and 'FSLR' are cointegrated. Let's take a look at the prices to make sure there's nothing weird going on.
+
+We'll plot the spread of the two series.
+
+The absolute spread isn't very useful in statistical terms. It is more helpful to normalize our signal by treating it as a z-score. This way we associate probabilities to the signals we see. If we see a z-score of 1, we know that approximately 84% of all spread values will be smaller.
+
+### Simple Strategy: 
+* Go "Long" the spread whenever the z-score is below -1.0
+* Go "Short" the spread when the z-score is above 1.0
+* Exit positions when the z-score approaches zero
+
+Since we originally defined the "spread" as S1-S2, "Long" the spread would mean "Buy 1 share of S1, and Sell Short 1 share of S2" (and vice versa if you were going "Short" the spread)
+
+This is just the tip of the iceberg, and only a very simplistic example to illustrate the concepts.  In practice you would want to compute a more optimal weighting for how many shares to hold for S1 and S2.  Some additional resources on pair trading are listed at the end of this notebook
+
+##Trading using constantly updating statistics

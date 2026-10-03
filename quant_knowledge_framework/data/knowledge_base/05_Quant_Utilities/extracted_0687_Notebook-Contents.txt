@@ -1,0 +1,298 @@
+# Notebook Contents
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: data pipeline, python, pandas, standardize
+
+---
+
+## Notebook Contents
+
+There are two ways to access the data and you'll find both of them listed below. Just click on the section you'd like to read through.
+
+- <a href='#interactive'><strong>Interactive overview</strong></a>: This is only available on Research and uses blaze to give you access to large amounts of data. Recommended for exploration and plotting.
+- <a href='#pipeline'><strong>Pipeline overview</strong></a>: Data is made available through pipeline which is available on both the Research & Backtesting environment. Recommended for custom factor development and moving back & forth between research/backtesting.
+
+### Free samples and limits
+One key caveat: we limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free sample includes data until 2 months prior to the current date.
+
+To access the most up-to-date values for this data set for trading a live algorithm (as with other partner sets), you need to purchase acess to the full set.
+
+With preamble in place, let's get started:
+
+<a id='interactive'></a>
+#Interactive Overview
+### Accessing the data with Blaze and Interactive on Research
+Partner datasets are available on Educational Platform Research through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets, in an interactive, generic manner.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to reduce your dataset in size, convert it over to Pandas and then to use Pandas for further computation, manipulation and visualization.
+
+Helpful links:
+* [Query building for Blaze](http://blaze.readthedocs.io/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-sql.html).
+
+Once you've limited the size of your Blaze object, you can convert it to a Pandas DataFrames using:
+> `from odo import odo`  
+> `odo(expr, pandas.DataFrame)`
+
+
+###To see how this data can be used in your algorithm, search for the `Pipeline Overview` section of this notebook or head straight to <a href='#pipeline'>Pipeline Overview</a>
+
+Let's go over the columns:
+- **event_id**: the unique identifier for this event.
+- **asof_date**: EventVestor's timestamp of event capture.
+- **trade_date**: for event announcements made before trading ends, trade_date is the same as event_date. For announcements issued after market close, trade_date is next market open day.
+- **symbol**: stock ticker symbol of the affected company.
+- **event_type**: this should always be *Dividend*.
+- **event_headline**: a brief description of the event
+- **event_phase**: the inclusion of this field is likely an error on the part of the data vendor. We're currently attempting to resolve this.
+- **div_type**: dividend type. Values include *no change, increase, decrease, initiation, defer, suspend, omission, stock, special*.   
+Note *QoQ* = quarter-on-quarter.
+- **div_amount**: dividend payment amount in local currency
+- **div_currency**: dividend payment currency code. Values include *$, BRL, CAD, CHF, EUR, GBP, JPY*.
+- **div_ex_date**: ex-dividend date
+- **div_record_date**: dividend payment record date
+- **div_pay_date**: dividend payment date
+- **event_rating**: this is always 1. The meaning of this is uncertain.
+- **timestamp**: this is our timestamp on when we registered the data.
+- **sid**: the equity's unique identifier. Use this instead of the symbol.
+
+We've done much of the data processing for you. Fields like `timestamp` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, we'll fetch all fifty-cent dividends.
+
+We've done much of the data processing for you. Fields like `timestamp` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, we'll fetch all fifty-cent dividends.
+
+Finally, suppose we want a DataFrame of that data, but we only want the sid, timestamp, and div_type:
+
+<a id='pipeline'></a>
+
+#Pipeline Overview
+
+### Accessing the data in your algorithms & research
+The only method for accessing partner data within algorithms running on Educational Platform is via the pipeline API. Different data sets work differently but in the case of this data, you can add this data to your pipeline as follows:
+
+Import the data set here
+> `from educational_platform.pipeline.data.eventvestor import (`
+> `DividendsByExDate,`
+> `DividendsByPayDate,`
+> `DividendsByAnnouncement`
+> `)`
+
+Then in intialize() you could do something simple like adding the raw value of one of the fields to your pipeline:
+> `pipe.add(DividendsByExDate.next_date.latest, 'next_dividends')`
+
+Now that we've imported the data, let's take a look at which fields are available for each dataset.
+
+You'll find the dataset, the available fields, and the datatypes for each of those fields.
+
+Now that we know what fields we have access to, let's see what this data looks like when we run it through Pipeline.
+
+
+This is constructed the same way as you would in the backtester. For more information on using Pipeline in Research view this thread:
+https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+
+Taking what we've seen from above, let's see how we'd move that into the backtester.
+
+Now you can take that and begin to use it as a building block for your algorithms, for more examples on how to do that you can visit our <a href='https://www.educational_platform.com/posts/pipeline-factor-library-for-data'>data pipeline factor library</a>
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+# from educational_platform.interactive.data.eventvestor import dividends as dataset
+# or if you want to import the free dataset, use:
+from educational_platform.interactive.data.eventvestor import dividends_free  as dataset
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+dataset.dshape
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+dataset.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+dataset[:3]
+```
+*Cell 5:*
+```python
+fiftyc = dataset[(dataset.div_amount==0.5) & (dataset['div_currency']=='$')]
+# When displaying a Blaze Data Object, the printout is automatically truncated to ten rows.
+fiftyc.sort('timestamp')
+```
+*Cell 6:*
+```python
+fifty_df = odo(fiftyc, pd.DataFrame)
+reduced = fifty_df[['sid','div_type','timestamp']]
+# When printed: pandas DataFrames display the head(30) and tail(30) rows, and truncate the middle.
+reduced
+```
+*Cell 7:*
+```python
+fifty_df = odo(fiftyc, pd.DataFrame)
+reduced = fifty_df[['sid','div_type','timestamp']]
+# When printed: pandas DataFrames display the head(30) and tail(30) rows, and truncate the middle.
+reduced
+```
+*Cell 8:*
+```python
+# Import necessary Pipeline modules
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+```
+*Cell 9:*
+```python
+# Import the datasets available
+from educational_platform.pipeline.data.eventvestor import (
+    DividendsByExDate,
+    DividendsByPayDate,
+    DividendsByAnnouncementDate,
+)
+
+from educational_platform.pipeline.factors.eventvestor import (
+    BusinessDaysSincePreviousExDate,
+    BusinessDaysUntilNextExDate,
+    BusinessDaysSincePreviousPayDate,
+    BusinessDaysUntilNextPayDate,
+    BusinessDaysSinceDividendAnnouncement,
+)
+
+```
+*Cell 10:*
+```python
+print "Here are the list of available fields per dataset:"
+print "---------------------------------------------------\n"
+
+def _print_fields(dataset):
+    print "Dataset: %s\n" % dataset.__name__
+    print "Fields:"
+    for field in list(dataset.columns):
+        print "%s - %s" % (field.name, field.dtype)
+    print "\n"
+
+for data in (DividendsByExDate, DividendsByPayDate, DividendsByAnnouncementDate):
+    _print_fields(data)
+
+
+print "---------------------------------------------------\n"
+```
+*Cell 11:*
+```python
+# Let's see what this data looks like when we run it through Pipeline
+# This is constructed the same way as you would in the backtester. For more information
+# on using Pipeline in Research view this thread:
+# https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+pipe = Pipeline()
+       
+pipe.add(DividendsByExDate.next_date.latest, 'next_ex_date')
+pipe.add(DividendsByExDate.previous_date.latest, 'prev_ex_date')
+pipe.add(DividendsByExDate.next_amount.latest, 'next_amount')
+pipe.add(DividendsByExDate.previous_amount.latest, 'prev_amount')
+pipe.add(DividendsByExDate.next_currency.latest, 'next_currency')
+pipe.add(DividendsByExDate.previous_currency.latest, 'prev_currency')
+pipe.add(DividendsByExDate.next_type.latest, 'next_type')
+pipe.add(DividendsByExDate.previous_type.latest, 'prev_type')
+```
+*Cell 12:*
+```python
+# Setting some basic liquidity strings (just for good habit)
+dollar_volume = AverageDollarVolume(window_length=20)
+top_1000_most_liquid = dollar_volume.rank(ascending=False) < 1000
+
+pipe.set_screen(top_1000_most_liquid & DividendsByExDate.previous_amount.latest.notnan())
+```
+*Cell 13:*
+```python
+# The show_graph() method of pipeline objects produces a graph to show how it is being calculated.
+pipe.show_graph(format='png')
+```
+*Cell 14:*
+```python
+# run_pipeline will show the output of your pipeline
+pipe_output = run_pipeline(pipe, start_date='2013-11-01', end_date='2013-11-25')
+pipe_output
+```
+*Cell 15:*
+```python
+# This section is only importable in the backtester
+from educational_platform.algorithm import attach_pipeline, pipeline_output
+
+# General pipeline imports
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+
+# Import the datasets available
+from educational_platform.pipeline.data.eventvestor import (
+    DividendsByExDate,
+    DividendsByPayDate,
+    DividendsByAnnouncementDate,
+)
+from educational_platform.pipeline.factors.eventvestor import (
+    BusinessDaysSincePreviousExDate,
+    BusinessDaysUntilNextExDate,
+    BusinessDaysSinceDividendAnnouncement,
+)
+
+def make_pipeline():
+    # Create our pipeline
+    pipe = Pipeline()
+    
+    # Screen out penny stocks and low liquidity securities.
+    dollar_volume = AverageDollarVolume(window_length=20)
+    is_liquid = dollar_volume.rank(ascending=False) < 1000
+    
+    # Create the mask that we will use for our percentile methods.
+    base_universe = (is_liquid)
+
+    # Add pipeline factors
+    pipe.add(DividendsByExDate.next_date.latest, 'next_ex_date')
+    pipe.add(DividendsByExDate.previous_date.latest, 'prev_ex_date')
+    pipe.add(DividendsByExDate.next_amount.latest, 'next_amount')
+    pipe.add(DividendsByExDate.previous_amount.latest, 'prev_amount')
+    pipe.add(DividendsByExDate.next_currency.latest, 'next_currency')
+    pipe.add(DividendsByExDate.previous_currency.latest, 'prev_currency')
+    pipe.add(DividendsByExDate.next_type.latest, 'next_type')
+    pipe.add(DividendsByExDate.previous_type.latest, 'prev_type')
+    pipe.add(BusinessDaysUntilNextExDate(), 'business_days')
+
+    # Set our pipeline screens
+    pipe.set_screen(is_liquid)
+    return pipe
+
+def initialize(context):
+    attach_pipeline(make_pipeline(), "pipeline")
+    
+def before_trading_start(context, data):
+    results = pipeline_output('pipeline')
+```
+
+##### EventVestor: Earnings Calendar
+- **Original Path**: `notebooks\data\eventvestor.earnings_calendar\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 22 (Code: 14, Markdown: 8)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.algorithm import attach_pipeline, pipeline_output, from educational_platform.interactive.data.eventvestor import earnings_calendar as dataset, from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.eventvestor import EarningsCalendar, from educational_platform.pipeline.factors import AverageDollarVolume, from educational_platform.pipeline.factors.eventvestor import (, from educational_platform.research import run_pipeline, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# EventVestor: Earnings Calendar
+
+In this notebook, we'll take a look at EventVestor's *Earnings Calendar* dataset, available on the [Educational Platform Store](https://www.educational_platform.com/store). This dataset spans January 01, 2007 through the current day, and documents the quarterly earnings releases calendar indicating date and time of reporting.

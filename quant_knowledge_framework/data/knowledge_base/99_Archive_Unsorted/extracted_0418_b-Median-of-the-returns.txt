@@ -1,0 +1,14 @@
+# b. Median of the returns.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Median of the returns.
+Find the median associated with the returns of Bank of America Corp. (BAC).
+
+----
+
+# Exercise 3 : Mode

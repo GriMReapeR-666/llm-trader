@@ -1,0 +1,29 @@
+# Soybean Crush
+
+Topic: 05_Quant_Utilities
+Confidence: 0.85
+Keywords: stationarity, cointegration, augmented dickey-fuller
+
+---
+
+## Soybean Crush
+The difference in price between soybeans and their refined products is referred to as the "crush spread".  It represents the processing margin from "crushing" a soybean into its refined products. Note that we scale up the futures price of soybean oil so that it is the same magnitude as the price for soybean meal. It certainly seems from the plots that the prices of the refined products move together. 
+
+However, from looking at the p-value for our test, we conclude that soybean meal and soybean meal and soybean oil are not cointegrated.
+
+We still have this compelling economic link, though. Both soybean oil and soybean meal have a root product in soybeans themselves. Let's see if we can suss out any signal by creating a spread between soybean prices and the refined products together, by implementing the [crush spread](https://en.wikipedia.org/wiki/Crush_spread).
+
+In the above plot, we offset the refined products by one month to roughly match the time it takes to crush the soybeans and we set `roll='calendar'` so that all three contracts are rolled at the same time.
+
+To test whether this spread is stationary, we will use the augmented Dickey-Fuller test.
+
+The test confirms that the spread is stationary. And it makes sense, economically, that the crush spread may exhibit some mean reversion due to simple supply and demand.
+
+Note that there is usually a little more finesse required to obtain a mean reverting spread. We usually find a linear combination that would make the spread between the assets stationary after discovering cointegration. For more details on this, see the [lecture on cointegration](https://www.quantopian.com/lectures/integration-cointegration-and-stationarity). We skipped these steps to test this known spread off the bat.
+
+Here are a few other examples of economically-linked futures:
+
+* **3:2:1 Crack Spread**: Buy three crude oil, sell two gasoline, Sell one heating oil (this represents the profitability of oil refining)
+* **8:4:3 Cattle Crush** Buy 8 October live-cattle, Sell 4 May feeder cattle, Sell 3 July corn (this represents the profitability of fattening feeder cattle, where the 3 corn contracts are enough to feed the young feeder cattle)
+
+For widely-followed spreads like the crush spread or the crack spread, it would be surprising if the depth of mean reversion became so large that you could easily profit from it. If we consider futures that are linked to stocks, however, the number of potential pairs grows.

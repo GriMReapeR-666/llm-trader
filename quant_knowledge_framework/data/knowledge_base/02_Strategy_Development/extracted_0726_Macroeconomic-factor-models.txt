@@ -1,0 +1,20 @@
+# Macroeconomic factor models
+
+Topic: 02_Strategy_Development
+Confidence: 0.80
+Keywords: ev, expected value) in macroeconomic variables. that is, we have some prediction $a_i$ for the return which depends on our predictions of variables like inflation, and surprises in these variables will cause the actual returns to dev, expected value
+
+---
+
+## Macroeconomic factor models
+
+In this model, the variable $a_i$ is the expected return, and the factors are <i>surprises</i> (actual value minus expected value) in macroeconomic variables. That is, we have some prediction $a_i$ for the return which depends on our predictions of variables like inflation, and surprises in these variables will cause the actual returns to deviate from the expectation. So, the actual return is broken down into the expected return, unexpected return resulting from unexpected changes in the factors, and an error term. If we take the expected value of both sides, we get $a_i$, since by definition $F_j$ and $\epsilon_i$ have expected value 0:
+
+\begin{align}
+E(R_i) &= E(a_i + b_{i1} F_1 + b_{i2} F_2 + \ldots + b_{iK} F_K + \epsilon_i) \\
+&= E(a_i) + E(b_{i1} F_1) + E(b_{i2} F_2) + \ldots + E(b_{iK} F_K) + E(\epsilon_i) \\
+&= a_i + b_{i1} E(F_1) + b_{i2} E(F_2) + \ldots + b_{iK} E(F_K) + 0 \\
+a_i &= a_i + 0 + 0 + \ldots + 0 + 0
+\end{align}
+
+We use a regression to calculate the coefficients $b_{ij}$ (one regression for each asset $i$, using historical data). The meanings of these factor sensitivities are the same as in any linear regression: we predict that every unit of surprise in variable $j$, which is an increase of $F_j$ by one unit, will cause an increase of $b_{ik}$ in the returns of stock $i$, assuming that the other factors are held constant.

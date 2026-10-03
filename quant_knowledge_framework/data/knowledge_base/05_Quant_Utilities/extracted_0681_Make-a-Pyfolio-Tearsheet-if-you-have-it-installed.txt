@@ -1,0 +1,803 @@
+# Make a Pyfolio Tearsheet if you have it installed
+
+Topic: 05_Quant_Utilities
+Confidence: 0.44
+Keywords: numpy, normalize, python, pandas
+
+---
+
+## Make a Pyfolio Tearsheet if you have it installed
+
+### Run the Zipline algo over the entire date range, then we'll highlight the Out-of-sample period within Pyfolio
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+"""
+    This cell is for importing all our necessary libraries
+"""
+%matplotlib inline
+import matplotlib
+import numpy as np
+import pandas as pd
+import talib
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+from collections import OrderedDict
+from collections import defaultdict
+import itertools
+
+import zipline
+from zipline.utils.factory import load_bars_from_yahoo
+
+try:
+    import pyfolio as pf
+except ImportError:
+    print('Pyfolio not installed. Pyfolio specific plots will not be available in this notebook.')
+    
+try:
+    import creds
+except ImportError:
+    raise ValueError('creds.py not found. Please create it and set user_token, client_token and client_id from https://sigopt.com/user/profile')
+```
+*Cell 2:*
+```python
+#: Get pricing for the same dates in daily mode
+data = load_bars_from_yahoo(stocks=['XLV', 'XLF', 'XLP','XLE', 'XLK', 'XLB', 'XLU', 'XLI','SPY'
+                                    ],
+                            start=pd.Timestamp('2004-01-01', tz='utc'),
+                            end=pd.Timestamp('2010-01-01', tz='utc')
+                           )
+
+data_heldout = load_bars_from_yahoo(stocks=[ 'XLV', 'XLF', 'XLP','XLE', 'XLK', 'XLB', 'XLU', 'XLI', 'SPY'
+                                            ],
+                                    start=pd.Timestamp('2010-01-10', tz='utc'),
+                                    end=pd.Timestamp('2016-1-7', tz='utc')
+                                   )
+
+data_all = load_bars_from_yahoo(stocks=[ 'XLV', 'XLF', 'XLP','XLE', 'XLK', 'XLB', 'XLU', 'XLI', 'SPY'
+                                        ],
+                                start=pd.Timestamp('2004-01-01', tz='utc'),
+                                end=pd.Timestamp('2016-1-7', tz='utc')
+                               )
+```
+*Cell 3:*
+```python
+import matplotlib
+import pytz
+from datetime import datetime, timedelta
+import numpy as np
+import pandas as pd
+import talib
+import seaborn as sns
+
+import matplotlib.pyplot as plt
+
+# Zipline imports
+from zipline.utils.factory import load_bars_from_yahoo
+from zipline import TradingAlgorithm
+from zipline.api import (
+    order_target, 
+    record, 
+    symbol,
+    get_datetime, 
+    order_target_percent
+)
+from zipline.api import order_target_percent, record, symbol, symbols, history, add_history
+from collections import OrderedDict
+
+
+def initialize_local_sigopt_rsi_roc(context, signals_input=None, 
+                            rsi_timeperiod=-1, rsi_lower=29, rsi_width=27,
+                            roc_timeperiod=13, roc_lower=0.00, roc_width=2.00, 
+                            rebalance_freq=21, 
+                            max_pos_exp=0.3, min_stocks_for_full_exp=3, 
+                            use_hedge=True, 
+                            debug=False):
+    
+    context.debug = debug
+    context.use_hedge = use_hedge
+    context.rebalance_freq = rebalance_freq
+    
+    context.max_pos_exp = max_pos_exp
+    context.min_stocks_for_full_exp = min_stocks_for_full_exp
+    
+    # A code simplification to make the downstream optimization analysis more straigtforward
+    if rsi_timeperiod > 0:
+        context.signals = OrderedDict([
+                                        ( 'rsi', {'func': talib.RSI, 'func_kwargs': {'timeperiod': rsi_timeperiod}, 
+                                                       'lower': rsi_lower,  'width': rsi_width} ),
+                                        ( 'roc', {'func': talib.ROCP, 'func_kwargs': {'timeperiod': roc_timeperiod }, 
+                                                       'lower': roc_lower, 'width': roc_width, } )
+                                    ])
+    else:
+        if signals_input is None:
+            context.signals = signals
+        else:
+            context.signals = signals_input
+    
+    print "rebal freq: " + str(context.rebalance_freq)
+    print context.signals
+    
+    context.max_timeperiod = 0
+    for signal_name in context.signals.keys():
+        timeperiod = context.signals[signal_name]['func_kwargs']['timeperiod']
+        if timeperiod > context.max_timeperiod:
+            context.max_timeperiod = timeperiod
+    context.max_timeperiod+=2
+    
+    add_history(context.max_timeperiod, '1d', 'price')
+    
+    # Declare the stocks we want to trade
+    context.stocks = symbols('XLV', 'XLF', 'XLP','XLE', 'XLK', 'XLB', 'XLU', 'XLI')
+    if context.debug: print "(symbol,sid)" + str( [ (i.symbol, i.sid) for i in context.stocks ] )
+        
+    if context.use_hedge:
+        context.hedge = symbol('SPY')
+    
+    context.i = 0
+
+    
+def handle_data_local_sigopt_rsi_roc(context, data):
+    """
+    handle_data() is what will be called in every iteration of our algorithm. So every bar we run, will end up running
+    handle_data(). This is where orders should be placed
+    """
+    # Skip first N days to get full/valid windows of data for history() below
+    context.i += 1
+    if context.i < (context.max_timeperiod + 5):
+        return
+    
+    # only run logic every N trading days
+    if (context.i % context.rebalance_freq) > 0:
+        return
+    
+    if context.debug:
+        pv = context.portfolio.portfolio_value
+        port_exp = context.portfolio.positions_value
+        print "port value= " + str(pv)
+        print " port net $ exposure= " + str(port_exp)
+        print "leverage= " + str( context.account.leverage )
+        print "current port:" + str( context.portfolio.positions.keys() )
+
+    max_history = history(context.max_timeperiod, '1d', 'price')
+    
+    stocks_to_hold = []
+    stocks_to_not_hold = []
+    
+    for stock in context.stocks:
+        #print stock.symbol
+        close_prices = max_history[stock].values
+        
+        trade_ok = False
+        for signal_name in context.signals.keys():
+            signal_kwargs = context.signals[signal_name]['func_kwargs']
+            signal_func = context.signals[signal_name]['func']
+
+            signal_output_ts = signal_func(close_prices, **signal_kwargs)
+            signal_output = signal_output_ts[-1]
+
+            lower_bound = context.signals[signal_name]['lower']
+            upper_bound = lower_bound + context.signals[signal_name]['width']
+            
+            if lower_bound > upper_bound:
+                temp_bound = upper_bound
+                upper_bound = lower_bound
+                lower_bound = temp_bound
+            
+            if signal_output > lower_bound and signal_output < upper_bound:
+                trade_ok = True
+            else:
+                trade_ok = False
+                break
+        
+        if trade_ok:
+            stocks_to_hold.append(stock)
+        else:
+            stocks_to_not_hold.append(stock)
+    
+    if context.debug: print "stock to hold: " + str( [ (i.symbol, i.sid) for i in stocks_to_hold ] )
+    if context.debug: print "stock to NOT hold: " + str( [ (i.symbol, i.sid) for i in stocks_to_not_hold ] )
+    
+    for stock in stocks_to_not_hold:
+        order_target_percent(stock, 0.0)
+        if context.debug: print str(max_history.index[-1]) + " " + stock.symbol + "," + str(stock.sid) + " Exposure %: 0.0 "
+        
+    for stock in stocks_to_hold:
+        if len(stocks_to_hold) >= context.min_stocks_for_full_exp:
+            exposure = 1.0 / len(stocks_to_hold)
+        else:
+            exposure = context.max_pos_exp    
+        order_target_percent(stock, exposure)
+        if context.debug: print str(max_history.index[-1]) + ' ** Entry: ' + stock.symbol + "," + str(stock.sid) + " Exposure %: " +  str(exposure) + " total stocks:" + str(len(stocks_to_hold))
+        
+    if context.use_hedge:
+        if len(stocks_to_hold) > 0:
+            hedge_exposure = -1.0 * exposure * len(stocks_to_hold)
+        else:
+            hedge_exposure = 0.0
+        order_target_percent(context.hedge, hedge_exposure)
+        if context.debug: print str(max_history.index[-1]) + ' ** HEDGE: ' + context.hedge.symbol + "," + str(context.hedge.sid) + " Exposure %: " + str(hedge_exposure) + " total stocks:" + str(len(stocks_to_hold))
+            
+```
+*Cell 4:*
+```python
+# this just declares the 'signals' variable and populates with some dummy values
+signals = OrderedDict([
+    ( 'rsi', {'func': talib.RSI, 'func_kwargs': {'timeperiod': 20}, 
+                   'lower': 70,  'width': 20} ),
+    ( 'roc', {'func': talib.ROCP, 'func_kwargs': {'timeperiod': 5 }, 
+                   'lower': 0.70, 'width': 0.20} )
+    
+    
+    ])
+
+# This defines all the ta-lib signal hyperparameters used in the grid-search
+# Same idea as the signal definition above, just in the format required for the grid-search
+hypers = OrderedDict([
+    ( 'rsi', {'timeperiod': {'min': 5, 'max': 100,  'step': 30},
+                   'lower':      {'min': 10,  'max': 91,  'step': 30 }, 
+                   'width':      {'min': 10, 'max': 31, 'step': 10}} ), 
+        
+    ( 'roc', {'timeperiod': {'min': 2,  'max': 64,   'step': 20},
+                   'lower':      {'min': 0.01,  'max': 0.31,   'step': 0.10},
+                   'width':      {'min': 0.05, 'max': 1.06,  'step': 0.30}} ) 
+    
+    ])
+
+```
+*Cell 5:*
+```python
+# pre-compute all realistic combos defined in 'hypers'
+count = 0
+
+all_combos = OrderedDict()
+for combo in hypers:
+    all_combos[combo] = []
+
+for combo in hypers:
+    print combo
+    
+    timeperiod_min = hypers[combo]['timeperiod']['min']
+    timeperiod_max = hypers[combo]['timeperiod']['max']
+    timeperiod_step = hypers[combo]['timeperiod']['step']
+    
+    lower_min = hypers[combo]['lower']['min']
+    lower_max = hypers[combo]['lower']['max']
+    lower_step = hypers[combo]['lower']['step']
+    
+    print type(lower_step)
+    
+    width_min = hypers[combo]['width']['min']
+    width_max = hypers[combo]['width']['max']
+    width_step = hypers[combo]['width']['step']
+    
+    for timeperiod in range(timeperiod_min, timeperiod_max, timeperiod_step):
+        
+        if isinstance(lower_min, float):
+            t_lower_min = int(lower_min * 100)
+            t_lower_max = int(lower_max * 100)
+            t_lower_step = int(lower_step * 100)
+            
+            t_width_min = int(width_min * 100)
+            t_width_max = int(width_max * 100)
+            t_width_step = int(width_step * 100)
+        else:
+            t_lower_min = lower_min
+            t_lower_max = lower_max
+            t_lower_step = lower_step
+            
+            t_width_min = width_min
+            t_width_max = width_max
+            t_width_step = width_step
+            
+        for lower in range(t_lower_min, t_lower_max, t_lower_step):    
+        
+            for width in range(t_width_min, t_width_max, t_width_step):
+                signals[combo]['func_kwargs']['timeperiod'] = timeperiod
+                
+                if isinstance(lower_min, float):
+                    signals[combo]['lower'] = lower / 100.0
+                    signals[combo]['width'] = width / 100.0
+                    combo_tup = (timeperiod, lower / 100.0, width / 100.0)
+                else:
+                    signals[combo]['lower'] = lower
+                    signals[combo]['width'] = width
+                    combo_tup = (timeperiod, lower, width)
+                
+                all_combos[combo].append( combo_tup )
+
+                count += 1
+                                      
+print count           
+```
+*Cell 6:*
+```python
+# only test 5-day and 15-day rebalance frequency, rather than all days from 3-days to 21-days
+all_combos['rebal'] = [5, 15]
+all_combos['rebal']
+```
+*Cell 7:*
+```python
+# Print out total # of parameters that we'll test in our grid-search
+count = 0
+for i in itertools.product(*all_combos.values()):
+    count = count + 1
+print count
+```
+*Cell 8:*
+```python
+# Run this cell if you want to print out and view every parameter combination
+print len(list(itertools.product(*all_combos.values())) )
+list(itertools.product(*all_combos.values()))
+```
+*Cell 9:*
+```python
+# This runs the grid-search 
+# WARNING: It will take approx 48 hours if run over ~3500 combinations! (on a Macbook Air)
+
+all_combos_list = list( itertools.product(*all_combos.values()) )
+print "Total combos:  " + str( len(all_combos_list) )
+print hypers.keys()
+
+all_results = {}
+count = 0
+
+for combo in all_combos_list:
+    for signal_i in range(0, len(combo)-1):
+        signal_name = hypers.keys()[signal_i]
+        signals[signal_name]['func_kwargs']['timeperiod'] = combo[signal_i][0]
+        signals[signal_name]['lower'] = combo[signal_i][1]
+        signals[signal_name]['width'] = combo[signal_i][2]
+    
+    temp_rebal = combo[-1]
+    input_params = {}
+    input_params['rebalance_freq'] = temp_rebal
+    input_params['signals_input'] = signals
+    
+    algo_obj = zipline.TradingAlgorithm(
+        initialize=initialize_local_sigopt_rsi_roc, 
+        handle_data=handle_data_local_sigopt_rsi_roc,
+        **input_params
+    )
+
+    # Run algorithm
+    perf_manual = algo_obj.run(data)
+    perf_manual.index = perf_manual.index.normalize()
+    if perf_manual.index.tzinfo is None:
+        perf_manual.index = perf_manual.index.tz_localize('UTC')
+    returns = perf_manual.returns
+    returns_stats = pf.timeseries.perf_stats(returns)
+    all_results[combo] = returns_stats
+    
+    print str(count) + ":  " + str(combo) + "  Sharpe: " + str(returns_stats.sharpe_ratio) + "  %_return: " + str(returns_stats.annual_return)
+    
+    count += 1
+    
+```
+*Cell 10:*
+```python
+# Confirm how many results were computed in the grid-search
+len(all_results)
+```
+*Cell 11:*
+```python
+# Get a look at the structure of the grid-search results
+all_results_df = pd.DataFrame(all_results)
+all_results_df.head()
+```
+*Cell 12:*
+```python
+# Transponse the dataframe. 
+# Makes it easier to manipulate after saving to CSV and opening in Excel
+
+all_results_df_T = pd.DataFrame(all_results).T
+all_results_df_T.head()
+```
+*Cell 13:*
+```python
+# Save results to a csv
+all_results_df_T.to_csv('grid_search_all_results_export_T.csv')
+```
+*Cell 14:*
+```python
+# Pickle results
+pd.to_pickle(all_results_df, 'grid_search_all_results_pickle.pkl')
+```
+*Cell 15:*
+```python
+# If you previously exported a CSV of your grid-search results
+# you can read the results in like this. 
+# After I exported to CSV I took the liberty to break out all the parameters into seperate columns
+# and then resaved as a cleaner looking CSV
+
+grid_df = pd.read_csv('grid_search_all_results_with_labels.csv')
+```
+*Cell 16:*
+```python
+grid_df.head()
+```
+*Cell 17:*
+```python
+grid_df.value.hist()
+plt.axvline(np.mean(grid_df.value), color="orange", alpha=0.8, ls='--', lw=3, label='mean')
+plt.axvline(0.0, color="black", alpha=0.8, ls='--', label='0.0')
+plt.legend()
+```
+*Cell 18:*
+```python
+_=grid_df.hist(figsize=(17,10))
+```
+*Cell 19:*
+```python
+# Specify the values of the best parameter combo in the signals dict, and rebalance frequency
+
+input_params = {}
+
+input_params['rebalance_freq'] = 5
+
+signals = OrderedDict([
+    ( 'rsi', {'func': talib.RSI, 'func_kwargs': {'timeperiod': 5}, 
+                   'lower': 40,  'width': 10} ),
+    ( 'roc', {'func': talib.ROCP, 'func_kwargs': {'timeperiod': 42 }, 
+                   'lower': 0.01, 'width': 0.05} )  
+    ])
+
+input_params['signals_input'] = signals
+```
+*Cell 20:*
+```python
+algo_obj = zipline.TradingAlgorithm(
+    initialize=initialize_local_sigopt_rsi_roc,
+    handle_data=handle_data_local_sigopt_rsi_roc,
+    **input_params
+)
+
+# Run algorithm using the training data
+perf_manual = algo_obj.run(data)
+```
+*Cell 21:*
+```python
+daily_rets = perf_manual.portfolio_value.pct_change().dropna()
+sharpe_ratio_rets = daily_rets.mean() / daily_rets.std() * np.sqrt(252)
+print sharpe_ratio_rets
+
+perf_manual.portfolio_value.plot()
+```
+*Cell 22:*
+```python
+# Run algorithm using the training data
+perf_manual = algo_obj.run(data_heldout)
+
+daily_rets = perf_manual.portfolio_value.pct_change().dropna()
+sharpe_ratio_rets = daily_rets.mean() / daily_rets.std() * np.sqrt(252)
+print sharpe_ratio_rets
+
+perf_manual.portfolio_value.plot()
+```
+*Cell 23:*
+```python
+
+```
+*Cell 24:*
+```python
+def run_sigopt_local_rsi_roc(samples=50, experiment_id=None,
+                    client_token=None, **algo_descr):
+
+    import sigopt.interface
+
+    if client_token is None:
+        raise ValueError('No sigopt credentials passed, find them at https://sigopt.com/user/profile')
+
+    conn = sigopt.interface.Connection(client_token=client_token)
+
+    if experiment_id != None:
+        experiment = conn.experiments(experiment_id).fetch()
+    else:
+        experiment = conn.experiments().create(
+            name='Educational Platform_POC_talib_5_hedge_width',
+            parameters=[
+                {
+                    'name': 'rsi_timeperiod',
+                    'type': 'int',
+                    'bounds': { 'min': 5, 'max': 126 }
+                },
+                {
+                    'name': 'rsi_lower',
+                    'type': 'int',
+                    'bounds': { 'min': 0, 'max': 90 }
+                },
+                {
+                    'name': 'rsi_width',
+                    'type': 'int',
+                    'bounds': { 'min': 10, 'max': 30 }
+                },
+                {
+                    'name': 'roc_timeperiod',
+                    'type': 'int',
+                    'bounds': { 'min': 2, 'max': 63 }
+                },
+                {
+                    'name': 'roc_lower',
+                    'type': 'double',
+                    'bounds': { 'min': 0.00, 'max': 0.30 }
+                },
+                {
+                    'name': 'roc_width',
+                    'type': 'double',
+                    'bounds': { 'min': 0.05, 'max': 2.00 }
+                },
+                {
+                    'name': 'rebalance_freq',
+                    'type': 'int',
+                    'bounds': { 'min': 3, 'max': 21 }
+                },
+            ],
+        )
+
+    for trial in range(samples):
+        print("running trial: {0}".format(trial))
+        suggestion = conn.experiments(experiment.id).suggestions().create()
+
+        # Run the Zipline Algo with the SigOpt suggestion
+        params_sugg = suggestion.assignments.to_json()
+        print params_sugg
+        
+        signals = OrderedDict([
+            ( 'rsi', {'func': talib.RSI, 'func_kwargs': {'timeperiod': params_sugg['rsi_timeperiod'] }, 
+                           'lower': params_sugg['rsi_lower'],  'width': params_sugg['rsi_width']} ),
+            ( 'roc', {'func': talib.ROCP, 'func_kwargs': {'timeperiod': params_sugg['roc_timeperiod'] }, 
+                           'lower': params_sugg['roc_lower'], 'width': params_sugg['roc_width']} )  
+            ])
+        
+        params_sugg['signals_input'] = signals
+        algo_run = TradingAlgorithm(initialize=initialize_local_sigopt_rsi_roc, 
+                                    handle_data=handle_data_local_sigopt_rsi_roc,
+                                    **params_sugg
+                                    )
+        
+        perf = algo_run.run(data)
+        daily_rets = perf.portfolio_value.pct_change().dropna()
+        
+        if daily_rets.std() > 0:
+            sharpe_ratio_calc = daily_rets.mean() / daily_rets.std() * np.sqrt(252)
+        else:
+            sharpe_ratio_calc = -999
+        obj = sharpe_ratio_calc
+        print obj      
+
+        if obj < -900:
+            print "*** Flagging as failed"
+            conn.experiments(experiment.id).observations().create(
+              assignments=suggestion.assignments,
+              failed=True,
+            )
+        else:
+            conn.experiments(experiment.id).observations().create(
+              assignments=suggestion.assignments,
+              value=obj,
+            )
+
+    exp_hist = conn.experiments(experiment.id).observations().fetch()
+    exp_data = exp_hist.to_json()['data']
+    exp_data.reverse() # start at the beginning
+
+    # load up dataframe
+    from collections import defaultdict
+    sigopt_df_dict = defaultdict(list)
+    for data_point in exp_data:
+        for k, v in data_point['assignments'].iteritems():
+            sigopt_df_dict[k].append(v)
+
+        try:
+            sigopt_df_dict['failed'].append(data_point['failed'])
+        except:
+            sigopt_df_dict['failed'].append(False)
+
+        try:
+            sigopt_df_dict['objective'].append(data_point['value'])
+        except:
+            sigopt_df_dict['objective'].append(-999)
+
+    sigopt_df = pd.DataFrame(sigopt_df_dict)
+
+    return sigopt_df
+```
+*Cell 25:*
+```python
+sigopt_df = run_sigopt_local_rsi_roc(samples=300,
+                             experiment_id=None,
+                             user_token=creds.user_token, 
+                             client_token=creds.client_token, 
+                             client_id=creds.client_id 
+                            )
+```
+*Cell 26:*
+```python
+sigopt_df.sort('objective', ascending=False).head()
+```
+*Cell 27:*
+```python
+# If you exported a CSV of your SigOpt results from your account page on the SigOpt website,
+# you can read the results in like this. 
+# To make it 'pandas friendly' you might want to replace 'None' with 'NA' prior to reading it in
+
+sigopt_df = pd.read_csv('SigOpt_Experiment_good_2.csv')
+```
+*Cell 28:*
+```python
+sigopt_df.head()
+```
+*Cell 29:*
+```python
+sigopt_df.sort('value', ascending=False).head(10)
+```
+*Cell 30:*
+```python
+_=sigopt_df.hist(figsize=(17,10))
+```
+*Cell 31:*
+```python
+g = sns.PairGrid(sigopt_df, diag_sharey=False)
+g.map_lower(plt.scatter, cmap="Blues_d")
+g.map_upper(sns.kdeplot, shade=True, bw='silverman', shade_lowest=False)
+g.map_diag(sns.kdeplot, lw=3)
+```
+*Cell 32:*
+```python
+# Specify the values of the best parameter combo in the signals dict, and rebalance frequency
+# These values were pulled from the SigOpt export CSV
+# filename: SigOpt_Experiment_good_2.csv 
+
+input_params = {}
+
+input_params['rebalance_freq'] = 12
+
+signals = OrderedDict([
+    ( 'rsi', {'func': talib.RSI, 'func_kwargs': {'timeperiod': 33 }, 
+                   'lower': 44,  'width': 16} ),
+    ( 'roc', {'func': talib.ROCP, 'func_kwargs': {'timeperiod': 54 }, 
+                   'lower': 0.0, 'width': 0.534} )  
+    ])
+
+input_params['signals_input'] = signals
+```
+*Cell 33:*
+```python
+algo_obj = zipline.TradingAlgorithm(
+    initialize=initialize_local_sigopt_rsi_roc,
+    handle_data=handle_data_local_sigopt_rsi_roc,
+    **input_params
+)
+
+# Run algorithm using the training data
+perf_manual = algo_obj.run(data)
+```
+*Cell 34:*
+```python
+daily_rets = perf_manual.portfolio_value.pct_change().dropna()
+sharpe_ratio_rets = daily_rets.mean() / daily_rets.std() * np.sqrt(252)
+print sharpe_ratio_rets
+
+perf_manual.portfolio_value.plot()
+```
+*Cell 35:*
+```python
+# Run algorithm using the heldout, out-of-sample data
+perf_manual = algo_obj.run(data_heldout)
+
+daily_rets = perf_manual.portfolio_value.pct_change().dropna()
+sharpe_ratio_rets = daily_rets.mean() / daily_rets.std() * np.sqrt(252)
+print sharpe_ratio_rets
+
+perf_manual.portfolio_value.plot()
+```
+*Cell 36:*
+```python
+plt.figure(figsize=(10,6));
+plt.title("Grid Search vs. SigOpt: Values Returned for Objective Function by Iteration");
+plt.plot(grid_df.value.values, alpha=0.5, color='forestgreen', label='grid search', marker='o', linestyle='')
+plt.plot(sigopt_df.value.values, alpha=0.7, color='steelblue', label='SigOpt', marker='o', linestyle='')
+plt.tight_layout()
+plt.legend()
+plt.xlabel("Iteration")
+plt.ylabel("Objective Function Value")
+plt.savefig('SigOpt_vs_GridSearch_time_comparison.png', dpi=300)
+```
+*Cell 37:*
+```python
+plt.figure(figsize=(10,6));
+plt.title("SigOpt: Each Trial Value and Max Value over time");
+plt.plot(sigopt_df.value, alpha=0.7, color='steelblue', label='SigOpt', marker='o', linestyle='')
+np.maximum.accumulate(sigopt_df.value.fillna(0)).plot(lw=3.5)
+plt.tight_layout()
+plt.xlabel("Iteration")
+plt.ylabel("Objective Function Value")
+plt.savefig('SigOpt_max_over_time.png', dpi=300)
+```
+*Cell 38:*
+```python
+plt.figure(figsize=(10,6));
+plt.title("Grid Search VS SigOpt: Sorted Values Returned for Objective Function");
+plt.plot(np.sort(grid_df.fillna(0.0).value), color='forestgreen', lw=3, marker='o', ls='')
+plt.plot(np.sort(sigopt_df.value), color='steelblue', lw=3, marker='o', ls='')
+plt.tight_layout()
+plt.legend()
+plt.ylabel("Objective Function Value")
+plt.savefig('SigOpt_vs_GridSearch_sorted_value_comparison.png', dpi=300)
+```
+*Cell 39:*
+```python
+plt.figure(figsize=(15,6));
+gs = plt.GridSpec(1,2);
+plt.subplot(gs[0]);
+sns.distplot(grid_df.value.dropna())
+plt.axvline(0.0,c='k',ls='--')
+plt.axvline(np.mean(grid_df.value),c='orange',ls='--', lw=3, label='mean')
+plt.legend()
+plt.title("Grid Search");
+
+plt.subplot(gs[1]);
+sns.distplot(sigopt_df.value.dropna())
+plt.axvline(0.0,c='k',ls='--')
+plt.axvline(np.mean(sigopt_df.value),c='orange',ls='--', lw=3, label='mean')
+plt.legend()
+plt.title("SigOpt");
+```
+*Cell 40:*
+```python
+# Specify the values of the best parameter combo in the signals dict, and rebalance frequency
+# These values were pulled from the SigOpt export CSV
+# filename: SigOpt_Experiment_good_2.csv 
+
+input_params = {}
+
+input_params['rebalance_freq'] = 12
+
+signals = OrderedDict([
+    ( 'rsi', {'func': talib.RSI, 'func_kwargs': {'timeperiod': 33 }, 
+                   'lower': 44,  'width': 16} ),
+    ( 'roc', {'func': talib.ROCP, 'func_kwargs': {'timeperiod': 54 }, 
+                   'lower': 0.0, 'width': 0.534} )  
+    ])
+
+input_params['signals_input'] = signals
+
+algo_obj = zipline.TradingAlgorithm(
+    initialize=initialize_local_sigopt_rsi_roc,
+    handle_data=handle_data_local_sigopt_rsi_roc,
+    **input_params
+)
+
+perf_manual = algo_obj.run(data_all)
+
+# First need to normalize, and localize all the timestamps
+perf_manual.index = perf_manual.index.normalize()
+if perf_manual.index.tzinfo is None:
+    perf_manual.index = perf_manual.index.tz_localize('UTC')
+returns = perf_manual.returns
+
+```
+*Cell 41:*
+```python
+# Render the tearsheet
+pf.create_returns_tear_sheet(returns, live_start_date='01-10-2010')
+```
+*Cell 42:*
+```python
+
+```
+
+#### Category: Data Examples
+##### Accern: Alpha One
+- **Original Path**: `notebooks\data\accern.alphaone\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 24 (Code: 15, Markdown: 9)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.algorithm import attach_pipeline, pipeline_output, from educational_platform.interactive.data.accern import alphaone_free as dataset, from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.accern import alphaone_free, from educational_platform.pipeline.factors import AverageDollarVolume, from educational_platform.research import run_pipeline, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Accern: Alpha One
+
+In this notebook, we'll take a look at Accern's *Alpha One* dataset, available on [Educational Platform](https://www.educational_platform.com/store). This dataset spans August 26, 2012 through the current day. It contains comprehensive sentiment analysis related to equities from 20 million+ sources.

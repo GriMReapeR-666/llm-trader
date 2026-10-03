@@ -1,0 +1,32 @@
+# a. Hypothesis testing on Means.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Hypothesis testing on Means.
+- State the hypothesis tests for comparing two means
+- Find the test statistic along with the degrees of freedom for the following two assets. Assume variance is different (We assume XLF to be a safer buy than GS. 
+- Use the [t-table](https://en.wikipedia.org/wiki/Student%27s_t-distribution#Table_of_selected_values) to conclude about your hypothesis test. *Pick $\alpha = 10\%$*
+
+######Useful Formulas: 
+$$ t = \frac{\bar{X}_1 - \bar{X}_2}{(\frac{s_p^2}{n_1} + \frac{s_p^2}{n_2})^{1/2}}$$
+$$ t = \frac{\bar{X}_1 - \bar{X}_2}{(\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2})^{1/2}}$$
+$$df = \frac{(\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2})^2}{(s_1^2/n_1)^2/(n_1-1) + (s_2^2/n_2)^2/(n_2-1)}$$
+
+*note: one formula for t involves equal variance, the other does not. Use the right one given the information above*
+
+
+-----------------
+
+Answer: 
+<center>
+Hypothesis Tests when comparing two means: 
+$$1. H_0: \mu_1 - \mu_2 = \theta_0, \ H_A: \mu_1 - \mu_2 \neq \theta_0$$
+$$2. H_0: \mu_1 - \mu_2 \leq \theta_0, \ H_A: \mu_1 - \mu_2 > \theta_0$$
+$$3. H_0: \mu_1 - \mu_2 \geq \theta_0, \ H_A: \mu_1 - \mu_2 < \theta_0$$
+</center>
+
+With a confidence level of 90%, our test statistic belongs to the range -1.645, 1.645. Since our test statistic is above these values we **accept** the null hypothesis and determine that the difference between XLF and MCD returns **is** significantly different from $0$.

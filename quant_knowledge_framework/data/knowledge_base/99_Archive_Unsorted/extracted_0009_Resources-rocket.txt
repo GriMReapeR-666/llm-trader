@@ -1,0 +1,24 @@
+# **Resources** :rocket:
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Resources** :rocket:
+
+This section contains resources which I've composed myself and some others which I have used when I learnt memory forensics. I hope this resources will help everyone in not only solving these labs but also in exploring more areas in memory forensics.
+
++ [**Basics of Memory Forensics**](https://stuxnet999.github.io/volatility/2020/08/18/Basics-of-Memory-Forensics.html)
++ [**Volatility Windows Command Reference**](https://github.com/volatilityfoundation/volatility/wiki/Command-Reference)
++ [**Sans DFIR Memory Forensics cheat sheet**](https://digital-forensics.sans.org/media/volatility-memory-forensics-cheat-sheet.pdf)
+
+If you're interested to play more CTFs or want to try more challenges,
++ [**AboutDFIR - Challenges & CTFs**](https://aboutdfir.com/education/challenges-ctfs/)
++ [**CTFtime.org**](https://ctftime.org/)
+
+If you are interested in knowing how to write plugins for Volatility framework,
+
++ https://stuxnet999.github.io/volatility/2020/07/04/Writing-Plugins-Volatility.html
++ https://stuxnet999.github.io/volatility/2020/08/08/Writing-Plugins-Volatility-Part2.html

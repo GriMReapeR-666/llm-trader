@@ -1,0 +1,11 @@
+# Visualizing Confidence Intervals
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Visualizing Confidence Intervals
+
+Here is some code to visualize a confidence interval on a graph. Feel free to play around with it.

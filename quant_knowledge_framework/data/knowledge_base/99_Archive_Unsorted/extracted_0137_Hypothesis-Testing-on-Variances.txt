@@ -1,0 +1,56 @@
+# Hypothesis Testing on Variances
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Hypothesis Testing on Variances
+
+If we want to test the variances of populations, we need to use a different distribution from the $t$ and $z$ distributions. Variances must by definition be greater than (or equal to) $0$ and fact that the distributions we have worked with up until now allow negative values makes them unviable as testing distributions. Risk is quantified in terms of standard deviations and variances so this method of hypothesis testing is a handy addition to our financial toolbox.
+
+Instead of $t$ and $z$-distributions, we will be working with $\chi^2$ distributions for single variance tests and $F$ distributions for comparisons of variance. These distributions are bounded below by $0$, making them viable for testing in this manner.
+
+Just like with all of our other hypothesis tests, tests of a single variance can take on three forms:
+
+1. $H_0: \sigma^2 = \sigma_0^2, \ H_A: \sigma^2 \neq \sigma_0^2$
+2. $H_0: \sigma^2 \leq \sigma_0^2, \ H_A: \sigma^2 > \sigma_0^2$
+3. $H_0: \sigma^2 \geq \sigma_0^2, \ H_A: \sigma^2 < \sigma_0^2$
+
+The $\chi^2$ distribution is a family of functions with each different formulation determined by the number of degrees of freedom. The shape of the distribution is different for every different value of the number of degrees of freedom, $k$.
+
+We calculate the $\chi^2$ test statistic as:
+
+$$ \chi^2 = \frac{(n - 1)s^2}{\sigma_0^2} $$
+
+Where $s^2$ is the sample variance and $n$ is the size of the dataset. The number of degrees of freedom is $n - 1$ and this is used in conjunction with the test statistic to determine the critical value(s) of our $\chi^2$ hypothesis test.
+
+Now we will use a $\chi^2$-test to test the value of the variance of Microsoft stock. Let's say that we want to use $\alpha = 0.01$ to test whether the variance of MSFT is less than or equal to $0.0001$ (that the standard deviation, or risk, is less than or equal to $0.01$).
+
+$$ H_0: \sigma^2 \leq 0.0001, \ H_A: \sigma^2 > 0.0001 $$
+
+So now we calculate our test statistic:
+
+Because we are using the 'less than or equal to' formulation of a one-sided hypothesis test, we reject the null hypothesis if our test statistic is greater than the critical value. Since $805.372 > 304.940$, we **reject** the null hypothesis in favor of the alternative and assert that $\sigma^2 > 0.0001$.
+
+### Comparing  Two Variances
+
+We can compare the variances of two separate things using the $F$ distribution. When constructing a comparison of 
+variances using an $F$-test, the hypothesis formulations are (in case you don't feel like scrolling up):
+
+1. $H_0: \sigma_1^2 = \sigma_2^2, \ H_A: \sigma_1^2 \neq \sigma_2^2$
+2. $H_0: \sigma_1^2 \leq \sigma_2^2, \ H_A: \sigma_1^2 > \sigma_2^2$
+3. $H_0: \sigma_1^2 \geq \sigma_2^2, \ H_A: \sigma_1^2 < \sigma_2^2$
+
+The $F$ distribution is similar to the $\chi^2$ distribution in that it is asymmetrical and bounded below by $0$. The $F$ distribution is defined with two different values of degrees of freedom. For the purposes of hypothesis testing, each one correlates to one of the factors that we are comparing. An $F$ distribution can be constructed from two separate $\chi^2$ distributions. $X$ is a $F$ random variable if it can be written as $X = \frac{Y_1/d_1}{Y_2/d_2}$, where $Y_1$ and $Y_2$ are $\chi^2$ random variables with degrees of freedom $d_1$ and $d_2$, respectively.
+
+The an $F$ random variable is essentially a ratio of variances. Consequently, constructing the $F$ test statistic is done by taking the ratio of the sample variances of the data that we want to test. We can simply choose $\sigma_1^2$ and $\sigma_2^2$ to represent either of the variances that we are comparing in order so that our F-statistic is greater than $1$. 
+
+$$ F = \frac{s_1^2}{s_2^2} $$
+
+Let's compare SPY and AAPL to see whether their variances are the same (a 'not equal to' hypothesis test). We will use a $\alpha = 0.05$ test. Recall that for a two-sided test, we calculate the lower and upper critical values using values of $\alpha/2$. We gather the data and calculate the test statistic.
+
+Note that the standard deviation of AAPL is greater than the standard deviation of SPY. As a result we choose $\sigma_1^2$ to represent the variance of AAPL and $\sigma_2^2$ to represent the variance of SPY.
+
+We see that our F-statistic value is greater than the upper critical value for our F test. Thus we **reject** the null hypothesis in favor of the alternative and conclude that the variances of AAPL and SPY indeed do differ.

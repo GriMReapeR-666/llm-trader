@@ -1,0 +1,35 @@
+# Your code goes here
+
+Topic: 05_Quant_Utilities
+Confidence: 1.00
+Keywords: numpy, pandas
+
+---
+
+## Your code goes here
+
+print "F Test statistic: ", test_statistic
+
+#degree of freedom 
+df1 = ## Your code goes here
+df2 = ## Your code goe here
+print df1
+print df2
+
+# Calculate critical values. 
+from scipy.stats import f
+
+upper_crit_value = f.ppf(0.975, df1, df2)
+lower_crit_value = f.ppf(0.025, df1, df2)
+print 'Upper critical value at a = 0.05 with df1 = {0} and df2 = {1}: '.format(df1, df2), upper_crit_value
+print 'Lower critical value at a = 0.05 with df1 = {0} and df2 = {1}: '.format(df1, df2), lower_crit_value
+```
+
+##### Exercises: Instability of Parameter Estimates - Answer Key
+- **Original Path**: `notebooks\lectures\Instability_of_Estimates\answers\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 22 (Code: 10, Markdown: 12)
+- **Imports/Dependencies**: from statsmodels.stats.stattools import jarque_bera, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Exercises: Instability of Parameter Estimates - Answer Key

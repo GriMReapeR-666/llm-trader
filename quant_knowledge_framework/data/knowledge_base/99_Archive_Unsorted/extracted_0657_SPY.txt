@@ -1,0 +1,15 @@
+# SPY
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## SPY
+
+Similar to DIA, we now look at **SPY**, which tracks the Standard & Poor's 500 Index. At the time of writing, SPY has a market cap of about \$177bn. SPY started trading on `1993-01-29`. Since we have data only from 2002 onwards, we'll start our investigation at `2002-03-03`.
+
+We know (as a prior) that SPY and DIA are quite strongly correlated, and since we know from above that Fed Sentiment and DIA have a strong correspondence, we could expect SPY and Fed Sentiment to correspond quite strongly as well, which, as we can see, is the case. This result is unsurprising, but interesting for the same reasons that the previous result was interesting.
+
+We note the **near-monotonic increase in SPY price since about 2010, reflecting the exceptional bull market during this period**. It is remarkable that SPY has risen in this fashion despite serious swings in Fed Sentiment. The take-away lesson from that is not clear.

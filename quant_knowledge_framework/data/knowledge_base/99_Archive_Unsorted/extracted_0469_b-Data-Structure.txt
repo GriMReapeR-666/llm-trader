@@ -1,0 +1,10 @@
+# b. Data Structure
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Data Structure
+The data is returned to us as a pandas dataframe object. Index your data to convert them into simple strings.

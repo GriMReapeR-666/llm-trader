@@ -1,0 +1,11 @@
+# Goes Both Ways
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Goes Both Ways
+
+Accurately knowing $E(R_i)$ is incredibly difficult, but this model tells us what the expected returns should be if the market is free of arbitrage. This lays the groundwork for strategies based on factor model ranking systems. If you have a model for the expected return of an asset, then you can rank those assets based on their expected performance and use this information to make trades. This creation of a ranking scheme is the hallmark of a [long-short equity strategy](https://www.quantopian.com/lectures/long-short-equity)

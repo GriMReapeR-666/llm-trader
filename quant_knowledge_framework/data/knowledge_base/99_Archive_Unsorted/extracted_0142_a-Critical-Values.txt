@@ -1,0 +1,16 @@
+# a. Critical Values.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Critical Values. 
+Find the critical values associated with $\alpha = 1\%, 5\%, 10\%$ and graph the rejection regions on a plot for a two tailed test. 
+
+Useful formulas: 
+$$ f = 1 - \frac{\alpha}{2} $$ 
+
+In order to find the z-value associated with each f value use the [z-table](http://www.stat.ufl.edu/~athienit/Tables/Ztable.pdf) here.   
+*You can read more about how to read z-tables [here](http://www.dummies.com/education/math/statistics/how-to-find-probabilities-for-z-with-the-z-table/)*

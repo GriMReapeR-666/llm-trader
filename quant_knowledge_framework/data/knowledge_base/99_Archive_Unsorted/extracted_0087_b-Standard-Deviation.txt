@@ -1,0 +1,11 @@
+# b. Standard Deviation
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Standard Deviation
+
+Determine standard deviation of the sample.

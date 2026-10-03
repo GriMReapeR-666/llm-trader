@@ -1,0 +1,10 @@
+# a. Visualizing Confidence Intervals
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Visualizing Confidence Intervals 
+Using the lecture series and the seaborn library, plot the regression line between the parameters and the $95\%$ confidence interval.

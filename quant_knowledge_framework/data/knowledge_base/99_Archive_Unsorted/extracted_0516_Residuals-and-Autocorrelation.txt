@@ -1,0 +1,29 @@
+# Residuals and Autocorrelation
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Residuals and Autocorrelation
+
+Another assumption behind linear regressions is that the residuals are not autocorrelated. A series is autocorrelated when it is correlated with a delayed version of itself. An example of a potentially autocorrelated time series series would be daily high temperatures. Today's temperature gives you information on tomorrow's temperature with reasonable confidence (i.e. if it is 90 °F today, you can be very confident that it will not be below freezing tomorrow). A series of fair die rolls, however, would not be autocorrelated as seeing one roll gives you no information on what the next might be. Each roll is independent of the last.
+
+In finance, stock prices are usually autocorrelated while stock returns are independent from one day to the next. We represent a time dependency on previous values like so:
+
+$$Y_i = Y_{i-1} + \epsilon$$
+
+If the residuals of a model are autocorrelated, you will be able to make predictions about adjacent residuals. In the case of $Y$, we know the data will be autocorrelated because we can make predictions based on adjacent residuals being close to one another.
+
+Autocorrelation in the residuals in this example is not explicitly obvious, so our check is more to make absolutely certain.
+
+### Statistical Methods for Detecting Autocorrelation
+
+As with all statistical properties, we require a statistical test to ultimately decide whether there is autocorrelation in our residuals or not. To this end, we use a Ljung-Box test.
+
+A Ljung-Box test is used to detect autocorrelation in a time series. The Ljung-Box test examines autocorrelation at all lag intervals below a specified maximum and returns arrays containing the outputs for every tested lag interval.
+
+Let's use the `acorr_ljungbox` function in `statsmodels` to test for autocorrelation in the residuals of our above model. We use a max lag interval of $10$, and see if any of the lags have significant autocorrelation:
+
+Because the Ljung-Box test yielded a p-value below $0.05$ for at least one lag interval, we can conclude that the residuals of our model are autocorrelated.

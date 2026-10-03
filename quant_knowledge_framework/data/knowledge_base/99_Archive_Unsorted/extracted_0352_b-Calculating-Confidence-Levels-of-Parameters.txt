@@ -1,0 +1,35 @@
+# b. Calculating Confidence Levels of Parameters.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Calculating Confidence Levels of Parameters. 
+Let's directly calculate the $95\%$ confidence intervals of our parameters. The formula for a given parameter is:
+
+$$ CI = \left(\beta - z \cdot \frac{s}{\sqrt{n}}, \beta + z \cdot \frac{s}{\sqrt{n}}\right) $$
+
+Where,  $\beta$ is the coefficient, $z$ is the critical value*(t-statistic required to obtain a probability less than the alpha significance level)*, and $SE_{i,i}$ is the Standard Error Matrix. 
+
+----
+
+# Exercise 3 : $R^2$ Value
+
+$R^2$ is the measure of how closely your data points are to the regression line, and is defined as $$ R^2 = 1 - \frac{\Sigma((y_{predicted} - (y_{actual}))^2)}{\Sigma( y_{predicited} - \frac{\Sigma y_{actual}}{len(y_{actual}})^2} $$ 
+Given the information from exercise 1, calculate the value of $R^2$ manually.
+You can start by expressing f as a function of c from the data obtained from Exercise 1 (these are the predicted values of y). 
+
+Using the values of $y_{predicted}$  and  $y_{actual}$, calculate the squared element by element difference of the two lists, and sum them.
+
+Using the values of $y_{predicted}$ and mean, calculate the mean of the predicted values, along with the difference between $y_{predicted} - mean$. Square the values in the list obtained from the difference and sum them. 
+
+We can now calculate the R-Squared by subtracting one to the ratio of the two sums. 
+
+----
+
+# Exercise 4 : Residuals
+**Defintion : In statistics, the residuals are differences between the predicted values and the actual values**: 
+
+$$e = y - ŷ$$

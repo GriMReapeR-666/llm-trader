@@ -1,0 +1,118 @@
+# References
+
+Topic: 05_Quant_Utilities
+Confidence: 0.40
+Keywords: numpy, python
+
+---
+
+## References
+* "Quantitative Investment Analysis", by DeFusco, McLeavey, Pinto, and Runkle
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Two useful statistical libraries
+import scipy.stats as stats
+import numpy as np
+
+# We'll use these two data sets as examples
+x1 = [1, 2, 2, 3, 4, 5, 5, 7]
+x2 = x1 + [100]
+
+print 'Mean of x1:', sum(x1), '/', len(x1), '=', np.mean(x1)
+print 'Mean of x2:', sum(x2), '/', len(x2), '=', np.mean(x2)
+```
+*Cell 2:*
+```python
+print 'Median of x1:', np.median(x1)
+print 'Median of x2:', np.median(x2)
+```
+*Cell 3:*
+```python
+# Scipy has a built-in mode function, but it will return exactly one value
+# even if two values occur the same number of times, or if no value appears more than once
+print 'One mode of x1:', stats.mode(x1)[0][0]
+
+# So we will write our own
+def mode(l):
+    # Count the number of times each element appears in the list
+    counts = {}
+    for e in l:
+        if e in counts:
+            counts[e] += 1
+        else:
+            counts[e] = 1
+            
+    # Return the elements that appear the most times
+    maxcount = 0
+    modes = {}
+    for (key, value) in counts.items():
+        if value > maxcount:
+            maxcount = value
+            modes = {key}
+        elif value == maxcount:
+            modes.add(key)
+            
+    if maxcount > 1 or len(l) == 1:
+        return list(modes)
+    return 'No mode'
+    
+print 'All of the modes of x1:', mode(x1)
+```
+*Cell 4:*
+```python
+# Get return data for an asset and compute the mode of the data set
+start = '2014-01-01'
+end = '2015-01-01'
+pricing = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:]
+print 'Mode of returns:', mode(returns)
+
+# Since all of the returns are distinct, we use a frequency distribution to get an alternative mode.
+# np.histogram returns the frequency distribution over the bins as well as the endpoints of the bins
+hist, bins = np.histogram(returns, 20) # Break data up into 20 bins
+maxfreq = max(hist)
+# Find all of the bins that are hit with frequency maxfreq, then print the intervals corresponding to them
+print 'Mode of bins:', [(bins[i], bins[i+1]) for i, j in enumerate(hist) if j == maxfreq]
+```
+*Cell 5:*
+```python
+# Use scipy's gmean function to compute the geometric mean
+print 'Geometric mean of x1:', stats.gmean(x1)
+print 'Geometric mean of x2:', stats.gmean(x2)
+```
+*Cell 6:*
+```python
+# Add 1 to every value in the returns array and then compute R_G
+ratios = returns + np.ones(len(returns))
+R_G = stats.gmean(ratios) - 1
+print 'Geometric mean of returns:', R_G
+```
+*Cell 7:*
+```python
+T = len(returns)
+init_price = pricing[0]
+final_price = pricing[T]
+print 'Initial price:', init_price
+print 'Final price:', final_price
+print 'Final price as computed with R_G:', init_price*(1 + R_G)**T
+```
+*Cell 8:*
+```python
+print 'Harmonic mean of x1:', stats.hmean(x1)
+print 'Harmonic mean of x2:', stats.hmean(x2)
+```
+
+##### Exercises: Means
+- **Original Path**: `notebooks\lectures\Means\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 38 (Code: 15, Markdown: 23)
+- **Imports/Dependencies**: import numpy as np, import scipy.stats as stats
+
+**Explanatory Notes:**
+# Exercises: Means 
+By Christopher van Hoecke and Max Margenot

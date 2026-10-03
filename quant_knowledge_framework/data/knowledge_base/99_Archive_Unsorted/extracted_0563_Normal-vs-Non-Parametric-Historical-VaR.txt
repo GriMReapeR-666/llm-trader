@@ -1,0 +1,41 @@
+# Normal vs. Non-Parametric Historical VaR
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Normal vs. Non-Parametric Historical VaR
+
+### Normal Case
+
+A special case of VaR is when you assume that the returns follow a given distribution rather than non-parametrically estiamting it historically. In this case a normal VaR would fit our data, because all our returns were simulated form a normal distribution. We can check this by using a normal distribution Cumulative Distribution Function (CDF), which sums the area under a normal curve to figure out how likely certain values are. We'll use an inverse CDF, or PPF, which for a given likelihood will tell us to which value that likelihood corresponds.
+
+Specifically, the closed form formula for Normal VaR is
+
+$$VaR_{\alpha}(x) = \mu - \sigma N^{-1}(\alpha)$$
+
+Seems close enough to within some random variance. Let's visualize the continuous normal case. Notice that the VaR is expressed as a return rather than an absolute loss. To get aboslute loss we just need to multiply by value invested.
+
+### Historical (Non-Parametric) Case
+
+Historical VaR instead uses historical data to draw a discrete Probability Density Function, or histogram. Then finds the point at which only $100 \times (1-\alpha)\%$ of the points are below that return. It returns that return as the VaR return for coverage $\alpha$.
+
+### Underlying Distributions Are Not Always Normal
+
+In real financial data the underlying distributions are rarely normal. This is why we prefer historical VaR as opposed to an assumption of an underlying distribution. Historical VaR is also non-parametric, so we aren't at risk of overfitting distribution parameters to some data set.
+
+#### Real Data Example
+
+We'll show this on some real financial data.
+
+Now we need to generate some weights.
+
+Now let's compute the VaR for $\alpha = 0.95$. We'll write this as $VaR_{\alpha=0.95}$ from now on.
+
+Let's visualize this.
+
+The distribution looks visibly non-normal, but let's confirm that the returns are non-normal using a statistical test. We'll use Jarque-Bera, and our p-value cutoff is 0.05.
+
+Sure enough, they're likely not normal, so it would be a big mistake to use a normal distribution to underlie a VaR computation here.

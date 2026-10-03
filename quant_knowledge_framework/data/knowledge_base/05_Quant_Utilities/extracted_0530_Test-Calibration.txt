@@ -1,0 +1,112 @@
+# Test Calibration
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: numpy, python, pandas
+
+---
+
+## Test Calibration
+
+Remember that each test is written a little differently across different programming languages. You might not know whether it's the null or alternative hypothesis that the tested data comes from a normal distribution. It is recommended that you use the `?` notation plus online searching to find documentation on the test; plus it is often a good idea to calibrate a test by checking it on simulated data and making sure it gives the right answer. Let's do that now.
+
+Great, if properly calibrated we should expect to be wrong $5\%$ of the time at a 0.05 significance level, and this is pretty close. This means that the test is working as we expect.
+
+This tells us that the S&P 500 returns likely do not follow a normal distribution.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
+```
+*Cell 2:*
+```python
+# Plot a normal distribution with mean = 0 and standard deviation = 2
+xs = np.linspace(-6,6, 300)
+normal = stats.norm.pdf(xs)
+plt.plot(xs, normal);
+```
+*Cell 3:*
+```python
+# Generate x-values for which we will plot the distribution
+xs2 = np.linspace(stats.lognorm.ppf(0.01, .7, loc=-.1), stats.lognorm.ppf(0.99, .7, loc=-.1), 150)
+
+# Negatively skewed distribution
+lognormal = stats.lognorm.pdf(xs2, .7)
+plt.plot(xs2, lognormal, label='Skew > 0')
+
+# Positively skewed distribution
+plt.plot(xs2, lognormal[::-1], label='Skew < 0')
+plt.legend();
+```
+*Cell 4:*
+```python
+start = '2012-01-01'
+end = '2015-01-01'
+pricing = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:]
+
+print 'Skew:', stats.skew(returns)
+print 'Mean:', np.mean(returns)
+print 'Median:', np.median(returns)
+
+plt.hist(returns, 30);
+```
+*Cell 5:*
+```python
+# Plot some example distributions
+plt.plot(xs,stats.laplace.pdf(xs), label='Leptokurtic')
+print 'Excess kurtosis of leptokurtic distribution:', (stats.laplace.stats(moments='k'))
+plt.plot(xs, normal, label='Mesokurtic (normal)')
+print 'Excess kurtosis of mesokurtic distribution:', (stats.norm.stats(moments='k'))
+plt.plot(xs,stats.cosine.pdf(xs), label='Platykurtic')
+print 'Excess kurtosis of platykurtic distribution:', (stats.cosine.stats(moments='k'))
+plt.legend();
+```
+*Cell 6:*
+```python
+print "Excess kurtosis of returns: ", stats.kurtosis(returns)
+```
+*Cell 7:*
+```python
+from statsmodels.stats.stattools import jarque_bera
+
+N = 1000
+M = 1000
+
+pvalues = np.ndarray((N))
+
+for i in range(N):
+    # Draw M samples from a normal distribution 
+    X = np.random.normal(0, 1, M);
+    _, pvalue, _, _ = jarque_bera(X)
+    pvalues[i] = pvalue
+    
+# count number of pvalues below our default 0.05 cutoff
+num_significant = len(pvalues[pvalues < 0.05])
+
+print float(num_significant) / N
+```
+*Cell 8:*
+```python
+_, pvalue, _, _ = jarque_bera(returns)
+
+if pvalue > 0.05:
+    print 'The returns are likely normal.'
+else:
+    print 'The returns are likely not normal.'
+```
+
+##### Exercise 3: Skew and Normality
+- **Original Path**: `notebooks\lectures\Statistical_Moments\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 32 (Code: 13, Markdown: 19)
+- **Imports/Dependencies**: from statsmodels.stats.stattools import jarque_bera, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy.stats as stats
+
+**Explanatory Notes:**
+#Exercises: Statistical Moments and Normality Testing

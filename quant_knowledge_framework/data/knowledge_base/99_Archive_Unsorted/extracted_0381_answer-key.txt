@@ -1,0 +1,26 @@
+# answer key ##
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## answer key ##
+confidence_level = 0.05
+
+score, pvalue, _ = coint(cl_price, ho_price)
+
+if pvalue < confidence_level:
+    print ("CL and HO are cointegrated")
+    print pvalue
+else:
+    print ("CL and HO are not cointegrated")
+    print pvalue
+
+cl_price.name = 'CL'
+ho_price.name = 'HO'
+pd.concat([cl_price, ho_price.multiply(42)], axis=1).plot();
+```
+*Cell 11:*
+```python

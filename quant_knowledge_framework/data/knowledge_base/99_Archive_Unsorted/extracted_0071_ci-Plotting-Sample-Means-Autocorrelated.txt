@@ -1,0 +1,11 @@
+# c.i Plotting Sample Means - Autocorrelated
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c.i Plotting Sample Means - Autocorrelated
+
+Draw 500 samples of size `sample_size` from a new autocorrelated (dependent) distribution, plot the means of each of the samples, and check to see if the distribution of the sample means is normal.

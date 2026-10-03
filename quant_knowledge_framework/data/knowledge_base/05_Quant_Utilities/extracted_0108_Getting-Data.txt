@@ -1,0 +1,77 @@
+# Getting Data
+
+Topic: 05_Quant_Utilities
+Confidence: 0.42
+Keywords: point in time, pandas
+
+---
+
+## Getting Data
+
+Now we will pull values for our factor for all stocks in our universe by using Pipeline. We also want to make sure that we have the sector code for each individual equity, so we add `Sector` as another factor for our Pipeline. Note that running the Pipeline may take a while.
+
+Let's take a look at the data to get a quick sense of what we have.
+
+Our `my_factor` variable contains a pandas `Series` with a factor value for each equity in our universe for each point in time.
+
+Here we create another `Series` that contains sector codes for each equity instead of factor values. This is categorical data that we will use as a parameter for `Alphalens` later.
+
+While our universe is defined to consist of 1500 stocks, the actual number of unique stocks that we end up ranking will likely  be greater than this due to stocks passing in and out of our filters. For this reason, we grab pricing data for any stock that may have been in our Pipeline at some point to make sure that we have all of the data that we might need.
+
+# Alphalens Components
+
+Now that we have the basic components of what we need to analyze our factor, we can start to deal with `Alphalens`. Note that we will be breaking out individual components of the package, so this is not the typical workflow for using an `Alphalens` tear sheet.
+
+First we get our factor categorized by sector code and calculate our forward returns. The forward returns are the returns that we would have received for holding each security over the day periods ending on the given date, passed in through the `periods` parameter. In our case, and by default, we look $1$, $5$, and $10$ days in advance. We can consider this a budget backtest. The tear sheet does not factor in any commission or slippage cost, rather, it only considers values as if we had magically already held the specified equities for the specified number of days up to the current day.
+
+The `factor` variable here is similar to the `my_factor` variable above. It has a factor value for every equity in our universe at each point in time. Our `Alphalens` function here has also provided a sector grouping to go along with the factor value.
+
+As explained above, the forward returns are the returns that we would have received for holding each security for the specified number of days, ending on the given date. These, too, are broken out by sector.
+
+This function also separates our factor into quantiles for each date, replacing the factor value with its appropriate quantile on a given day. Since we will be holding baskets of the top and bottom quantiles, we only care about the factor insofar as it relates to movement into and out of these baskets.
+
+Alphalens provides three categories of analysis on alpha factors:
+
+* Returns
+* Information
+* Turnover
+
+Each of these topics is covered in its own separate tear sheet as well as an all-encompassing full tear sheet.
+
+### Returns Tear Sheet
+
+If we are solely interested in returns, we can create a tear sheet that only contains the returns analysis. The following code block generates all of our returns plots once we have stored the forward returns data:
+
+### Returns Tear Sheet Breakdown
+
+#### $\alpha$ and $\beta$ Point Estimates Chart
+
+Now we calculate the $\alpha$ and $\beta$ of our factor with respect to the market. These are calculated by creating a regression of the market returns for each period against a long-short factor portfolio and extracting the parameters. These signify the excess return associated with our factor and the market beta, respectively.
+
+#### Returns Point Estimates Chart
+
+These point estimates were also calculated agnostic of the sector groupings so they give us an overall view of what our spread would look like if we traded this factor with a long-short equity algorithm and didn't examine which sectors those returns were coming from.
+
+#### Mean Period-Wise Return by Quantile
+
+The quantized factor is used to create separate baskets, with returns for each basket calculated over each given day period. We get this information both as bar charts and as violin plots.
+
+The bar charts provide us the mean return for each factor quantile, for each time horizon. This gives us a set of point estimates to get a preliminary understanding of how the factor value tracks with returns.
+
+The primary difference between a bar chart and a violin plot is that a violin plot shows the density of our data. The fatter the violin, the higher the density of returns in that region. Here we plot the violins for the $1$, $5$, and $10$ day forward returns for each quantile.
+
+#### Factor-Weighted Long/Short Portfolio Cumulative Return
+
+These plots show the cumulative returns of a factor-weighted cross-sectional equity strategy based on the input factor. This holds the top quantile long and the bottom quantile short and simulates how that portfolio would perform without slippage or commissions. This shows the performance of the factor as a whole, which is always important to consider.
+
+#### Cumulative Return by Quantile
+
+This next plot aggregates the returns of each individual quantile into a plot of cumulative returns separated by basket for the 1-period forward returns. What we want here is to see five discrete "fingers" with few to no crossovers. This will give us an idea of which quantiles tend to drive the returns (ideally the first and fifth).
+
+#### Quantile Mean Return in BPS
+
+Next we calculate the basis points of the spread, based on subtracting the mean return of the lowest quantile from the mean return of the highest quantile (simulating going short on the lowest and long on the highest). We also get the error and plot it all together, giving us a time series of the basis points with confidence intervals for each time period.
+
+#### Sector Breakdown of Returns
+
+`Alphalens` provides a breakdown of returns by group, provided that you feed it a set of categorical values (such as industry labels), using the `by_group` flag. While it is good to consider breakdowns by quantile, it is also important to see how your factor is exposed to the different facets of the market. This is a good way to assess if your factor is behaving as it should in your universe. For example, if you intend your universe to only touch a certain sector, it is worthwhile to confirm that your factor and universe indeed only touch that sector.

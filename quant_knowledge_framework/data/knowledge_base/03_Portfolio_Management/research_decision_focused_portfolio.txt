@@ -1,0 +1,42 @@
+# Decision-Focused Sparse Tangent Portfolio Optimization
+
+**Source**: arxiv:2607.00581v1 (July 2026)
+
+## Overview
+End-to-end decision-focused learning framework for sparse portfolio optimization with cardinality constraints.
+
+## Key Innovation
+- Decision-Focused Learning (DFL): Directly optimizes downstream portfolio quality
+- Differentiable decision layer: Gradient flow through prediction → selection → optimization
+- Smooth top-k operator for exact cardinality constraints
+
+## Methodology
+
+### Problem Formulation
+- Sparse Sharpe ratio maximization
+- Cardinality constraint: k assets selected
+- NP-hard formulation → DPP-compliant convex reformulation
+
+### Training Objective
+```
+L_Task = α * L_DFL + (1-α) * L_MSE
+where:
+- L_DFL: Decision loss (portfolio quality)
+- L_MSE: Prediction loss (forecast accuracy)
+- α: Balance parameter (typically 0.5)
+```
+
+### Architecture
+1. **Predictive Model**: Neural network for expected returns
+2. **Smooth Top-k**: Differentiable asset selection
+3. **Convex Re-optimization**: Sharpe ratio maximization under constraints
+
+## Results
+- Competitive or superior out-of-sample Sharpe ratios
+- Particularly strong in larger asset universes
+- Better alignment between prediction and portfolio quality
+
+## Implications
+- Pure prediction-focused training misaligns with downstream goals
+- Decision-focused learning improves portfolio-level outcomes
+- Mixed loss provides stable gradient signal

@@ -1,0 +1,23 @@
+# Quantopian Volume Share Slippage
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Quantopian Volume Share Slippage
+
+The [Q `VolumeShareSlippage` model](https://www.quantopian.com/help#ide-slippage)  expressed in the style of the equation below
+
+$$\text{tcost} = 0.1 \left| \frac{X}{VT} \right|^2 $$
+
+where $X$ is the number of shares you would like to trade; $T$ is the time width of the bar in % of a day; $V$ is the ADV of the stock.
+
+For more information on the Quantopian Slippage Model see : https://www.quantopian.com/help#ide-slippage
+
+To reproduce the given Q examples, we trade over a bar
+
+As this model is convex, it gives very high estimates for large trades.
+
+Though for small trades, the results are comparable.

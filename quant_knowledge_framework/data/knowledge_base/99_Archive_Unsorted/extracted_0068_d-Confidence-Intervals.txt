@@ -1,0 +1,21 @@
+# d. Confidence Intervals
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## d. Confidence Intervals
+
+Using the standard error and mean, determine 95% `(Z = 1.96)`, 90% `(Z = 1.64)`, and 80% `(Z = 1.28)` confidence intervals for the sample. 
+
+----
+
+# Exercise 2: Interpreting Confidence Intervals
+
+Assuming our interval was correctly calculated and that the underlying data was independent, if we take many samples and make many 95% confidence intervals, the intervals will contain the true mean 95% of the time. Run 1000 samples and measure how many of their confidence intervals actually contain the true mean.
+
+----
+
+# Exercise 3: Central Limit Theorem

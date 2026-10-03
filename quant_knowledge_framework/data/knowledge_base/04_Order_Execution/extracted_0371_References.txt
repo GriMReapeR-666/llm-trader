@@ -1,0 +1,584 @@
+# References:
+
+Topic: 04_Order_Execution
+Confidence: 0.38
+Keywords: slippage, transaction cost, sor, spread, execution, market impact
+
+---
+
+## References:
+
+* Almgren, R., Thum, C., Hauptmann, E., & Li, H. (2005). Direct estimation of equity market impact. Risk, 18(7), 5862.
+
+* Bennett, C. and Gil, M.A. (2012, Februrary)  Measuring Historic Volatility, Santander Equity Derivatives Europe Retreived from: (http://www.todaysgroep.nl/media/236846/measuring_historic_volatility.pdf)
+
+* Garman, M. B., & Klass, M. J. (1980). On the estimation of security price volatilities from historical data. Journal of business, 67-78.
+
+* Kissell, R., Glantz, M., & Malamut, R. (2004). A practical framework for estimating transaction costs and developing optimal trading strategies to achieve best execution. Finance Research Letters, 1(1), 35-46.
+
+* Educational Platform Slippage Model see : https://www.educational_platform.com/help#ide-slippage
+
+
+*The material on this website is provided for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation or endorsement for any security or strategy, nor does it constitute an offer to provide investment advisory services by Educational Platform. In addition, the material offers no opinion with respect to the suitability of any security or specific investment. No information contained herein should be regarded as a suggestion to engage in or refrain from any investment-related course of action as none of Educational Platform nor any of its affiliates is undertaking to provide investment advice, act as an adviser to any plan or entity subject to the Employee Retirement Income Security Act of 1974, as amended, individual retirement account or individual retirement annuity, or give advice in a fiduciary capacity with respect to the materials presented herein. If you are an individual retirement or other investor, contact your financial advisor or other fiduciary unrelated to Educational Platform about whether any given investment idea, strategy, product or service described herein may be appropriate for your circumstances. All investments involve risk, including loss of principal. Educational Platform makes no guarantees as to the accuracy or completeness of the views expressed in the website. The views are subject to change, and may have become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import time
+```
+*Cell 2:*
+```python
+def perf_impact(leverage, turnover , trading_days, txn_cost_bps):
+    p = leverage *  turnover * trading_days * txn_cost_bps/10000.
+    return p
+```
+*Cell 3:*
+```python
+print perf_impact(leverage=2, turnover=0.4, trading_days=252, txn_cost_bps=1)
+```
+*Cell 4:*
+```python
+x = np.linspace(0,1,101)
+risk = np.cos(x*np.pi)
+impact = np.cos(x* np.pi+ np.pi)
+
+fig,ax = plt.subplots(1)
+# Make your plot, set your axes labels
+ax.plot(x,risk)
+ax.plot(x,impact)
+ax.set_ylabel('Transaction Cost in bps', fontsize=15)
+ax.set_xlabel('Order Interval', fontsize=15)
+ax.set_yticklabels([])
+ax.set_xticklabels([])
+ax.grid(False)
+ax.text(0.09, -0.6, 'Timing Risk', fontsize=15, fontname="serif")
+ax.text(0.08, 0.6, 'Market Impact', fontsize=15, fontname="serif")
+plt.title('Timing Risk vs Market Impact Affect on Transaction Cost', fontsize=15)
+plt.show()
+```
+*Cell 5:*
+```python
+tickers = symbols(['FB']) # Facebook ticker
+num_stocks = len(tickers)
+
+# %%timeit -n1 -r1 magic is not allowed in Q
+start = time.time()
+data = get_pricing(tickers,
+                   fields='volume',
+                   frequency='minute',
+                   start_date='2016-1-1',
+                   end_date='2016-7-1')
+end = time.time()
+print "Time: %0.2f seconds." % (end - start)
+data = data.tz_convert('US/Eastern') # Q data comes in as UTC
+
+dat = data[symbols('FB')]
+plt.subplot(211)
+dat['2016-04-14'].plot(title='Intraday Volume Profile') # intraday volume profile plot 
+plt.subplot(212)
+(dat['2016-04-14'].resample('10t', closed='right').sum()/\
+     dat['2016-04-14'].sum()).plot(); # percent volume plot
+plt.title('Intraday Volume Profile, % Total Day');
+```
+*Cell 6:*
+```python
+df = pd.DataFrame(dat) # Facebook minutely volume data
+
+df.columns = ['interval_vlm'] 
+
+df_daysum = df.resample('d').sum() # take sum of each day 
+df_daysum.columns = ['day_vlm']
+df_daysum['day'] = df_daysum.index.date # add date index as column
+
+df['min_of_day']=(df.index.hour-9)*60 + (df.index.minute-30) # calculate minutes from open
+df['time']=df.index.time # add time index as column
+
+conversion = {'interval_vlm':'sum', 'min_of_day':'last', 'time':'last'}
+df = df.resample('10t', closed='right').apply(conversion) # apply conversions to columns at 10 min intervals
+df['day'] = df.index.date
+
+df = df.merge(df_daysum, how='left', on='day') # merge df and df_daysum dataframes
+df['interval_pct'] = df['interval_vlm'] / df['day_vlm'] # calculate percent of days volume for each row
+df.head()
+```
+*Cell 7:*
+```python
+plt.scatter(df.min_of_day, df.interval_pct)
+plt.xlim(0,400)
+plt.xlabel('Time from the Open (minutes)')
+plt.ylabel('Percent Days Volume')
+```
+*Cell 8:*
+```python
+grouped = df.groupby(df.min_of_day)
+grouped = df.groupby(df.time) # group by 10 minute interval times
+m = grouped.median()  # get median values of groupby
+x = m.index
+y = m['interval_pct']
+
+fig, ax1 = plt.subplots();
+ax1.bar(x, 100*y, -60*10 ,alpha=0.75); # plot percent daily volume grouped by 10 minute interval times
+ax1.set_ylim(0,10);
+ax2 = ax1.twinx();
+ax2.plot(x,(100*y).cumsum()); # plot cummulative distribution of median daily volume
+ax2.set_ylim(0,100);
+plt.title('Intraday Volume Profile');
+ax1.set_ylabel('% of Day\'s Volume in Bucket');
+ax2.set_ylabel('Cumulative % of Day\'s Volume');
+
+```
+*Cell 9:*
+```python
+
+dat = get_pricing(symbols(['FB']), fields='volume', frequency='minute', start_date='2016-1-1', end_date='2018-1-2')
+dat = dat.tz_convert('US/Eastern') # Q data comes in as UTC
+
+
+def relative_order_size(participation_rate, pct_ADV):
+    fill_start = dat['2017-10-02'].index[0] # start order at 9:31
+    ADV20 = int(dat.resample("1d").sum()[-20:].mean()) # calculate 20 day ADV
+    order_size = int(pct_ADV * ADV20)
+    #print 'order size:', order_size, 'daily volume:', dat['2016-07-01'].sum()/(1.0*10**6), 'M shares'
+    try :
+        ftime = dat['2017-10-02'][(order_size * 1.0 / participation_rate)<=dat['2017-10-02'].cumsum().values].index[0]
+    except: 
+        ftime = dat['2017-10-02'].index[-1] # set fill time to 4p 
+    fill_time = max(1,int((ftime - fill_start).total_seconds()/60.0))
+    #print 'order fill time' ,fill_time,  'minutes'
+    return fill_time
+
+def create_plots(participation_rate, ax):
+    df_pr = pd.DataFrame(data=np.linspace(0.0,0.1,100), columns = ['adv'] ) # create dataframe with intervals of ADV
+    df_pr['pr'] = participation_rate # add participation rate column
+
+    df_pr['fill_time'] = df_pr.apply(lambda row: relative_order_size(row['pr'],row['adv']), axis = 1) # get fill time
+
+    ax.plot(df_pr['adv'],df_pr['fill_time'], label=participation_rate) # generate plot line with ADV and fill time
+
+fig, ax = plt.subplots() 
+for i in [0.01,0.02,0.03,0.04,0.05,0.06,0.07]: # for participation rate values
+    create_plots(i,ax) # generate plot line
+    
+plt.ylabel('Time from Open (minutes)')
+plt.xlabel('Percent Average Daily Volume')
+plt.title('Trade Completion Time as Function of Relative Order Size and Participation Rate')
+plt.xlim(0.,0.04)
+ax.legend()
+
+```
+*Cell 10:*
+```python
+tickers = symbols(['FB'])
+start = time.time()
+data = get_pricing(tickers, frequency='minute', start_date='2016-1-1', end_date='2016-7-1')
+end = time.time()
+print "Time: %0.2f seconds." % (end - start)
+
+data.items
+data.describe
+data['price']
+df = data.to_frame().unstack()
+df.columns = df.columns.droplevel(1) # drop the ticker
+df.index.name = None 
+df = df.tz_convert('US/Eastern') # Q data comes in as UTC, convert to EST
+df.head()
+
+```
+*Cell 11:*
+```python
+def gkyz_var(open, high, low, close, close_tm1): # Garman Klass Yang Zhang extension OHLC volatility estimate
+    return np.log(open/close_tm1)**2 + 0.5*(np.log(high/low)**2) \
+        - (2*np.log(2)-1)*(np.log(close/open)**2)
+    
+def historical_vol(close_ret, mean_ret): # close to close volatility estimate
+    return np.sqrt(np.sum((close_ret-mean_ret)**2)/390)
+```
+*Cell 12:*
+```python
+df['min_of_day'] = (df.index.hour-9)*60 + (df.index.minute-30) # calculate minute from the open
+df['time'] = df.index.time # add column time index
+df['day'] = df.index.date # add column date index
+df.head()
+```
+*Cell 13:*
+```python
+df['close_tm1'] = df.groupby('day')['close_price'].shift(1)  # shift close value down one row
+df.close_tm1 = df.close_tm1.fillna(df.open_price)
+df['min_close_ret'] = np.log( df['close_price'] /df['close_tm1']) # log of close to close
+close_returns = df.groupby('day')['min_close_ret'].mean() # daily mean of log of close to close
+new_df = df.merge(pd.DataFrame(close_returns), left_on ='day', right_index = True)
+# handle when index goes from 16:00 to 9:31:
+
+new_df['variance'] = new_df.apply(
+    lambda row: historical_vol(row.min_close_ret_x, row.min_close_ret_y),
+    axis=1)
+#df['variance'] = df.apply(
+#    lambda row: gkyz_var(row.open_price, row.high, row.low,
+#                         row.close_price, row.close_tm1),
+#    axis=1)
+
+new_df.head()
+
+```
+*Cell 14:*
+```python
+df_daysum = pd.DataFrame(new_df['variance'].resample('d').sum()) # get sum of intraday variances daily
+df_daysum.columns = ['day_variance']
+df_daysum['day'] = df_daysum.index.date
+df_daysum.head()
+```
+*Cell 15:*
+```python
+
+conversion = {'variance':'sum', 'min_of_day':'last', 'time':'last'}
+df = new_df.resample('10t', closed='right').apply(conversion)
+df['day'] = df.index.date
+df['time'] = df.index.time
+df.head()
+```
+*Cell 16:*
+```python
+df = df.merge(df_daysum, how='left', on='day') # merge daily and intraday volatilty dataframes
+df['interval_pct'] = df['variance'] / df['day_variance'] # calculate percent of days volatility for each row
+df.head()
+```
+*Cell 17:*
+```python
+plt.scatter(df.min_of_day, df.interval_pct)
+plt.xlim(0,400)
+plt.ylim(0,)
+plt.xlabel('Time from Open (minutes)')
+plt.ylabel('Interval Contribution of Daily Volatility')
+plt.title('Probabilty Distribution of Daily Volatility ')
+```
+*Cell 18:*
+```python
+grouped = df.groupby(df.min_of_day)
+grouped = df.groupby(df.time) # groupby time
+m = grouped.median() # get median
+x = m.index
+y = m['interval_pct']
+
+fig, ax1 = plt.subplots()
+ax1.bar(x, 100*y, 60*10 ,alpha=0.75);# plot interval percent of median daily volatility 
+ax2 = ax1.twinx()
+ax2.plot(x, (100*y).cumsum()) # plot cummulative distribution of median daily volatility
+ax2.set_ylim(0,100);
+plt.title('Intraday Volatility Profile')
+ax1.set_ylabel('% of Day\'s Variance in Bucket');
+ax2.set_ylabel('Cumulative % of Day\'s Variance');
+#cut off graph at 4pm
+```
+*Cell 19:*
+```python
+def model_spread(time, vol, mcap = 1.67 * 10 ** 10, adv = 84.5, px = 91.0159):
+    time_bins = np.array([0.0, 960.0, 2760.0, 5460.0, 21660.0]) #seconds from market open
+    time_coefs = pd.Series([0.0, -0.289, -0.487, -0.685, -0.952])
+    
+    vol_bins = np.array([0.0, .1, .15, .2, .3, .4])
+    vol_coefs = pd.Series([0.0, 0.251, 0.426, 0.542, 0.642, 0.812])
+    
+    mcap_bins = np.array([0.0, 2.0, 5.0, 10.0, 25.0, 50.0]) * 10 ** 9
+    mcap_coefs = pd.Series([0.291, 0.305, 0.0, -0.161, -0.287, -0.499])
+    
+    adv_bins = np.array([0.0, 50.0, 100.0, 150.0, 250.0, 500.0]) * 10 ** 6
+    adv_coefs = pd.Series([0.303, 0.0, -0.054, -0.109, -0.242, -0.454])
+    
+    px_bins = np.array([0.0, 28.0, 45.0, 62.0, 82.0, 132.0])
+    px_coefs = pd.Series([-0.077, -0.187, -0.272, -0.186, 0.0, 0.380])
+    
+    return np.exp(1.736 +\
+                  time_coefs[np.digitize(time, time_bins) - 1] +\
+                  vol_coefs[np.digitize(vol, vol_bins) - 1] +\
+                  mcap_coefs[np.digitize(mcap, mcap_bins) - 1] +\
+                  adv_coefs[np.digitize(adv, adv_bins) - 1] +\
+                  px_coefs[np.digitize(px, px_bins) - 1])
+
+
+
+```
+*Cell 20:*
+```python
+t = 10 * 60
+vlty = 0.188
+mcap = 1.67 * 10 ** 10
+adv = 84.5 *10
+price = 91.0159 
+print model_spread(t, vlty, mcap, adv, price), 'bps'
+```
+*Cell 21:*
+```python
+x = np.linspace(0,390*60) # seconds from open shape (50,)
+y = np.linspace(.01,.7) # volatility shape(50,)
+mcap = 1.67 * 10 ** 10
+adv = 84.5
+px = 91.0159
+
+
+vlty_coefs = pd.Series([0.0, 0.251, 0.426, 0.542, 0.642, 0.812])
+vlty_bins = np.array([0.0, .1, .15, .2, .3, .4])
+time_bins = np.array([0.0, 960.0, 2760.0, 5460.0, 21660.0]) #seconds from market open
+time_coefs = pd.Series([0.0, -0.289, -0.487, -0.685, -0.952])
+mcap_bins = np.array([0.0, 2.0, 5.0, 10.0, 25.0, 50.0]) * 10 ** 9
+mcap_coefs = pd.Series([0.291, 0.305, 0.0, -0.161, -0.287, -0.499])
+adv_bins = np.array([0.0, 50.0, 100.0, 150.0, 250.0, 500.0]) * 10 ** 6
+adv_coefs = pd.Series([0.303, 0.0, -0.054, -0.109, -0.242, -0.454])
+px_bins = np.array([0.0, 28.0, 45.0, 62.0, 82.0, 132.0])
+px_coefs = pd.Series([-0.077, -0.187, -0.272, -0.186, 0.0, 0.380])
+# shape (1, 50)
+time_contrib = np.take(time_coefs, np.digitize(x, time_bins) - 1).reshape((1, len(x)))
+# shape (50, 1)
+vlty_contrib = np.take(vlty_coefs, np.digitize(y, vlty_bins) - 1).reshape((len(y), 1))
+# scalar
+mcap_contrib = mcap_coefs[np.digitize((mcap,), mcap_bins)[0] - 1]
+# scalar
+adv_contrib = adv_coefs[np.digitize((adv,), adv_bins)[0] - 1]
+# scalar
+px_contrib = px_coefs[np.digitize((px,), px_bins)[0] - 1]
+
+z_scalar_contrib = 1.736 + mcap_contrib + adv_contrib + px_contrib
+
+
+Z = np.exp(z_scalar_contrib + time_contrib + vlty_contrib)
+
+cmap=plt.get_cmap('jet')
+X, Y = np.meshgrid(x,y)
+CS = plt.contour(X/60,Y,Z, linewidths=3, cmap=cmap, alpha=0.8);
+plt.clabel(CS)
+plt.xlabel('Time from the Open (Minutes)')
+plt.ylabel('Volatility')
+plt.title('Spreads for varying Volatility and Trading Times (mcap = 16.7B, px = 91, adv = 84.5M)')
+plt.show()
+```
+*Cell 22:*
+```python
+def perm_impact(pct_adv, annual_vol_pct = 0.25, inv_turnover = 200):
+    gamma = 0.314
+    return 10000 * gamma * (annual_vol_pct / 16) * pct_adv * (inv_turnover)**0.25
+
+def temp_impact(pct_adv, minutes, annual_vol_pct = 0.25, minutes_in_day = 60*6.5):
+    eta = 0.142
+    day_frac = minutes / minutes_in_day
+    return 10000 * eta * (annual_vol_pct / 16) * abs(pct_adv/day_frac)**0.6
+
+def tc_bps(pct_adv, minutes, annual_vol_pct = 0.25, inv_turnover = 200, minutes_in_day = 60*6.5):
+    perm = perm_impact(pct_adv, annual_vol_pct=annual_vol_pct, inv_turnover=inv_turnover)
+    temp = temp_impact(pct_adv, minutes, annual_vol_pct=annual_vol_pct, minutes_in_day=minutes_in_day)
+    return 0.5 * perm + temp
+
+```
+*Cell 23:*
+```python
+print 'Cost to trade Fast (First 40 mins):', round(tc_bps(pct_adv=0.1, annual_vol_pct=16*0.0157, inv_turnover=263, minutes=0.1*60*6.5),2), 'bps'
+print 'Cost to trade Medium (First 90 mins):', round(tc_bps(pct_adv=0.1, annual_vol_pct=16*0.0157, inv_turnover=263, minutes=0.2*60*6.5),2), 'bps' 
+print 'Cost to trade Slow by Noon:', round(tc_bps(pct_adv=0.1, annual_vol_pct=16*0.0157, inv_turnover=263, minutes=0.5*60*6.5),2), 'bps'
+
+```
+*Cell 24:*
+```python
+print round(tc_bps(pct_adv=0.005, minutes=30, annual_vol_pct=16*0.0157),2)
+```
+*Cell 25:*
+```python
+trade_notional = 2000000 # 2M notional
+stock_price = 110.89 # dollars per share
+shares_to_trade = trade_notional/stock_price
+stock_adv_shares = 30e6 # 30 M
+stock_shares_outstanding = 275e9/110.89
+
+expected_tc = tc_bps(shares_to_trade/stock_adv_shares, minutes=15, annual_vol_pct=0.22)
+print "Expected tc in bps: %0.2f" % expected_tc
+print "Expected tc in $ per share: %0.2f" % (expected_tc*stock_price / 10000)
+```
+*Cell 26:*
+```python
+x = np.linspace(0.0001,0.03)
+plt.plot(x*100,tc_bps(x,30,0.25), label="$\sigma$ = 25%");
+plt.plot(x*100,tc_bps(x,30,0.40), label="$\sigma$ = 40%");
+plt.ylabel('tcost in bps')
+plt.xlabel('Trade as % of ADV')
+plt.title('tcost in Basis Points of Trade Value; $\sigma$ = 25% and 40%; time = 15 minutes');
+plt.legend();
+```
+*Cell 27:*
+```python
+x = np.linspace(0.001,0.03)
+y = np.linspace(5,30)
+X, Y = np.meshgrid(x,y)
+Z = tc_bps(X,Y,0.20)
+levels = np.linspace(0.0, 60, 30)
+cmap=plt.get_cmap('Reds')
+cmap=plt.get_cmap('hot')
+cmap=plt.get_cmap('jet')
+
+plt.subplot(1,2,1);
+CS = plt.contour(X*100, Y, Z, levels, linewidths=3, cmap=cmap, alpha=0.55);
+plt.clabel(CS);
+plt.ylabel('Trading Time in Minutes');
+plt.xlabel('Trade as % of ADV');
+plt.title('tcost in Basis Points of Trade Value; $\sigma$ = 20%');
+
+plt.subplot(1,2,2);
+Z = tc_bps(X,Y,0.40)
+CS = plt.contour(X*100, Y, Z, levels, linewidths=3, cmap=cmap, alpha=0.55);
+plt.clabel(CS);
+plt.ylabel('Trading Time in Minutes');
+plt.xlabel('Trade as % of ADV');
+plt.title('tcost in Basis Points of Trade Value; $\sigma$ = 40%');
+```
+*Cell 28:*
+```python
+x = np.linspace(0.001,0.03) # % ADV
+y = np.linspace(1,60*6.5)   # time to trade
+X, Y = np.meshgrid(x, y)
+
+levels = np.linspace(0.0, 390, 20)
+cmap=plt.get_cmap('Reds')
+cmap=plt.get_cmap('hot')
+cmap=plt.get_cmap('jet')
+
+plt.subplot(1,2,1);
+
+Z = tc_bps(X,Y,0.20)
+plt.contourf(X*100, Z, Y, levels, cmap=cmap, alpha=0.55);
+plt.title('Trading Time in Minutes; $\sigma$ = 20%');
+plt.xlabel('Trade as % of ADV');
+plt.ylabel('tcost in Basis Points of Trade Value');
+plt.ylim(5,20)
+plt.colorbar();
+
+plt.subplot(1,2,2);
+Z = tc_bps(X,Y,0.40)
+plt.contourf(X*100, Z, Y, levels, cmap=cmap, alpha=0.55);
+plt.title('Trading Time in Minutes; $\sigma$ = 40%');
+plt.xlabel('Trade as % of ADV');
+plt.ylabel('tcost in Basis Points of Trade Value');
+plt.ylim(5,20);
+plt.colorbar();
+
+
+```
+*Cell 29:*
+```python
+minutes = 30
+
+x = np.linspace(0.0001,0.03)
+
+f, (ax1, ax2) = plt.subplots(ncols=2, sharex=True, sharey=True)
+f.subplots_adjust(hspace=0.15)
+    
+p = 0.5*perm_impact(x,0.20)
+t = tc_bps(x,minutes,0.20)
+ax1.fill_between(x*100, p, t, color='b', alpha=0.33);
+ax1.fill_between(x*100, 0, p, color='k', alpha=0.66);
+ax1.set_ylabel('tcost in bps')
+ax1.set_xlabel('Trade as % of ADV')
+ax1.set_title('tcost in bps of Trade Value; $\sigma$ = 20%; time = 15 minutes');
+
+p = 0.5*perm_impact(x, 0.40)
+t = tc_bps(x,minutes, 0.40)
+ax2.fill_between(x*100, p, t, color='b', alpha=0.33);
+ax2.fill_between(x*100, 0, p, color='k', alpha=0.66);
+
+plt.xlabel('Trade as % of ADV')
+plt.title('tcost in bps of Trade Value; $\sigma$ = 40%; time = 15 minutes');
+```
+*Cell 30:*
+```python
+def kissell(adv, annual_vol, interval_vol, order_size):
+    b1, a1, a2, a3, a4 = 0.9, 750., 0.2, 0.9, 0.5
+    i_star = a1 * ((order_size/adv)**a2) * annual_vol**a3
+    PoV = order_size/(order_size + adv)
+    return b1 * i_star * PoV**a4 + (1 - b1) * i_star
+```
+*Cell 31:*
+```python
+print kissell(adv = 5*10**6, annual_vol = 0.2, interval_vol = adv * 0.06, order_size = 0.01 * adv ), 'bps'
+```
+*Cell 32:*
+```python
+x = np.linspace(0.0001,0.1)
+plt.plot(x,kissell(5*10**6,0.1, 2000*10**3, x*2000*10**3), label="$\sigma$ = 10%");
+plt.plot(x,kissell(5*10**6,0.25, 2000*10**3, x*2000*10**3), label="$\sigma$ = 25%");
+#plt.plot(x,kissell(5*10**6,0.40, 2000*10**3, x*2000*10**3), label="$\sigma$ = 40%");
+plt.ylabel('tcost in bps')
+plt.xlabel('Trade as % of ADV')
+plt.title('tcost in Basis Points of Trade Value; $\sigma$ = 25% and 40%; time = 15 minutes');
+plt.legend();
+```
+*Cell 33:*
+```python
+from __future__ import division
+
+def jpm_mi(size_shrs, adv, day_frac=1.0, spd=5,
+           spd_frac=0.5, ann_vol=0.25, omega=0.92,
+           alpha=350, beta=0.370, gamma=1.05):
+
+    PoV = (size_shrs/(adv*day_frac))
+    I = alpha*(PoV**beta)*(ann_vol**gamma)
+    MI = I*omega*(2*PoV)/(1+PoV) + (1-omega)*I + spd*spd_frac
+    return MI
+
+def jpm_mi_pct(pct_adv, **kwargs):
+    return jpm_mi(pct_adv, 1.0, **kwargs)
+
+```
+*Cell 34:*
+```python
+spy_adv = 85603411.55
+print round(jpm_mi(size_shrs = 10000, adv = 1e6),2), 'bps' # 1% pct ADV order
+print round(jpm_mi(size_shrs = 0.05*spy_adv, adv = spy_adv, spd = 5, day_frac = 1.0),2), 'bps' # 5% pct ADV of SPY order
+```
+*Cell 35:*
+```python
+def tc_Q_vss_bps(pct_adv, minutes=1.0, minutes_in_day=60*6.5):
+    day_frac = minutes / minutes_in_day
+    tc_pct = 0.1 * abs(pct_adv/day_frac)**2
+    return tc_pct*10000
+```
+*Cell 36:*
+```python
+print tc_Q_vss_bps(pct_adv=0.1/390, minutes=1)
+print tc_Q_vss_bps(pct_adv=0.25/390, minutes=1)
+```
+*Cell 37:*
+```python
+print tc_Q_vss_bps(pct_adv=0.1, minutes=0.1*60*6.5)
+print tc_Q_vss_bps(pct_adv=0.1, minutes=0.2*60*6.5)
+print tc_Q_vss_bps(pct_adv=0.1, minutes=0.5*60*6.5)
+```
+*Cell 38:*
+```python
+print tc_bps(pct_adv=0.005, minutes=30, annual_vol_pct=0.2)
+print tc_Q_vss_bps(pct_adv=0.005, minutes=30)
+```
+*Cell 39:*
+```python
+x = np.linspace(0.0001, 0.01)
+plt.plot(x*100,tc_bps(x, 30, 0.20), label="Almgren $\sigma$ = 20%");
+plt.plot(x*100,tc_bps(x, 30, 0.40), label="Almgren $\sigma$ = 40%");
+plt.plot(x*100,tc_Q_vss_bps(x, minutes=30),label="Q VSS");
+plt.plot(x*100,jpm_mi_pct(x, ann_vol=0.2), label="JPM MI1 $\sigma$ = 20%");
+plt.plot(x*100,jpm_mi_pct(x, ann_vol=0.4), label="JPM MI1 $\sigma$ = 40%");
+plt.plot(x*100,kissell(5*10**6,0.20, 2000*10**3, x*2000*10**3), label="Kissell $\sigma$ = 20%");
+plt.plot(x*100,kissell(5*10**6,0.40, 2000*10**3, x*2000*10**3), label="Kissell $\sigma$ = 40%", color='black');
+
+plt.ylabel('tcost in bps')
+plt.xlabel('Trade as % of ADV')
+plt.title('tcost in Basis Points of Trade Value; time = 30 minutes');
+plt.legend();
+```
+
+##### Exercises: Maximum Likelihood Estimation - Answer Key
+- **Original Path**: `notebooks\lectures\Maximum_Likelihood_Estimation\answers\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 23 (Code: 12, Markdown: 11)
+- **Imports/Dependencies**: import math, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy, import scipy.stats as stats
+
+**Explanatory Notes:**
+# Exercises: Maximum Likelihood Estimation - Answer Key
+By Christopher van Hoecke, Max Margenot, and Delaney Mackenzie

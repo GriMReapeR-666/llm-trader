@@ -1,0 +1,11 @@
+# a. Error due to Dependence
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Error due to Dependence
+
+Run 100 samples of the following autocorrelated distribution and measure how many of their 95% confidence intervals actually contain the true mean. (Use the helper function `generate_autocorrelated_data(theta, noise_mu, noise_sigma, sample_size)` to generate the samples)

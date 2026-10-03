@@ -1,0 +1,42 @@
+# Lecture Link :
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Lecture Link : 
+https://www.educational_platform.com/lectures/introduction-to-futures
+
+### IMPORTANT NOTE: 
+This lecture corresponds to the Futures lecture, which is part of the Educational Platform lecture series. This homework expects you to rely heavily on the code presented in the corresponding lecture. Please copy and paste regularly from that lecture when starting to work on the problems, as trying to do them from scratch will likely be too difficult.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+----
+
+----
+
+# Exercise 1: Futures Contract vs. Spot Markets
+
+In 2016, a corn farmer decided to sell his corn at the spot price to a distributor.
+
+Decide whether his decision to sell corn at the spot price was a wise one by comparing his profits from the market contract with his potential profits from the futures contract.
+
+Use the price of CORN, an ETF, as the spot price for 6 bushels of corn when he goes to market.
+
+You may also assume the following:
+- The producer plans on selling 15,000 bushels of corn in September 2016
+- The farmer would enter into a futures position on June 1st
+- The spot price sale would take place on the same date that the futures contract expires
+- No fees or payments are included in the futures sale or the market sale
+
+(Note that the listed futures price of corn is for one bushel.)
+
+---
+
+# Exercise 2: Carrying Costs

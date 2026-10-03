@@ -1,0 +1,13 @@
+# b. Dividend 1500 Sector Composition
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Dividend 1500 Sector Composition
+
+Find and print the sector composition of the universe on 2016-07-01.
+
+# Exercise 4: Turnover Smoothing

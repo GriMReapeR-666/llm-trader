@@ -1,0 +1,139 @@
+# Next steps
+
+Topic: 05_Quant_Utilities
+Confidence: 0.57
+Keywords: numpy, normalize, python, pandas
+
+---
+
+## Next steps
+
+* Clone this notebook in the [Educational Platform Research Platform](http://blog.educational_platform.com/educational_platform-research-your-backtesting-data-meets-ipython-notebook/) and run it on your own to see if you can enhance the performance. 
+* You can also download just the notebook for use in your own environment [here]().
+* In a future blog post we will outline the connections to Kelly optimization which also tells us the amount of leverage to use.
+* We are currently in the process of adding `cvxopt` to the Educational Platform backtester -- stay tuned!
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+2 + 2
+```
+*Cell 2:*
+```python
+# This is a comment, it won't be evaluated
+x = 1
+x = x + 1
+x
+```
+*Cell 3:*
+```python
+# You can also print within a cell to get more than just the final line's output
+print x
+x = x + 1
+x
+```
+*Cell 4:*
+```python
+# Some lines return nothing
+x = 1
+```
+*Cell 5:*
+```python
+# This is a numerical processing library
+import numpy as np
+# This is a library for plotting
+import matplotlib.pyplot as plt
+```
+*Cell 6:*
+```python
+# You can get help with a function like this
+np.random.randn?
+```
+*Cell 7:*
+```python
+np.random.randn(10)
+```
+*Cell 8:*
+```python
+# Get 100 random returns
+returns_vector = np.random.randn(1000)
+# Plot the returns
+plt.plot(returns_vector)
+```
+*Cell 9:*
+```python
+# Plot the price of the instrument
+# This is the cumulative sum of the returns
+plt.plot(np.cumsum(returns_vector))
+```
+*Cell 10:*
+```python
+np.mean(returns_vector)
+```
+*Cell 11:*
+```python
+np.std(returns_vector)
+```
+*Cell 12:*
+```python
+# Get data for the S&P 500 from the start of this year
+real_pricing = get_pricing('SPY', start_date='2015-01-01', end_date='2015-03-31')
+real_pricing.head(5)
+```
+*Cell 13:*
+```python
+# Index in to just get the pricing part
+real_pricing = real_pricing['price']
+real_pricing.head(5)
+```
+*Cell 14:*
+```python
+plt.plot(real_pricing)
+```
+*Cell 15:*
+```python
+real_returns = real_pricing.pct_change()
+plt.plot(real_returns.index, real_returns)
+```
+*Cell 16:*
+```python
+# or you can plot the daily percent returns as a bar graph like this
+plt.bar(real_returns.index,real_returns)
+```
+*Cell 17:*
+```python
+np.mean(real_returns)
+```
+*Cell 18:*
+```python
+np.std(real_returns)
+```
+*Cell 19:*
+```python
+sharpe_ratio = (np.mean(real_returns) * 252) / (np.std(real_returns) * np.sqrt(252))
+sharpe_ratio
+```
+*Cell 20:*
+```python
+compounded_returns_series = np.cumprod(1+real_returns) - 1
+```
+*Cell 21:*
+```python
+# if you compare this to the plot of the actual SPY above, plt.plot(real_pricing)
+# you'll notice it's the same shape except normalized to a starting value of 100
+(100 * compounded_returns_series).plot()
+```
+*Cell 22:*
+```python
+import cvxopt as opt
+from cvxopt import blas, solvers
+import pandas as pd
+
+np.random.seed(123)
+
+# Turn off progress printing 
+solvers.options['show_progress'] = False
+```
+*Cell 23:*
+```python

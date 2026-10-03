@@ -1,0 +1,48 @@
+# Hierarchical Signal-to-Policy Learning for Risk-Aware Portfolio Optimization
+
+**Source**: IJFS 14-00075 (2025)
+
+## Overview
+Two-stage framework integrating explainable ML and deep RL for portfolio optimization.
+
+## Architecture
+
+### Stage 1: Signal Extraction
+- **Model**: Gradient-boosted trees (XGBoost)
+- **Task**: Next-period return estimation
+- **Explainability**: SHAP values for feature attribution
+- **Output**: Predictive signals + interpretable explanations
+
+### Stage 2: Policy Learning
+- **Agent**: Proximal Policy Optimization (PPO)
+- **State**: Predictions + SHAP signals + technical indicators + volatility
+- **Action**: Portfolio weight tilts relative to baseline
+- **Reward**: Mean-CVaR with turnover and concentration penalties
+
+## Key Features
+
+### Explainability
+- TreeSHAP for exact feature attributions
+- SHAP-derived summary metrics as market context
+- Transparent signal-to-policy mapping
+
+### Risk Awareness
+- CVaR penalty in reward function
+- Turnover penalties for transaction costs
+- Concentration penalties for diversification
+
+### MDP Specification
+- State: Time-stacked observations
+- Action: Weight tilts (long-only, fully invested)
+- Reward: Monthly mean-CVaR with penalties
+
+## Results
+- Higher and stable out-of-sample risk-adjusted returns
+- Outperforms single-layer DRL
+- Outperforms mean-CVaR optimization alone
+- Robust across U.S. sector ETFs and DJIA constituents
+
+## Implications
+- Separating signal extraction from policy learning improves robustness
+- Explainable signals enhance RL agent transparency
+- Risk-aware rewards are essential for live deployment

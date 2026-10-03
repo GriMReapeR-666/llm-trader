@@ -1,0 +1,35 @@
+# Basic Math
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Basic Math
+
+Python has a number of built-in math functions. These can be extended even further by importing the **math** package or by including any number of other calculation-based packages.
+
+All of the basic arithmetic operations are supported: `+`, `-`, `/`, and `*`. You can create exponents by using `**` and modular arithmetic is introduced with the mod operator, `%`.
+
+If you are not familiar with the the mod operator, it operates like a remainder function. If we type $15 \ \% \ 4$, it will return the remainder after dividing $15$ by $4$.
+
+Mathematical functions also work on variables!
+
+Make sure that your variables are floats if you want to have decimal points in your answer. If you perform math exclusively with integers, you get an integer. Including any float in the calculation will make the result a float.
+
+Python has a few built-in math functions. The most notable of these are:
+
+* `abs()`
+* `round()`
+* `max()`
+* `min()`
+* `sum()`
+
+These functions all act as you would expect, given their names. Calling `abs()` on a number will return its absolute value. The `round()` function will round a number to a specified number of the decimal points (the default is $0$). Calling `max()` or `min()` on a collection of numbers will return, respectively, the maximum or minimum value in the collection. Calling `sum()` on a collection of numbers will add them all up. If you're not familiar with how collections of values in Python work, don't worry! We will cover collections in-depth in the next section. 
+
+Additional math functionality can be added in with the `math` package.
+
+The math library adds a long list of new mathematical functions to Python. Feel free to check out the [documentation](https://docs.python.org/2/library/math.html) for the full list and details. It concludes some mathematical constants
+
+As well as some commonly used math functions

@@ -1,0 +1,31 @@
+# Quantopian External Resources
+
+Topic: 05_Quant_Utilities
+Confidence: 1.00
+Keywords: numpy, python, pandas
+
+---
+
+## Quantopian External Resources
+
+### Video Lecture: DFS Quantitative Finance
+**Source**: `quantopian_research2/videos/miscellaneous/dfs/dfs_quant_finance.ipynb`
+**Use Case**: Educational video on quantitative finance concepts
+**Prerequisites**: Jupyter Notebook, matplotlib, pandas
+
+```python
+# Extracted from video lecture notebook
+# Standard data science imports for quant finance videos
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from pandas_datareader import data as web
+import datetime
+
+# Example: Fetching stock data for analysis
+start = datetime.datetime(2010, 1, 1)
+end = datetime.datetime(2025, 1, 1)
+df = web.DataReader('AAPL', 'yahoo', start, end)
+```
+
+---

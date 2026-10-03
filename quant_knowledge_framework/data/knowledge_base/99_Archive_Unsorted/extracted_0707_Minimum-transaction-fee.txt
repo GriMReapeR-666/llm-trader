@@ -1,0 +1,13 @@
+# Minimum transaction fee
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Minimum transaction fee
+
+Every time we execute a transaction, we must pay our broker a transaction fee (also known as commission). These are never fun, and can render whole strategies completely useless. They are especially bad for algorithms that make many small trades. This is because transaction fees are generally smaller for smaller transactions, but there is a minimum fee that all transactions below a certain amount have to pay.
+
+Say the transaction fee is just 0.1% of the money involved in the transaction at while we are running a large amount of capital. However, there is be a \$1 fee minimum. Then the transaction fee will be higher than 0.1% when we make a trade for less than \$1000. Eventually \$1 will be more than we expect the profit on the transaction to be. That's definitely not something we want, so minimum transaction fees enforce a minimum capacity for our algorithm.

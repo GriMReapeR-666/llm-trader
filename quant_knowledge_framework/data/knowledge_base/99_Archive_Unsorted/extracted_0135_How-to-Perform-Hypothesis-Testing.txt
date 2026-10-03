@@ -1,0 +1,110 @@
+# How to Perform Hypothesis Testing
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## How to Perform Hypothesis Testing
+
+The following are the main steps in hypothesis testing:
+
+1. State the hypothesis and the alternative to the hypothesis
+2. Identify the appropriate test statistic and its distribution. Ensure that any assumptions about the data are met (stationarity, normality, etc.)
+3. Specify the significance level, $\alpha$
+4. From $\alpha$ and the distribution compute the 'critical value'.
+5. Collect the data and calculate the test statistic
+6. Compare test statistic with critical value and decide whether to accept or reject the hypothesis.
+
+First we state the hypothesis that we wish to test. We do this by identifying a **null hypothesis** and an **alternative hypothesis**. The null hypothesis, $H_0$, is the one that we want to test, while the alternative hypothesis, $H_A$, is the hypothesis that is accepted in the case where $H_0$ is rejected.
+
+Let's say that we want to test whether the mean return of Microsoft stock is positive. The parameter that we are testing is denoted by $\theta$ and the proposed value of the parameter is denoted by $\theta_0$, which in this case is equal to $0$. So we say that our $H_0$ is $\theta = \theta_0$, that the returns are negative, and our $H_A$ is $\theta \neq \theta_0$. Including this formation, there are three possible ways to formulate null and alternative hypotheses:
+
+1. $H_0: \theta = \theta_0$ versus $H_A: \theta \neq \theta_0$ (A "not equal to" alternative hypothesis)
+2. $H_0: \theta \leq \theta_0$ versus $H_A: \theta > \theta_0$ (A "greater than" alternative hypothesis)
+3. $H_0: \theta \geq \theta_0$ versus $H_A: \theta < \theta_0$ (A "less than" alternative hypothesis)
+
+In this case, where we are testing the returns of MSFT, $\theta = \mu_{MSFT}$, representing the stock's mean returns. Since we are testing whether the returns are positive or negative, we have that $\theta_0 = 0$. Our example follows the first formulation of a hypothesis test. This is a **two-sided hypothesis test** (or **two-tailed hypothesis test**). The second and third formulations are examples of a **one-sided hypothesis test** (or **one-tailed hypothesis test**). With a one-sided test, we reject the null in favor of the alternative only if the data indivates that $\theta$ is repectively greater than or less than $\theta_0$. A two-sided test rejects the null in favor of the alternative if the data indicates that $\theta$ is either greater or less than $\theta_0$.
+
+So if we were to write out our hypothesis for MSFT in more qualitative terms, we would have:
+
+\begin{eqnarray}
+H_0 &:& \text{The mean return on Microsoft stock is $0$}\\
+H_A &:& \text{The mean return on Microsoft stock is not $0$}
+\end{eqnarray}
+
+When forming a hypothesis test, the null and alternative hypothesis must be complementary to each other. Between them they must cover all values of $\theta$. Regardless of the type of hypothesis test we are performing, we always test the null hypothesis as if $\theta = \theta_0$. In the case of either of the one-tailed tests, this will still provide more than enough evidence for us to make a decision. For example, if $H_0: \theta \leq 0$, $H_A: \theta > 0$, and we have enough evidence to reject $H_0: \theta = 0$ in favor of $H_A: \theta > 0$, then this holds true for all values less than $0$ as well.
+
+The most common type of hypothesis test is the two-tailed, "not equal to", hypothesis test, because it presents a neutral view. The one-tailed hypothesis tests are less neutral than the "not equal to" test, reflecting the thoughts of the tester. One-tailed tests are often used to test "hoped for" results or results that the testers have a prior idea about.
+
+
+Let's get some data.
+
+Here are the returns.
+
+##Why is this all necessary?
+
+Why can't we just take the mean returns of microsoft and check if they're > 0? Because we can't look at the actual data generating process behind the returns, we can only sample returns on some limited time period. Because we only observe a sample, that sample may or may not reflect the true state of the underlying process. Because of this uncertainty we need to use statistical tests.
+
+Next, we identify the appropriate **test statistic** and its probability distribution. A test statistic usually takes the following form:
+
+$$ \text{Test statistic} = \frac{\text{Sample statistic} - \text{Value of the population parameter under $H_0$ ($\theta_0$)}}{\text{Standard error of the sample statistic}} $$
+
+A test statistic is calculated based on sample data and is compared to its probability distribution to determine whether to reject or not reject the null hypothesis. Since we are testing the mean return on MSFT stock, we can use the sample mean, $\bar{X}_\mu$, as our sample statistic. We calculate the standard error of the sample mean as $\sigma_{\bar{X}} = \frac{\sigma}{\sqrt{n}}$ if we know the standard deviation, $\sigma$, or as $s_{\bar{X}} = \frac{s}{\sqrt{n}}$, where $s$ is the sample standard deviation. So using these definitions, our test statistic can be calculated as:
+
+$$ \frac{\bar{X}_\mu - \theta_0}{s_{\bar{X}}} = \frac{\bar{X}_\mu - 0}{s/\sqrt{n}} $$
+
+The four most common distributions for test statistics are as follows:
+
+* The $t$-distribution ($t$-test)
+* The standard normal distribution ($z$-test)
+* The chi-square ($\chi^2$) distribution ($\chi^2$-test)
+* The $F$-distribution ($F$-test)
+
+We will cover them in detail later. For now, we will say that we can use a $z$-test with our assumptions in the MSFT example.
+
+
+After we identify the appropriate test statistic and probability distribution, we need to specify the **significance level** of the test, $\alpha$. The values that we compare our test statistic to in order to reject or fail to reject 
+the $H_0$ are determined based on our $\alpha$ value. 
+
+|| True Situation ||
+| :---: | :---: | :---: |
+| **Decision** | $H_0$ True | $H_0$ False |
+| Do not reject $H_0$ | Correct Decision | Type II Error |
+| Reject $H_0$ (accept $H_A$) | Type I Error | Correct Decision |
+
+Our significance level is equal to the probability of a Type I error (a "false positive") occuring. The probability of a Type II error (a "false negative") occuring is denoted by $\beta$. If we try to decrease the probability of a Type I error occuring, we increase the probability of a Type II error occuring, resulting in a tradeoff. The only way to reduce the probability of both a Type I and a Type II error occuring is to increase the sample size.
+
+The conventional significance levels are $0.1$, $0.05$, and $0.01$. Rejecting the null at $0.1$ mean that we have some evidence null is false, $0.05$ means we have strong evidence null is false, rejecting at $0.01$ we have very strong evidence that null is false.
+
+### Critical Value
+
+Now we figure out our critical value, or, rejection point. The critical value for our test statistic is the value that we compare the test statistic to when deciding whether to reject the null hypothesis. If we reject the null, we say that the result is **statistically significant**, while if we fail to reject the null, we say that the result is **not statistically significant**.
+
+We compare our test statistic to a **critical value** in order to decide whether to reject or not reject the null hypothesis. The critical value of a test is determined based on the $\alpha$ of our hypothesis test as well as the chosen distribution. In our case, say that $\alpha = 0.05$, so our significance level is $0.05$. With a one-sided $z$-test, there are two different ways to see the critical values:
+
+* If we test $H_0$: $\theta \leq \theta_0$, $H_A$: $\theta > \theta_0$ at $\alpha = 0.05$, our critical value is $z_{0.05} = 1.645$. So we compare our test statistic and we reject the null hypothesis if $z > 1.645$.
+* If we test $H_0$: $\theta \geq \theta_0$, $H_A$: $\theta < \theta_0$ at $\alpha = 0.05$, our critical value is $-z_{0.05} = -1.645$. As such, we compare our test statistic and we reject the null hypothesis if $z < -1.645$.
+
+A two-sided test is a slightly different situation. Since it is two-sided, there are two rejection points, negative and positive. Our $\alpha$ is $0.05$, so the total probability of a Type I error must sum to $0.05$. As such, we split $0.05$ in half so that our two rejection points are $z_{0.025}$ and $-z_{0.025}$ for the positive and negative critical values, respectively. For a $z$-test, these values are $1.96$ and $-1.96$. Thus, we reject the null if $z < -1.96$ or if $z > 1.96$. If we find that $-1.96 \leq z \leq 1.96$, we fail to reject the null.
+
+When conducting a hypothesis test, you can also use a **$p$-value** to determine the result. A $p$-value is the minimum level of significance where you can reject the null hypothesis. Often people will interpret $p$-values as the "probability that the null hypothesis is false", but this is misleading. A $p$-value only makes sense when compared to the significance value. If a $p$-value is less than $\alpha$, we reject the null and otherwise we do not. Lower $p$-values do not make something "more statistically significant". A lot of statistical outputs will calculate a $p$-value for you, but it is also possible to calculate it manually. The calculation depends both on your type of hypothesis test and the CDF (covered in the [random variables lecture](https://www.quantopian.com/lectures/random-variables)) of the distribution you are working with. To manually calculate a $p$-value, do the following:
+
+* In a 'less than or equal to' hypothesis test, the $p$-value is $1 - CDF(\text{Test Statistic})$
+* In a 'greater than or equal to' hypothesis test, the $p$-value is $CDF(\text{Test Statistic})$
+* In a 'not equal to' hypothesis test, the $p$-value is $2 * 1 - CDF(|\text{Test Statistic}|)$
+
+Significance values tie very nicely into confidence intervals, which are covered more in-depth in our [confidence intervals lecture](https://www.quantopian.com/lectures/confidence-intervals). A confidence interval provides us with an estimate for a parameter's possible range in values given a certain significance level. For example, if our $99\%$ confidence interval for the mean of MSFT returns was $(-0.0020, 0.0023)$, that would mean that there was a $99\%$ chance that the true value of the mean was within that interval.
+
+Now we collect the relevant data for our test and calculate the test statistic for a two sided, $5\%$ significance test. Keep in mind that any negative characteristics of the data will negatively affect our hypothesis test and possibly render it invalid. In the case of our test of MSFT returns, we may run into issues of time-period bias, or of look-ahead bias (if we prepare the test incorrectly). As always with historical data, the data that we work with may result in a specific test result that may not hold for the future. We also have to make sure that the data does not include any values that we would not have known during the time period we are testing (though this is more of an issue when comparing multiple things with hypothesis tests).
+
+Here we calculate the test statistic:
+
+In order to make the statistical decision for the test, we compare our test statistic to our critical value. Our test statistic as stated above is between the two critical values for a 95% two-tailed $z$-test so in this example we **fail to reject** our $H_0$, our hypothesis that MSFT returns are **not** $0$.
+
+If we chose instead to determine the result of this hypothesis test with a $p$-value, we would calculate the $p$-value in the following way:
+
+Because the $p$-value is greater than our significance level, $\alpha = 0.05$, we **fail to reject** the null hypothesis.
+
+After we make the statistical decision, we have to translate it into real life. Oftentimes this may be difficult to act upon directly, but the results can have other implications. In the case of our example, we have found that the daily returns of Microsoft in 2015 were not significantly different from $0$.

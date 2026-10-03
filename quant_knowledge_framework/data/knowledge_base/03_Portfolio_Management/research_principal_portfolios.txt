@@ -1,0 +1,63 @@
+# Principal Portfolios: Cross-Predictability and Asset Pricing
+
+**Source**: Kelly et al., Journal of Finance; NBER 27388
+
+## Overview
+Novel asset pricing framework using prediction matrices and singular value decomposition.
+
+## Core Concepts
+
+### Prediction Matrix
+```
+Π = E(R_{t+1} S_t')
+```
+- Captures own-signal predictability (diagonal)
+- Captures cross-predictability (off-diagonal)
+- All securities' signals predict each individual return
+
+### Symmetric/Antisymmetric Decomposition
+```
+Π = Π^s + Π^a
+where:
+- Π^s = (Π + Π')/2 (symmetric)
+- Π^a = (Π - Π')/2 (antisymmetric)
+```
+
+### Principal Portfolios (PPs)
+- Singular vectors of prediction matrix
+- Ordered from most to least predictable
+- Most "timeable" portfolios
+
+### Principal Exposure Portfolios (PEPs)
+- Eigenvectors of symmetric component Π^s
+- Positive factor exposure
+- Nonnegative average returns in arbitrage-free markets
+
+### Principal Alpha Portfolios (PAPs)
+- Eigenvectors of antisymmetric component Π^a
+- Zero factor exposure
+- Can deliver positive expected returns = pure alpha!
+
+## Key Results
+
+### Alpha-Beta Decomposition
+- Symmetric part determines risk (beta)
+- Antisymmetric part enables alpha
+- Factor-neutral strategies from antisymmetric eigenvectors
+
+### Asset Pricing Test
+- Correctly specified pricing kernel → Π symmetric and positive definite
+- No alpha portfolios should exist
+- Negative eigenvalues of Π^s = strategies with negative factor exposure and positive returns
+
+### Empirical Performance
+- PPs deliver significant out-of-sample alphas
+- PEPs have significant factor exposure
+- PAPs have little-to-no factor exposure
+- Robust across international equities and futures
+
+## Implications for Quant Trading
+1. Cross-predictability contains valuable information
+2. Antisymmetric strategies offer pure alpha
+3. Prediction matrix eigenvalues order strategy quality
+4. Framework applicable to any signal-based trading

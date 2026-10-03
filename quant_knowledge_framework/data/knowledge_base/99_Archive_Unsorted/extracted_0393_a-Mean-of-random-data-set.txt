@@ -1,0 +1,10 @@
+# a. Mean of random data set.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Mean of random data set.
+Find the mean of the randomly generated data set `l`.

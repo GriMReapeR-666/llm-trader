@@ -1,0 +1,331 @@
+# Notebook Contents
+
+Topic: 05_Quant_Utilities
+Confidence: 0.67
+Keywords: data pipeline, python, pandas, standardize
+
+---
+
+## Notebook Contents
+
+There are two ways to access the data and you'll find both of them listed below. Just click on the section you'd like to read through.
+
+- <a href='#interactive'><strong>Interactive overview</strong></a>: This is only available on Research and uses blaze to give you access to large amounts of data. Recommended for exploration and plotting.
+- <a href='#pipeline'><strong>Pipeline overview</strong></a>: Data is made available through pipeline which is available on both the Research & Backtesting environment. Recommended for custom factor development and moving back & forth between research/backtesting.
+
+### Free samples and limits
+One key caveat: we limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free sample includes data until 2 months prior to the current date.
+
+To access the most up-to-date values for this data set for trading a live algorithm (as with other partner sets), you need to purchase acess to the full set.
+
+With preamble in place, let's get started:
+
+<a id='interactive'></a>
+#Interactive Overview
+### Accessing the data with Blaze and Interactive on Research
+Partner datasets are available on Educational Platform Research through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets, in an interactive, generic manner.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to reduce your dataset in size, convert it over to Pandas and then to use Pandas for further computation, manipulation and visualization.
+
+Helpful links:
+* [Query building for Blaze](http://blaze.readthedocs.io/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-sql.html).
+
+Once you've limited the size of your Blaze object, you can convert it to a Pandas DataFrames using:
+> `from odo import odo`  
+> `odo(expr, pandas.DataFrame)`
+
+
+###To see how this data can be used in your algorithm, search for the `Pipeline Overview` section of this notebook or head straight to <a href='#pipeline'>Pipeline Overview</a>
+
+There are two versions of each data set from PsychSignal. A simple version with fewer fields and full version with more fields. This is an basic data set with fewer fields.
+
+Let's go over the columns:
+- **asof_date**: The date to which this data applies.
+- **symbol**: stock ticker symbol of the affected company.
+- **source**: the same value for all records in this data set
+- **bull_scored_messages**: total count of bullish sentiment messages scored by PsychSignal's algorithm
+- **bear_scored_messages**: total count of bearish sentiment messages scored by PsychSignal's algorithm
+- **bullish_intensity**: score for each message's language for the stength of the bullishness present in the messages on a 0-4 scale. 0 indicates no bullish sentiment measured, 4 indicates strongest bullish sentiment measured. 4 is rare
+- **bearish_intensity**: score for each message's language for the stength of the bearish present in the messages on a 0-4 scale. 0 indicates no bearish sentiment measured, 4 indicates strongest bearish sentiment measured. 4 is rare
+- **total_scanned_messages**: number of messages coming through PsuchSignal's feeds and attributable to a symbol regardless of whether the PsychSignal sentiment engine can score them for bullish or bearish intensity- **timestamp**: this is our timestamp on when we registered the data.
+- **bull_minus_bear**: subtracts the bearish intesity from the bullish intensity [BULL - BEAR] to rpovide an immediate net score.
+- **bull_bear_msg_ratio**: the ratio between bull scored messages and bear scored messages.
+- **sid**: the equity's unique identifier. Use this instead of the symbol.
+
+We've done much of the data processing for you. Fields like `timestamp` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, we'll fetch all rows for Apple (sid 24) and explore the scores a bit with a chart.
+
+<a id='pipeline'></a>
+
+#Pipeline Overview
+
+### Accessing the data in your algorithms & research
+The only method for accessing partner data within algorithms running on Educational Platform is via the pipeline API. Different data sets work differently but in the case of this data, you can add this data to your pipeline as follows:
+
+Import the data set here
+> `from educational_platform.pipeline.data.psychsignal import (`
+> `stocktwits_free `
+> `)`
+
+Then in intialize() you could do something simple like adding the raw value of one of the fields to your pipeline:
+> `pipe.add(stocktwits_free.total_scanned_messages.latest, 'total_scanned_messages')`
+
+Now that we've imported the data, let's take a look at which fields are available for each dataset.
+
+You'll find the dataset, the available fields, and the datatypes for each of those fields.
+
+Now that we know what fields we have access to, let's see what this data looks like when we run it through Pipeline.
+
+
+This is constructed the same way as you would in the backtester. For more information on using Pipeline in Research view this thread:
+https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+
+Taking what we've seen from above, let's see how we'd move that into the backtester.
+
+Now you can take that and begin to use it as a building block for your algorithms, for more examples on how to do that you can visit our <a href='https://www.educational_platform.com/posts/pipeline-factor-library-for-data'>data pipeline factor library</a>
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the free sample of the dataset
+from educational_platform.interactive.data.psychsignal import stocktwits_free  as dataset
+
+# or if you want to import the full dataset, use:
+# from educational_platform.interactive.data.psychsignal import stocktwits
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+dataset.dshape
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+dataset.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+dataset[:3]
+```
+*Cell 5:*
+```python
+# Filtering for AAPL
+aapl = dataset[dataset.sid == 24]
+aapl_df = odo(aapl.sort('asof_date'), pd.DataFrame)
+plt.plot(aapl_df.asof_date, aapl_df.bull_scored_messages, marker='.', linestyle='None', color='r')
+plt.plot(aapl_df.asof_date, pd.rolling_mean(aapl_df.bull_scored_messages, 30))
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("Count of Bull Messages")
+plt.title("Count of Bullish Messages for AAPL")
+plt.legend(["Bull Messages - Single Day", "30 Day Rolling Average"], loc=2)
+```
+*Cell 6:*
+```python
+# Import necessary Pipeline modules
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+```
+*Cell 7:*
+```python
+# For use in your algorithms
+# Using the full paid dataset in your pipeline algo
+# from educational_platform.pipeline.data.psychsignal import stocktwits
+
+# Using the free sample in your pipeline algo
+from educational_platform.pipeline.data.psychsignal import stocktwits_free 
+```
+*Cell 8:*
+```python
+print "Here are the list of available fields per dataset:"
+print "---------------------------------------------------\n"
+
+def _print_fields(dataset):
+    print "Dataset: %s\n" % dataset.__name__
+    print "Fields:"
+    for field in list(dataset.columns):
+        print "%s - %s" % (field.name, field.dtype)
+    print "\n"
+
+for data in (stocktwits_free ,):
+    _print_fields(data)
+
+
+print "---------------------------------------------------\n"
+```
+*Cell 9:*
+```python
+# Let's see what this data looks like when we run it through Pipeline
+# This is constructed the same way as you would in the backtester. For more information
+# on using Pipeline in Research view this thread:
+# https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+pipe = Pipeline()
+       
+pipe.add(stocktwits_free.total_scanned_messages.latest,
+         'total_scanned_messages')
+pipe.add(stocktwits_free.bear_scored_messages .latest,
+         'bear_scored_messages ')
+pipe.add(stocktwits_free.bull_scored_messages .latest,
+         'bull_scored_messages ')
+pipe.add(stocktwits_free.bull_bear_msg_ratio .latest,
+         'bull_bear_msg_ratio ')
+```
+*Cell 10:*
+```python
+# Setting some basic liquidity strings (just for good habit)
+dollar_volume = AverageDollarVolume(window_length=20)
+top_1000_most_liquid = dollar_volume.rank(ascending=False) < 1000
+
+pipe.set_screen(top_1000_most_liquid &
+                (stocktwits_free.total_scanned_messages.latest>20))
+```
+*Cell 11:*
+```python
+# The show_graph() method of pipeline objects produces a graph to show how it is being calculated.
+pipe.show_graph(format='png')
+```
+*Cell 12:*
+```python
+# run_pipeline will show the output of your pipeline
+pipe_output = run_pipeline(pipe, start_date='2013-11-01', end_date='2013-11-25')
+pipe_output
+```
+*Cell 13:*
+```python
+# This section is only importable in the backtester
+from educational_platform.algorithm import attach_pipeline, pipeline_output
+
+# General pipeline imports
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+
+# Import the datasets available
+# For use in your algorithms
+# Using the full paid dataset in your pipeline algo
+# from educational_platform.pipeline.data.psychsignal import stocktwits
+
+# Using the free sample in your pipeline algo
+from educational_platform.pipeline.data.psychsignal import stocktwits_free
+
+def make_pipeline():
+    # Create our pipeline
+    pipe = Pipeline()
+    
+    # Screen out penny stocks and low liquidity securities.
+    dollar_volume = AverageDollarVolume(window_length=20)
+    is_liquid = dollar_volume.rank(ascending=False) < 1000
+    
+    # Create the mask that we will use for our percentile methods.
+    base_universe = (is_liquid)
+
+    # Add pipeline factors
+    pipe.add(stocktwits_free.total_scanned_messages.latest,
+             'total_scanned_messages')
+    pipe.add(stocktwits_free.bear_scored_messages .latest,
+             'bear_scored_messages ')
+    pipe.add(stocktwits_free.bull_scored_messages .latest,
+             'bull_scored_messages ')
+    pipe.add(stocktwits_free.bull_bear_msg_ratio .latest,
+             'bull_bear_msg_ratio ')
+
+    # Set our pipeline screens
+    pipe.set_screen(is_liquid)
+    return pipe
+
+def initialize(context):
+    attach_pipeline(make_pipeline(), "pipeline")
+    
+def before_trading_start(context, data):
+    results = pipeline_output('pipeline')
+```
+
+##### Quandl: ADP National Employment Report
+- **Original Path**: `notebooks\data\quandl.adp_empl_sec\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 8 (Code: 5, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.quandl import adp_empl_sec, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: ADP National Employment Report 
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 2001 through the current day. It contains the value for employment levels as provided by ADP, the payroll service provider. We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/ADP/EMPL_SEC-Employment-by-Sector) on this dataset can be found on Quandl's website.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform partner data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Some of these sets (though not this one) are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform partner data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+With preamble in place, let's get started:
+
+The data goes all the way back to 2001 and is updated monthly.
+
+Blaze provides us with the first 10 rows of the data for display. Just to confirm, let's just count the number of rows in the Blaze expression:
+
+Let's go plot it for fun. This data set is definitely small enough to just put right into a Pandas DataFrame
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.quandl import adp_empl_sec 
+# Since this data is public domain and provided by Quandl for free, there is no _free version of this
+# data set, as found in the premium sets. This import gets you the entirety of this data set.
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+adp_empl_sec.sort('asof_date')
+```
+*Cell 3:*
+```python
+adp_empl_sec.count()
+```
+*Cell 4:*
+```python
+adp_df = odo(adp_empl_sec, pd.DataFrame)
+
+adp_df.plot(x='asof_date', y='total_private')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("Employment Levels")
+plt.title("ADP Employment Level Data")
+plt.legend().set_visible(False)
+```
+*Cell 5:*
+```python
+
+```
+
+##### Quandl: Price of Gold
+- **Original Path**: `notebooks\data\quandl.bundesbank_bbk01_wt5511\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 21 (Code: 13, Markdown: 8)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.algorithm import attach_pipeline, pipeline_output, from educational_platform.interactive.data.quandl import bundesbank_bbk01_wt5511 as dataset, from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.quandl import bundesbank_bbk01_wt5511 as gold, from educational_platform.research import run_pipeline, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: Price of Gold
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 1968 through the current day. It contains the value for the price of gold, as sourced by the Deutsche Bundesbank Data Repository. We access this data via the API provided by Quandl. See [Quandl's detail page](https://www.quandl.com/data/BUNDESBANK/BBK01_WT5511-Gold-Price-USD) for this set for more information.

@@ -1,0 +1,41 @@
+# Quantopian - Quantitative Finance
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, pandas
+
+---
+
+## Quantopian - Quantitative Finance
+### Source: https://github.com/quantopian/research_public
+#### Category: Lectures
+##### Arbitrage Pricing Theory
+- **Original Path**: `notebooks\lectures\Arbitrage_Pricing_Theory\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 28 (Code: 12, Markdown: 16)
+- **Imports/Dependencies**: from statsmodels import regression, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Arbitrage Pricing Theory
+
+By Evgenia "Jenny" Nitishinskaya, Delaney Granizo-Mackenzie, and Maxwell Margenot.
+
+Part of the Quantopian Lecture Series:
+
+* [www.quantopian.com/lectures](https://www.quantopian.com/lectures)
+* [github.com/quantopian/research_public](https://github.com/quantopian/research_public)
+
+
+---
+
+Arbitrage pricing theory is a major asset pricing theory that relies on expressing the returns using a linear factor model:
+
+$$R_i = a_i + b_{i1} F_1 + b_{i2} F_2 + \ldots + b_{iK} F_K + \epsilon_i$$
+
+This theory states that if we have modelled our rate of return as above, then the expected returns obey
+
+$$ E(R_i) = R_F + b_{i1} \lambda_1 + b_{i2} \lambda_2 + \ldots + b_{iK} \lambda_K $$
+
+where $R_F$ is the risk-free rate, and $\lambda_j$ is the risk premium - the return in excess of the risk-free rate - for factor $j$. This premium arises because investors require higher returns to compensate them for incurring risk. This generalizes the capital asset pricing model (CAPM), which uses the return on the market as its only factor.
+
+We can compute $\lambda_j$ by constructing a portfolio that has a sensitivity of 1 to factor $j$ and 0 to all others (called a <i>pure factor portfolio</i> for factor $j$), and measure its return in excess of the risk-free rate. Alternatively, we could compute the factor sensitivities for $K$ well-diversified (no asset-specific risk, i.e. $\epsilon_p = 0$) portfolios, and then solve the resulting system of linear equations.

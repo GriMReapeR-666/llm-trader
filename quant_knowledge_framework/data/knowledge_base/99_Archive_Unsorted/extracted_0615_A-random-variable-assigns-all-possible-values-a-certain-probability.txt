@@ -1,0 +1,17 @@
+# A random variable assigns all possible values a certain probability
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## A random variable assigns all possible values a certain probability
+
+### Alternatively:
+
+coin ~ Bernoulli(p=0.5)
+
+* `coin` is a random variable
+* `Bernoulli` is a probability distribution
+* `~` reads as "is distributed as"

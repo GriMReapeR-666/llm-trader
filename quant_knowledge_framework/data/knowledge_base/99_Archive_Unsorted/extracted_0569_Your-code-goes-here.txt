@@ -1,0 +1,17 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+print 'Range of X: %s' %(range_X)
+```
+*Cell 4:*
+```python
+# Mean Absolute Deviation
+# First calculate the value of mu (the mean)
+
+mu = np.mean(X)

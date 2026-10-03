@@ -1,0 +1,15 @@
+# IEI, IEF
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## IEI, IEF
+
+Next, we use the same procedure to test the **IEI** ETF against the Prattle data. Similar to SHY, IEI tracks 3-7 year Treasury Bonds. It's also quite popular, storing about $5bn in assets. IEI started trading on 11 Jan 2007.
+
+It is visually quite apparent that there most likely isn't a tradeable signal here. There are large trends in Fed Sentiment and IEI Price that do not match each other.
+
+We also looked into **IEF**, which tracks 7-10 year treasury bonds, started trading on `2002-06-24`, and stores about $6bn in assets. With IEF, we got results very similar to those for IEI. In the interest of brevity, we'll thus skip the IEF section.

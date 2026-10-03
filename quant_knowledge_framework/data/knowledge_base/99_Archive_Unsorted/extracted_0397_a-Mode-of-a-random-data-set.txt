@@ -1,0 +1,10 @@
+# a. Mode of a random data set.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Mode of a random data set. 
+Find the mode of the random generated data set `l`.

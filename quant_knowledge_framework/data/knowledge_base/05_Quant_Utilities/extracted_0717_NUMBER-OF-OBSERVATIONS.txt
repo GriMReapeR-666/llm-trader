@@ -1,0 +1,724 @@
+# NUMBER OF OBSERVATIONS
+
+Topic: 05_Quant_Utilities
+Confidence: 0.40
+Keywords: rolling window, pandas, cointegration, python, numpy, z-score
+
+---
+
+## NUMBER OF OBSERVATIONS
+n_obs = 1000
+
+return_vec = np.random.randn(n_assets, n_obs)
+```
+*Cell 3:*
+```python
+plt.plot(return_vec.T, alpha=.4);
+plt.xlabel('time')
+plt.ylabel('returns');
+```
+*Cell 4:*
+```python
+def rand_weights(n):
+    ''' Produces n random weights that sum to 1 '''
+    k = np.random.rand(n)
+    return k / sum(k)
+
+print rand_weights(n_assets)
+print rand_weights(n_assets)
+```
+*Cell 5:*
+```python
+def random_portfolio(returns):
+    ''' 
+    Returns the mean and standard deviation of returns for a random portfolio
+    '''
+
+    p = np.asmatrix(np.mean(returns, axis=1))
+    w = np.asmatrix(rand_weights(returns.shape[0]))
+    C = np.asmatrix(np.cov(returns))
+        
+    mu = w * p.T
+    sigma = np.sqrt(w * C * w.T)
+    
+    # This recursion reduces outliers to keep plots pretty
+    if sigma > 2:
+        return random_portfolio(returns)
+    return mu, sigma
+```
+*Cell 6:*
+```python
+n_portfolios = 500
+means, stds = np.column_stack([
+    random_portfolio(return_vec) 
+    for _ in xrange(n_portfolios)
+])
+```
+*Cell 7:*
+```python
+plt.plot(stds, means, 'o', markersize=5)
+plt.xlabel('std')
+plt.ylabel('mean')
+plt.title('Mean and standard deviation of returns of randomly generated portfolios');
+```
+*Cell 8:*
+```python
+def optimal_portfolio(returns):
+    n = len(returns)
+    returns = np.asmatrix(returns)
+    
+    N = 100
+    mus = [10**(5.0 * t/N - 1.0) for t in range(N)]
+    
+    # Convert to cvxopt matrices
+    S = opt.matrix(np.cov(returns))
+    pbar = opt.matrix(np.mean(returns, axis=1))
+    
+    # Create constraint matrices
+    G = -opt.matrix(np.eye(n))   # negative n x n identity matrix
+    h = opt.matrix(0.0, (n ,1))
+    A = opt.matrix(1.0, (1, n))
+    b = opt.matrix(1.0)
+    
+    # Calculate efficient frontier weights using quadratic programming
+    portfolios = [solvers.qp(mu*S, -pbar, G, h, A, b)['x'] 
+                  for mu in mus]
+    ## CALCULATE RISKS AND RETURNS FOR FRONTIER
+    returns = [blas.dot(pbar, x) for x in portfolios]
+    risks = [np.sqrt(blas.dot(x, S*x)) for x in portfolios]
+    ## CALCULATE THE 2ND DEGREE POLYNOMIAL OF THE FRONTIER CURVE
+    m1 = np.polyfit(returns, risks, 2)
+    x1 = np.sqrt(m1[2] / m1[0])
+    # CALCULATE THE OPTIMAL PORTFOLIO
+    wt = solvers.qp(opt.matrix(x1 * S), -pbar, G, h, A, b)['x']
+    return np.asarray(wt), returns, risks
+
+weights, returns, risks = optimal_portfolio(return_vec)
+
+plt.plot(stds, means, 'o')
+plt.ylabel('mean')
+plt.xlabel('std')
+plt.plot(risks, returns, 'y-o');
+```
+*Cell 9:*
+```python
+print weights
+```
+*Cell 10:*
+```python
+tickers = ['IBM', 'SBUX', 'XOM', 'AAPL', 'MSFT', 'TLT', 'SHY']
+data = get_pricing(
+    tickers,
+    start_date='2005-01-01',
+    end_date='2015-01-01'
+)
+```
+*Cell 11:*
+```python
+data.loc['price', :, :].plot()
+plt.ylabel('price in $')
+plt.legend(tickers);
+```
+*Cell 12:*
+```python
+import zipline
+from zipline.api import (
+    set_slippage, 
+    slippage,
+    set_commission, 
+    commission, 
+    order_target_percent,
+    symbols
+)
+
+from zipline import TradingAlgorithm
+
+
+def initialize(context):
+    '''
+    Called once at the very beginning of a backtest (and live trading). 
+    Use this method to set up any bookkeeping variables.
+    
+    The context object is passed to all the other methods in your algorithm.
+
+    Parameters
+
+    context: An initialized and empty Python dictionary that has been 
+             augmented so that properties can be accessed using dot 
+             notation as well as the traditional bracket notation.
+    
+    Returns None
+    '''
+    # Turn off the slippage model
+    set_slippage(slippage.FixedSlippage(spread=0.0))
+    # Set the commission model (Interactive Brokers Commission)
+    set_commission(commission.PerShare(cost=0.01, min_trade_cost=1.0))
+    context.tick = 0
+    context.assets = symbols('IBM', 'SBUX', 'XOM', 'AAPL', 'MSFT', 'TLT', 'SHY')
+    
+def handle_data(context, data):
+    '''
+    Called when a market event occurs for any of the algorithm's 
+    securities. 
+
+    Parameters
+
+    data: A dictionary keyed by security id containing the current 
+          state of the securities in the algo's universe.
+
+    context: The same context object from the initialize function.
+             Stores the up to date portfolio as well as any state 
+             variables defined.
+
+    Returns None
+    '''
+    
+    # Allow history to accumulate 100 days of prices before trading
+    # and rebalance every day thereafter.
+    context.tick += 1
+    if context.tick < 100:
+        return
+    # Get rolling window of past prices and compute returns
+    prices = data.history(context.assets, 'price', 100, '1d').dropna()
+    returns = prices.pct_change().dropna()
+    try:
+        # Perform Markowitz-style portfolio optimization
+        weights, _, _ = optimal_portfolio(returns.T)
+        # Rebalance portfolio accordingly
+        for stock, weight in zip(prices.columns, weights):
+            order_target_percent(stock, weight)
+    except ValueError as e:
+        # Sometimes this error is thrown
+        # ValueError: Rank(A) < p or Rank([P; A; G]) < n
+        pass
+        
+# Instantinate algorithm        
+algo = TradingAlgorithm(initialize=initialize, 
+                        handle_data=handle_data)
+# Run algorithm
+results = algo.run(data.swapaxes(2, 0, 1))
+results.portfolio_value.plot();
+```
+
+##### Mean reversion
+- **Original Path**: `drafts\Mean reversion.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 23 (Code: 9, Markdown: 14)
+- **Imports/Dependencies**: from statsmodels.tsa.stattools import coint, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Mean reversion
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+Mean-reversion strategies are those relying on the assumption that a variable deviating far from its observed mean will tend to reverse direction and revert to the mean. We expect it to go down if it is unusually high, and go up if it is unusually low. Why would this be the case? One explanation is that the deviations we are observing are random fluctuations, which are 0 in expectation. In this notebook, we will just focus on how to build strategies that take advantage of mean reversion when it is observed.
+
+# Single-stock mean reversion
+
+Mean reversion in the context of a stock price implies that periods of the price being far below the mean are followed by periods of the price going up, and vice versa. We can take advantage of this by buying long when the price is lower than expected, and selling short when the price is higher than expected. We can plot the price of a stock along with the mean of the prices up to each day to see whether the price reverts to the mean.
+
+Note that since we are computing the running average, "reverting to the mean" does not necessarily mean going as high or as low as it did before.
+
+In order to trade using this strategy, we need to quantify what it means for the price to be higher or lower than expected. It's useful to compute the z-score of the price on each day, which tells us how many standard deviations away from the mean a value is:
+$$ z = \frac{x - \mu}{\sigma} $$
+
+where $x$ is the value, $\mu$ is the mean of the data set, and $\sigma$ is its standard deviation. So a price with a z-score $> 1$ is more than one standard deviation above the mean, and we will sell short when this happens. If the price on a day has a z-score $< 1$, we will buy long. If the price is within half a standard deviation of the mean, we will clear all positions.
+
+The danger of applying mean reversion to a single stock is that it exposes us to the movement of the market and the success or failure of the individual company, among other factors. If there is a persistent trend affecting the price of the security, we will find ourselves consitently undervaluing (if the price is moving steadily upward) or overvaluing (if the price is falling) the asset. Below we discuss two strategies that mitigate this risk.
+
+# Mean reversion portfolio
+
+Instead of taking the mean of the historical returns on an asset, we can look at the mean of the returns on all of the stocks in, say, the S&P 500. Hypothesizing that the worst-performing stocks last period will do better this period (that is, they are likely to be undervalued) and vice versa, we go long in stocks that performed poorly and short in stocks that performed well.
+
+This approach has the advantage of being market-neutral, so that we do not treat stocks as undervalued just because the market as a whole is falling, or overvalued when the market is rising. Furthermore, by including a large number of securities in portfolio, we are likely to encounter many cases where our prediction is correct.
+
+To construct a portfolio which takes advantage of mean reversion, we first select a universe, such as all S&P 500 stocks or the top-traded stocks on the NYSE. From this universe, we rebalance our portfolio every period (say, every week) by going short in the stocks in the bottom 20% of returns over the last period and long in the stocks in the top 20% of returns. If a stock is in neither of those quintiles, we do not include it in our portfolio.
+
+We can construct a toy example using sector ETFs instead of a large basket of stocks:
+
+We hypothesize that the stocks which do well for the first week will regress after another month, while those which do poorly at first will appreciate in value.
+
+The returns look like they could be anticorrelated, but what would have happened if we had followed the mean-reversion strategy when we examined the past week's returns?
+
+An example trading algorithm implementing this strategy in detail can be found in the associated lecture materials.
+
+# Pairs trading
+
+In pairs trading, the quantity we are examining is the distance between two securities, which we expect to revert back to its mean. For this to be a reasonable assumption, we need the two securities to be statistically <i>cointegrated</i>. In practice, two companies whose products are substitutes for each other are often cointegrated. That is, they generally move together due to shifts in the market and in their specific industry, and move little relative to each other.
+
+How do we incorporate the prediction about their difference into our portfolio? Suppose we are looking at two securities X and Y. Then we go long in X and short in Y when the two are closer together than expected, and short in X and long in Y when the two are far apart. In this way we remain neutral to the market, industry, and other shifts that cause X and Y to move together, while making money on their difference reverting to the mean. We can quantify "closer than expected" as the difference having a z-score of less than -1, and "farther apart than expected" as a z-score greater than 1. This is easier to picture if X's price is higher than Y's, but the end result is the same in either case.
+
+Using the `coint` function from `statsmodels`, let's check whether HP and Microsoft stock prices are cointegrated.
+
+The p-value is low, so the two series are cointegrated. Next we need to find the mean of the difference. We'll compute the cumulative moving average - that is, the average of all the values up to each day - as though we were looking at the data every day without knowing the future.
+
+In some cases, we may instead want our mean to refer only to the moving average, excluding data from too long ago. Below we can see the difference between the cumulative moving average and the 60-day running average.
+
+From here our trading strategy is identical to that for a single security, where we replace the asset with the spread X-Y. When we short the spread, we buy Y and sell X, and vice versa for going long. We'll be using the CMA for the mean, but you can easily change it to see the difference. Keep in mind, however, that what works well with this data may not be suited for other situations, and each definition of the mean will sometimes outperform the other.
+
+For more details on this strategy, see the notebook and discussion [here](https://www.quantopian.com/posts/how-to-build-a-pairs-trading-strategy-on-quantopian).
+
+# Alternative approaches
+
+Mean-reversion strategies assume that trends tend to reverse direction. On the opposite end of the spectrum are trend-following or momentum-based strategies. These hypothesize that prices will, despite fluctuations, generally move in the direction they were moving in before. They can also take into account how quickly a price is moving, and anticipate changes in the direction of movement when it slows down. These are covered in more detail in another notebook.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Load the pricing data for a stock
+start = '2012-01-01'
+end = '2015-01-01'
+pricing = get_pricing('MCD', fields='price', start_date=start, end_date=end)
+
+# Compute the cumulative moving average of the price
+mu = [pricing[:i].mean() for i in range(len(pricing))]
+
+# Plot the price and the moving average
+_, ax = plt.subplots()
+ax.plot(pricing)
+ticks = ax.get_xticks()
+ax.set_xticklabels([pricing.index[i].date() for i in ticks[:-1]]) # Label x-axis with dates
+ax.plot(mu);
+```
+*Cell 2:*
+```python
+# Compute the z-scores for each day using the historical data up to that day
+zscores = [(pricing[i] - mu[i]) / np.std(pricing[:i]) for i in range(len(pricing))]
+
+# Start with no money and no positions
+money = 0
+count = 0
+for i in range(len(pricing)):
+    # Sell short if the z-score is > 1
+    if zscores[i] > 1:
+        money += pricing[i]
+        count -= 1
+    # Buy long if the z-score is < 1
+    elif zscores[i] < -1:
+        money -= pricing[i]
+        count += 1
+    # Clear positions if the z-score between -.5 and .5
+    elif abs(zscores[i]) < 0.5:
+        money += count*pricing[i]
+        count = 0
+print money
+```
+*Cell 3:*
+```python
+# Fetch pricing data for 10 sector ETFs and plot their returns
+assets = ['XLU', 'XLB', 'XLI', 'XLV', 'XLF', 'XLE', 'XLK', 'XLY', 'XLP', 'XBI']
+data = get_pricing(assets, start_date='2015-01-01', end_date='2015-02-06').loc['price', :, :]
+returns = data.pct_change()[1:]
+returns.plot(figsize=(10,7), colors=['r', 'g', 'b', 'k', 'c', 'm', 'orange',
+                                     'chartreuse', 'slateblue', 'silver'])
+plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+plt.ylabel('Returns')
+
+# Convert to numpy array to make manipulation easier
+data = np.array(data);
+```
+*Cell 4:*
+```python
+# For each security, take the return for the first week
+wreturns = (data[4] - data[0])/data[0]
+# Rank securities by return, with 0 being the lowest return
+order = wreturns.argsort()
+ranks = order.argsort()
+
+# For each security, take the return for the month following the first week
+# Normalization for the time period doesn't matter since we're only using the returns to rank them
+mreturns = (data[-1] - data[5])/data[5]
+order2 = mreturns.argsort()
+ranks2 = order2.argsort()
+
+# Plot the returns for the first week vs returns for the next month to visualize them
+plt.scatter(wreturns, mreturns)
+plt.xlabel('Returns for the first week')
+plt.ylabel('Returns for the following month');
+```
+*Cell 5:*
+```python
+# Go long (by one share each) in the bottom 20% of securities and short in the top 20%
+longs = np.array([int(x < 2)for x in ranks])
+shorts = np.array([int(x > 7) for x in ranks])
+print 'Going long in:', [assets[i] for i in range(len(assets)) if longs[i]]
+print 'Going short in:', [assets[i] for i in range(len(assets)) if shorts[i]]
+
+# Resolve all positions and calculate how much we would have earned
+print 'Yield:', sum((data[-1] - data[4])*(longs - shorts))
+```
+*Cell 6:*
+```python
+from statsmodels.tsa.stattools import coint
+
+# Load pricing data for HP and Microsoft
+X = get_pricing('MSFT', fields='price', start_date=start, end_date=end)
+Y = get_pricing('HPQ', fields='price', start_date=start, end_date=end)
+
+# Compute the p-value for the cointegration of the two series
+_, pvalue, _ = coint(X,Y)
+print pvalue
+```
+*Cell 7:*
+```python
+# Plot their difference and the cumulative moving average of their difference
+diff = X - Y
+mu = [diff[:i].mean() for i in range(len(diff))]
+plt.plot(diff)
+plt.plot(mu);
+```
+*Cell 8:*
+```python
+mu_60d = pd.rolling_mean(diff, window=90)
+
+plt.plot(diff, label='X-Y')
+plt.plot(mu, label='CMA')
+plt.plot(mu_60d, label='60d MA')
+plt.legend();
+```
+*Cell 9:*
+```python
+# Compute the z-score of the difference on each day
+zscores = [(diff[i] - mu[i]) / np.std(diff[:i]) for i in range(len(diff))]
+
+# Start with no money and no positions
+money = 0
+count = 0
+for i in range(len(diff)):
+    # Sell short if the z-score is > 1
+    if zscores[i] > 1:
+        money += diff[i]
+        count -= 1
+    # Buy long if the z-score is < 1
+    elif zscores[i] < -1:
+        money -= diff[i]
+        count += 1
+    # Clear positions if the z-score between -.5 and .5
+    elif abs(zscores[i]) < 0.5:
+        money += count*diff[i]
+        count = 0
+        
+print money
+```
+
+##### Measures of Central Tendency
+- **Original Path**: `drafts\Measures of Central Tendency.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 18 (Code: 8, Markdown: 10)
+- **Imports/Dependencies**: import numpy as np, import scipy.stats as stats
+
+**Explanatory Notes:**
+# Measures of Central Tendency
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+In this notebook we will discuss ways to summarize a set of data using a single number. The goal is to capture information about the distribution of data.
+
+# Arithmetic mean
+
+The arithmetic mean is used very frequently to summarize numerical data, and is usually the one assumed to be meant by the word "average." It is defined as the sum of the observations divided by the number of observations:
+$$\mu = \frac{\sum_{i=1}^N X_i}{N}$$
+
+where $X_1, X_2, \ldots , X_N$ are our observations.
+
+We can also define a <i>weighted</i> arithmetic mean, which is useful for explicitly specifying the number of times each observation should be counted. For instance, in computing the average value of a portfolio, it is more convenient to say that 70% of your stocks are of type X rather than making a list of every share you hold.
+
+The weighted arithmetic mean is defined as
+$$\sum_{i=1}^n w_i X_i $$
+
+where $\sum_{i=1}^n w_i = 1$. In the usual arithmetic mean, we have $w_i = 1/n$ for all $i$.
+
+# Median
+
+The median of a set of data is the number which appears in the middle of the list when it is sorted in increasing or decreasing order. When we have an odd number $n$ of data points, this is simply the value in position $(n+1)/2$. When we have an even number of data points, the list splits in half and there is no item in the middle; so we define the median as the average of the values in positions $n/2$ and $(n+2)/2$.
+
+The median is less affected by extreme values in the data than the arithmetic mean. It tells us the value that splits the data set in half, but not how much smaller or larger the other values are.
+
+# Mode
+
+The mode is the most frequently occuring value in a data set. It can be applied to non-numerical data, unlike the mean and the median. One situation in which it is useful is for data whose possible values are independent. For example, in the outcomes of a weighted die, coming up 6 often does not mean it is likely to come up 5; so knowing that the data set has a mode of 6 is more useful than knowing it has a mean of 4.5.
+
+For data that can take on many different values, such as return data, there may not be any values that appear more than once. In this case we can bin values, like we do when constructing a histogram, and then find the mode of the data set where each value is replaced with the name of its bin. That is, we find which bin elements fall into most often.
+
+# Geometric mean
+
+While the arithmetic mean averages using addition, the geometric mean uses multiplication:
+$$ G = \sqrt[n]{X_1X_1\ldots X_n} $$
+
+for observations $X_i \geq 0$. We can also rewrite it as an arithmetic mean using logarithms:
+$$ \ln G = \frac{\sum_{i=1}^n \ln X_i}{n} $$
+
+The geometric mean is always less than or equal to the arithmetic mean (when working with nonnegative observations), with equality only when all of the observations are the same.
+
+What if we want to compute the geometric mean when we have negative observations? This problem is easy to solve in the case of asset returns, where our values are always at least $-1$. We can add 1 to a return $R_t$ to get $1 + R_t$, which is the ratio of the price of the asset for two consecutive periods (as opposed to the percent change between the prices, $R_t$). This quantity will always be nonnegative. So we can compute the geometric mean return,
+$$ R_G = \sqrt[T]{(1 + R_1)\ldots (1 + R_T)} - 1$$
+
+The geometric mean is defined so that if the rate of return over the whole time period were constant and equal to $R_G$, the final price of the security would be the same as in the case of returns $R_1, \ldots, R_T$.
+
+# Harmonic mean
+
+The harmonic mean is less commonly used than the other types of means. It is defined as
+$$ H = \frac{n}{\sum_{i=1}^n \frac{1}{X_i}} $$
+
+As with the geometric mean, we can rewrite the harmonic mean to look like an arithmetic mean. The reciprocal of the harmonic mean is the arithmetic mean of the reciprocals of the observations:
+$$ \frac{1}{H} = \frac{\sum_{i=1}^n \frac{1}{X_i}}{n} $$
+
+The harmonic mean for nonnegative numbers $X_i$ is always at most the geometric mean (which is at most the arithmetic mean), and they are equal only when all of the observations are equal.
+
+The harmonic mean can be used when the data can be naturally phrased in terms of ratios. For instance, in the dollar-cost averaging strategy, a fixed amount is spent on shares of a stock at regular intervals. The higher the price of the stock, then, the fewer shares an investor following this strategy buys. The average (arithmetic mean) amount they pay for the stock is the harmonic mean of the prices.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Two useful statistical libraries
+import scipy.stats as stats
+import numpy as np
+
+# We'll use these two data sets as examples
+x1 = [1, 2, 2, 3, 4, 5, 5, 7]
+x2 = x1 + [100]
+
+print 'Mean of x1:', sum(x1), '/', len(x1), '=', np.mean(x1)
+print 'Mean of x2:', sum(x2), '/', len(x2), '=', np.mean(x2)
+```
+*Cell 2:*
+```python
+print 'Median of x1:', np.median(x1)
+print 'Median of x2:', np.median(x2)
+```
+*Cell 3:*
+```python
+# Scipy has a built-in mode function, but it will return exactly one value
+# even if two values occur the same number of times, or if no value appears more than once
+print 'One mode of x1:', stats.mode(x1)[0][0]
+
+# So we will write our own
+def mode(l):
+    # Count the number of times each element appears in the list
+    counts = {}
+    for e in l:
+        try:
+            counts[e] += 1
+        except(KeyError):
+            counts[e] = 1
+    # Return the elements that appear the most times
+    maxcount = 0
+    modes = {}
+    for (key, value) in counts.iteritems():
+        if value > maxcount:
+            maxcount = value
+            modes = {key}
+        elif value == maxcount:
+            modes.add(key)
+    if maxcount > 1 or len(l) == 1:
+        return list(modes)
+    return 'No mode'
+    
+print 'All of the modes of x1:', mode(x1)
+```
+*Cell 4:*
+```python
+# Get return data for an asset and compute the mode of the data set
+start = '2014-01-01'
+end = '2015-01-01'
+pricing = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:]
+print 'Mode of returns:', mode(returns)
+
+# Since all of the returns are distinct, we use a frequency distribution to get an alternative mode.
+# np.histogram returns the frequency distribution over the bins as well as the endpoints of the bins
+hist, bins = np.histogram(returns, 20) # Break data up into 20 bins
+maxfreq = max(hist)
+# Find all of the bins that are hit with frequency maxfreq, then print the intervals corresponding to them
+print 'Mode of bins:', [(bins[i], bins[i+1]) for i, j in enumerate(hist) if j == maxfreq]
+```
+*Cell 5:*
+```python
+# Use scipy's gmean function to compute the geometric mean
+print 'Geometric mean of x1:', stats.gmean(x1)
+print 'Geometric mean of x2:', stats.gmean(x2)
+```
+*Cell 6:*
+```python
+# Add 1 to every value in the returns array and then compute R_G
+ratios = returns + np.ones(len(returns))
+R_G = stats.gmean(ratios) - 1
+print 'Geometric mean of returns:', R_G
+```
+*Cell 7:*
+```python
+T = len(returns)
+init_price = pricing[0]
+final_price = pricing[T]
+print 'Initial price:', init_price
+print 'Final price:', final_price
+print 'Final price as computed with R_G:', init_price*(1 + R_G)**T
+```
+*Cell 8:*
+```python
+print 'Harmonic mean of x1:', stats.hmean(x1)
+print 'Harmonic mean of x2:', stats.hmean(x2)
+```
+
+##### Dispersion
+- **Original Path**: `drafts\Measures of Dispersion.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 15 (Code: 7, Markdown: 8)
+- **Imports/Dependencies**: import math, import numpy as np
+
+**Explanatory Notes:**
+# Dispersion
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+Dispersion measures how spread out a set of data is. This corresponds to risk when our data set is returns over time. Data with low dispersion is heavily clustered around the mean, while high dispersion a indicates many very large and very small values.
+
+Let's generate an array of random integers to work with.
+
+# Range
+
+Range is simply the difference between the maximum and minimum values in a dataset. Not surprisingly, it is very sensitive to outliers.
+
+# Mean absolute deviation
+
+The mean absolute deviation is the average of the distances of observations from the arithmetic mean. We use the absolute value of the deviation, so that 5 above the mean and 5 below the mean both contribute 5, because otherwise the deviations always sum to 0.
+
+$$ MAD = \frac{\sum_{i=1}^n |X_i - \mu|}{n} $$
+
+where $n$ is the number of observations and $\mu$ is their mean.
+
+# Variance and standard deviation
+
+The variance $\sigma^2$ is defined as the average of the squared deviations around the mean:
+$$ \sigma^2 = \frac{\sum_{i=1}^n (X_i - \mu)^2}{n} $$
+
+This is sometimes more convenient than the mean absolute deviation because absolute value is not differentiable, while squaring is smooth, and some optimization algorithms rely on differentiability.
+
+Standard deviation is defined as the square root of the variance, $\sigma$, and it is the easier of the two to interpret because it is in the same units as the observations.
+
+One way to interpret standard deviation is by referring to Chebyshev's inequality. This tells us that the proportion of samples within $k$ standard deviations (that is, within a distance of $k \cdot$ standard deviation) of the mean is at least $1 - 1/k^2$ for all $k>1$.
+
+Let's check that this is true for our data set.
+
+The bound given by Chebyshev's inequality seems fairly loose in this case. This bound is rarely strict, but it is useful because it holds for all data sets and distributions.
+
+# Semivariance and semideviation
+
+Although variance and standard deviation tell us how volatile a quantity is, they do not differentiate between deviations upward and deviations downward. Often, such as in the case of returns on an asset, we are more worried about deviations downward. This is addressed by semivariance and semideviation, which only count the observations that fall below the mean. Semivariance is defined as
+$$ \frac{\sum_{X_i < \mu} (X_i - \mu)^2}{n_<} $$
+where $n_<$ is the number of observations which are smaller than the mean. Semideviation is the square root of the semivariance.
+
+A related notion is target semivariance (and target semideviation), where we average the distance from a target of values which fall below that target:
+$$ \frac{\sum_{X_i < B} (X_i - B)^2}{n_{<B}} $$
+
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import math
+
+np.random.seed(121)
+X = np.sort(np.random.randint(100, size=20))
+print 'X:', X
+mu = np.mean(X)
+print 'Mean of X:', mu
+```
+*Cell 2:*
+```python
+print 'Range of X:', np.ptp(X)
+```
+*Cell 3:*
+```python
+abs_dispersion = [abs(mu - x) for x in X]
+MAD = sum(abs_dispersion)/len(abs_dispersion)
+print 'Mean absolute deviation of X:', MAD
+```
+*Cell 4:*
+```python
+print 'Variance of X:', np.var(X)
+print 'Standard deviation of X:', np.std(X)
+```
+*Cell 5:*
+```python
+k = 1.25
+dist = k*np.std(X)
+l = [x for x in X if abs(x - mu) <= dist]
+print 'Observations within', k, 'stds of mean:', l
+print 'Confirming that', float(len(l))/len(X), '>', 1 - 1/k**2
+```
+*Cell 6:*
+```python
+# Because there is no built-in semideviation, we'll compute it ourselves
+lows = [e for e in X if e <= mu]
+semivar = sum(map(lambda x: (x - mu)**2,lows))/len(lows)
+
+print 'Semivariance of X:', semivar
+print 'Semideviation of X:', math.sqrt(semivar)
+```
+*Cell 7:*
+```python
+B = 19
+lows_B = [e for e in X if e <= B]
+semivar_B = sum(map(lambda x: (x - B)**2,lows_B))/len(lows_B)
+
+print 'Target semivariance of X:', semivar_B
+print 'Target semideviation of X:', math.sqrt(semivar_B)
+```
+
+##### Expected return
+- **Original Path**: `drafts\Portfolio expected return and variance of return.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 6 (Code: 2, Markdown: 4)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt
+
+**Explanatory Notes:**
+# Expected return
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+A common way of evaluating a portfolio is computing its expected return, which corresponds to the reward for investing in that portfolio, and the variance of the return, which corresponds to the risk. To compute the expected return, we use the linearity property of expected value:
+
+$$ E(R_p) = E(w_1 R_1 + w_2 R_2 + \ldots + w_n R_n) = w_1 E(R_1) + w_2 E(R_2) + \ldots w_n E(R_n) $$
+
+So the expected return of our portfolio $R_p$, which is a weighted average of some securities, is the weighted average of the expected returns on the individual securities $R_i$. As with the expected value of other variables, we can compute this from a known or estimated probability distribution, or empirically from historical data.
+
+# Portfolio variance
+
+To compute the variance of the portfolio, we need to define the <i>covariance</i> between two random variables:
+
+$$ Cov(R_i, R_j) = E[(R_i - E[R_i])(R_j - E[R_j])] $$
+
+This is an extension of the idea of variance &mdash; notice that $Cov(R_i, R_i) = E[(R_i - E[R_i])^2] = Var(R_i)$. We can summarize the covariances in a covariance matrix, where the $ij$th entry is $Cov(R_i, R_j)$. For two variables, it looks like this:
+
+$$ \left( \begin{array}{cc}
+Var(R_1) & Cov(R_1, R_2) \\
+Cov(R_1, R_2) & Var(R_2) \end{array} \right) $$
+
+The covariance is useful here because when we expand the variance of the portfolio returns $Var(R_p)$, we find that
+
+$$ Var(R_p) = E[(R_p - E[R_p])^2] = E\left[ \left(\sum_{i=1}^n w_i R_i - E\left[\sum_{i=1}^n w_i R_i \right] \right) \right] = \ldots = \sum_{i=1}^n \sum_{j=1}^n w_i w_j Cov(R_i, R_j)$$
+
+So, the variance of the portfolio returns is the weighted sum of the covariances of the individual securities' returns (with each term involving two different securities appearing twice). If our portfolio consists of two securities, then
+
+$$Var(R_p) = w_1^2 Var(R_1) + 2w_1 w_2 Cov(R_1, R_2) + w_2^2 Var(R_2)$$
+
+Notice that there are $n^2$ terms in this sum, of which only $n$ are variances of individual securities $Var(R_i)$. Therefore, the covariances of pairs of securities play a huge role. We will see in the next section that covariances correspond to correlations, which is why minimizing correlations between securities is vital for minimizing portfolio variance (i.e. risk).

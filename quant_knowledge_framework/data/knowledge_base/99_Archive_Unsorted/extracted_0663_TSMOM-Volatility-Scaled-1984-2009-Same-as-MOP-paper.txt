@@ -1,0 +1,9 @@
+# TSMOM Volatility Scaled (1984 - 2009) [Same as MOP paper]
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## TSMOM Volatility Scaled (1984 - 2009) [Same as MOP paper]

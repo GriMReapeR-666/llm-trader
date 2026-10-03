@@ -1,0 +1,19 @@
+# Capital Asset Pricing Theory
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Capital Asset Pricing Theory
+
+We can express the CAPM more clearly like so:
+
+$$E[R_i] = R_F + \beta(E[R_M] - R_F)$$
+
+where $R_i$ is the return of asset $i$, $R_F$ is the risk-free rate, and $R_M$ is the return of the market. The CAPM is one of the most basic measures of the cost of capital. It determines the minimum return required to entice investors to hold a certain asset.
+
+To put it another way, CAPM says that the return of an asset should be the risk-free rate, which is what we would demand to account for inflation and the time value of money, as well as something extra to compensate us for the amount of systematic risk we are exposed to.
+
+We can then use our calculated beta exposure to make predictions of returns.

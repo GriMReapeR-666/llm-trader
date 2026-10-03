@@ -1,0 +1,21 @@
+# Usage
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Usage
+
+A good way to get started is to run the pyfolio examples in
+a [Jupyter notebook](https://jupyter.org/). To do this, you first want to
+start a Jupyter notebook server:
+
+```bash
+jupyter notebook
+```
+
+From the notebook list page, navigate to the pyfolio examples directory
+and open a notebook. Execute the code in a notebook cell by clicking on it
+and hitting Shift+Enter.

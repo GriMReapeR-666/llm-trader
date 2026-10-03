@@ -1,0 +1,20 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+linreg(celsius, fahrenheit)
+```
+*Cell 4:*
+```python
+start = '2014-01-01'
+end = '2015-01-01'
+asset = get_pricing('KO', fields='price', start_date=start, end_date=end)
+benchmark = get_pricing('PEP', fields='price', start_date=start, end_date=end)
+
+returns1 = asset.pct_change()[1:]
+returns2 = benchmark.pct_change()[1:]

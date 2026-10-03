@@ -1,0 +1,18 @@
+# volatility
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+Volatility Modeling
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: Risk Management
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+Heavy-tailed markets require robust volatility estimation beyond normality assumptions.

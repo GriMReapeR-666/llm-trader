@@ -1,0 +1,31 @@
+# Next steps
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: numpy, python, pandas
+
+---
+
+## Next steps
+
+* Clone this notebook in the [Educational Platform Research Platform](http://blog.educational_platform.com/educational_platform-research-your-backtesting-data-meets-ipython-notebook/) and run it on your own to see if you can enhance the performance. You can also see how changing the `maxrisk` parameter changes the performance.
+* You can also download just the notebook for use in your own environment [here]().
+* We are currently in the process of adding `cvxopt` to the Educational Platform backtester -- stay tuned!
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import cvxopt as opt
+from cvxopt import blas, solvers, matrix
+import pandas as pd
+
+np.random.seed(123)
+
+# Turn off progress printing 
+solvers.options['show_progress'] = False
+```
+*Cell 2:*
+```python

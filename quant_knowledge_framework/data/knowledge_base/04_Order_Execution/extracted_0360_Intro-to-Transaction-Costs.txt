@@ -1,0 +1,21 @@
+# Intro to Transaction Costs
+
+Topic: 04_Order_Execution
+Confidence: 0.80
+Keywords: slippage, market impact, transaction cost, spread
+
+---
+
+## Intro to Transaction Costs
+
+
+Transaction costs fall into two categories
+* Direct (commissions and fees): explicit, easily measured, and in institutional trading, relatively "small"
+* Indirect (market impact and spread costs): **the purpose of this lecture**
+
+Slippage is when the price 'slips' before the trade is fully executed, leading to the fill price being different from the price at the time of the order.
+The attributes of a trade that our research shows have the most influence on slippage are:
+1. **Volatility**
+2. **Liquidity**
+3. **Relative order size**
+4. **Bid - ask spread**

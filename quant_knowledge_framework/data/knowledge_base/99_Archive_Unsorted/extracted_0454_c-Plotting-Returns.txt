@@ -1,0 +1,16 @@
+# c. Plotting Returns
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c. Plotting Returns
+Graph a scatter plot of the returns of SPY and Starbucks.
+
+*Remember a scatter plot must have the same number of values for each parameter. If spy and SBUX did not have the same number of data points, your graph will return an error* 
+
+---
+
+# Exercise 3 : Linear Plots

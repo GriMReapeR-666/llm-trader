@@ -1,0 +1,221 @@
+# Lecture Link :
+
+Topic: 05_Quant_Utilities
+Confidence: 0.38
+Keywords: numpy, python, pandas
+
+---
+
+## Lecture Link :
+https://www.educational_platform.com/lectures/variance
+
+### IMPORTANT NOTE: 
+This lecture corresponds to the Variance lecture, which is part of the Educational Platform lecture series. This homework expects you to rely heavily on the code presented in the corresponding lecture. Please copy and paste regularly from that lecture when starting to work on the problems, as trying to do them from scratch will likely be too difficult.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+----
+
+#### Data: 
+
+---
+
+# Exercise 1: 
+Using the skills aquired in the lecture series, find the following parameters of the list X above:
+- Range
+- Mean Absolute Deviation
+- Variance and Standard Deviation
+- Semivariance and Semideviation
+- Target variance (with B = 60)
+
+----
+
+# Exercise 2:
+Using the skills aquired in the lecture series, find the following parameters of prices for AT&T stock over a year:
+- 30 days rolling variance 
+- 15 days rolling Standard Deviation
+
+----
+
+# Exercise 3 : 
+The portfolio variance is calculated as
+
+$$\text{VAR}_p = \text{VAR}_{s1} (w_1^2) + \text{VAR}_{s2}(w_2^2) + \text{COV}_{S_1, S_2} (2 w_1 w_2)$$
+
+Where $w_1$ and $w_2$ are the weights of $S_1$ and $S_2$.
+
+Find values of $w_1$ and $w_2$ to have a portfolio variance of 50. 
+
+---
+
+Congratulations on completing the Variance answer key!
+
+As you learn more about writing trading models and the Educational Platform platform, enter a daily [Educational Platform Contest](https://www.educational_platform.com/contest). Your strategy will be evaluated for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+X = np.random.randint(100, size = 100)
+```
+*Cell 3:*
+```python
+# Range of X
+
+print 'Range of X: %s' %(np.ptp(X))
+```
+*Cell 4:*
+```python
+# Mean Absolute Deviation
+# First calculate the value of mu (the mean)
+
+mu = np.mean(X)
+
+abs_dispersion = [np.abs(mu - x) for x in X]
+MAD = np.sum(abs_dispersion)/len(abs_dispersion)
+
+print 'Mean absolute deviation of X:', MAD
+```
+*Cell 5:*
+```python
+# Variance and standard deviation
+
+print 'Variance of X:', np.var(X)
+print 'Standard deviation of X:', np.std(X)
+```
+*Cell 6:*
+```python
+# Semivariance and semideviation
+
+lows = [e for e in X if e <= mu]
+
+semivar = np.sum( (lows - mu) ** 2 ) / len(lows)
+
+print 'Semivariance of X:', semivar
+print 'Semideviation of X:', np.sqrt(semivar)
+```
+*Cell 7:*
+```python
+# Target variance
+
+B = 60
+lows_B = [e for e in X if e <= B]
+semivar_B = sum(map(lambda x: (x - B)**2,lows_B))/len(lows_B)
+
+print 'Target semivariance of X:', semivar_B
+print 'Target semideviation of X:', np.sqrt(semivar_B)
+```
+*Cell 8:*
+```python
+att = get_pricing('T', fields='open_price', start_date='2016-01-01', end_date='2017-01-01')
+```
+*Cell 9:*
+```python
+# Rolling mean
+variance = att.rolling(window = 30).var()
+```
+*Cell 10:*
+```python
+# Rolling standard deviation
+std = att.rolling(window = 15).std()
+```
+*Cell 11:*
+```python
+asset1 = get_pricing('AAPL', fields='open_price', start_date='2016-01-01', end_date='2017-01-01')
+asset2 = get_pricing('XLF', fields='open_price', start_date='2016-01-01', end_date='2017-01-01')
+
+cov = np.cov(asset1, asset2)[0,1]
+
+w1 = 0.87
+w2 = 1 - w1
+
+v1 = np.var(asset1)
+v2 = np.var(asset2)
+
+pvariance = (w1**2)*v1+(w2**2)*v2+(2*w1*w2)*cov
+
+print 'Portfolio variance: ', pvariance
+```
+
+##### Measures of Dispersion
+- **Original Path**: `notebooks\lectures\Variance\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 19 (Code: 8, Markdown: 11)
+- **Imports/Dependencies**: import numpy as np
+
+**Explanatory Notes:**
+# Measures of Dispersion
+By Evgenia "Jenny" Nitishinskaya, Maxwell Margenot, and Delaney Mackenzie.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+Dispersion measures how spread out a set of data is. This is especially important in finance because one of the main ways risk is measured is in how spread out returns have been historically. If returns have been very tight around a central value, then we have less reason to worry. If returns have been all over the place, that is risky.
+
+Data with low dispersion is heavily clustered around the mean, while data with high dispersion indicates many very large and very small values.
+
+Let's generate an array of random integers to work with.
+
+# Range
+
+Range is simply the difference between the maximum and minimum values in a dataset. Not surprisingly, it is very sensitive to outliers. We'll use `numpy`'s peak to peak (ptp) function for this.
+
+
+
+# Mean Absolute Deviation (MAD)
+
+The mean absolute deviation is the average of the distances of observations from the arithmetic mean. We use the absolute value of the deviation, so that 5 above the mean and 5 below the mean both contribute 5, because otherwise the deviations always sum to 0.
+
+$$ MAD = \frac{\sum_{i=1}^n |X_i - \mu|}{n} $$
+
+where $n$ is the number of observations and $\mu$ is their mean.
+
+# Variance and standard deviation
+
+The variance $\sigma^2$ is defined as the average of the squared deviations around the mean:
+$$ \sigma^2 = \frac{\sum_{i=1}^n (X_i - \mu)^2}{n} $$
+
+This is sometimes more convenient than the mean absolute deviation because absolute value is not differentiable, while squaring is smooth, and some optimization algorithms rely on differentiability.
+
+Standard deviation is defined as the square root of the variance, $\sigma$, and it is the easier of the two to interpret because it is in the same units as the observations.
+
+One way to interpret standard deviation is by referring to Chebyshev's inequality. This tells us that the proportion of samples within $k$ standard deviations (that is, within a distance of $k \cdot$ standard deviation) of the mean is at least $1 - 1/k^2$ for all $k>1$.
+
+Let's check that this is true for our data set.
+
+The bound given by Chebyshev's inequality seems fairly loose in this case. This bound is rarely strict, but it is useful because it holds for all data sets and distributions.
+
+# Semivariance and semideviation
+
+Although variance and standard deviation tell us how volatile a quantity is, they do not differentiate between deviations upward and deviations downward. Often, such as in the case of returns on an asset, we are more worried about deviations downward. This is addressed by semivariance and semideviation, which only count the observations that fall below the mean. Semivariance is defined as
+$$ \frac{\sum_{X_i < \mu} (X_i - \mu)^2}{n_<} $$
+where $n_<$ is the number of observations which are smaller than the mean. Semideviation is the square root of the semivariance.
+
+A related notion is target semivariance (and target semideviation), where we average the distance from a target of values which fall below that target:
+$$ \frac{\sum_{X_i < B} (X_i - B)^2}{n_{<B}} $$
+
+
+# These are Only Estimates
+
+All of these computations will give you sample statistics, that is standard deviation of a sample of data. Whether or not this reflects the current true population standard deviation is not always obvious, and more effort has to be put into determining that. This is especially problematic in finance because all data are time series and the mean and variance may change over time. There are many different techniques and subtleties here, some of which are addressed in other lectures in the [Educational Platform Lecture Series](https://www.educational_platform.com/lectures).
+
+In general do not assume that because something is true of your sample, it will remain true going forward.

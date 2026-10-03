@@ -1,0 +1,263 @@
+# Fitting a Distribution
+
+Topic: 05_Quant_Utilities
+Confidence: 0.43
+Keywords: numpy, python, pandas
+
+---
+
+## Fitting a Distribution
+Now we will attempt to fit a probability distribution to the returns of a stock. We will take the returns of Tesla and try to fit a normal distribution to them. The first thing to check is whether the returns actually exhibit properties of a normal distribution. For this purpose, we will use the Jarque-Bera test, which indicates non-normality if the p-value is below a cutoff.
+
+The low p-value of the JB test leads us to *reject* the null hypothesis that the returns are normally distributed. This is due to the high kurtosis (normal distributions have a kurtosis of $3$).
+
+We will proceed from here assuming that the returns are normally distributed so that we can go through the steps of fitting a distribution. Next we calculate the sample mean and standard deviation of the series.
+
+Now let's see how a theoretical normal curve fits against the actual values.
+
+Our theoretical curve for the returns has a substantially lower peak than the actual values, which makes sense because the returns are not actually normally distributed. This is again due to the kurtosis of the normal distribution. The returns have a kurtosis value of around $5.20$, while the kurtosis of the normal distribution is $3$. A higher kurtosis leads to a higher peak. A major reason why it is so difficult to model prices and returns is due to the underlying probability distributions. A lot of theories and frameworks in finance require that data be somehow related to the normal distribution. This is a major reason for why the normal distribution seems to be so prevalent. For example, the basis of the Black-Scholes pricing model for options assumes that stock prices are log-normally distributed. However, it is exceedingly difficult to find real-world data that fits nicely into the assumptions of normality. When actually implementing a strategy, you should not assume that data follows a distribution that it demonstrably does not unless there is a very good reason for it.
+
+Generally, when trying to fit a probability distribution to real-world values, we should have a particular distribution (or distributions) in mind. There are a variety of tests for different distributions that we can apply to see what might be the best fit. In additon, as more information becomes available, it will become necessary to update the sample mean and standard deviation or maybe even to find a different distribution to more accurately reflect the new information. The shape of the distribution will change accordingly.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import statsmodels.stats as stats
+from statsmodels.stats import stattools
+from __future__ import division
+```
+*Cell 2:*
+```python
+class DiscreteRandomVariable:
+    def __init__(self, a=0, b=1):
+        self.variableType = ""
+        self.low = a
+        self.high = b
+        return
+    def draw(self, numberOfSamples):
+        samples = np.random.random_integers(self.low, self.high, numberOfSamples)
+        return samples
+```
+*Cell 3:*
+```python
+DieRolls = DiscreteRandomVariable(1, 6)
+plt.hist(DieRolls.draw(10), bins = [1,2,3,4,5,6,7], align = 'mid')
+plt.xlabel('Value')
+plt.ylabel('Occurences')
+plt.legend(['Die Rolls']);
+```
+*Cell 4:*
+```python
+plt.hist(DieRolls.draw(10000), bins = [1,2,3,4,5,6,7], align = 'mid')
+plt.xlabel('Value')
+plt.ylabel('Occurences')
+plt.legend(['Die Rolls']);
+```
+*Cell 5:*
+```python
+class BinomialRandomVariable(DiscreteRandomVariable):
+    def __init__(self, numberOfTrials = 10, probabilityOfSuccess = 0.5):
+        self.variableType = "Binomial"
+        self.numberOfTrials = numberOfTrials
+        self.probabilityOfSuccess = probabilityOfSuccess
+        return
+    def draw(self, numberOfSamples):
+        samples = np.random.binomial(self.numberOfTrials, self.probabilityOfSuccess, numberOfSamples)
+        return samples
+```
+*Cell 6:*
+```python
+StockProbabilities = BinomialRandomVariable(5, 0.50)
+plt.hist(StockProbabilities.draw(50), bins = [0, 1, 2, 3, 4, 5, 6], align = 'left')
+plt.xlabel('Value')
+plt.ylabel('Occurences')
+plt.legend(['Die Rolls']);
+```
+*Cell 7:*
+```python
+plt.hist(StockProbabilities.draw(10000), bins = [0, 1, 2, 3, 4, 5, 6], align = 'left')
+plt.xlabel('Value')
+plt.ylabel('Occurences');
+```
+*Cell 8:*
+```python
+StockProbabilities = BinomialRandomVariable(5, 0.25)
+plt.hist(StockProbabilities.draw(10000), bins = [0, 1, 2, 3, 4, 5, 6], align = 'left')
+plt.xlabel('Value')
+plt.ylabel('Occurences');
+```
+*Cell 9:*
+```python
+class ContinuousRandomVariable:
+    def __init__(self, a = 0, b = 1):
+        self.variableType = ""
+        self.low = a
+        self.high = b
+        return
+    def draw(self, numberOfSamples):
+        samples = np.random.uniform(self.low, self.high, numberOfSamples)
+        return samples
+
+```
+*Cell 10:*
+```python
+a = 0.0
+b = 8.0
+x = np.linspace(a, b, 100)
+y = [1/(b-a) for i in x]
+plt.plot(x, y)
+plt.xlabel('Value')
+plt.ylabel('Probability');
+```
+*Cell 11:*
+```python
+y = [(i - a)/(b - a) for i in x]
+plt.plot(x, y)
+plt.xlabel('Value')
+plt.ylabel('Probability');
+```
+*Cell 12:*
+```python
+class NormalRandomVariable(ContinuousRandomVariable):
+    def __init__(self, mean = 0, variance = 1):
+        ContinuousRandomVariable.__init__(self)
+        self.variableType = "Normal"
+        self.mean = mean
+        self.standardDeviation = np.sqrt(variance)
+        return
+    def draw(self, numberOfSamples):
+        samples = np.random.normal(self.mean, self.standardDeviation, numberOfSamples)
+        return samples
+```
+*Cell 13:*
+```python
+mu_1 = 0
+mu_2 = 0
+sigma_1 = 1
+sigma_2 = 2
+x = np.linspace(-8, 8, 200)
+y = (1/(sigma_1 * np.sqrt(2 * 3.14159))) * np.exp(-(x - mu_1)*(x - mu_1) / (2 * sigma_1 * sigma_1))
+z = (1/(sigma_2 * np.sqrt(2 * 3.14159))) * np.exp(-(x - mu_2)*(x - mu_2) / (2 * sigma_2 * sigma_2))
+plt.plot(x, y, x, z)
+plt.xlabel('Value')
+plt.ylabel('Probability');
+```
+*Cell 14:*
+```python
+n = 50
+p = 0.25
+X = BinomialRandomVariable(n, p)
+X_samples = X.draw(10000)
+Z_samples = (X_samples - n * p) / np.sqrt(n * p * (1 - p))
+
+plt.hist(X_samples, bins = range(0, n + 2), align = 'left')
+plt.xlabel('Value')
+plt.ylabel('Probability');
+```
+*Cell 15:*
+```python
+plt.hist(Z_samples, bins=20)
+plt.xlabel('Value')
+plt.ylabel('Probability');
+```
+*Cell 16:*
+```python
+Y_initial = 100
+X = NormalRandomVariable(0, 1)
+Y_returns = X.draw(100) # generate 100 daily returns
+Y = pd.Series(np.cumsum(Y_returns), name = 'Y') + Y_initial
+Y.plot()
+plt.xlabel('Time')
+plt.ylabel('Value');
+```
+*Cell 17:*
+```python
+Z_initial = 50
+Z_returns = X.draw(100)
+Z = pd.Series(np.cumsum(Z_returns), name = 'Z') + Z_initial
+Z.plot()
+plt.xlabel('Time')
+plt.ylabel('Value');
+```
+*Cell 18:*
+```python
+Y_quantity = 20
+Z_quantity = 50
+Y_weight = Y_quantity/(Y_quantity + Z_quantity)
+Z_weight = 1 - Y_weight
+
+W_initial = Y_weight * Y_initial + Z_weight * Z_initial
+W_returns = Y_weight * Y_returns + Z_weight * Z_returns
+W = pd.Series(np.cumsum(W_returns), name = 'Portfolio') + W_initial
+W.plot()
+plt.xlabel('Time')
+plt.ylabel('Value');
+```
+*Cell 19:*
+```python
+pd.concat([Y, Z, W], axis = 1).plot()
+plt.xlabel('Time')
+plt.ylabel('Value');
+```
+*Cell 20:*
+```python
+plt.hist(W_returns);
+plt.xlabel('Return')
+plt.ylabel('Occurrences');
+```
+*Cell 21:*
+```python
+start = '2015-01-01'
+end = '2016-01-01'
+prices = get_pricing('TSLA', fields=['price'], start_date=start, end_date=end)
+```
+*Cell 22:*
+```python
+# Take the daily returns
+returns = prices.pct_change()[1:]
+
+#Set a cutoff
+cutoff = 0.01
+
+# Get the p-value of the JB test
+_, p_value, skewness, kurtosis = stattools.jarque_bera(returns)
+print "The JB test p-value is: ", p_value
+print "We reject the hypothesis that the data are normally distributed ", p_value < cutoff
+print "The skewness of the returns is: ", skewness
+print "The kurtosis of the returns is: ", kurtosis
+plt.hist(returns.price, bins = 20)
+plt.xlabel('Value')
+plt.ylabel('Occurrences');
+```
+*Cell 23:*
+```python
+# Take the sample mean and standard deviation of the returns
+sample_mean = np.mean(returns.price)
+sample_std_dev = np.std(returns.price)
+```
+*Cell 24:*
+```python
+x = np.linspace(-(sample_mean + 4 * sample_std_dev), (sample_mean + 4 * sample_std_dev), len(returns))
+sample_distribution = ((1/np.sqrt(sample_std_dev * sample_std_dev * 2 * np.pi)) * 
+                       np.exp(-(x - sample_mean)*(x - sample_mean) / (2 * sample_std_dev * sample_std_dev)))
+plt.hist(returns.price, bins = 20, normed = True);
+plt.plot(x, sample_distribution)
+plt.xlabel('Value')
+plt.ylabel('Occurrences');
+```
+
+##### Exercises: Random Variables
+- **Original Path**: `notebooks\lectures\Random_Variables\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 27 (Code: 14, Markdown: 13)
+- **Imports/Dependencies**: from __future__ import division, from statsmodels.stats import stattools, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import statsmodels.stats as stats
+
+**Explanatory Notes:**
+# Exercises: Random Variables
+By Christopher van Hoecke, Max Margenot, and Delaney Mackenzie

@@ -1,0 +1,20 @@
+# Pairs of Futures (or Spreads)
+
+Topic: 05_Quant_Utilities
+Confidence: 0.80
+Keywords: stationarity, cointegration
+
+---
+
+## Pairs of Futures (or Spreads)
+Before we look at trading pairs of futures contracts, let's quickly review pairs trading in general and cointegration.  For full lectures on these topics individually, see the [lecture on stationarity and cointegration](https://www.quantopian.com/lectures/integration-cointegration-and-stationarity) and the [lecture on pairs trading](https://www.quantopian.com/lectures/introduction-to-pairs-trading).
+
+When markets are efficient, the prices of assets are often modeled as [random walks](https://en.wikipedia.org/wiki/Random_walk_hypothesis):
+
+$$P*t=\mu+P*{t-1}+\epsilon_t$$
+
+We can then take the difference of the prices to get white noise, stationary time series:
+
+$$r*t=P_t-P*{t-1}= \mu +\epsilon_t$$
+
+Of course, if prices follow a random walk, they are completely unforecastable, so the goal is to find returns that are correlated with something in the past.  For example, if we can find an asset whose price is a little mean-reverting (and therefore its returns are negatively autocorrelated), we can use that to forecast future returns.

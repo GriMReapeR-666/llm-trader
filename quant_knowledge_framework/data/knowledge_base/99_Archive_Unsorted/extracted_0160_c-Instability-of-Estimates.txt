@@ -1,0 +1,13 @@
+# c. Instability of Estimates
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c. Instability of Estimates
+
+Create a histogram of the sample distributions of $X$, $Y$, and $Z$ along with the best estimate/mean based on the sample.
+
+# Exercise 3: Sharpe Ratio Window Adjustment

@@ -1,0 +1,70 @@
+# Optimize (Portfolio Optimization)
+
+Topic: 02_Strategy_Development
+Confidence: 0.60
+Keywords: ev, backtest, expected value
+
+---
+
+## Optimize (Portfolio Optimization)
+Now that we have identified some strong predictors of fantasy points, let's use the data to build an optimal portfolio each day. Specifically, we will pick a team of players (construct a portfolio) based on their mean points per game over the last 20 days.
+
+On Educational Platform, we can use the [Optimize API](https://www.educational_platform.com/help#optimize-title) to help us calculate an optimal 'portfolio' each day. In finance, this means picking the stocks that we should hold each day based on an objective function and a set of constraints. In daily fantasy sports, the problem is the same: we want to pick a lineup based on an objective function (maximize DK points) subject to a series of constraints (based on the rules of the game).
+
+Generally speaking, constraints are the easy part. The rules are set before every game and we know that our lineup has to follow these rules. Specifically, the NBA game at DraftKings has the following [rules](https://www.draftkings.com/help/rules/4):
+- The lineup must be composed of exactly 8 players.
+- The sum of the fictional player salaries in a lineup must be less than 50,000.
+- A lineup must include players from at least two NBA games.
+- A lineup must include at least one player classified in each of the following positions:
+    - PG
+    - SG
+    - PF
+    - SF
+    - C
+    - G (PG or SG, in addition to the other PG and SG slots)
+    - F (PF or SF, in addition to the other PF and SF slots)
+    - U (the last spot can be occupied by a player of any position).
+    
+The challenging part is creating an objective function. We know that we want to maximize the number of DK points that we get on a given day, but without time travel, it's difficult to know exactly what the function looks like. In practice, this means we need to define an 'expected value' objective that represents our expected performance of each player. Earlier, we saw that our trailing points per game factor was a good predictor of DK points, so let's use that as our objective function.
+
+As an optimization problem, this means that we want to pick a team of players subject to the DK rules (salary cap, positions, etc.) that maximizes the total trailing points per game factor.
+
+Let's define our problem using the Optimize API.
+
+Let's start by assembling and formatting the player salaries and positions so that we can use them as constraints in our optimization problem.
+
+Then, let's restructure our (`trailing_20_dk_score`) so that we can use it as an objective function in Optimize. We'll define it to be parametric on the date so that we can play around with the date later on.
+
+### Objective
+Next, let's define our objective function using [optimize.MaximizeAlpha](https://www.educational_platform.com/help#educational_platform_optimize_MaximizeAlpha), which will try to maximize the value of our lineup based on our `expected_value` factor.
+
+### Constraints
+Many of the built-in constraints are centered around finance problems, so we will have to make some simplifying assumptions in order to use them to build our lineup. Later in the notebook, we will build our own optimizer to build a lineup that strictly follows the DK rules.
+
+Let's start by defining our salary cap constraint:
+
+Next, we'll define a position constraint. To simplify things, we'll use more generic positions, and limit ourselves to a maximum of 4 forwards (`F`), 4 guards (`G`), and 2 centers (`C`), with a minimum of 3 `F`, 3 `G`, and 1 `C`.
+
+At this point, it's worth noting that Optimize operates in weight space, meaning it chooses a percentage (not bounded by a total of 100%, can also be positive or negative) of the overall lineup to allocate to each asset/player. In an attempt to get around that, the next constraint we define will specify that we can hold no more than 1 of each player, and no fewer than 0 of each player (you can't [short sell](https://www.investopedia.com/terms/s/shortselling.asp) a player... yet).
+
+Lastly, let's define a constraint for our total number of players.
+
+### Calculate Optimal Portfolio (Build Lineup)
+The next step is to calculate our optimal portfolio for the day using our objective and constraints.
+
+And here are the resulting weights:
+
+Something that immediately pops out is the non-binary weight assigned to Kemba Walker. Obviously, it's not possible to pick 0.55% of a player in DFS, so this lineup won't be eligible to enter. Unfortunately, it's not currently possible to binarize the outputs of Optimize on Educational Platform (since it's not a helpful feature in quantitative finance).
+
+# CVXPY
+To get around the limits of Optimize, we can take a similar approach and use [cvxpy](http://www.cvxpy.org/en/latest/), a Python library for solving convex optimization problems (and the library on top of which Optimize was built), to build our own objective and constraints. In this version, we will follow the exact rules of the DraftKings NBA game (8 players, \$50k salary cap, players in at least two games, and one player in each of the following positions: ['PG', 'SG', 'PF', 'SF', 'C', 'G', 'F', 'U']. The following cells build constraints to enforce these rules.
+
+Next, we will import cvxpy and define our objective and constraints.
+
+Based on our player-by-player expected values and the constraints we supplied to `cvxpy`, our optimal lineup has a total expected value of 273.37.
+
+Let's take a look at who is in this lineup to make sure that we implemented the rules properly:
+
+Our roster appears to satisfy the rules!
+
+# Backtest (a.k.a. run the above code over several consecutive days)

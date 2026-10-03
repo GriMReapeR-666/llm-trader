@@ -1,0 +1,24 @@
+# Looking for Cointegrated Pairs of Alternative Energy Securities
+
+Topic: 05_Quant_Utilities
+Confidence: 0.67
+Keywords: python, pandas
+
+---
+
+## Looking for Cointegrated Pairs of Alternative Energy Securities
+We are looking through a set of solar company stocks to see if any of them are cointegrated. We'll start by defining the list of securities we want to look through. Then we'll get the pricing data for each security for the year of 2014.
+
+Our approach here is somewhere in the middle of the spectrum that we mentioned before. We have formulated an economic hypothesis that there is some sort of link between a subset of securities within the energy sector and we want to test whether there are any cointegrated pairs. This incurs significantly less multiple comparisons bias than searching through hundreds of securities and slightly more than forming a hypothesis for an individual test.
+
+NOTE: We include the market in our data. This is because the market drives the movement of so many securities that you often times might find two seemingingly cointegrated securities, but in reality they are not cointegrated and just both conintegrated with the market. This is known as a confounding variable and it is important to check for market involvement in any relationship you find.
+
+get_pricing() is a Educational Platform method that pulls in stock data, and loads it into a Python Pandas DataPanel object.  Available fields are 'price', 'open_price', 'high', 'low', 'volume'.  But for this example we will just use 'price' which is the daily closing price of the stock.
+
+Example of how to get all the prices of all the stocks loaded using get_pricing() above in one pandas dataframe object
+
+Example of how to get just the prices of a single stock that was loaded using get_pricing() above
+
+Now we'll run our method on the list and see if any pairs are cointegrated.
+
+Looks like 'ABGB' and 'FSLR' are cointegrated. Let's take a look at the prices to make sure there's nothing weird going on.

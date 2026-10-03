@@ -1,0 +1,21 @@
+# What are Fundamental Factor Models?
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## What are Fundamental Factor Models?
+
+Fundamental data refers to the metrics and ratios measuring the financial characteristics of companies derived from the public filings made by these companies, such as their income statements and balance sheets. Examples of factors drawn from these documents include market cap, net income growth, and cash flow.
+
+This fundamental data can be used in many ways, one of which is to build a linear factor model. Given a set of $k$ fundamental factors, we can represent the returns of an asset, $R_t$, as follows:
+
+$$R_t = \alpha_t + \beta_{t, F_1}F_1 + \beta_{t, F_2}F_2 + ... + \beta_{t, F_k}F_k + \epsilon_t$$
+
+where each $F_j$ represents a fundamental factor return stream. These return streams are from portfolios whose value is derived from it's respective factor.
+
+Fundamental factor models try to determine characteristics that affect an asset's risk and return. The most difficult part of this is determining which factors to use. Much research has been done on determining significant factors, and what makes things even more difficult is that the discovery of a significant factor often leads to its advantage being arbitraged away! This is one of the reasons why fundamental factor models, and linear factor models in general, are so prevalent in modern finance. Once you have found significant factors, you need to calculate the exposure an asset's return stream has to each factor. This is similar to the calculation of risk premia discussed in the [CAPM lecture](https://www.quantopian.com/lectures/the-capital-asset-pricing-model-and-arbitrage-pricing-theory).
+
+In using fundamental data, we run into the problem of having factors that may not be easily compared due to their varying units and magnitudes. To resolve this, we take two different approaches to bring the data onto the same level - portfolio construction to compare return streams and normalization of factor values.

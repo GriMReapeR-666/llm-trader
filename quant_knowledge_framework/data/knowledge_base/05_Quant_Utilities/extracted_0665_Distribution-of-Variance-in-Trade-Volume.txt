@@ -1,0 +1,701 @@
+# Distribution of Variance in Trade Volume
+
+Topic: 05_Quant_Utilities
+Confidence: 0.36
+Keywords: numpy, python, pandas, standardize
+
+---
+
+## Distribution of Variance in Trade Volume
+By John Loeber
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+In this notebook, I'm going to investigate the distribution of **variance in trade volume**. I will restrict the investigation to equities satisfying the following criteria:
+- Sector: Technology ([Morningstar ID](https://www.equitieslab.com/wiki/admin/morningstar-sector) 311)
+- Market Cap: $1b+
+
+This is part of a larger project: I am currently working on optimizing stop-losses, and I'm developing volume-based metrics for classifying stocks for that purpose. The conclusion of this notebook -- that **variance in trade volume is approximately log-normally distributed** (for equities satisfying the above criteria) -- is an important result in that context, as it allows us to make powerful statistical assumptions about the structure of trade volume data.
+
+The plot above isn't particularly critical to drawing conclusions -- it just supplies further intuition for the structure of the annual trade volume data. Sometimes it's important to play with the data and make plots like this just to better understand it.
+
+The plot is useful in that it shows that the dispersion of the number of companies trading at a certain trade volume has changed slightly over the years: between 2005 and 2009, far more stocks were trading at higher volumes, compared to recent years as well as 2002-2003. I have no immediate explanation for this phenomenon. 
+
+Note that the red dots at the bottom are masking dots from other years, and that a value of 0 on the log-scale corresponds to 1 in actuality.
+
+What we see, in every year, is a distribution of log-variances that looks approximately normal. There clearly is a lot of noise and some abnormal skew/kurtosis, but on a whole, the pattern is reasonably clear. We can also consider the entire 13-year dataset in aggregate:
+
+In aggregate, it seems clear that the log-variance is approximately normally distributed, i.e. that the variance is log-normally distributed. If we want more rigor, we can use a [normal probability plot](https://en.wikipedia.org/wiki/Normal_probability_plot) to confirm this result:
+
+Which shows, quite definitively, that the 2002-2015 log-variances are normally distributed, but deviate from the normal distribution at the very edges, which hints at some left skew, as we saw in the histograms. We've been looking at normal distributions, so it's important to note that this left skew implies that the log-normal distribution will also be very slightly left-skewed. 
+
+Regardless, with an [$R^2$](https://en.wikipedia.org/wiki/Coefficient_of_determination) value of approximately 0.96, we can confidently conclude that this distribution is approximately normal. (In this case, you can think of $R^2$ as measuring the correlation between the data and the best-fitting normal distribution.)
+
+However, we should keep in mind the edge-case deviations from the normal distribution.
+
+### Further Questions
+
+Some further questions come to mind:
+    1. Is variance in trade volume also log-normally distributed in other industries?
+    2. Is variance in trade volume also log-normally distributed over shorter time periods?
+    
+For the first question, we can find the answer easily by changing the sector code in the start of the notebook, and re-running all computations. I did this for a few sectors:
+    - For sector code 310 (industrials), the answer is yes, but not as clearly -- the distribution is much more noisy, i.e. the data does not fit the log-normal distribution quite as well (R^2 = 0.916 on the normal probability plot).
+    
+    - For sector code 206 (healthcare), the answer is also yes, with many of the individual years fitting the log-normal distribution quite well, but the aggregate data fitting the log-normal distribution slightly less well. (R^2 = 0.919)
+    
+    - For sector code 102 (consumer cyclical), the answer is yes but with some caveats -- the distributions are generally quite skewed, and though the aggregate data has an R^2 of 0.916 on the normal probability plot, it looks as if it has the lowest kurtosis yet.
+    
+    - For sector code 309 (energy), there are some individual years that are quite noisy and not particularly well-described by a log-normal distribution, though many others are. In aggregate, the data fits the log-normal distribution very well (R^2 = 0.95).
+
+For the second question, we can randomly select some 30-day and 90-day periods, one for every year. We go back to sector code 311 (technology) for this test. I used an online tool to generate the following random dates.
+
+These are much like the annual plots we saw earlier, except that they're slightly noisier and thus slightly less well-described by the normal distribution. But that's to be expected -- the time periods are shorter, so we're taking fewer samples, so the approximation of the distribution will be more crude.
+
+In the code above, we also collected data so we could make aggregate plots of these periods over all ten years, again, much like with the annual data. Here they are:
+
+These look very normal! Just for the sake of completion, we'll do two corresponding normal probability plots:
+
+Both of which are totally commensurate with the result for the annual case. Note that both of these plots actually have slightly higher $R^2$ values, which suggests that we got a little bit lucky with our 30- and 90-day random samples. In any case, we conclude that variance in trade-volume is also log-normally distributed over shorter time periods.
+
+For good measure, I also repeated the above computations for even shorter time periods -- 10 days and 20 days starting from a new set of random dates, which were, as expected, a little noisier but still totally commensurate with the above results (in aggregate, $R^2 \approx 0.95$ in both cases).
+
+Finally, note that there is an opportunity to do equivalent investigations for small-cap stocks.
+
+*Note: I left this unmentioned, but the distribution also holds (equally well) for daily minute data, even for very small intervals (though they may be noisier just due to a smaller sample size): the smallest I tested was twenty minutes. Should include some minute-level tests.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import necessary libraries
+import datetime
+import numpy
+import matplotlib
+from matplotlib import pyplot
+import math
+from collections import Counter
+from scipy import stats
+
+# initialize fundamentals in the notebook
+# fundamentals: https://www.educational_platform.com/help#ide-fundamentals
+fundamentals = init_fundamentals()
+```
+*Cell 2:*
+```python
+# helper function
+def addDays(s,n):
+    """ takes a date in string format and adds n days to it"""
+    end = datetime.datetime.strptime(s,'%Y-%m-%d') + datetime.timedelta(days=n)
+    return end.strftime('%Y-%m-%d')
+```
+*Cell 3:*
+```python
+# grab appropriate data, organize by year
+dates = ['2002-01-03', '2003-01-03', '2004-01-03', '2005-01-03', '2006-01-03', '2007-01-03', 
+        '2008-01-03', '2009-01-03', '2010-01-03', '2011-01-03', '2012-01-03', '2013-01-03', '2014-01-03']
+years = range(2002,2015)
+```
+*Cell 4:*
+```python
+# create a dictionary that maps every year in the time period to a list of equities (by sid)
+# under consideration for that year
+tablesPerYear = {}
+
+for i in range(13):
+    # query the fundamentals dataset to get equities fitting our criteria
+    tablesPerYear[years[i]] = [x.sid for x in list(get_fundamentals(query()
+                            .filter(fundamentals.asset_classification.morningstar_sector_code == 311)
+                            .filter(fundamentals.valuation.market_cap > 1000000000)
+                           , dates[i]))]
+```
+*Cell 5:*
+```python
+# go through the dictionary and get data on trade volumes and variances for a given period
+
+def getMultiDayData(periods,n):
+    """where n = number of days, periods = list of dates to start at"""
+    # dicts mapping years to lists of trade volumes / lists of variances
+    periodicTradeVolumes = {}    
+    periodicVariances = {}    
+
+    for i in range(13):
+        year = years[i]
+        start = periods[i]
+        end = addDays(periods[i],n)
+        # collect volumes and variances for that year
+        tradeVol = []
+        variances = []
+        for sid in tablesPerYear[year]:
+            prices = get_pricing(sid, 
+                                 start_date = start, 
+                                 end_date = end,
+                                 # note: only grabbing volume
+                                 fields = 'volume',
+                                 frequency = 'daily')
+            # get a list of the volumes
+            numerical = [x for x in prices if not numpy.isnan(x)]
+            # compute variance, add to list of variances for year
+            variance = numpy.var(numerical)
+            variances.append(variance)
+            # concatenate the list of trade volumes with the list of volumes from this sid
+            tradeVol += numerical
+        periodicTradeVolumes[year] = [z for z in tradeVol]
+        periodicVariances[year] = variances
+    
+    return periodicTradeVolumes, periodicVariances
+```
+*Cell 6:*
+```python
+annualTradeVolumes, annualVariances = getMultiDayData(dates,365)
+```
+*Cell 7:*
+```python
+# To screen for anomalies and get a better feel for the data,
+# I took a look at the trade-volume distributions by year.
+
+fig = pyplot.figure()
+ax1 = fig.add_subplot(211)
+ax2 = fig.add_subplot(212)
+# make a colormap
+cmap = pyplot.get_cmap('jet')
+# 13 is the number of different colors we want
+colors = cmap(numpy.linspace(0.1,0.9,13))
+for i in range(13):
+    # where 900m is roughly the global max in variance over the time period
+    n, bins, patches = ax1.hist(annualTradeVolumes[years[i]],bins=50, range=(0,900000000))
+    bins_mean = [0.5 * (bins[j] + bins[j+1]) for j in range(len(n))]
+    ax2.scatter(bins_mean, map(lambda x: math.log(x) if x>1 else 0, n), c=colors[i], label=years[i], alpha = 0.75)
+    ax2.legend()
+    pyplot.xlabel("Annual Trade Volume")
+    pyplot.ylabel("Log-Number of Companies")
+# delete the first subplot -- we don't need it, we only had to construct it to derive the second
+fig.delaxes(ax1)
+pyplot.draw()
+```
+*Cell 8:*
+```python
+# For every year: plot the log of the variances in trade volume, and fit a normal distribution to it
+
+for i in range(13):
+    year = years[i]
+    variances = sorted([math.log(x) for x in annualVariances[year] if not (numpy.isnan(x) or x==0)])
+    # fitting the histogram
+    n, bins, patches = pyplot.hist(variances,bins=25,normed=True)
+    mu = numpy.mean(variances)
+    sigma = numpy.std(variances)
+    # fit a normal probability distribution to the data
+    pdf = stats.norm.pdf(bins, mu, sigma)
+    pyplot.title(str(year))
+    pyplot.xlabel("Log-Variance")
+    pyplot.ylabel("Normed Frequency")
+    pyplot.plot(bins,pdf, '-o')
+    pyplot.show()
+
+```
+*Cell 9:*
+```python
+aggregateVariances = []
+
+for i in range(13):
+    aggregateVariances += [math.log(x) for x in annualVariances[years[i]] if not (numpy.isnan(x) or x==0)]
+aggregateVariances.sort()
+
+n, bins, patches = pyplot.hist(aggregateVariances,bins=25,normed=True)
+mu = numpy.mean(aggregateVariances)
+sigma = numpy.std(aggregateVariances)
+# fit a normal probability distribution to the data
+pdf = stats.norm.pdf(bins, mu, sigma)
+pyplot.title("2002-2015 Variances")
+pyplot.xlabel("Log-Variance")
+pyplot.ylabel("Normed Frequency Count")
+pyplot.plot(bins,pdf, '-o')
+pyplot.show()
+```
+*Cell 10:*
+```python
+fig = pyplot.figure()
+ax = fig.add_subplot(111)
+stats.probplot(aggregateVariances, plot=ax)
+pyplot.show()
+```
+*Cell 11:*
+```python
+randomDates1 = ['2002-08-24', '2003-03-01', '2004-12-23', '2005-06-14', '2006-08-31', '2007-08-12',
+              '2008-01-25','2009-02-16','2010-11-09','2011-05-28','2012-01-12','2013-05-10','2014-10-02']
+
+randomDates2 = ['2002-02-14', '2003-10-11', '2004-08-30', '2005-03-09', '2006-12-02', '2007-05-21',
+              '2008-06-15','2009-06-09','2010-02-25','2011-05-22','2012-12-31','2013-07-09','2014-05-29']
+```
+*Cell 12:*
+```python
+# Note that we'll only need the variance data.
+thirtyTradeVolumes, thirtyVariances = getMultiDayData(randomDates,30)
+```
+*Cell 13:*
+```python
+ninetyTradeVolumes, ninetyVariances = getMultiDayData(randomDates,90)
+```
+*Cell 14:*
+```python
+# To save space, for every year we'll display the plot for the 30-day data
+# next to the plot of the 90-day data.
+
+aggregateV30 = []
+aggregateV90 = []
+
+for i in range(13):
+    year = years[i]
+    variances30 = sorted([math.log(x) for x in thirtyVariances[year] if not (numpy.isnan(x) or x==0)])
+    variances90 = sorted([math.log(x) for x in ninetyVariances[year] if not (numpy.isnan(x) or x==0)])
+    
+    # add to the aggregate variances for these shorter periods
+    aggregateV30 += variances30
+    aggregateV90 += variances90
+    
+    # make the left plot
+    pyplot.subplot(121)
+    n, bins, patches = pyplot.hist(variances30,bins=25,normed=True)
+    mu = numpy.mean(variances)
+    sigma = numpy.std(variances)
+    pdf = stats.norm.pdf(bins, mu, sigma)
+    pyplot.title(str(year)+ ": random 30 day period")
+    pyplot.xlabel("Log-Variance")
+    pyplot.ylabel("Normed Frequency Count")
+    pyplot.plot(bins,pdf, '-o')
+
+    # right plot
+    pyplot.subplot(122)
+    n, bins, patches = pyplot.hist(variances90,bins=25,normed=True)
+    mu = numpy.mean(variances)
+    sigma = numpy.std(variances)
+    pdf = stats.norm.pdf(bins, mu, sigma)
+    pyplot.title(str(year) + ": random 90 day period")
+    pyplot.xlabel("Log-Variance")
+    pyplot.ylabel("Normed Frequency Count")
+    pyplot.plot(bins,pdf, '-o')
+    
+    pyplot.show()
+```
+*Cell 15:*
+```python
+# make the left plot
+pyplot.subplot(121)
+n, bins, patches = pyplot.hist(aggregateV30,bins=25,normed=True)
+mu = numpy.mean(variances)
+sigma = numpy.std(variances)
+pdf = stats.norm.pdf(bins, mu, sigma)
+pyplot.title("Aggregate plot of the 13 random 30-day periods")
+pyplot.xlabel("Log-Variance")
+pyplot.ylabel("Normed Frequency Count")
+pyplot.plot(bins,pdf, '-o')
+
+# right plot
+pyplot.subplot(122)
+n, bins, patches = pyplot.hist(aggregateV90,bins=25,normed=True)
+mu = numpy.mean(variances)
+sigma = numpy.std(variances)
+pdf = stats.norm.pdf(bins, mu, sigma)
+pyplot.title("Aggregate plot of the 13 random 90-day periods")
+pyplot.xlabel("Log-Variance")
+pyplot.ylabel("Normed Frequency Count")
+pyplot.plot(bins,pdf, '-o')
+
+pyplot.show()
+```
+*Cell 16:*
+```python
+pyplot.subplot(121)
+stats.probplot(aggregateV30, plot=pyplot)
+pyplot.title("Aggregate 30-day Probability Plot")
+
+pyplot.subplot(122)
+stats.probplot(aggregateV90, plot=pyplot)
+pyplot.title("Aggregate 90-day Probability Plot")
+
+pyplot.show()
+```
+*Cell 17:*
+```python
+
+```
+
+#### Category: Case Studies
+##### traditional_value_notebook
+- **Original Path**: `case_studies\traditional_value\traditional_value_notebook.ipynb`
+- **Use Case**: Case Studies
+- **Cell Count**: 27 (Code: 10, Markdown: 17)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data import morningstar, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import CustomFactor, from educational_platform.research import run_pipeline, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+#Traditional Value Factor Algorithm
+
+By Gil Wassermann
+
+Strategy taken from "130/30: The New Long-Only" by Andrew Lo and Pankaj Patel
+
+Part of the Educational Platform Lecture Series:
+* www.educational_platform.com/lectures
+* github.com/educational_platform/research_public
+
+Notebook released under the Creative Commons Attribution 4.0 License. Please do not remove this attribution.
+
+Before the crisis of 2007, 130/30 funds were all the rage. The idea of a 130/30 fund is simple: take a long position of 130% and a short position of 30%; this combination gives a net exposure of 100% (the same as a long-only fund) as well as the added benefit of the ability to short stocks. The ability to short in a trading strategy is crucial as it allows a fund manager to capitalize on a security's poor performance, which is impossible in a traditional, long-only strategy.
+
+This notebook, using factors outlined by Andrew Lo and Pankaj Patel in "130/30: The New Long Only", will demonstrate how to create an algorithmic 130/30 strategy. It will also highlight Educational Platform's Pipeline API which is a powerful tool for developing factor trading strategies.
+
+First, let us import all necessary libraries and functions for this algorithm
+
+#Traditional Value
+
+In this notebook, we will develop a strategy based on the "traditional value" metrics described in the Lo/Patel whitepaper. The factors employed in this strategy designate stocks as either cheap or expensive using classic fundamental analysis. The factors that Lo/Patel used are:
+
+* Dividend Yield
+* Price to Book Value
+* Price to Trailing 12-Month Sales
+* Price to Trainling 12-Month Cash Flows
+
+##Dividend Yield
+
+Dividend yield is calculated as:
+
+$$Dividend\;Yield = \frac{Annual\;Dividends\;per\;share}{Price\;per\;share}$$
+
+When a company makes profit, it faces a choice. It could either reinvest those profits in the company with an eye to increase efficiency, purchase new technology, etc. or it could pay dividends to its equity holders. While reinvestment may increase a company's future share price and thereby reward investors, the most concrete way equity holders are rewarded is through dividends. An equity with a high dividend yield is particularly attractive as the quantity of dividends paid to investors represent a larger proportion of the share price itself. Now we shall create a Dividend Yield factor using the Pipeline API framework and Morningstar's list of fundamental values.
+
+While this factor could be calculated using other fundamental metrics, Morningstar removes the need for any calculation. It is good practice to check the list of fundamentals (https://www.educational_platform.com/help/fundamentals) before creating a custom factor from scratch.
+
+We will initialize a temporary Pipeline to get a sense of the values.
+
+##Price to Book Value
+
+Price to Book Value (a.k.a Price to Book Ratio) is calculated as:
+
+$$P/B\;Ratio = \frac{Price\;per\;share}{Net\;Asset\;Value\;per\;share}$$
+
+Net Asset Value per share can be thought of (very roughly) as a company's total assets less its total liabilities, all divided by the number of shares outstanding.
+
+The P/B Ratio gives a sense of a stock being either over- or undervalued. A high P/B ratio suggests that a stock's price is overvalued, and should therefore be shorted, whereas a low P/B ratio is attractive as the stock gained by purchasing the equity is hypothetically "worth more" than the price paid for it. 
+
+We will now create a P/B Ratio custom factor and look at some of the results.
+
+There are two points to make about this data series. 
+
+Firstly, AA_PR's P/B Ratio is given as NaN by Pipeline. NaN stands for "not a number" and occurs when a value can not be fetched by Pipeline. Eventually, we will remove these NaN values from the dataset as they often lead to confusing errors when manipulating the data.
+
+Secondly, a low P/B Ratio and a high Dividend Yield are attractive for investors, whereas a a high P/B Ratio and a low Dividend Yield are unattractive. Therefore, we will "invert" the P/B ratio by making each value negative in the factor output so that, when the data is aggregated later in the algorithm, the maxima and minima have the same underlying "meaning".
+
+##Price to Trailing 12-Month Sales
+
+This is calculated as a simple ratio between price per share and trailing 12-month (TTM) sales. 
+
+TTM is a transformation rather than a metric and effectively calculates improvement or deterioration of a fundamental value from a particular quarter one year previously. For example, if one wanted to calculate today's TTM Sales for company XYZ, one would take the most recent quarter's revenue and divide it by the difference between this quarter's revenue and this quarter's revenue last year added to the revenue as given by the company's most recent fiscal year-end filing.
+
+To calculate the exact TTM of a security is indeed possible using Pipeline; however, the code required is slow. Luckily, this value can be well approximated by the built-in Morningstar valuation ratios, which use annual sales to calculate the Price to Sales fundamental value. This slight change boosts the code's speed enormously yet has very little impact on the results of the strategy itself.
+
+Price to TTM Sales is similar to the P/B Ratio in terms of function. The major difference in these two ratios is the fact that inclusion of TTM means that seasonal fluctuations are minimized, as previous data is used to smooth the value. In our case, annualized values accomplish this same smoothing.
+
+Also, note that the values produced are negative; this factor requires the same inversion as the P/B Ratio.
+
+##Price to Trailing 12-Month Cashflows
+
+This is calculated as a simple ratio between price per share and TTM free cashflow  (here using the built-in Morningstar valuation ratio as an approximaton).
+
+This ratio serves a similar function to the previous two. A future notebook will explore the subtle differences in these metrics, but they largely serve the same purpose. Once again, low values are attractive and high values are unattractive, so the metric must be inverted.
+
+##The Full Pipeline
+
+Now that each individual factor has been added, it is now time to get all the necessary data at once. In the algorithm, this will take place once every day.
+
+Later in the process, we will need a factor in order to create an approximate S&P500, so we will also include another factor called SPY_proxy (SPY is an ETF that tracks the S&P500). The S&P500 is a collection of 500 of the largest companies traded on the stock market. Our interpretation of the S&P500 is a group of 500 companies with the greatest market capitalizations; however, the actual S&P500 will be slightly different as Standard and Poors, who create the index, have a more nuanced algorithm for calculation.
+
+We will also alter our P/B Ratio factor in order to account for the inversion.
+
+##Aggregation
+
+Now that we have all our data, we need to manipulate this in order to create a single ranking of the securities. Lo/Patel recommend the following algorithm:
+
+* Extract the S&P500 from the set of equities and find the mean and standard deviation of each factor for this dataset (standard_frame_compute)
+
+* Use these computed values to standardize each factor (standard_frame_compute)
+
+* Replace values that are greater that 10 or less that -10 with 10 and -10 respectively in order to limit the effect of outliers (filter_fn)
+
+* Sum these values for each equity and divide by the number of factors in order to give a value between -10 and 10 (composite score)
+
+The code for this is shown below.
+
+##Stock Choice
+
+Now that we have ranked our securities, we need to choose a long basket and a short basket. Since we need to keep the ratio 130/30 between longs and shorts, why not have 26 longs and 6 shorts (in the algorithm we will weigh each of these equally, giving us our desired leverage and exposure).
+
+On the graph below, we plot a histogram of the securities to get a sense of the distribution of scores. The red lines represent the cutoff points for the long and short buckets. One thing to notice is that the vast majority of equities are ranked near the middle of the histogram, whereas the tails are quite thin. This would suggest that there is something special about the securities chosen to be in these baskets, and -hopefully- these special qualities will yield positive alpha for the strategy.
+
+Please see the full algorithm for backtested returns!
+
+NB: In the implementation of the algorithm, a series of filters is used in order to ensure that only tradeable stocks are included. The methodology for this filter can be found in https://www.educational_platform.com/posts/pipeline-trading-universe-best-practice.
+
+*The material on this website is provided for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation or endorsement for any security or strategy, nor does it constitute an offer to provide investment advisory or other services by Educational Platform.*
+
+*In addition, the content of the website neither constitutes investment advice nor offers any opinion with respect to the suitability of any security or any specific investment. Educational Platform makes no guarantees as to accuracy or completeness of the views expressed in the website. The views are subject to change, and may have become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.data import morningstar
+from educational_platform.pipeline.factors import CustomFactor
+```
+*Cell 2:*
+```python
+# Custom Factor 1 : Dividend Yield
+class Div_Yield(CustomFactor):
+
+    inputs = [morningstar.valuation_ratios.dividend_yield]
+    window_length = 1
+
+    def compute(self, today, assets, out, d_y):
+        out[:] = d_y[-1]
+```
+*Cell 3:*
+```python
+# create the pipeline
+temp_pipe_1 = Pipeline()
+
+# add the factor to the pipeline
+temp_pipe_1.add(Div_Yield(), 'Dividend Yield')
+
+# run the pipeline and get data for first 5 equities
+run_pipeline(temp_pipe_1, start_date='2015-11-11', end_date='2015-11-11').head()
+```
+*Cell 4:*
+```python
+# Custom Factor 2 : P/B Ratio
+class Price_to_Book(CustomFactor):
+
+    inputs = [morningstar.valuation_ratios.pb_ratio]
+    window_length = 1
+
+    def compute(self, today, assets, out, pbr):
+        out[:] = pbr[-1]
+        
+# create the Pipeline
+temp_pipe_2 = Pipeline()
+
+# add the factor to the Pipeline
+temp_pipe_2.add(Price_to_Book(), 'P/B Ratio')
+
+# run the Pipeline and get data for first 5 equities
+run_pipeline(temp_pipe_2, start_date='2015-11-11', end_date='2015-11-11').head()
+```
+*Cell 5:*
+```python
+# Custom Factor 3 : Price to Trailing 12 Month Sales       
+class Price_to_TTM_Sales(CustomFactor):
+    inputs = [morningstar.valuation_ratios.ps_ratio]
+    window_length = 1
+    
+    def compute(self, today, assets, out, ps):
+        out[:] = -ps[-1]
+        
+# create the pipeline
+temp_pipe_3 = Pipeline()
+
+# add the factor to the pipeline
+temp_pipe_3.add(Price_to_TTM_Sales(), 'Price / TTM Sales')
+
+# run the pipeline and get data for first 5 equities
+run_pipeline(temp_pipe_3, start_date='2015-11-11', end_date='2015-11-11').head()
+```
+*Cell 6:*
+```python
+# Custom Factor 4 : Price to Trailing 12 Month Cashflow
+class Price_to_TTM_Cashflows(CustomFactor):
+    inputs = [morningstar.valuation_ratios.pcf_ratio]
+    window_length = 1
+    
+    def compute(self, today, assets, out, pcf):
+        out[:] = -pcf[-1] 
+        
+# create the pipeline
+temp_pipe_4 = Pipeline()
+
+# add the factor to the pipeline
+temp_pipe_4.add(Price_to_TTM_Cashflows(), 'Price / TTM Cashflows')
+
+# run the pipeline and get data for first 5 equities
+run_pipeline(temp_pipe_4, start_date='2015-11-11', end_date='2015-11-11').head()
+```
+*Cell 7:*
+```python
+# This factor creates the synthetic S&P500
+class SPY_proxy(CustomFactor):
+    inputs = [morningstar.valuation.market_cap]
+    window_length = 1
+    
+    def compute(self, today, assets, out, mc):
+        out[:] = mc[-1]
+        
+# Custom Factor 2 : P/B Ratio
+class Price_to_Book(CustomFactor):
+
+    inputs = [morningstar.valuation_ratios.pb_ratio]
+    window_length = 1
+
+    def compute(self, today, assets, out, pbr):
+        out[:] = -pbr[-1]
+        
+def Data_Pull():
+    
+    # create the piepline for the data pull
+    Data_Pipe = Pipeline()
+    
+    # create SPY proxy
+    Data_Pipe.add(SPY_proxy(), 'SPY Proxy')
+
+    # Div Yield
+    Data_Pipe.add(Div_Yield(), 'Dividend Yield') 
+    
+    # Price to Book
+    Data_Pipe.add(Price_to_Book(), 'Price to Book')
+    
+    # Price / TTM Sales
+    Data_Pipe.add(Price_to_TTM_Sales(), 'Price / TTM Sales')
+    
+    # Price / TTM Cashflows
+    Data_Pipe.add(Price_to_TTM_Cashflows(), 'Price / TTM Cashflow')
+        
+    return Data_Pipe
+
+# NB: Data pull is a function that returns a Pipeline object, so need ()
+results = run_pipeline(Data_Pull(), start_date='2015-11-11', end_date='2015-11-11')
+results.head()
+```
+*Cell 8:*
+```python
+# limit effect of outliers
+def filter_fn(x):
+    if x <= -10:
+        x = -10.0
+    elif x >= 10:
+        x = 10.0
+    return x   
+
+# standardize using mean and sd of S&P500
+def standard_frame_compute(df):
+    
+    # basic clean of dataset to remove infinite values
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna()
+    
+    # need standardization params from synthetic S&P500
+    df_SPY = df.sort(columns='SPY Proxy', ascending=False)
+
+    # create separate dataframe for SPY
+    # to store standardization values
+    df_SPY = df_SPY.head(500)
+    
+    # get dataframes into numpy array
+    df_SPY = df_SPY.as_matrix()
+    
+    # store index values
+    index = df.index.values
+    df = df.as_matrix()
+    
+    df_standard = np.empty(df.shape[0])
+    
+    
+    for col_SPY, col_full in zip(df_SPY.T, df.T):
+        
+        # summary stats for S&P500
+        mu = np.mean(col_SPY)
+        sigma = np.std(col_SPY)
+        col_standard = np.array(((col_full - mu) / sigma)) 
+
+        # create vectorized function (lambda equivalent)
+        fltr = np.vectorize(filter_fn)
+        col_standard = (fltr(col_standard))
+        
+        # make range between -10 and 10
+        col_standard = (col_standard / df.shape[1])
+        
+        # attach calculated values as new row in df_standard
+        df_standard = np.vstack((df_standard, col_standard))
+     
+    # get rid of first entry (empty scores)
+    df_standard = np.delete(df_standard,0,0)
+    
+    return (df_standard, index)
+
+# Sum up and sort data
+def composite_score(df, index):
+
+    # sum up transformed data
+    df_composite = df.sum(axis=0)
+    
+    # put into a pandas dataframe and connect numbers
+    # to equities via reindexing
+    df_composite = pd.Series(data=df_composite,index=index)
+    
+    # sort descending
+    df_composite.sort(ascending=False)
+
+    return df_composite
+
+# compute the standardized values
+results_standard, index = standard_frame_compute(results)
+
+# aggregate the scores
+ranked_scores = composite_score(results_standard, index)
+
+# print the final rankings
+ranked_scores
+```
+*Cell 9:*
+```python
+# create histogram of scores
+ranked_scores.hist()
+
+# make scores into list for ease of manipulation
+ranked_scores_list = ranked_scores.tolist()
+
+# add labels to axes
+plt.xlabel('Standardized Scores')
+plt.ylabel('Quantity in Basket')
+
+# show long bucket
+plt.axvline(x=ranked_scores_list[25], linewidth=1, color='r')
+
+# show short bucket
+plt.axvline(x=ranked_scores_list[-6], linewidth=1, color='r');
+```
+*Cell 10:*
+```python
+
+```
+
+#### Category: Blog Posts
+##### Bayesian Optimization of a Technical Trading Algorithm with SigOpt
+- **Original Path**: `blog\bayes_opt\Blog_Post_Zipline_SigOpt.ipynb`
+- **Use Case**: Blog Posts
+- **Cell Count**: 67 (Code: 42, Markdown: 25)
+- **Imports/Dependencies**: from collections import OrderedDict, from collections import defaultdict, from datetime import datetime, timedelta, from zipline import TradingAlgorithm, from zipline.api import (, from zipline.api import order_target_percent, record, symbol, symbols, history, add_history, from zipline.utils.factory import load_bars_from_yahoo, import creds, import itertools, import matplotlib, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import pyfolio as pf, import pytz, import seaborn as sns, import sigopt.interface, import talib, import zipline
+
+**Explanatory Notes:**
+# Bayesian Optimization of a Technical Trading Algorithm with SigOpt
+
+Authors: Justin Lent (Educational Platform), Thomas Wiecki (Educational Platform), [Scott Clark](https://sigopt.com/about#scott) ([SigOpt](https://sigopt.com))
+
+Parameter optimization of trading algorithms is quite different from most other optimization problems. Specifically, the optimization problem is non-convex, non-linear, stochastic, and can include a mix of integers, floats and enums as parameters. Moreover, most optimizers assume that the objective function is quick to evaluate which is definitely not the case for a trading algorithm run over multiple years of financial data. Immediately that disqualifies 95% of optimizers including those offered by `scipy` or `cvxopt`. At Educational Platform we have long been interested in parameter optimization of trading algorithms (some prior blog posts on this topic can be found [here](), [here](), and [here]()). 
+
+**Bayesian optimization** is a rather novel approach to the selection of parameters that is very well suited to optimize trading algorithms. This blog post will first provide a short introduction to Bayesian optimization with a focus on why it is well suited for quantitative finance. We will then show how you can use [SigOpt](http://sigopt.com/) to perform Bayesian optimization on your own trading algorithms running with [`zipline`](https://github.com/educational_platform/zipline).
+
+This blog post originally resulted from a collaboration with Alex Wiltschko where we used Whetlab for Bayesian optimization. Whetlab, however, has since been acquired by Twitter and the Whetlab service was discontinued. Scott Clark from SigOpt helped in porting the code to their service which is comparable in functionality and API. Scott also co-wrote the blog post.

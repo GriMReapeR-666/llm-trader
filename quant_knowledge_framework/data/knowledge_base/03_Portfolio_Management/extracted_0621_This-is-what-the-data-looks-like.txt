@@ -1,0 +1,980 @@
+# This is what the data looks like
+
+Topic: 03_Portfolio_Management
+Confidence: 0.31
+Keywords: allocation, kelly, portfolio, ror
+
+---
+
+## This is what the data looks like
+
+# Analyzing the posterior
+
+# Value at Risk with uncertainty
+
+# Interim summary
+* **Bayesian stats** allows us to **reformulate common risk metrics**, use **priors** and **quantify uncertainty**.
+* IB strategy seems better in almost every regard. Is it though?
+
+# So far, only added confidence
+
+# Is this a good model?
+
+# Can it be improved? Yes!
+
+Identical model as before, but instead, use a heavy-tailed T distribution:
+
+$ \text{returns} \sim \text{T}(\nu, \mu, \sigma^2)$
+
+# Volatility
+
+# Lets compare posteriors of the normal and T model
+
+# Mean returns
+
+# Bayesian T-Sharpe ratio
+
+# But why? T distribution is more robust!
+
+# Estimating tail risk using VaR
+
+# Comparing the Bayesian T-Sharpe ratios
+
+Conclusions
+===========
+
+* **Probabilistic Programming** allows us to construct **complex models** in code and **automatically** estimate them.
+* **Bayesian statistics** provides us with **uncertainty quantification** -- measure orthogonal sources of **risk**.
+* **PyMC3** puts **advanced samplers** at your fingertips.
+
+# Further reading
+
+* [Educational Platform](https://www.educational_platform.com) -- Develop trading algorithms like this in your browser.
+* [My blog for Bayesian linear regression (financial alpha and beta)](https://twiecki.github.io)
+* [Probilistic Programming for Hackers](http://camdavidsonpilon.github.io/Probabilistic-Programming-and-Bayesian-Methods-for-Hackers/) -- IPython Notebook book on Bayesian stats using PyMC2.
+* [Doing Bayesian Data Analysis](http://www.indiana.edu/~kruschke/DoingBayesianDataAnalysis/) -- Great book by Kruschke.
+* [PyMC3 repository](https://github.com/pymc-devs/pymc3)
+* Twitter: [@twiecki](https://twitter.com/twiecki)
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+%pyplot inline
+
+figsize(12, 12)
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import itertools
+import scipy as sp
+import pymc3 as pm
+import theano.tensor as T
+
+from scipy import stats
+import scipy
+
+data_0 = pd.read_csv('data0.csv', index_col=0, parse_dates=True, header=None)[1]
+data_1 = pd.read_csv('data1.csv', index_col=0, parse_dates=True, header=None)[1]
+
+def var_cov_var_t(P, c, nu=1, mu=0, sigma=1, **kwargs):
+    """
+    Variance-Covariance calculation of daily Value-at-Risk
+    using confidence level c, with mean of returns mu
+    and standard deviation of returns sigma, on a portfolio
+    of value P.
+    """
+    alpha = stats.t.ppf(1-c, nu, mu, sigma)
+    return P - P*(alpha + 1)
+
+def var_cov_var_normal(P, c, mu=0, sigma=1, **kwargs):
+    """
+    Variance-Covariance calculation of daily Value-at-Risk
+    using confidence level c, with mean of returns mu
+    and standard deviation of returns sigma, on a portfolio
+    of value P.
+    """
+    alpha = stats.norm.ppf(1-c, mu, sigma)
+    return P - P*(alpha + 1)
+
+def sample_normal(mu=0, sigma=1, **kwargs):
+    samples = stats.norm.rvs(mu, sigma, kwargs.get('size', 100))
+    return samples
+
+def sample_t(nu=1, mu=0, sigma=1, **kwargs):
+    samples = stats.t.rvs(nu, mu, sigma, kwargs.get('size', 100))
+    return samples
+
+def eval_normal(mu=0, sigma=1, **kwargs):
+    pdf = stats.norm(mu, sigma).pdf(kwargs.get('x', np.linspace(-0.05, 0.05, 500)))
+    return pdf
+
+def eval_t(nu=1, mu=0, sigma=1, **kwargs):
+    samples = stats.t(nu, mu, sigma).pdf(kwargs.get('x', np.linspace(-0.05, 0.05, 500)))
+    return samples
+
+def logp_normal(mu=0, sigma=1, **kwargs):
+    logp = np.sum(stats.norm(mu, sigma).logpdf(kwargs['data']))
+    return logp
+
+def logp_t(nu=1, mu=0, sigma=1, **kwargs):
+    logp = np.sum(stats.t(nu, mu, sigma).logpdf(kwargs['data']))
+    return logp
+
+# generate posterior predictive
+def post_pred(func, trace, *args, **kwargs):
+    samples = kwargs.pop('samples', 50)
+    ppc = []
+    for i, idx in enumerate(np.linspace(0, len(trace), samples)):
+        t = trace[int(i)]
+        try:
+            kwargs['nu'] = t['nu_minus_one']+1
+        except KeyError:
+            pass
+        mu = t['mean returns']
+        sigma = t['volatility']
+        ppc.append(func(*args, mu=mu, sigma=sigma, **kwargs))
+
+    return ppc
+
+def plot_strats(sharpe=False):
+    figsize(12, 6)
+    f, (ax1, ax2) = plt.subplots(1, 2)
+    if sharpe:
+        label = 'etrade\nn=%i\nSharpe=%.2f' % (len(data_0), (data_0.mean() / data_0.std() * np.sqrt(252)))
+    else:
+        label = 'etrade\nn=%i\n' % (len(data_0))
+    sns.distplot(data_0, kde=False, ax=ax1, label=label, color='b')
+    ax1.set_xlabel('daily returns'); ax1.legend(loc=0)
+    if sharpe:
+        label = 'IB\nn=%i\nSharpe=%.2f' % (len(data_1), (data_1.mean() / data_1.std() * np.sqrt(252)))
+    else:
+        label = 'IB\nn=%i\n' % (len(data_1))
+    sns.distplot(data_1, kde=False, ax=ax2, label=label, color='g')
+    ax2.set_xlabel('daily returns'); ax2.legend(loc=0);
+```
+*Cell 2:*
+```python
+def model_returns_normal(data):
+    with pm.Model() as model:
+        mu = pm.Normal('mean returns', mu=0, sd=.01, testval=data.mean())
+        sigma, log_sigma = model.TransformedVar('volatility', 
+                                                pm.HalfCauchy.dist(beta=1, testval=data.std()), 
+                                                pm.transforms.logtransform)
+        #sigma = pm.HalfCauchy('volatility', beta=.1, testval=data.std())
+        returns = pm.Normal('returns', mu=mu, sd=sigma, observed=data)
+        ann_vol = pm.Deterministic('annual volatility', returns.distribution.variance**.5 * np.sqrt(252))
+        sharpe = pm.Deterministic('sharpe', 
+                                  returns.distribution.mean / returns.distribution.variance**.5 * np.sqrt(252))
+        start = pm.find_MAP(fmin=scipy.optimize.fmin_powell)
+        step = pm.NUTS(scaling=start)
+        trace_normal = pm.sample(5000, step, start=start)
+    return trace_normal
+
+def model_returns_t(data):
+    with pm.Model() as model:
+        mu = pm.Normal('mean returns', mu=0, sd=.01, testval=data.mean())
+        sigma, log_sigma = model.TransformedVar('volatility', 
+                                                pm.HalfCauchy.dist(beta=1, testval=data.std()), 
+                                                pm.transforms.logtransform)
+        nu, log_nu = model.TransformedVar('nu_minus_one',
+                                          pm.Exponential.dist(1./10., testval=3.),
+                                          pm.transforms.logtransform)
+
+        returns = pm.T('returns', nu=nu+2, mu=mu, sd=sigma, observed=data)
+        ann_vol = pm.Deterministic('annual volatility', returns.distribution.variance**.5 * np.sqrt(252))
+        sharpe = pm.Deterministic('sharpe', 
+                                  returns.distribution.mean / returns.distribution.variance**.5 * np.sqrt(252))
+
+        start = pm.find_MAP(fmin=scipy.optimize.fmin_powell)
+        step = pm.NUTS(scaling=start)
+        trace = pm.sample(5000, step, start=start)
+
+    return trace
+
+def model_returns_t_stoch_vol(data):
+    from pymc3.distributions.timeseries import GaussianRandomWalk
+
+    with pm.Model() as model:
+        mu = pm.Normal('mean returns', mu=0, sd=.01, testval=data.mean())
+        step_size, log_step_size = model.TransformedVar('step size', 
+                                                pm.Exponential.dist(1./.02, testval=.06), 
+                                                pm.transforms.logtransform)
+        
+        vol = GaussianRandomWalk('volatility', step_size**-2, shape=len(data))
+        
+        nu, log_nu = model.TransformedVar('nu_minus_one',
+                                          pm.Exponential.dist(1./10., testval=3.),
+                                          pm.transforms.logtransform)
+
+        returns = pm.T('returns', nu=nu+2, mu=mu, lam=pm.exp(-2*vol), observed=data)
+        #ann_vol = pm.Deterministic('annual volatility', returns.distribution.variance**.5 * np.sqrt(252))
+        #sharpe = pm.Deterministic('sharpe', 
+        #                          returns.distribution.mean / ann_vol)
+
+        start = pm.find_MAP(vars=[vol], fmin=sp.optimize.fmin_l_bfgs_b)
+        #start = pm.find_MAP(fmin=scipy.optimize.fmin_powell, start=start)
+        step = pm.NUTS(scaling=start)
+        trace = pm.sample(5000, step, start=start)
+
+    return trace
+
+results_normal = {0: model_returns_normal(data_0),
+                  1: model_returns_normal(data_1)}
+results_t = {0: model_returns_t(data_0),
+             1: model_returns_t(data_1)}
+```
+*Cell 3:*
+```python
+from IPython.display import Image
+sns.set_context('talk', font_scale=1.5)
+sns.set_context(rc={'lines.markeredgewidth': 0.1})
+from matplotlib import rc
+rc('xtick', labelsize=14) 
+rc('ytick', labelsize=14)
+figsize(10, 6)
+```
+*Cell 4:*
+```python
+plot_strats()
+```
+*Cell 5:*
+```python
+print "Sharpe ratio strategy etrade =", data_0.mean() / data_0.std() * np.sqrt(252)
+print "Sharpe ratio strategy IB =", data_1.mean() / data_1.std() * np.sqrt(252)
+```
+*Cell 6:*
+```python
+plt.title('Sharpe ratio'); plt.xlabel('Sharpe ratio');
+plt.axvline(data_0.mean() / data_0.std() * np.sqrt(252), color='b');
+plt.axvline(data_1.mean() / data_1.std() * np.sqrt(252), color='g');
+plt.xlim((-2, 5))
+```
+*Cell 7:*
+```python
+coin = 0 # 0 for tails
+coin = 1 # 1 for heads
+```
+*Cell 8:*
+```python
+#coin = {0: 50%,
+#        1: 50%}
+```
+*Cell 9:*
+```python
+from scipy import stats
+sns.distplot(data_0, kde=False, fit=stats.norm)
+plt.xlabel('returns')
+```
+*Cell 10:*
+```python
+figsize(7, 7)
+from IPython.html.widgets import interact, interactive
+from scipy import stats
+def gen_plot(n=0, bayes=False):
+    np.random.seed(3)
+    x = np.random.randn(n)
+    ax1 = plt.subplot(221)
+    ax2 = plt.subplot(222)
+    ax3 = plt.subplot(223)
+    #fig, (ax1, ax2, ax3, _) = plt.subplots(2, 2)
+    if n > 1:
+        sns.distplot(x, kde=False, ax=ax3, rug=True, hist=False)
+    
+    def gen_post_mu(x, mu0=0, sigma0=5):
+        mu = np.mean(x)
+        sigma = 1
+        n = len(x)
+        
+        if n == 0:
+            post_mu = mu0
+            post_sigma = sigma0
+        else:
+            post_mu = (mu0 / sigma0**2 + np.sum(x) / sigma0**2) / (1/sigma0**2 + n/sigma**2)
+            post_sigma = (1 / sigma0**2 + n / sigma**2)**-1
+        return stats.norm(post_mu, post_sigma**2)
+    
+    def gen_post_var(x, alpha0, beta0):
+        mu = 0
+        sigma = np.std(x)
+        n = len(x)
+        post_alpha = alpha0 + n / 2
+        post_beta = beta0 + np.sum((x - mu)**2) / 2
+        return stats.invgamma(post_alpha, post_beta)
+    
+    
+    mu_lower = -.3
+    mu_upper = .3
+    
+    sigma_lower = 0
+    sigma_upper = 3
+    ax2.set_xlim((2, n+1))#(sigma_lower, sigma_upper))
+    ax1.axvline(0, lw=.5, color='k')
+    #ax2.axvline(1, lw=.5, color='k')
+    ax2.axhline(0, lw=0.5, color='k')
+    if bayes:
+        post_mu = gen_post_mu(x, 0, 5)
+        #post_var = gen_post_var(x, 1, 1)
+        if post_mu.ppf(.05) < mu_lower:
+            mu_lower = post_mu.ppf(.01)
+        if post_mu.ppf(.95) > mu_upper:
+            mu_upper = post_mu.ppf(.99)
+        x_mu = np.linspace(mu_lower, mu_upper, 500)
+        ax1.plot(x_mu, post_mu.pdf(x_mu))
+        #x_sigma = np.linspace(sigma_lower, sigma_upper, 100)
+        l = []
+        u = []
+        for i in range(1, n):
+            norm = gen_post_mu(x[:i])
+            l.append(norm.ppf(.05))
+            u.append(norm.ppf(.95))
+        ax2.fill_between(np.arange(2, n+1), l, u, alpha=.3)
+        ax1.set_ylabel('belief')
+        #ax2.plot(x_sigma, post_var.pdf(x_sigma))
+    else:
+        mu = np.mean(x)
+        sd = np.std(x)
+        ax1.axvline(mu)
+        ax2.plot(np.arange(2, n+1), [np.mean(x[:i]) for i in range(1, n)])
+        #ax2.axvline(sd)
+        
+    ax1.set_xlim((mu_lower, mu_upper))
+    ax1.set_title('current mu estimate')
+    ax2.set_title('history of mu estimates')
+    
+    ax2.set_xlabel('n')
+    ax2.set_ylabel('mu')
+    ax3.set_title('data (returns)')
+    plt.tight_layout()
+```
+*Cell 11:*
+```python
+interactive(gen_plot, n=(0, 600), bayes=True)
+```
+*Cell 12:*
+```python
+def plot_want_get():
+    from scipy import stats
+    fig = plt.figure(figsize=(14, 6))
+    ax1 = fig.add_subplot(121, title='What we want', ylim=(0, .5), xlabel='', ylabel='')
+    ax1.plot(np.linspace(-4, 4, 100), stats.norm.pdf(np.linspace(-3, 3, 100)), lw=4.)
+    ax2 = fig.add_subplot(122, title='What we get')#, xlim=(-4, 4), ylim=(0, 1800), xlabel='', ylabel='\# of samples')
+    sns.distplot(np.random.randn(50000), ax=ax2, kde=False, norm_hist=True);
+    ax2.set_xlim((-4, 4));
+    ax2.set_ylim((0, .5));
+```
+*Cell 13:*
+```python
+plot_want_get()
+```
+*Cell 14:*
+```python
+import theano.tensor as T
+x = np.linspace(-.3, .3, 500)
+plt.plot(x, T.exp(pm.Normal.dist(mu=0, sd=.1).logp(x)).eval())
+plt.title(u'Prior: mu ~ Normal(0, $.1^2$)'); plt.xlabel('mu'); plt.ylabel('Probability Density'); plt.xlim((-.3, .3));
+```
+*Cell 15:*
+```python
+x = np.linspace(-.1, .5, 500)
+plt.plot(x, T.exp(pm.HalfNormal.dist(sd=.1).logp(x)).eval())
+plt.title(u'Prior: sigma ~ HalfNormal($.1^2$)'); plt.xlabel('sigma'); plt.ylabel('Probability Density');
+```
+*Cell 16:*
+```python
+print data_0.head()
+```
+*Cell 17:*
+```python
+from pymc3 import *
+
+with Model() as model:
+    # Priors on parameters
+    mean_return = Normal('mean return', mu=0, sd=.1)
+    volatility = HalfNormal('volatility', sd=.1)
+
+    # Model observed returns as Normal
+    obs = Normal('returns', 
+                 mu=mean_return, 
+                 sd=volatility,
+                 observed=data) # data is a list of daily returns, e.g. [0.01, -.05, ...]
+    
+    sharpe = Deterministic('sharpe ratio', 
+                           mean_return / volatility)
+```
+*Cell 18:*
+```python
+with model:
+    # Instantiate MCMC sampler
+    step = NUTS()
+    # Draw 500 samples from the posterior
+    trace = sample(500, step)
+```
+*Cell 19:*
+```python
+sns.distplot(results_normal[0]['mean returns'], hist=False, label='etrade')
+sns.distplot(results_normal[1]['mean returns'], hist=False, label='IB')
+plt.title('Posterior of the mean'); plt.xlabel('mean returns')
+```
+*Cell 20:*
+```python
+sns.distplot(results_normal[0]['volatility'], hist=False, label='etrade')
+sns.distplot(results_normal[1]['volatility'], hist=False, label='IB')
+plt.title('Posterior of the volatility')
+plt.xlabel('volatility')
+```
+*Cell 21:*
+```python
+sns.distplot(results_normal[0]['sharpe'], hist=False, label='etrade')
+sns.distplot(results_normal[1]['sharpe'], hist=False, label='IB')
+plt.title('Bayesian Sharpe ratio'); plt.xlabel('Sharpe ratio');
+```
+*Cell 22:*
+```python
+print 'P(Sharpe ratio IB > 0) = %.2f%%' % \
+    (np.mean(results_normal[1]['sharpe'] > 0) * 100)
+```
+*Cell 23:*
+```python
+print 'P(Sharpe ratio IB > Sharpe ratio etrade) = %.2f%%' % \
+    (np.mean(results_normal[1]['sharpe'] > results_normal[0][0]['sharpe']) * 100)
+```
+*Cell 24:*
+```python
+results_normal[0]
+```
+*Cell 25:*
+```python
+import scipy.stats as stats
+ppc_etrade = post_pred(var_cov_var_normal, results_normal[0], 1e6, .05, samples=800)
+ppc_ib = post_pred(var_cov_var_normal, results_normal[1], 1e6, .05, samples=800)
+sns.distplot(ppc_etrade, label='etrade', norm_hist=True, hist=False, color='b')
+sns.distplot(ppc_ib, label='IB', norm_hist=True, hist=False, color='g')
+plt.title('VaR'); plt.legend(loc=0); plt.xlabel('5% daily Value at Risk (VaR) with \$1MM capital (in \$)'); plt.ylabel('Probability density'); plt.xticks(rotation=15);
+```
+*Cell 26:*
+```python
+sns.distplot(results_normal[0]['sharpe'], hist=False, label='etrade')
+sns.distplot(results_normal[1]['sharpe'], hist=False, label='IB')
+plt.title('Bayesian Sharpe ratio'); plt.xlabel('Sharpe ratio');
+plt.axvline(data_0.mean() / data_0.std() * np.sqrt(252), color='b');
+plt.axvline(data_1.mean() / data_1.std() * np.sqrt(252), color='g');
+```
+*Cell 27:*
+```python
+x = np.linspace(-.03, .03, 500)
+ppc_dist_normal = post_pred(eval_normal, results_normal[1], x=x)
+ppc_dist_t = post_pred(eval_t, results_t[1], x=x)
+```
+*Cell 28:*
+```python
+sns.distplot(data_1, label='data IB', kde=False, norm_hist=True, color='.5')
+for p in ppc_dist_normal:
+    plt.plot(x, p, c='r', alpha=.1)
+plt.plot(x, p, c='r', alpha=.5, label='Normal model')
+plt.xlabel('Daily returns')
+plt.legend();
+```
+*Cell 29:*
+```python
+sns.distplot(data_1, label='data IB', kde=False, norm_hist=True, color='.5')
+for p in ppc_dist_t:
+    plt.plot(x, p, c='y', alpha=.1)
+plt.plot(x, p, c='y', alpha=.5, label='T model')    
+plt.xlabel('Daily returns')
+plt.legend();
+```
+*Cell 30:*
+```python
+sns.distplot(results_normal[1]['annual volatility'], hist=False, label='normal')
+sns.distplot(results_t[1]['annual volatility'], hist=False, label='T')
+plt.xlim((0, 0.2))
+plt.xlabel('Posterior of annual volatility')
+plt.ylabel('Probability Density');
+```
+*Cell 31:*
+```python
+sns.distplot(results_normal[1]['mean returns'], hist=False, color='r', label='normal model')
+sns.distplot(results_t[1]['mean returns'], hist=False, color='y', label='T model')
+plt.xlabel('Posterior of the mean returns'); plt.ylabel('Probability Density');
+```
+*Cell 32:*
+```python
+sns.distplot(results_normal[1]['sharpe'], hist=False, color='r', label='normal model')
+sns.distplot(results_t[1]['sharpe'], hist=False, color='y', label='T model')
+plt.xlabel('Bayesian Sharpe ratio'); plt.ylabel('Probability Density');
+```
+*Cell 33:*
+```python
+sim_data = list(np.random.randn(75)*.01)
+sim_data.append(-.2)
+sns.distplot(sim_data, label='data', kde=False, norm_hist=True, color='.5'); sns.distplot(sim_data, label='Normal', fit=stats.norm, kde=False, hist=False, fit_kws={'color': 'r', 'label': 'Normal'}); sns.distplot(sim_data, fit=stats.t, kde=False, hist=False, fit_kws={'color': 'y', 'label': 'T'})
+plt.xlabel('Daily returns'); plt.legend();
+```
+*Cell 34:*
+```python
+ppc_normal = post_pred(var_cov_var_normal, results_normal[1], 1e6, .05, samples=800)
+ppc_t = post_pred(var_cov_var_t, results_t[1], 1e6, .05, samples=800)
+sns.distplot(ppc_normal, label='Normal', norm_hist=True, hist=False, color='r')
+sns.distplot(ppc_t, label='T', norm_hist=True, hist=False, color='y')
+plt.legend(loc=0); plt.xlabel('5% daily Value at Risk (VaR) with \$1MM capital (in \$)'); plt.ylabel('Probability density'); plt.xticks(rotation=15);
+```
+*Cell 35:*
+```python
+sns.distplot(results_t[0]['sharpe'], hist=False, label='etrade')
+sns.distplot(results_t[1]['sharpe'], hist=False, label='IB')
+plt.xlabel('Bayesian Sharpe ratio'); plt.ylabel('Probability Density');
+```
+*Cell 36:*
+```python
+print 'P(Sharpe ratio IB > Sharpe ratio etrade) = %.2f%%' % \
+    (np.mean(results_t[1]['sharpe'] > results_t[0]['sharpe']) * 100)
+```
+
+##### Capacity Analysis
+- **Original Path**: `research\capacity_analysis.ipynb`
+- **Use Case**: Research
+- **Cell Count**: 28 (Code: 24, Markdown: 4)
+- **Imports/Dependencies**: from IPython import parallel, from __future__ import division, from datetime import datetime, from pytz import timezone, from zipline.algorithm import TradingAlgorithm, from zipline.api import order_target_percent, record, symbol, history, add_history, get_open_orders, get_datetime, set_slippage, from zipline.api import symbols, from zipline.finance.slippage import VolumeShareSlippage, from zipline.utils.factory import load_bars_from_yahoo, import math, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import pytz, import seaborn as sns, import zipline, import zipline.utils.factory as factory
+
+**Explanatory Notes:**
+# Capacity Analysis
+By Dr. Thomas Wiecki
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+# Run large cap universe
+
+# Run small cap universe
+
+# Analyse results
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from IPython import parallel
+c = parallel.Client()
+view = c.load_balanced_view()
+```
+*Cell 2:*
+```python
+%matplotlib inline
+from __future__ import division
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+sns.set_context('talk')
+sns.set_palette('hls', n_colors=7)
+import zipline
+print zipline.__version__
+
+import pytz
+from datetime import datetime
+
+from zipline.utils.factory import load_bars_from_yahoo
+
+# Load data manually from Yahoo! finance
+start = datetime(2009, 1, 1, 0, 0, 0, 0, pytz.utc)
+end = datetime(2012, 1, 1, 0, 0, 0, 0, pytz.utc)
+large_cap = load_bars_from_yahoo(stocks=['CERN', 'DLTR', 'ROST', 'SBUX'], 
+                            start=start,
+                            end=end)
+
+# Taken from http://www.forbes.com/sites/brettnelson/2011/10/19/fifteen-small-company-stocks-to-buy-right-now/
+small_cap = load_bars_from_yahoo(stocks=['HMSY', 'BWLD', 'IRBT', 'IPGP'], 
+                            start=start,
+                            end=end)
+```
+*Cell 3:*
+```python
+(large_cap.loc[:, :, 'volume'].mean() * large_cap.loc[:, :, 'price'].mean()).mean()
+```
+*Cell 4:*
+```python
+(small_cap.loc[:, :, 'volume'].mean().mean() * small_cap.loc[:, :, 'price'].mean()).mean()
+```
+*Cell 5:*
+```python
+%%px --local
+
+import zipline.utils.factory as factory
+from zipline.algorithm import TradingAlgorithm
+from zipline.api import order_target_percent, record, symbol, history, add_history, get_open_orders, get_datetime, set_slippage
+from zipline.finance.slippage import VolumeShareSlippage
+import numpy as np
+import math
+from pytz import timezone
+from zipline.api import symbols
+
+def initialize(context):
+    set_slippage(VolumeShareSlippage(volume_limit=0.5,
+                                     price_impact=1.5))
+    context.eps = 1 # change epsilon here
+    context.init = False
+    context.previous_datetime = None
+    context.i = 0
+    
+    add_history(30, '1d', 'price')
+    add_history(30, '1d', 'volume')
+    
+def handle_data(context, data):
+    context.i += 1
+    if context.i < 30: return
+    
+    current_datetime = get_datetime().astimezone(timezone('US/Eastern'))
+    
+    cash = context.portfolio.cash
+    record(cash=cash)
+            
+    if not context.init:
+        context.stocks = data.keys()
+    
+        context.m = len(context.stocks)
+        context.b_t = np.ones(context.m) / context.m
+        # Equal weighting portfolio
+        for stock, percent in zip(context.stocks, context.b_t):
+            order_target_percent(stock, percent)
+        context.init = True
+      
+    # only execute algorithm once per day
+    if context.previous_datetime != None:
+        if current_datetime.day != context.previous_datetime.day:
+            new_day = True
+            algo_executed = False
+        else:
+            new_day = False
+    else:
+        new_day = False
+        algo_executed = True
+        
+    context.previous_datetime = current_datetime
+    
+    if not new_day or algo_executed == True:
+        return
+        
+    # skip tic if any orders are open or any stocks did not trade
+    for stock in context.stocks:
+        if bool(get_open_orders(stock)) or data[stock].datetime < get_datetime():
+            return
+        
+    # compute current portfolio allocations
+    for i, stock in enumerate(context.stocks):
+        context.b_t[i] = context.portfolio.positions[stock].amount*data[stock].price
+        
+    # Bring portfolio vector to unit length
+    context.b_t = context.b_t / np.sum(context.b_t)
+
+    # Compute new portfolio weights according to OLMAR algo.
+    b_norm = np.zeros((context.m, 28))
+    x_tilde = np.zeros((context.m, 28))
+    for k in range(28):
+        b_norm[:,k],x_tilde[:,k] = olmar(context,k+3)
+        
+    s = np.zeros(28)
+    b_norm_opt = np.zeros(context.m)
+    s_sum = 0
+    for k in range(28):
+        s[k] = np.dot(b_norm[:,k],x_tilde[:,k])
+        b_norm[:,k] = np.multiply(s[k],b_norm[:,k])
+        b_norm_opt += b_norm[:,k]
+        s_sum += s[k]
+        
+    b_norm_opt = np.divide(b_norm_opt,s_sum)
+    
+    #print b_norm_opt
+    
+    # Rebalance Portfolio
+    for stock, percent in zip(context.stocks, b_norm_opt):
+        order_target_percent(stock, percent)
+    
+    algo_executed = True
+
+def olmar(context,window):
+    """Logic of the olmar algorithm.
+
+    :Returns: b_norm : vector for new portfolio
+    """
+    
+    # get history -- prices and volums of the last 5 days (at close)
+    p = history(30, '1d', 'price')
+    v = history(30, '1d', 'volume')
+    
+    prices = p.ix[30-window:-1]
+    volumes = v.ix[30-window:-1]
+    
+    # find relative moving volume weighted average price for each secuirty
+    x_tilde = np.zeros(context.m)
+    for i, stock in enumerate(context.stocks):
+        vwa_price = np.dot(prices[stock], volumes[stock]) / np.sum(volumes[stock])
+        x_tilde[i] = vwa_price/prices[stock].ix[-1]
+    
+    ###########################
+    # Inside of OLMAR (algo 2)
+    x_bar = x_tilde.mean()
+
+    # Calculate terms for lambda (lam)
+    dot_prod = np.dot(context.b_t, x_tilde)
+    num = context.eps - dot_prod
+    denom = (np.linalg.norm((x_tilde-x_bar)))**2
+
+    # test for divide-by-zero case
+    if denom == 0.0:
+        lam = 0 # no portolio update
+    else:     
+        lam = max(0, num/denom)
+    
+    b = context.b_t + lam*(x_tilde-x_bar)
+
+    b_norm = simplex_projection(b)
+    
+    return b_norm,x_tilde
+
+def simplex_projection(v, b=1):
+    v = np.asarray(v)
+    p = len(v)
+
+    # Sort v into u in descending order
+    v = (v > 0) * v
+    u = np.sort(v)[::-1]
+    sv = np.cumsum(u)
+
+    rho = np.where(u > (sv - b) / np.arange(1, p+1))[0][-1]
+    theta = np.max([0, (sv[rho] - b) / (rho+1)])
+    w = (v - theta)
+    w[w<0] = 0
+    return w
+```
+*Cell 6:*
+```python
+def run_algo(data, capital_base):
+    sim_params = factory.create_simulation_parameters(capital_base=capital_base)
+
+    algo_obj = TradingAlgorithm(initialize=initialize,
+                                handle_data=handle_data,
+                                sim_params=sim_params)
+    
+    perf = algo_obj.run(data)
+    return perf
+```
+*Cell 7:*
+```python
+test_vals = [1e3, 1e4, 1e5, 5e5, 1e6, 5e6, 1e7]
+```
+*Cell 8:*
+```python
+perfs_lc = view.map_async(run_algo, [large_cap]*len(test_vals), test_vals)
+perfs_lc.wait_interactive()
+```
+*Cell 9:*
+```python
+perfs_lc = perfs_lc.get()
+```
+*Cell 10:*
+```python
+perfs_sc = view.map_async(run_algo, [small_cap]*len(test_vals), test_vals)
+perfs_sc.wait_interactive()
+```
+*Cell 11:*
+```python
+perfs_sc = perfs_sc.get()
+```
+*Cell 12:*
+```python
+ax1 = plt.subplot(2, 1, 1)
+results = [(cpt_base, np.cumsum(np.log(1 + perf.returns))) for cpt_base, perf in zip(test_vals, perfs_lc)]
+for capital, rets in results:
+    rets.plot(ax=ax1, label=capital)
+plt.ylabel('cumulative returns in %')
+plt.title('Capacity analysis\nIdentical algorithm with different capital bases')
+plt.title('Large cap stocks')
+ax1.set_xticks([])
+
+ax2 = plt.subplot(2, 1, 2)
+results = [(cpt_base, np.cumprod((1 + perf.returns)) - 1) for cpt_base, perf in zip(test_vals, perfs_sc)]
+for capital, rets in results:
+    rets.plot(ax=ax2, label=capital, sharex=ax1)
+plt.legend(loc=3)
+plt.ylabel('cumulative returns in %')
+plt.title('Small cap stocks')
+plt.savefig('cap_rets.png')
+```
+*Cell 13:*
+```python
+ax1 = plt.subplot(2, 1, 1)
+
+results = np.array([(cpt_base, perf.iloc[-1].portfolio_value) for cpt_base, perf in zip(test_vals, perfs_lc)])
+slope = (results[1, 1] - results[0, 1]) / (results[1, 0] - results[0, 0])
+intercept = results[0, 1] - results[0, 0] * slope
+y = slope * test_vals[-1] + intercept
+ax1.loglog((test_vals[0], test_vals[-1]), (results[0, 1], y), label='expected')
+ax1.loglog(results[:, 0], results[:, 1], 'g', label='actual')
+ax1.loglog(results[:, 0], results[:, 1], 'go')
+#plt.xlabel('Starting capital')
+plt.ylabel('Ending capital')
+plt.legend(loc=0)
+plt.title('Large cap stocks')
+ax1.set_xticks([])
+
+ax2 = plt.subplot(2, 1, 2)
+results = np.array([(cpt_base, perf.iloc[-1].portfolio_value) for cpt_base, perf in zip(test_vals, perfs_sc)])
+slope = (results[1, 1] - results[0, 1]) / (results[1, 0] - results[0, 0])
+intercept = results[0, 1] - results[0, 0] * slope
+y = slope * test_vals[-1] + intercept
+ax2.loglog((test_vals[0], test_vals[-1]), (results[0, 1], y), label='expected')
+ax2.loglog(results[:, 0], results[:, 1], 'g', label='actual')
+ax2.loglog(results[:, 0], results[:, 1], 'go')
+plt.xlabel('Starting capital in $')
+plt.ylabel('Ending capital in $')
+plt.title('Small cap stocks')
+plt.savefig('cap_capital.png')
+```
+*Cell 14:*
+```python
+large_cap
+```
+*Cell 15:*
+```python
+small_cap.loc['IRBT', perfs_sc[0].transactions.iloc[30][0]['dt']] # + pd.Timedelta('1d')]
+```
+*Cell 16:*
+```python
+pd.Series({p['sid']: p['price'] for p in perfs_sc[3].transactions.iloc[30]})['IRBT']
+```
+*Cell 17:*
+```python
+ax1 = plt.subplot(2, 1, 1)
+price = {}
+for i in range(len(test_vals)):
+    price[test_vals[i]] = pd.Series({p['sid']: p['price'] for p in perfs_lc[i].transactions.iloc[30]})
+    
+prices = pd.concat(price).unstack()
+prices.plot(ax=ax1)
+#plt.xlabel('Starting capital in $')
+plt.ylabel('% of order filled')
+plt.title('Large cap stocks')
+ax1.set_xticks([])
+
+ax2 = plt.subplot(2, 1, 2)
+price = {}
+for i in range(len(test_vals)):
+    price[test_vals[i]] = pd.DataFrame({p['sid']: {'price': p['price'], 'order amount': p['amount']} for p in perfs_sc[i].transactions.iloc[30]})
+prices = pd.concat(price).unstack()
+prices.plot(ax=ax2, logx=True)
+plt.xlabel('Starting capital in $')
+plt.ylabel('% of order filled')
+plt.title('Small cap stocks')
+#plt.savefig('cap_filled.png')
+```
+*Cell 18:*
+```python
+df = prices['IRBT']
+#df['price'] = ((df['price'] / df.loc[1000, 'price']) - 1)
+df.index.name = 'Capital'
+df
+```
+*Cell 19:*
+```python
+test_vals
+```
+*Cell 20:*
+```python
+txns
+```
+*Cell 21:*
+```python
+plt.figure(figsize=(8, 4))
+# ax1 = plt.subplot(2, 1, 1)
+# txn = {}
+# for i, test_val in enumerate(test_vals):
+#     txn[test_val] = pd.Series({p['sid']: p['amount'] for p in perfs_lc[i].transactions.iloc[30]})
+    
+# txns = pd.concat(txn).unstack()
+# txns /= txns.iloc[0]
+# df = pd.DataFrame((np.asarray(txns).T / (np.asarray(txns.index).T / 1000.)).T, columns=txns.columns, index=txns.index)
+# df /= df.iloc[0]
+# df.plot(ax=ax1, logx=True)
+# #plt.xlabel('Starting capital in $')
+# plt.ylabel('% of order filled')
+# plt.title('Large cap stocks')
+# ax1.set_xticks([])
+
+ax2 = plt.subplot(1, 1, 1)
+txn = {}
+for i in range(len(test_vals)):
+    #factor = 10**i
+    txn[test_vals[i]] = pd.Series({p['sid']: p['amount'] for p in perfs_sc[i].transactions.iloc[30]})
+    
+txns = pd.concat(txn).unstack()
+txns /= txns.iloc[1]
+df = pd.DataFrame((np.asarray(txns).T / (np.asarray(txns.index).T / 1000.)).T, columns=txns.columns, index=txns.index)
+df /= df.iloc[0]
+df.plot(ax=ax2, logx=True)
+plt.xlabel('Starting capital in $')
+plt.ylabel('% of order filled')
+plt.title('Small cap stocks')
+plt.savefig('cap_filled.png')
+```
+*Cell 22:*
+```python
+df = pd.DataFrame((np.asarray(txns).T / (np.asarray(txns.index).T / 1000.)).T, columns=txns.columns, index=txns.index)
+df 
+```
+*Cell 23:*
+```python
+def orders_to_df(perf):
+    def extract_order_info(orders):
+        if len(orders) == 0:
+            return np.nan
+        return {order['sid']: order['amount'] for order in orders}
+
+    orders_tmp = perf.orders.apply(extract_order_info).dropna()
+    orders = pd.DataFrame(orders_tmp.tolist()).fillna(0)
+    orders.index = orders_tmp.index
+    orders.index = orders.index.tz_localize('utc')
+    orders.index = [pd.tslib.normalize_date(idx) for idx in orders.index]
+    
+    return orders
+```
+*Cell 24:*
+```python
+ax1 = plt.subplot(2, 1, 1)
+for val, perf in zip(test_vals, perfs_lc):
+    df = pd.rolling_mean((orders_to_df(perf) / large_cap.loc[:, :, 'volume']).dropna().abs().max(axis=1), 20)
+    df.plot(ax=ax1, label=val, logy=True)
+plt.legend()
+plt.title('Large cap')
+plt.ylabel('% of total volume ordered')
+ax1.set_xticks([])
+
+ax2 = plt.subplot(2, 1, 2)
+for val, perf in zip(test_vals, perfs_sc):
+    df = pd.rolling_mean((orders_to_df(perf) / small_cap.loc[:, :, 'volume']).dropna().abs().max(axis=1), 20)
+    df.plot(ax=ax2, label=val, logy=True)
+plt.title('Small cap')
+plt.ylabel('% of total volume ordered')
+plt.tight_layout()
+plt.savefig('cap_perc_vol.png')
+```
+
+##### Markowitz-blog-plotly
+- **Original Path**: `research\Markowitz-blog-plotly.ipynb`
+- **Use Case**: Research
+- **Cell Count**: 26 (Code: 14, Markdown: 12)
+- **Imports/Dependencies**: from cvxopt import blas, solvers, from plotly.graph_objs import *, from zipline import TradingAlgorithm, from zipline.api import (add_history,, from zipline.utils.factory import load_bars_from_yahoo, import cufflinks, import cvxopt as opt, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import plotly, import plotly.plotly as py, import plotly.tools as tls, import zipline
+
+**Explanatory Notes:**
+#A tutorial on Markowitz portfolio optimization in Python using cvxopt
+
+Authors: Dr. Thomas Starke, David Edwards, Dr. Thomas Wiecki
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+##About the author:
+
+Today's blog post is written in collaboration with [Dr. Thomas Starke](http://drtomstarke.com/). It is based on a longer whitepaper by Thomas Starke on the relationship between Markowitz portfolio optimization and Kelly optimization. The full whitepaper can be found [here](http://eepurl.com/4Pgrv).

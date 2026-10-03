@@ -1,0 +1,21 @@
+# **Challenge file hash**
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Challenge file hash**
+
+The commpressed archive
++ MD5 hash: 75d2ee1fcf2bc8a25329723e6ce2be93
+
+The memory dump
++ MD5 hash: ddb337936a75153822baed718851716b
+
+Please follow the [flag submission rules](https://github.com/stuxnet999/MemLabs#flag-submission) when sending the email for solution verification.
+#### Lab 3
+**Source File**: `C:\Users\User\AppData\Local\Temp\kilo\memlabs_repo\Lab 3\README.md`
+
+# **MemLabs Lab 3 - The Evil's Den**

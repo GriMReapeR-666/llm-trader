@@ -1,0 +1,14 @@
+# Cointegration
+
+Topic: 05_Quant_Utilities
+Confidence: 0.92
+Keywords: stationarity, cointegration
+
+---
+
+## Cointegration
+We've constructed an example of two cointegrated series. Cointegration is a more subtle relationship than correlation. If two time series are cointegrated, there is some linear combination between them that will vary around a mean. At all points in time, the combination between them is related to the same probability distribution. 
+
+For more details on how we formally define cointegration and how to understand it, please see the Integration, Cointegration, and Stationarity lecture from the [Educational Platform Lecture Series](https://www.educational_platform.com/lectures#Integration,-Cointegration,-and-Stationarity).
+
+We'll plot the difference between the two now so we can see how this looks.

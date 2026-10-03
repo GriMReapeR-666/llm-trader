@@ -1,0 +1,30 @@
+# c. Boolean Indexing.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c. Boolean Indexing.
+In the series `s`, print all the values between 1 and 3.
+
+----
+
+#Exercise 2 : Indexing and time series. 
+###a. Display
+Print the first and last 5 elements of the series `s`.
+
+### b. Resampling
+- Using the resample method, upsample the daily data to monthly frequency. Use the median method so that each monthly value is the median price of all the days in that month.
+- Take the daily data and fill in every day, including weekends and holidays, using forward-fills. 
+
+----
+
+#Exercise 3 : Missing Data
+- Replace all instances of `NaN` using the forward fill method. 
+- Instead of filling, remove all instances of `NaN` from the data.
+
+----
+
+# Exercise 4 : Time Series Analysis with pandas

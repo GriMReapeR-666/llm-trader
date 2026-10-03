@@ -1,0 +1,24 @@
+# Linear Markowitz optimization and the Efficient Frontier
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Linear Markowitz optimization and the Efficient Frontier
+
+We can solve for the efficient frontier by using an LP solver, which finds the values for our variables that minimize a given quantity (in our case, the negative expected return) subject to some inequalities of the form linear-combination-of-variables $\leq$ constant (our constraints are: risk is at most a given value, weights sum to 1, and weights are nonnegative). Note that there is no objectively best portfolio, only one which has the best returns for a given maximum risk tolerance, so we must specify this in the variable `maxrisk`. The function below will find the weights for the best portfolio based on the historical mean and historical risk of the assets.
+
+Using `solvers.lp()` takes a bit of work. Mathematically, the inequalities we are using are
+$$risk = \frac{1}{T} \sum_{t=1}^T \left| \sum_j x_j (return_j(t) - \mu_j) \right| \leq maxrisk$$
+where $j$ runs over the different assets, $x_j$ is the weight of asset $j$, and $\mu_j$ is the mean return of asset $j$;
+$$\sum_j x_j \leq 1$$
+$$-\sum_j x_j \leq -1$$
+i.e. the sum of the weights is 1; and
+$$x_j \geq 0 \, \text{ for all } j.$$
+Because absolute values are not allowed in a linear program, we introduce variables $y_t = \left| \sum_j x_j (return_j(t) - \mu_j) \right|$, which we relax to the pair of inequalities $-y_t \leq \sum_j x_j (return_j(t) - \mu_j) \leq y_t$. This allows $y_t$ to be larger than $\left| \sum_j x_j (return_j(t) - \mu_j) \right|$, but that's okay as we are still constrained by $\frac{1}{T} \sum_{t=1}^T y_t \leq maxrisk$.
+
+We feed these inequalities to our solver as follows: `goal` contains the coefficients of our decision variables, the $x$s and the $y$s, in the quantity we want to maximize; `RHS` contains the constants on the right-hand sides of the inequalities; and `LHS` contains the coefficients of our decision variables on the left-hand sides the inequalities, in the format [[coeff. of var1 in eq1, coeff. of var1 in eq2, ...], [coeff. of var2 in eq2, ...], ...].
+
+In yellow you can see the optimal portfolios for each of the desired risks. We also can find out the weights necessary to achieve these portfolios; for instance, here are the weights for the optimal portfolio of the ones whose risk is at most 0.38:

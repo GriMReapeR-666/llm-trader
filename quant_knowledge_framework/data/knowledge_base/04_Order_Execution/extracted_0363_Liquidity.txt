@@ -1,0 +1,20 @@
+# **Liquidity**
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Liquidity**
+
+Liquidity can be viewed through several lenses.  Within the context of execution management, we can think of it as activity, measured in shares and USD traded, as well as frequency and size of trades executed in the market.  "Good" liquidity is also achieved through a diverse number of market participants on both sides of the market.
+
+Assess Liquidity by: 
+* intraday volume curve 
+* percent of day's volume 
+* percent of average daily dollar volume in an interval
+* cummulative intraday volume curve
+* relative order size
+
+In general, liquidity is highest as we approach the close, and second highest at the open. Mid day has the lowest liquidity. Liquidity should also be viewed relative to your order size and other securities in the same sector and class.

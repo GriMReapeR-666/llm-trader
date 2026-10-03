@@ -1,0 +1,37 @@
+# Getting Some Data
+
+Topic: 05_Quant_Utilities
+Confidence: 0.75
+Keywords: stationarity, python, pandas, cointegration
+
+---
+
+## Getting Some Data
+
+If we're going to plot data we need some data to plot. We'll get the pricing data of Apple (AAPL) and Microsoft (MSFT) to use in our examples.
+
+### Data Structure
+
+Knowing the structure of your data is very important. Normally you'll have to do a ton of work molding your data into the form you need for testing. Educational Platform has done a lot of cleaning on the data, but you still need to put it into the right shapes and formats for your purposes.
+
+In this case the data will be returned as a pandas dataframe object. The rows are timestamps, and the columns are the two assets, AAPL and MSFT.
+
+Indexing into the data with `data['AAPL']` will yield an error because the type of the columns are equity objects and not simple strings. Let's change that using this little piece of Python code. Don't worry about understanding it right now, unless you do, in which case congratulations.
+
+Much nicer, now we can index. Indexing into the 2D dataframe will give us a 1D series object. The index for the series is timestamps, the value upon index is a price. Similar to an array except instead of integer indecies it's times.
+
+##Histogram
+
+A histogram is a visualization of how frequent different values of data are. By displaying a frequency distribution using bars, it lets us quickly see where most of the observations are clustered. The height of each bar represents the number of observations that lie in each interval. You can think of a histogram as an empirical and discrete Probability Density Function (PDF).
+
+### Returns Histogram
+
+In finance rarely will we look at the distribution of prices. The reason for this is that prices are non-stationary and move around a lot. For more info on non-stationarity please see [this lecture](https://www.educational_platform.com/lectures/integration-cointegration-and-stationarity). Instead we will use daily returns. Let's try that now.
+
+The graph above shows, for example, that the daily returns of MSFT were above 0.03 on fewer than 5 days in 2014. Note that we are completely discarding the dates corresponding to these returns. 
+
+#####IMPORTANT: Note also that this does not imply that future returns will have the same distribution.
+
+### Cumulative Histogram (Discrete Estimated CDF)
+
+An alternative way to display the data would be using a cumulative distribution function, in which the height of a bar represents the number of observations that lie in that bin or in one of the previous ones. This graph is always nondecreasing since you cannot have a negative number of observations. The choice of graph depends on the information you are interested in.

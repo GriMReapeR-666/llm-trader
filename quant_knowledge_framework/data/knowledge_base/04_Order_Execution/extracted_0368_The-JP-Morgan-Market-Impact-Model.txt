@@ -1,0 +1,37 @@
+# The J.P. Morgan Market Impact Model
+
+Topic: 04_Order_Execution
+Confidence: 0.83
+Keywords: temporary impact, spread, market impact
+
+---
+
+## The J.P. Morgan Market Impact Model
+
+
+$$MI(bps) = I \times \omega \times \frac{2 \times PoV}{1 + PoV} + (1-\omega) \times I + S_c$$
+Where
+
+$$I = \alpha \times PoV^\beta \times Volatility^\gamma$$
+
+* $\omega$ is the fraction of temporary impact (liquidity cost)
+* $\alpha$ is a scaling parameter
+* $PoV$ is relative order size as fraction of average daily volume
+* $S_c$ is the spread ( basis point difference between the bid and ask )
+
+
+For US equities, the fitted parameters as of June 2016 are
+
+  Parameter | Fitted Value
+  ------|-----
+  b ($\omega$) | 0.931
+  a1 ($\alpha$)| 168.5
+  a2 ($\beta$) | 0.1064
+  a3 ($\gamma$) | 0.9233
+
+
+Let's assume the following order:
+* Buy 100,000 XYZ, trading at 10% of the volume
+* XYZ's ADV = 1,000,000 shares
+* XYZ Annualized Volatility = 25%
+* XYZ's Average Spread = 5 bps

@@ -1,0 +1,13 @@
+# b. Out-of-Sample Instability
+
+Topic: 02_Strategy_Development
+Confidence: 1.00
+Keywords: ev, in-sample, out-of-sample
+
+---
+
+## b. Out-of-Sample Instability
+
+Plot the running sharpe ratio of all three window lengths, as well as their in-sample mean and standard deviation bars.
+
+# Exercise 4: Weather

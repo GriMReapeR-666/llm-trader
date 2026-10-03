@@ -1,0 +1,16 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+
+plt.title('Graph of returns with fitted PDF and the 3 confidence intervals. ')
+plt.legend();
+```
+*Cell 14:*
+```python
+# Run the JB test for normality.

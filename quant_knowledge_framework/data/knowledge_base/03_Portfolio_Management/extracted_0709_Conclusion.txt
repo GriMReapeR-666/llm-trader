@@ -1,0 +1,530 @@
+# Conclusion
+
+Topic: 03_Portfolio_Management
+Confidence: 0.46
+Keywords: allocation, kelly, portfolio, kelly criterion, capital allocation
+
+---
+
+## Conclusion
+
+All of the factors above are built into the Educational Platform backtester (except for the last, which you can model yourself). You can adjust the slippage and commission models to try out different scenarios. However, the true effects cannot be seen from backtesting or paper-trading, especially slippage. The best approach is to test that your algorithm is robust for a range of models at your intended capital allocation before turning it live.
+
+
+##### This notebook is very raw and needs more work!
+- **Original Path**: `drafts\Conditional probability and Bayes' formula.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 5 (Code: 1, Markdown: 4)
+
+**Explanatory Notes:**
+# This notebook is very raw and needs more work!
+
+# Conditional probability
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+Conditional probability refers to probability that takes some extra information about the state of the world into account. For instance, we can ask, "what is the probability that I have the flu, given that I am sneezing?" or, "what is the probability that this stock will have a return above the risk-free rate, given that it has positive return?" In both cases, the extra information changes the probability. We write the probability of $A$ given $B$ as $P(A|B)$. When looking at conditional probability, we are only considering situations where $B$ occurs, and we don't care about the situations where it does not.
+
+If we compute conditional probability empirically, we can use simple counting. Just look at the set of data points for which $B$ is true, and compute the fraction of them that have $A$ true as well. For instance, we can ask, "what is the probability that a stock is in the top decile of returns this month, given that it was in the top decile last month?" To compute this, we count the number of stocks that were in the top decile both months, and divide it by the number of stocks in the top decile last month.
+
+The following formula holds for conditional probabilities:
+
+$$ P(A|B) = \frac{P(A\text{ and } B)}{P(B)} $$
+
+This can be written as $P(A|B)P(B) = P(A\text{ and } B)$, that is, the probability that $A$ and $B$ both occur is the probability that $B$ occurs, times the probability that $A$ occurs given that $B$ occurs. Notice that the equation above is symmetric, so we can also say $P(A\text{ and } B) = P(B|A)P(A)$. 
+
+Conditional probabilitites satisfy the <i>total probability rule</i>, which states that if $S_1, S_2, \ldots, S_n$ are mutually exclusive and exhaustive events, then
+$$ P(A) = P(A|S_1)P(S_1) + P(A|S_2)P(S_2) + \ldots + P(A|S_n)P(S_n) $$
+
+# Bayes' formula
+
+We can also use conditional probability for inference. This is useful when we want to know the state of a variable which is unobservable, because we can infer it from observable ones. In this case, the equation for conditional probability above isn't simply a true statement about known quantities, but a way to compute an unknown.
+
+A useful restatement of the equation is
+
+$$ P(A|B) = \frac{P(B|A)P(A)}{P(B)} $$
+
+This is known as Bayes' formula. $P(A)$ is called the <i>prior probability</i> and $P(A|B)$ is called the <i>posterior probability</i> (the probability after taking into account the observation of $B$).
+
+As an example, imagine that a certain test for disease X comes up positive for 99% of subjects with the disease, and for 5% of healthy subjects. Statistically, 1% of the population have the disease. So, your prior probability for having the disease before you get tested is 1%. If your test comes up positive, you have to update the probability that you have the disease. Say $B$ is the test coming up positive, and $A$ is having the disease. Then $P(B|A) = .99$ and $P(A) = .01$. To compute $P(B)$, we can use the total probability rule, and we get that $P(B) = .99 \cdot .06$. Then the posterior probability that you have the disease, given that your test comes up positive, is $P(A|B) = 16.7\%$.
+
+Bayes' formula, and conditional probability in general, work for continuous distributions as well as for discrete probabilities, so that we can compute the distribution of random variable $A$ given the distribution of random variable $B$ (which will be two-dimensional), or the distribution of $A$ given a particular observation $b$ of $B$. 
+
+# Online estimation
+
+Bayesian inference is very useful for online estimation and prediction, where we update our estimate as new evidence comes in. Examples of this include neural networks and Kalman filters. This allows us to have some estimate to work with at all times, while continually improving it using the newest observations. The process is for this is:
+
+1. Start with a prior, based either on your own prior knowledge or estimated from past data using statistical techniques.
+2. When a new data point comes in, use Bayes' formula to update the prior distribution to a posterior distribution.
+3. The posterior distribution is now your new prior. Go to step 2.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# TODO example
+# sklearn.naive_bayes?
+```
+
+##### Histogram
+- **Original Path**: `drafts\Graphic presentation of data.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 8 (Code: 4, Markdown: 4)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np
+
+**Explanatory Notes:**
+# Histogram
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+A histogram displays a frequency distribution using bars. It lets us quickly see where most of the observations are clustered. The height of each bar represents the number of observations that lie in each interval.
+
+The graph above shows, for example, that the daily returns on the S&P 500 were between 0.010 and 0.013 on 10 of the days in 2014. Note that we are completely discarding the dates corresponding to these returns.
+
+An alternative way to display the data would be using a cumulative distribution function, in which the height of a bar represents the number of observations that lie in that bin or in one of the previous ones. This graph is always nondecreasing since you cannot have a negative number of observations. The choice of graph depends on the information you are interested in.
+
+# Scatter plot
+
+A scatter plot is useful for visualizing the relationship between two data sets. We use two data sets which have some sort of correspondence, such as the date on which the measurement was taken. Each point represents two corresponding values from the two data sets. However, we don't plot the date that the measurements were taken on.
+
+# Line graph
+
+A line graph can be used when we want to track the development of the y value as the x value changes. For instance, when we are plotting the price of a stock, showing it as a line graph instead of just plotting the data points makes it easier to follow the price over time. This necessarily involves "connecting the dots" between the data points.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Get returns data for S&P 500
+start = '2014-01-01'
+end = '2015-01-01'
+spy = get_pricing('SPY', fields='price', start_date=start, end_date=end).pct_change()[1:]
+
+# Plot a histogram using 20 bins
+fig = plt.figure(figsize = (16, 7))
+_, bins, _ = plt.hist(spy, 20)
+labels = ['%.3f' % a for a in bins] # Reduce precision so labels are legible
+plt.xticks(bins, labels)
+plt.xlabel('Returns')
+plt.ylabel('Number of Days')
+plt.title('Frequency distribution of S&P 500 returns, 2014');
+```
+*Cell 2:*
+```python
+# Example of a cumulative histogram
+fig = plt.figure(figsize = (16, 7))
+_, bins, _ = plt.hist(spy, 20, cumulative='True')
+labels = ['%.3f' % a for a in bins]
+plt.xticks(bins, labels)
+plt.xlabel('Returns')
+plt.ylabel('Number of Days')
+plt.title('Cumulative distribution of S&P 500 returns, 2014');
+```
+*Cell 3:*
+```python
+# Get returns data for some security
+asset = get_pricing('MSFT', fields='price', start_date=start, end_date=end).pct_change()[1:]
+
+# Plot the asset returns vs S&P 500 returns
+plt.scatter(asset, spy)
+plt.xlabel('MSFT')
+plt.ylabel('SPY')
+plt.title('Returns in 2014');
+```
+*Cell 4:*
+```python
+spy.plot()
+plt.ylabel('Returns');
+```
+
+##### How to compute $\alpha$ and $\beta$ for a given asset
+- **Original Path**: `drafts\How To - Computing Risk Ratios.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 18 (Code: 9, Markdown: 9)
+- **Imports/Dependencies**: from statsmodels import regression, import math, import matplotlib.pyplot as plt, import numpy as np, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# How to compute $\alpha$ and $\beta$ for a given asset
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+A fundamental concept in portfolio management and risk allocation is computing the $\beta$ of an asset. $\beta$ is a measurement of the covariance of the asset with the market in general, and is expressed in this model.
+
+$$r_a \approx \alpha + \beta r_b$$
+
+$r_a$ are the returns of the asset, and $r_b$ are the returns of the benchmark, usually a proxy for the market like the S&P 500.
+
+$\beta$ can be defined as
+
+$$\beta = \frac{Cov(r_a, r_b)}{Var(r_b)}$$
+
+To actually compute $\beta$, we can use linear regression. We find the OLS best fit line for all points $(r_{a, t}, r_{b, t})$, where $r_{a, t}$ is the asset's returns for time $t$, and $r_{b, t}$ the same for the benchmark. The slope of this line is $\beta$, and the y-intercept is $\alpha$.
+
+We'll start by getting data for a specific time range.
+
+Now we have to fit a line to the data to determine the slope. We use Ordinary Least Squares (OLS) for this.
+
+We can plot the line of best fit to visualize this.
+
+# How to compute the volatility for a given asset
+
+The volatility $\sigma$ of an asset is the standard deviation of its returns. A low volatility means that the returns are generally close to the mean, while a high volatility corresponds to returns that are often much higher and often much lower than expected.
+
+We'll go ahead and continue using the stock from before:
+
+This gives the daily volatility. As expected, the benchmark has a much lower volatility than the stock - a volatile asset would not make a good benchmark.
+
+We generally compute the annualized volatility so that we can compare volatilities for daily, weekly, or monthly samples. To get it we normalize the standard deviation of the daily returns by multiplying by the square root of the number of trading days in a year:
+
+$$\sigma_{\text{annual}} = SD \cdot \sqrt{252}$$
+
+This tells us that we should expect the returns of a benchmark to cluster more closely around their mean than those of the stock. We can plot histograms of the returns to see this:
+
+# How to compute the Sharpe and information ratios for an asset
+
+The Sharpe and information ratios are used to calculate how well the historic returns of an asset compensate for its risk, relative to some benchmark or risk-free asset. An asset with a higher ratio has either higher returns, lower risk, or both. As when computing volatility, the standard deviation of the returns is used to measure risk.
+
+$$R = \frac{E[r_a - r_b]}{\sqrt{Var(r_a - r_b)}}$$
+
+$r_a$ are the returns of the asset, and $r_b$ are the returns of the benchmark; generally, Treasury bills are used when computing the Sharpe ratio, while the S&P 500 index is commonly used for the information ratio. We subtract the returns of the benchmark from the returns of the asset becasue we would like to get higher returns through our investment than we would, say, simply buying Treasury bills.
+
+# How to compute the Sortino ratio for an asset
+
+The Sharpe and information ratios are useful, but they penalize stocks for going above the expected return as well as for going below it. The Sortino ratio is modified to take into account only returns that fall below the mean.
+
+$$S = \frac{E[r_a - r_b]}{\sqrt{Semivar(r_a - r_b)}}$$
+
+The semivariance is the variance below the mean, and so quantifies the downside risk of our asset. Here as in the Sharpe ratio returns on Treasury bills can be used for $r_b$. The more skewed the distribution of returns is, the more the Sortino ratio will differ from the Sharpe ratio.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Import libraries
+import numpy as np
+from statsmodels import regression
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+import math
+```
+*Cell 2:*
+```python
+# Get data for the specified period and stocks
+start = '2014-01-01'
+end = '2015-01-01'
+asset = get_pricing('TSLA', fields='price', start_date=start, end_date=end)
+benchmark = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+
+# We have to take the percent changes to get to returns
+# Get rid of the first (0th) element because it is NAN
+r_a = asset.pct_change()[1:]
+r_b = benchmark.pct_change()[1:]
+
+# Let's plot them just for fun
+r_a.plot()
+r_b.plot();
+```
+*Cell 3:*
+```python
+# Let's define everything in familiar regression terms
+X = r_b.values # Get just the values, ignore the timestamps
+Y = r_a.values
+
+# We add a constant so that we can also fit an intercept (alpha) to the model
+# This just adds a column of 1s to our data
+X = sm.add_constant(X)
+model = regression.linear_model.OLS(Y, X)
+model = model.fit()
+# Remove the constant now that we're done
+X = X[:, 1]
+alpha = model.params[0]
+beta = model.params[1]
+print 'alpha: ' + str(alpha)
+print 'beta: ' + str(beta)
+```
+*Cell 4:*
+```python
+X2 = np.linspace(X.min(), X.max(), 100)
+Y_hat = X2 * beta + alpha
+
+plt.scatter(X, Y, alpha=0.3) # Plot the raw data
+plt.xlabel("r_b")
+plt.ylabel("r_a")
+
+# Add the regression line, colored in red
+plt.plot(X2, Y_hat, 'r', alpha=0.9);
+```
+*Cell 5:*
+```python
+# Use numpy to find the standard deviation of the returns
+SD = np.std(Y)
+print SD
+
+# Let's compute the volatility for our benchmark, as well
+benchSD = np.std(X)
+print benchSD
+```
+*Cell 6:*
+```python
+vol = SD*(252**.5)
+print vol
+
+benchvol = benchSD*(252**.5)
+print benchvol
+```
+*Cell 7:*
+```python
+# Since we have many distinct values, we'll lump them into buckets of size .02
+x_min = int(math.floor(X.min()))
+x_max = int(math.ceil(X.max()))
+plt.hist(X, bins=[0.02*i for i in range(x_min*50, x_max*50)], alpha=0.5, label='S&P')
+plt.hist(Y, bins=[0.02*i for i in range(x_min*50, x_max*50)], alpha=0.5, label='Stock')
+plt.legend(loc='upper right');
+```
+*Cell 8:*
+```python
+# Get the returns for a treasury-tracking ETF to be used in the Sharpe ratio
+# Note that BIL is only being used in place of risk free rate,
+# and should not be used in such a fashion for strategy development
+riskfree = get_pricing('BIL', fields='price', start_date=start, end_date=end)
+r_b_S = riskfree.pct_change()[1:]
+X_S = r_b_S.values
+
+# Compute the Sharpe ratio for the asset we've been working with
+SR = np.mean(Y - X_S)/np.std(Y - X_S)
+
+# Compute the information ratio for the asset we've been working with, using the S&P index
+IR = np.mean(Y - X)/np.std(Y - X)
+
+# Print results
+print 'Sharpe ratio: ' + str(SR)
+print 'Information ratio: ' + str(IR)
+```
+*Cell 9:*
+```python
+# To compute the semideviation, we want to filter out values which fall above the mean
+meandif = np.mean(Y - X_S)
+lows = [e for e in Y - X_S if e <= meandif]
+
+# Because there is no built-in semideviation, we'll compute it ourselves
+def dist(x):
+    return (x - meandif)**2
+semidev = math.sqrt(sum(map(dist,lows))/len(lows))
+
+Sortino = meandif/semidev
+print 'Sortino ratio: ' + str(Sortino)
+```
+
+##### Risk Management and The Kelly Criterion
+- **Original Path**: `drafts\kelly\kelly_mv.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 13 (Code: 11, Markdown: 2)
+- **Imports/Dependencies**: from cvxopt import blas, solvers, import cvxopt as opt, import math, import matplotlib.pyplot as plt, import numpy as np
+
+**Explanatory Notes:**
+# Risk Management and The Kelly Criterion
+By Gideon Wulfsohn, Delaney Granizo-Mackenzie, and Thomas Wiecki
+
+Part of the Educational Platform Lecture Series:
+
+* [educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+The Kelly Criterion is a method that was developed by John Larry Kelly Jr. while working at Bell Labs. Popularized by horse race gamblers and later by investors, the formula can be applied as a useful heuristic when deciding what percentage of your total captial should be allocated to a given strategy.
+
+Lets run through a simple application of the Kelly Criterion which is defined as follows:
+
+**Kelly Optimal Leverage = m<sub>i</sub> / s<sub>i</sub><sup>2</sup>**
+
+* m = mean returns
+
+* s = standard deviation of returns
+
+# Mean-Varience Example
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# get pricing data for S&P 500 over a 13 year timeframe
+start = '2002-01-02'
+end = '2015-11-09'
+df = get_pricing('SPY', fields=['close_price'], start_date=start, end_date=end)
+```
+*Cell 2:*
+```python
+# compute daily returns, add as new column within dataframe
+daily_returns = (df.close_price.shift(-1) - df.close_price) / df.close_price
+df = df.ix[1:]
+df['daily_returns'] = daily_returns
+```
+*Cell 3:*
+```python
+df.head()
+```
+*Cell 4:*
+```python
+# compute mean and sd annual return using daily returns(252 trading days per year)
+mean_annual_return = df.daily_returns.mean() * 252
+annualized_std = df.daily_returns.std() * (252**.5)
+print mean_annual_return
+print annualized_std
+```
+*Cell 5:*
+```python
+mean_excess_return = mean_annual_return - .04
+sharpe_ratio = mean_excess_return / annualized_std
+
+opt_leverage = mean_excess_return / (annualized_std**2)
+```
+*Cell 6:*
+```python
+print "Sharpe Ratio: {}".format(sharpe_ratio)
+print "Kelly Optimal Leverage: {}".format(opt_leverage)
+```
+*Cell 7:*
+```python
+capital = 100000
+purchase = int(capital * opt_leverage)
+print "If the kelly optimal leverage is {} and you have ${} to invest, you should \
+buy ${} worth of SPY under the assumption you believe the \
+expected values of your returns by viewing them as gaussian.".format(opt_leverage, capital, purchase)
+```
+*Cell 8:*
+```python
+import math
+import numpy as np
+import cvxopt as opt
+import matplotlib.pyplot as plt
+from cvxopt import blas, solvers
+```
+*Cell 9:*
+```python
+np.random.seed(89)
+```
+*Cell 10:*
+```python
+# prevent cvxopt progress from printing
+solvers.options['show_progress'] = False
+
+# num assets
+n = 4
+
+# number of observations
+nobs = 1000
+
+def rand_weights(n):
+    ''' Produces n random weights that sum to 1 '''
+    k = np.random.randn(n)
+    return k / sum(k)
+
+def gen_returns(asset_count, nobs, drift=0.0):
+    ''' 
+    Creates normally distributed series 
+    :params:
+        asset_count: <int> number of series to create
+        nobs: <int> number of observations
+        drift: <float> skews the distribution to one side
+    :returns:
+        np.ndarray with <asset_count> rows and <nobs> columns
+    '''
+    return np.random.randn(asset_count, nobs) + drift
+    
+def random_portfolio(returns, weight_func):
+    ''' 
+    Returns the mean and standard deviation of returns for a random portfolio
+    '''
+    w = weight_func(returns.shape[0])
+    mu = np.dot(np.mean(returns, axis=1) , w)
+    sigma = math.sqrt(np.dot(w, np.dot(np.cov(returns), w)))
+    # This recursion reduces outliers
+    if sigma > 2:
+        return random_portfolio(returns, weight_func)
+    return sigma, mu
+```
+*Cell 11:*
+```python
+# gather returns and plot
+
+return_vec = gen_returns(n, nobs, drift=0.01)
+stds, means = np.column_stack(
+    [random_portfolio(return_vec, rand_weights) for _ in xrange(500)]
+)
+
+f, ax = plt.subplots()
+
+plt.plot(stds, means, 'o')
+ax.set_xlabel('Volitility')
+ax.set_ylabel('Return')
+
+# convert to matrix
+k = np.array(return_vec)
+S = opt.matrix (np.cov(k))
+pbar = opt.matrix(np.mean(k, axis=1))
+
+# conditioning optimizer
+G = -opt.matrix(np.eye(n))   # negative n x n identity matrix
+h = opt.matrix(0.0, (n ,1))
+A = opt.matrix(1.0, (1, n))
+b = opt.matrix(1.0)
+
+# expected returns
+N = 100
+mus = [10**(5.0* t/N - 1.0) for t in range(N)]
+
+# efficient frontier weights
+portfolios = [
+    solvers.qp(mu*S, -pbar, G, h, A, b)['x'] 
+    for mu in mus
+]
+
+# risk and return
+returns = [blas.dot(pbar, x) for x in portfolios]
+risks = [np.sqrt(blas.dot(x, S*x)) for x in portfolios]
+plt.plot(risks, returns, 'y-o')
+
+def get_kelly_portfolios():
+    ww = np.dot(np.linalg.inv(opt.matrix(S)), opt.matrix(pbar))
+    rks = []; res = [];
+    for i in np.arange(0.05, 20, 0.0001):
+        w = ww / i
+        rks.append(blas.dot(pbar, opt.matrix(w)))
+        res.append(np.sqrt(blas.dot(opt.matrix(w), S*opt.matrix(w))))
+    return res, rks
+
+res, rks = get_kelly_portfolios()
+    
+# display kelly portfolios for various leverages
+plt.plot(res, rks, 'ko', markersize=3)
+plt.plot(res, np.array(rks) * -1, 'ko', markersize=3);
+```
+
+##### Markowitz-Educational Platform-Research
+- **Original Path**: `drafts\Markowitz-Educational Platform-Research.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 25 (Code: 12, Markdown: 13)
+- **Imports/Dependencies**: from cvxopt import blas, solvers, from zipline import TradingAlgorithm, from zipline.api import (, import cvxopt as opt, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import zipline
+
+**Explanatory Notes:**
+#The Efficient Frontier: Markowitz Portfolio optimization in Python
+By Dr. Thomas Starke, David Edwards, Dr. Thomas Wiecki
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---

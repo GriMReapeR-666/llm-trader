@@ -1,0 +1,220 @@
+# Finding the p-value for two tailed test.
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: numpy, python, pandas
+
+---
+
+## Finding the p-value for two tailed test. 
+p_val = 2*(1 - t.cdf(test_stat, len(returns_sample_tsla) - 1))
+print 'p-value is: ', p_val
+```
+*Cell 6:*
+```python
+x = np.linspace(-3, 3, 100)
+norm_pdf = lambda x: (1/np.sqrt(2 * np.pi)) * np.exp(-x * x / 2)
+y = norm_pdf(x)
+
+fig, ax = plt.subplots(1, 1, sharex=True)
+ax.plot(x, y)
+
+ax.fill_between(x, 0, y, where = x > 1.645, label = 'Confidence region at alpha = 0.1')
+ax.fill_between(x, 0, y, where = x < -1.645)
+
+ax.fill_between(x, 0, y, where = x > 1.96, label = 'Confidence region at alpha = 0.05', color = 'green')
+ax.fill_between(x, 0, y, where = x < -1.96, color = 'green')
+
+ax.fill_between(x, 0, y, where = x > 2.576, label = 'Confidence region at alpha = 0.05', color='red')
+ax.fill_between(x, 0, y, where = x < -2.576, color = 'red')
+plt.axvline(p_val, linestyle = 'dashed', label = 'Location of P Value')
+
+plt.title('Graph of rejection region and P-value')
+plt.xlabel('x')
+plt.ylabel('p(x)')
+plt.legend();
+```
+*Cell 7:*
+```python
+# For alpha = 10%
+alpha = 0.1
+f = 1 - (alpha/2)
+print 'alpha = 10%: f = ', f
+
+# For alpha = 5%
+alpha = 0.05
+f = 1 - (alpha/2)
+print 'alpha = 5%: f = ', f
+
+# For alpha = 1%
+alpha = 0.01
+f = 1 - (alpha/2)
+print 'alpha = 1%: f = ', f
+```
+*Cell 8:*
+```python
+# Plot a standard normal distribution and mark the critical regions with shading
+x = np.linspace(-3, 3, 100)
+norm_pdf = lambda x: (1/np.sqrt(2 * np.pi)) * np.exp(-x * x / 2)
+y = norm_pdf(x)
+
+fig, ax = plt.subplots(1, 1, sharex=True)
+ax.plot(x, y)
+
+# Value for alpha = 1%
+ax.fill_between(x, 0, y, where =  x > 1.645, label = 'alpha = 10%')
+ax.fill_between(x, 0, y, where = x < -1.645)
+
+# Value for alpha = 5%
+ax.fill_between(x, 0, y, where = x > 1.96, color = 'red', label = 'alpha = 5%')
+ax.fill_between(x, 0, y, where = x < -1.96, color = 'red')
+
+#Value for alpha = 10%
+ax.fill_between(x, 0, y, where = x > 2.575, facecolor='green', label = 'alpha = 1%')
+ax.fill_between(x, 0, y, where = x < -2.575, facecolor='green')
+
+plt.title('Rejection regions for a two-tailed hypothesis test at 90%, 95%, 99% confidence')
+plt.xlabel('x')
+plt.ylabel('p(x)')
+plt.legend();
+```
+*Cell 9:*
+```python
+# Calculating Critical Values probability
+
+alpha = 0.1
+v = 1 - (alpha/2)
+print v
+```
+*Cell 10:*
+```python
+data = get_pricing('SPY', start_date = '2016-01-01', end_date = '2017-01-01', fields = 'price')
+returns_sample = data.pct_change()[1:]
+
+# Running the T-test.
+n = len(returns_sample)
+test_statistic = ((returns_sample.mean() - 0) /
+                (returns_sample.std()/np.sqrt(n)))
+print 't test statistic: ', test_statistic
+```
+*Cell 11:*
+```python
+# Running p-value test. 
+
+alpha = 0.1
+p_val = 2 * (1 - t.cdf(test_statistic, n - 1))
+print 'p-value is: ', p_val
+
+if p_val > alpha: 
+    print 'p-value is greater than our significant level, we thus fail to reject the null hypothesis.'
+else: 
+    print 'p-value is less than or equal to our significal level, we thus reject the null hypothesis.'
+```
+*Cell 12:*
+```python
+# Data Collection
+alpha = 0.1
+symbol_list = ['XLF', 'MCD']
+start = '2015-01-01'
+end = '2016-01-01'
+pricing_sample = get_pricing(symbol_list, start_date = start, end_date = end, fields='price')
+pricing_sample.columns = map(lambda x: x.symbol, pricing_sample.columns)
+returns_sample = pricing_sample.pct_change()[1:]
+
+
+# Sample mean values
+mu_xlf, mu_gs = returns_sample.mean()
+s_xlf, s_gs = returns_sample.std()
+n_xlf = len(returns_sample['XLF'])
+n_gs = len(returns_sample['MCD'])
+
+test_statistic = ((mu_xlf - mu_gs) - 0)/((s_xlf**2/n_xlf) + (s_gs**2/n_gs))**0.5
+df = ((s_xlf**2/n_xlf) + (s_gs**2/n_gs))**2/ \
+     (((s_xlf**2 / n_xlf)**2 /(n_xlf-1))+((s_gs**2 / n_gs)**2/(n_gs-1)))
+
+print 't test statistic: ', test_statistic
+print 'Degrees of freedom (modified): ', df
+print 'p-value: ', 2 * (1 - t.cdf(test_statistic, df))
+```
+*Cell 13:*
+```python
+# Data
+symbol_list = ['XLF', 'MCD']
+start = "2015-01-01"
+end = "2016-01-01"
+pricing_sample = get_pricing(symbol_list, start_date = start, end_date = end, fields = 'price')
+pricing_sample.columns = map(lambda x: x.symbol, pricing_sample.columns)
+returns_sample = pricing_sample.pct_change()[1:]
+
+# Take returns from above, MCD and XLF, and compare their variances
+xlf_std_dev, mcd_std_dev = returns_sample.std()
+print 'XLF standard deviation is: ', xlf_std_dev
+print 'MCD standard deviation is: ', mcd_std_dev
+
+# Calculate F-test with MCD.std > XLF.std
+test_statistic = (mcd_std_dev / xlf_std_dev)**2
+print "F Test statistic: ", test_statistic
+
+#degree of freedom 
+df1 = len(returns_sample['XLF']) - 1
+df2 = len(returns_sample['MCD']) - 1
+print df1
+print df2
+
+# Calculate critical values. 
+from scipy.stats import f
+upper_crit_value = f.ppf(0.975, df1, df2)
+lower_crit_value = f.ppf(0.025, df1, df2)
+print 'Upper critical value at a = 0.05 with df1 = {0} and df2 = {1}: '.format(df1, df2), upper_crit_value
+print 'Lower critical value at a = 0.05 with df1 = {0} and df2 = {1}: '.format(df1, df2), lower_crit_value
+```
+
+##### Hypothesis Testing
+- **Original Path**: `notebooks\lectures\Hypothesis_Testing\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 47 (Code: 20, Markdown: 27)
+- **Imports/Dependencies**: from scipy.stats import chi2, from scipy.stats import f, from scipy.stats import t, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Hypothesis Testing
+by Maxwell Margenot and Delaney Granizo-Mackenzie. Review by Gilbert Wasserman.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+
+Statistical inference, the practice of making predictions about a large group based on smaller samples, is traditionally broken into two segments, **estimation** and **hypothesis testing**. Estimation provides values for specific things that you may be interested in, such as mean or variance, with a provided confidence interval. A confidence interval provides a region within which you can expect to find the true value of the parameter you estimated, as an estimation will almost never be exact. Confidence intervals use a set confidence level to choose how wide the interval should be, to achieve a higher confidence, we must report a wider interval. For more information please see the [Confidence Intervals lecture](https://www.educational_platform.com/lectures/confidence-intervals) from the Educational Platform Lecture Series.
+
+For example, we might estimate a sample mean as $100$, with a confidence interval of $90, 110$ at a $95\%$ confidence level. This doesn't mean that the true population mean is between $90$ and $110$ with $95\%$ probability, as the true mean is a fixed value and the probability is $100\%$ or $0\%$ but we don't know which one. Instead what this means is that over many computations of a $95\%$ confidence interval assuming underlying assumptions about distributions hold, the population mean will be in the interval $95\%$ of the time.
+
+This gives us an idea of the specific characteristics that an overall population may exhibit, given a sample. Hypothesis testing provides a different focus, detailing a framework for statistical testing of hypothesized values. By making an assertion of what a value should be, you create a testable hypothesis.
+
+One thing to keep in mind is that statistical tests are designed such that if all the pre-requisite conditions are true, you should get the right answer about the data a certain percentage of the time. When you accept a hypothesis as true based on a test, that doesn't mean it's definitely true. It just means that you can know the probability you are wrong.
+
+##The Null and Alternative Hypothesis
+
+The first thing we need to introduce is the null hypothesis, commonly written as $H_0$. The null hypothesis is the default case, generally reflecting the current common conception of the world. The alternative hypothesis is the one you are testing.
+
+###Examples
+
+The alternative hypothesis $H_A$ is that you own more than 10 pairs of shoes.
+The null hypothesis $H_0$ is that you do not own more than 10 pairs of shoes.
+
+The alternative hypothesis $H_A$ is that eating pizza is related with obesity.
+The null hypothesis $H_0$ is that it is not.
+
+The alternative hypothesis $H_A$ is that microsoft's mean returns > 0.
+The null hypothesis $H_0$ is that they <= 0.
+
+###Difficulty of Testing
+
+Some hypotheses are easier to test than others. For instance the alternative hypothesis, "I own more than 10 pairs of shoes." and the accompanying null hypothesis that you do not, is easily tested by counting the number of pairs you own. However, you will still not get a perfect answer all the time in this case, as there may be measurement error in the counting, albiet quite small.
+
+On the other hand, the hypothesis, "The number of insect species is greater than the number of stars in the universe." would be more difficult to test and require lots of data gathering.
+
+###Hypotheses Must be Testable
+
+A hypothesis cannot be vague, otherwise how will it be tested. For example, "Momentum trading is a good way to make money." is not really testable. What does 'good' mean? What type of momentum trading are we discussing? Hypotheses should be very specific and the type of test needed should follow quickly from the hypothesis.

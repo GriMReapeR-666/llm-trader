@@ -1,0 +1,13 @@
+# Sensitivity / Specificity Tradeoff
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Sensitivity / Specificity Tradeoff
+
+As with any adjustment of p-value cutoff, we have a tradeoff. A lower cutoff decreases the rate of false positives, but also decreases the chance we find a real relationship (true positive). So you can't just decrease your cutoff to solve this problem.
+
+https://en.wikipedia.org/wiki/Sensitivity_and_specificity

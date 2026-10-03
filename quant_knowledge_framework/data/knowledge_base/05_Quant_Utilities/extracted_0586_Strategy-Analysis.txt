@@ -1,0 +1,184 @@
+# Strategy Analysis
+
+Topic: 05_Quant_Utilities
+Confidence: 0.33
+Keywords: numpy, python, pandas
+
+---
+
+## Strategy Analysis
+
+We can define the strategy above using `SimpleMovingAverage` and sentdex `sentiment` dataset, similar to the pipeline we created in the previous lesson:
+
+For simplicity, we will only analyze the top 350 and bottom 350 stocks ranked by `sentiment_mean`. We can create pipeline filters for these sets using the `top` and `bottom` methods of our `sentiment_mean` output, and combine them using the `|` operator to get their union. Then, we will remove anything outside of our tradable universe by using the `&amp;` operator to get the intersection between our filter and our universe:
+
+Next, let's run our pipeline over a 3 year period to get an output we can use for our analysis. This will take ~3 minutes.
+
+In addition to sentiment data, we will need pricing data for all assets present in this period. We can easily get a list of these assets from our pipeline output's index, and pass that list to `prices` to get the pricing data we need:
+
+Now we can use Educational Platform's open source factor analysis tool, [Alphalens](https://www.educational_platform.com/lectures/factor-analysis-with-alphalens), to test the quality of our selection strategy. First, let's combine our factor and pricing data using get_clean_factor_and_forward_returns. This function classifies our factor data into quantiles and computes forward returns for each security for multiple holding periods. We will separate our factor data into 2 quantiles (the top and bottom half), and use 1, 5 and 10 day holding periods:
+
+Having our data in this format allows us to use several of Alphalens's analysis and plotting tools. Let's start by looking at the mean returns by quantile over the entire period. Because our goal is to build a long-short strategy, we want to see the lower quantile (1) have negative returns and the upper quantile(2) have positive returns:
+
+We can also plot the cumulative returns of a factor-weighted long-short portfolio with a 5 day holding period using the following code:
+
+The plot above shows some drawdown periods, and this analysis does not yet take into account transaction costs or market impact. With a cumulative return of only about 3% over four years, it is not a very promising strategy. At this point we really should conduct a deeper analysis using Alphalens and then iterate on our strategy idea. But for the sake of this tutorial, let's continue with our strategy as it is.  
+
+Having defined and tested a strategy, let's use it to build and test a long-short equity algorithm. The rest of the tutorial will cover the Algorithm API and will take place in the Interactive Development Environment (IDE).
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Import Pipeline class and datasets
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.data import EquityPricing
+from educational_platform.pipeline.domain import US_EQUITIES
+from educational_platform.pipeline.data.sentdex import sentiment
+
+# Import built-in moving average calculation
+from educational_platform.pipeline.factors import SimpleMovingAverage
+
+# Import built-in trading universe
+from educational_platform.pipeline.filters import QTradableStocksUS
+
+
+# Pipeline definition
+def make_pipeline():
+    # Create a reference to our trading universe
+    base_universe = QTradableStocksUS()
+
+    # Calculate 3 day average of sentiment scores
+    sentiment_score = SimpleMovingAverage(
+        inputs=[sentiment.sentiment_signal],
+        window_length=3,
+    )
+
+    # Return Pipeline containing sentiment_score that has our trading universe as a screen
+    return Pipeline(
+        columns={
+            'close_price': close_price,
+            'sentiment_score': sentiment_score,
+        },
+        screen=base_universe,
+        domain=US_EQUITIES,
+    )
+```
+*Cell 2:*
+```python
+# Pipeline imports
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.data.sentdex import sentiment
+
+from educational_platform.pipeline.factors import SimpleMovingAverage
+from educational_platform.pipeline.filters import QTradableStocksUS
+
+# Pipeline definition
+def  make_pipeline():
+    # Create a reference to our trading universe
+    base_universe = QTradableStocksUS()
+
+    # Calculate 3 day average of sentiment scores
+    sentiment_score = SimpleMovingAverage(
+        inputs=[sentiment.sentiment_signal],
+        window_length=3,
+    )
+
+    # Create filter for top 350 and bottom 350
+    # assets based on their sentiment scores
+    top_bottom_scores = (
+        sentiment_score.top(350) | sentiment_score.bottom(350)
+    )
+
+    return Pipeline(
+        columns={
+            'sentiment_score': sentiment_score,
+        },
+        # Set screen as the intersection between our trading universe and our filter 
+        screen=(
+            base_universe
+            & top_bottom_scores
+        )
+    )
+```
+*Cell 3:*
+```python
+# Import run_pipeline method
+from educational_platform.research import run_pipeline
+
+# Specify a time range to evaluate
+period_start = '2014-01-01'
+period_end = '2017-01-01'
+
+# Execute pipeline over evaluation period
+pipeline_output = run_pipeline(
+    make_pipeline(),
+    start_date=period_start,
+    end_date=period_end
+)
+```
+*Cell 4:*
+```python
+# Import prices function
+from educational_platform.research import prices
+
+# Get list of unique assets from the pipeline output
+asset_list = pipeline_output.index.get_level_values(level=1).unique()
+
+# Query pricing data for all assets present during
+# evaluation period
+asset_prices = prices(
+    asset_list,
+    start=period_start,
+    end=period_end
+)
+```
+*Cell 5:*
+```python
+# Import Alphalens
+import alphalens as al
+
+# Get asset forward returns and quantile classification
+# based on sentiment scores
+factor_data = al.utils.get_clean_factor_and_forward_returns(
+    factor=pipeline_output['sentiment_score'],
+    prices=asset_prices,
+    quantiles=2,
+    periods=(1,5,10),
+)
+
+# Display first 5 rows
+factor_data.head(5)
+```
+*Cell 6:*
+```python
+# Calculate mean return by factor quantile
+mean_return_by_q, std_err_by_q = al.performance.mean_return_by_quantile(factor_data)
+
+# Plot mean returns by quantile and holding period
+# over evaluation time range
+al.plotting.plot_quantile_returns_bar(
+    mean_return_by_q.apply(
+        al.utils.rate_of_return,
+        axis=0,
+        args=('1D',)
+    )
+);
+```
+*Cell 7:*
+```python
+import pandas as pd
+# Calculate factor-weighted long-short portfolio returns
+ls_factor_returns = al.performance.factor_returns(factor_data)
+
+# Plot cumulative returns for 5 day holding period
+al.plotting.plot_cumulative_returns(ls_factor_returns['5D'], '5D', freq=pd.tseries.offsets.BDay());
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\2_pipeline_lesson10\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 24 (Code: 12, Markdown: 12)
+- **Imports/Dependencies**: from educational_platform.pipeline import CustomFactor, from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import SimpleMovingAverage, AverageDollarVolume, from educational_platform.research import run_pipeline, import numpy
+
+**Explanatory Notes:**

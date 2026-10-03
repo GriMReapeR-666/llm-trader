@@ -1,0 +1,18 @@
+# options
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+Options Markets and Volatility
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: Derivatives
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+Options markets provide signals about future volatility and tail risk.

@@ -1,0 +1,28 @@
+# What is Slippage?
+
+Topic: 04_Order_Execution
+Confidence: 0.67
+Keywords: slippage, bid/ask spread, spread
+
+---
+
+## What is Slippage?
+Slippage occurs when large buy or sell orders drive the price of the market up or down respectively. Remember that for every share bought, a share must be sold by another party. If no parties are selling shares, buy orders will not be filled. This is a simplification of what actually occurs as there are complexities around issues such as bid/ask spread, but we will not consider those here. To understand why price shifts happen when large orders are placed, consider the following scenario:
+
+1. Person A places a buy order for $1000$ shares of stock X. Currently trading at $100$ USD / share.
+2. There is only one sell order for $500$ shares.
+3. The broker fills $500$ shares of the order at $100$ USD / share.
+3. There are $500$ shares remaining to fill. Other market participants notice that there is demand at $100$ USD / share, so they increase their sell price to $101$ USD / share.
+4. Another sell order gets placed for $500$ shares at $101$ USD / share.
+5. The broker fills the remaining $500$ shares of the original order at $101$ USD / share. Closing out the process.
+
+As you can see, the large order for stock X was not immediately filled, and the demand pushed the market price against the original order, resulting in a fill price worse than expected. The opposite occurs for sell orders. In general, the larger the order, the more slippage will be experienced by a trade.
+
+### Complications with Forecasting Slippage
+Modeling slippage is not trivial and is the subject of research by professional quantitative teams. There are different parameters and the behavior of slippage varies across markets and instruments. Things like the bid/ask spread will influence it. Although we will not get into any specific slippage models in this lecture, info on Educational Platform's backtester slippage model can be found [here](https://www.educational_platform.com/help#ide-slippage) and some more in-depth research on it can be found [here](https://blog.educational_platform.com/accurate-slippage-model-comparing-real-simulated-transaction-costs/).
+
+### Why is this Important to Quantitative Strategies?
+Quantitative strategies often rely on finding small but consistent edges across many instruments in a market or multiple markets. If the amount of profit you expect to make off of each trade is very small, slippage can eat a significant amount of that profit. Quantitative strategies rely on executing orders as they have been defined, so anything that counteracts the orders can break the strategy.
+
+### Where is Slippage Worst?
+Slippage is often worst on stocks with very little volume. Some egregious offenders are small and micro cap stocks. They are very low volume and develop large inefficiencies, but when you try to trade the inefficiencies you are unable to due to the lack of trades on the other side of the market. If you wait long enough you may be able to fill your order, but in that time you will suffer a lot of slippage.

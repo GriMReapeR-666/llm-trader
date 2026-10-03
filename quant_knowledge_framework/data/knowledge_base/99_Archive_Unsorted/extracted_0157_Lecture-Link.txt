@@ -1,0 +1,24 @@
+# Lecture Link
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Lecture Link
+
+This exercise notebook refers to this lecture. Please use the lecture for explanations and sample code.
+
+https://www.educational_platform.com/lectures#Instability-of-Estimates
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+# Exercise 1: Sample Size vs. Standard Deviation
+
+Using the below normal distribution with mean 100 and standard deviation 50, find the means and standard deviations of  samples of size 5, 25, 100, and 500.
+
+# Exercise 2: Instability of Predictions on Mean Alone

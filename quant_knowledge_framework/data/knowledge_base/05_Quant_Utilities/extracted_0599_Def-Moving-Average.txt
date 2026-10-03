@@ -1,0 +1,179 @@
+# Def: Moving Average
+
+Topic: 05_Quant_Utilities
+Confidence: 0.44
+Keywords: numpy, python, z-score, pandas
+
+---
+
+## Def: Moving Average
+A moving average is just an average over the last $n$ datapoints for each given time. It will be undefined for the first $n$ datapoints in our series.
+
+We can use the moving averages to compute the z-score of the difference at each given time. This will tell us how extreme the difference is and whether it's a good idea to enter a position at this time. Let's take a look at the z-score now.
+
+The z-score doesn't mean much out of context, let's plot it next to the prices to get an idea of what it looks like. We'll take the negative of the z-score because the differences were all negative and that's kinda confusing.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+X_returns = np.random.normal(0, 1, 100) # Generate the daily returns
+# sum them and shift all the prices up into a reasonable range
+X = pd.Series(np.cumsum(X_returns), name='X') + 50
+X.plot()
+```
+*Cell 2:*
+```python
+some_noise = np.random.normal(0, 1, 100)
+Y = X + 5 + some_noise
+Y.name = 'Y'
+pd.concat([X, Y], axis=1).plot()
+```
+*Cell 3:*
+```python
+import statsmodels
+from statsmodels.tsa.stattools import coint
+```
+*Cell 4:*
+```python
+score, pvalue, _ = coint(X, Y)
+print pvalue
+print pvalue < 0.05
+```
+*Cell 5:*
+```python
+def find_cointegrated_pairs(securities_panel):
+    n = len(securities_panel.minor_axis)
+    score_matrix = np.zeros((n, n))
+    pvalue_matrix = np.ones((n, n))
+    keys = securities_panel.keys
+    pairs = []
+    for i in range(n):
+        for j in range(i+1, n):
+            S1 = securities_panel.minor_xs(securities_panel.minor_axis[i])
+            S2 = securities_panel.minor_xs(securities_panel.minor_axis[j])
+            result = coint(S1, S2)
+            score = result[0]
+            pvalue = result[1]
+            score_matrix[i, j] = score
+            pvalue_matrix[i, j] = pvalue
+            if pvalue < 0.05:
+                pairs.append((securities_panel.minor_axis[i], securities_panel.minor_axis[j]))
+    return score_matrix, pvalue_matrix, pairs
+```
+*Cell 6:*
+```python
+symbol_list = ['ABGB', 'ASTI', 'CSUN', 'DQ', 'FSLR', 'HK', 'AAPL', 'MSFT']
+securities_panel = get_pricing(symbol_list, fields=['price'], start_date='2014-01-01', end_date='2015-01-01')
+securities_panel.minor_axis = map(lambda x: x.symbol, securities_panel.minor_axis)
+```
+*Cell 7:*
+```python
+# series_list = load_prices(symbol_list)
+scores, pvalues, pairs = find_cointegrated_pairs(securities_panel)
+import seaborn
+seaborn.heatmap(pvalues, xticklabels=symbol_list, yticklabels=symbol_list, mask = (pvalues >= 0.5))
+print pairs
+```
+*Cell 8:*
+```python
+S = securities_panel.loc['price', :, ['ABGB', 'FSLR']]
+S.plot()
+```
+*Cell 9:*
+```python
+# Get the difference
+difference = securities_panel.loc['price', :, 'ABGB'] - securities_panel.loc['price', :, 'FSLR']
+difference.name = 'diff'
+# Get the 5 day moving average of the difference
+diff_mavg5 = pd.rolling_mean(difference, window=5)
+diff_mavg5.name = 'diff 5d mavg'
+# Get the 60 day moving average
+diff_mavg60 = pd.rolling_mean(difference, window=60)
+diff_mavg60.name = 'diff 60d mavg'
+
+pd.concat([diff_mavg60, diff_mavg5, difference], axis=1).plot()
+```
+*Cell 10:*
+```python
+# Take a rolling 60 day standard deviation
+std_60 = pd.rolling_std(difference, window=60)
+std_60.name = 'std 60d'
+
+# Compute the z score at each time
+zscore = (diff_mavg5 - diff_mavg60)/std_60
+zscore.name = 'z-score'
+zscore.plot()
+```
+*Cell 11:*
+```python
+# Plot the prices scaled down along with the negative z-score
+pd.concat([S/10, -zscore], axis=1).plot()
+```
+*Cell 12:*
+```python
+
+```
+
+##### LECTURE_Stanford_Educational Platform_Tutorial_and_Markowitz_Optimization
+- **Original Path**: `presentations\LECTURE_Stanford_Educational Platform_Tutorial_and_Markowitz_Optimization.ipynb`
+- **Use Case**: Workshops/Presentations
+- **Cell Count**: 59 (Code: 34, Markdown: 25)
+- **Imports/Dependencies**: from cvxopt import blas, solvers, from zipline import TradingAlgorithm, from zipline.api import (add_history,, import cvxopt as opt, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import zipline
+
+**Explanatory Notes:**
+#An Introductory Tutorial to IPython Notebooks
+By Delaney Granizo-Mackenzie & Justin Lent
+Adapted from a notebook by Dr. Thomas Wiecki
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+IPython notebooks are a powerful tool for interacting with data. We hook our notebooks up to historical market data so that you can try out ideas for strategies. Often, the first step to developing a strategy is testing whether an idea would work in a clean, controlled environment. To do that we'll artificially generate some returns.
+
+##What is an IPython Notebook
+
+An IPython notebook is an interface connected to a server somewhere. The interface is built out of cells that can be evaluated. Each cell is a chunk of code, and the output of the last line is displayed underneath the cell. Text editing commands work normally within a cell, and pressing the play button evaluates the cell.
+
+Your work is saved between cells.
+
+#This is a markdown cell.
+
+Markdown cells can display $\LaTeX$ as well.
+$$\sum_{i=1}{n} x_{i}^k$$
+
+##Simulated Returns
+####Importing Libraries
+
+The first step is to import the libraries we need. You can pretty much copy-paste these imports for most cases. Notice how I'm renaming the libraries for easier use later.
+
+#### Generating Random Numbers
+Now we'll call a function from the numpy library we imported. We'll use `numpy.random.randn` to sample some simulated returns from a normal distribution.
+
+###Obtaining Statistics in IPython
+
+We can use `numpy`'s tools to obtain statistics. In this case we're obtaining statistics from sample data, but we would do exactly the same thing had we obtained real market data.
+
+##Getting Real Pricing Data
+Our notebooks are hooked up to our database of historical pricing data. You can use the `get_pricing` function to load pricing data into your notebook. The fields we provide it tell it which symbol to get pricing for, and over what time period.
+
+We have all these fields, but we're just interested in the daily reported price for now.
+
+Let's plot it to get a sense of what it looks like.
+
+Now get the daily percent returns of the stock's price
+
+Finally, let's compute the mean and standard deviation of the S&P 500 returns so far this year, as well as the Sharpe Ratio
+
+#Now we'll explore something more interesting
+
+#A tutorial on Markowitz portfolio optimization in Python using cvxopt
+
+Authors: Dr. Thomas Starke, David Edwards, Dr. Thomas Wiecki
+
+##About the author:
+
+Today's blog post is written in collaboration with [Dr. Thomas Starke](http://drtomstarke.com/). It is based on a longer whitepaper by Thomas Starke on the relationship between Markowitz portfolio optimization and Kelly optimization. The full whitepaper can be found [here](http://eepurl.com/4Pgrv).

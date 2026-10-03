@@ -1,0 +1,16 @@
+# Further Reading
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Further Reading
+Futures are dynamic assets with many moving components to model. This lecture has been an introduction to the core concepts within futures contracts themselves, but has avoided the specifics of designing trading algorithms on futures. We will cover these considerations in more depth as we develop more lectures on this asset.
+
+For further reading on futures, see:
+
+* https://www.quantopian.com/posts/futures-data-now-available-in-research
+* https://en.wikipedia.org/wiki/Futures_contract
+* http://www.investopedia.com/terms/f/futurescontract.asp

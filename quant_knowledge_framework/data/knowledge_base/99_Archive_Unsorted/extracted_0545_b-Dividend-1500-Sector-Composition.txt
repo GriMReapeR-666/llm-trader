@@ -1,0 +1,15 @@
+# b. Dividend 1500 Sector Composition
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Dividend 1500 Sector Composition
+
+Find and print the sector composition of the universe on 2016-07-01.
+
+The Dividend 1500 has a very unbalanced sector composition, with 34% of equities being from the financial services sector. This exposes the universe to sector risk and makes it vulnerable to volatility in the financial services sector. The QTradableStocksUS avoids this by capping the number of equities from any single sector at 30%.
+
+# Exercise 4: Turnover Smoothing

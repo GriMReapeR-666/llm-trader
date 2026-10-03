@@ -1,0 +1,15 @@
+# b. Finding Variance, Covariance, and Correlation II
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Finding Variance, Covariance, and Correlation II
+
+By reading the matrix output from the `np.cov()` and `np.corrcoef()` functions, find the variance of the variables $C$ and $D$ and the covariance and correlation of their relationship. 
+
+----
+
+# Exercise 2: Constructing Example Relationships

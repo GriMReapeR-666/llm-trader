@@ -1,0 +1,24 @@
+# Monthly trading competitions -- win, and we'll invest $100k, you keep all the profits
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Monthly trading competitions -- win, and we'll invest $100k, you keep all the profits
+<center><img src='contest.png'>
+
+# Let's take just two strategies and try to pick the better one
+
+# Sharpe Ratio
+
+$$\text{Sharpe} = \frac{\text{mean returns}}{\text{volatility}}$$
+
+# Detour ahead
+
+# Short primer on random variables
+
+* Represents our beliefs about an unknown state.
+* Probability distribution assigns a probability to each possible state.
+* **Not** a single number (e.g. most likely state).

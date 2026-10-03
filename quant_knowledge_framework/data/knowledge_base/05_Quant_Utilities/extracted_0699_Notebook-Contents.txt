@@ -1,0 +1,816 @@
+# Notebook Contents
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: data pipeline, python, pandas, standardize
+
+---
+
+## Notebook Contents
+
+There are two ways to access the data and you'll find both of them listed below. Just click on the section you'd like to read through.
+
+- <a href='#interactive'><strong>Interactive overview</strong></a>: This is only available on Research and uses blaze to give you access to large amounts of data. Recommended for exploration and plotting.
+- <a href='#pipeline'><strong>Pipeline overview</strong></a>: Data is made available through pipeline which is available on both the Research & Backtesting environment. Recommended for custom factor development and moving back & forth between research/backtesting.
+
+
+### Limits
+One key caveat: we limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+With preamble in place, let's get started:
+
+<a id='interactive'></a>
+#Interactive Overview
+### Accessing the data with Blaze and Interactive on Research
+Partner datasets are available on Educational Platform Research through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets, in an interactive, generic manner.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to reduce your dataset in size, convert it over to Pandas and then to use Pandas for further computation, manipulation and visualization.
+
+Helpful links:
+* [Query building for Blaze](http://blaze.readthedocs.io/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-sql.html).
+
+
+Once you've limited the size of your Blaze object, you can convert it to a Pandas DataFrames using:
+> `from odo import odo`  
+> `odo(expr, pandas.DataFrame)`
+
+
+###To see how this data can be used in your algorithm, search for the `Pipeline Overview` section of this notebook or head straight to <a href='#pipeline'>Pipeline Overview</a>
+
+Let's go over the columns:
+- **open**: open price for vxxle
+- **high**: daily high for vxxle
+- **low**: daily low for vxxle
+- **close**: close price for vxxle
+- **asof_date**: the timeframe to which this data applies
+- **timestamp**: this is our timestamp on when we registered the data.
+
+We've done much of the data processing for you. Fields like `timestamp` are standardized across all our Store Datasets, so the datasets are easy to combine.
+
+We can select columns and rows with ease. Below, we'll do a simple plot.
+
+<a id='pipeline'></a>
+
+#Pipeline Overview
+
+### Accessing the data in your algorithms & research
+The only method for accessing partner data within algorithms running on Educational Platform is via the pipeline API. Different data sets work differently but in the case of this data, you can add this data to your pipeline as follows:
+
+Import the data set here
+> `from educational_platform.pipeline.data.quandl import cboe_vxxle`
+
+Then in intialize() you could do something simple like adding the raw value of one of the fields to your pipeline:
+> `pipe.add(cboe_vxxle.open_.latest, 'open')`
+
+Pipeline usage is very similar between the backtester and Research so let's go over how to import this data through pipeline and view its outputs.
+
+Now that we've imported the data, let's take a look at which fields are available for each dataset.
+
+You'll find the dataset, the available fields, and the datatypes for each of those fields.
+
+Now that we know what fields we have access to, let's see what this data looks like when we run it through Pipeline.
+
+
+This is constructed the same way as you would in the backtester. For more information on using Pipeline in Research view this thread:
+https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+
+Here, you'll notice that each security is mapped to the corresponding value, so you could grab any security to get what you need.
+
+Taking what we've seen from above, let's see how we'd move that into the backtester.
+
+Now you can take that and begin to use it as a building block for your algorithms, for more examples on how to do that you can visit our <a href='https://www.educational_platform.com/posts/pipeline-factor-library-for-data'>data pipeline factor library</a>
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# For use in Educational Platform Research, exploring interactively
+from educational_platform.interactive.data.quandl import cboe_vxxle as dataset
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+dataset.dshape
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+dataset.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+dataset[:3]
+```
+*Cell 5:*
+```python
+# Plotting this DataFrame
+df = odo(dataset, pd.DataFrame)
+df.head(5)
+```
+*Cell 6:*
+```python
+# So we can plot it, we'll set the index as the `asof_date`
+df['asof_date'] = pd.to_datetime(df['asof_date'])
+df = df.set_index(['asof_date'])
+df.head(5)
+```
+*Cell 7:*
+```python
+import matplotlib.pyplot as plt
+df['open_'].plot(label=str(dataset))
+plt.ylabel(str(dataset))
+plt.legend()
+plt.title("Graphing %s since %s" % (str(dataset), min(df.index)))
+```
+*Cell 8:*
+```python
+# Import necessary Pipeline modules
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+```
+*Cell 9:*
+```python
+# Import the datasets available
+from educational_platform.pipeline.data.quandl import cboe_vxxle
+```
+*Cell 10:*
+```python
+print "Here are the list of available fields per dataset:"
+print "---------------------------------------------------\n"
+
+def _print_fields(dataset):
+    print "Dataset: %s\n" % dataset.__name__
+    print "Fields:"
+    for field in list(dataset.columns):
+        print "%s - %s" % (field.name, field.dtype)
+    print "\n"
+
+_print_fields(cboe_vxxle)
+
+
+print "---------------------------------------------------\n"
+```
+*Cell 11:*
+```python
+pipe = Pipeline()
+       
+pipe.add(cboe_vxxle.open_.latest, 'open_vxxle')
+```
+*Cell 12:*
+```python
+# Setting some basic liquidity strings (just for good habit)
+dollar_volume = AverageDollarVolume(window_length=20)
+top_1000_most_liquid = dollar_volume.rank(ascending=False) < 1000
+
+pipe.set_screen(top_1000_most_liquid & cboe_vxxle.open_.latest.notnan())
+```
+*Cell 13:*
+```python
+# The show_graph() method of pipeline objects produces a graph to show how it is being calculated.
+pipe.show_graph(format='png')
+```
+*Cell 14:*
+```python
+# run_pipeline will show the output of your pipeline
+pipe_output = run_pipeline(pipe, start_date='2013-11-01', end_date='2013-11-25')
+pipe_output
+```
+*Cell 15:*
+```python
+# This section is only importable in the backtester
+from educational_platform.algorithm import attach_pipeline, pipeline_output
+
+# General pipeline imports
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+
+# For use in your algorithms via the pipeline API
+from educational_platform.pipeline.data.quandl import cboe_vxxle
+
+def make_pipeline():
+    # Create our pipeline
+    pipe = Pipeline()
+    
+    # Screen out penny stocks and low liquidity securities.
+    dollar_volume = AverageDollarVolume(window_length=20)
+    is_liquid = dollar_volume.rank(ascending=False) < 1000
+    
+    # Create the mask that we will use for our percentile methods.
+    base_universe = (is_liquid)
+
+    # Add the datasets available
+    pipe.add(cboe_vxxle.open_.latest, 'vxxle_open')
+
+    # Set our pipeline screens
+    pipe.set_screen(is_liquid)
+    return pipe
+
+def initialize(context):
+    attach_pipeline(make_pipeline(), "pipeline")
+    
+def before_trading_start(context, data):
+    results = pipeline_output('pipeline')
+```
+
+##### Quandl: US vs. EUR Exchange Rate
+- **Original Path**: `notebooks\data\quandl.currfx_usdeur\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 8 (Code: 5, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.quandl import currfx_usdeur, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: US vs. EUR Exchange Rate
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 1999 through the current day. It contains the daily exchange rates for the US Dollar (USD) vs. the European EURO (EUR) We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/CURRFX/USDEUR-Currency-Exchange-Rates-USD-vs-EUR) on this dataset can be found on Quandl's website.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform partner data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Some of these sets (though not this one) are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform partner data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+With preamble in place, let's get started:
+
+The data goes all the way back to 1999 and is updated daily.
+
+Blaze provides us with the first 10 rows of the data for display. Just to confirm, let's just count the number of rows in the Blaze expression:
+
+Let's go plot it for fun. This data set is definitely small enough to just put right into a Pandas DataFrame
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.quandl import currfx_usdeur
+# Since this data is public domain and provided by Quandl for free, there is no _free version of this
+# data set, as found in the premium sets. This import gets you the entirety of this data set.
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+currfx_usdeur.sort('asof_date')
+```
+*Cell 3:*
+```python
+currfx_usdeur.count()
+```
+*Cell 4:*
+```python
+usdeur_df = odo(currfx_usdeur, pd.DataFrame)
+
+usdeur_df.plot(x='asof_date', y='rate')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("Exchange Rate")
+plt.title("USD vs. EUR Exchange Rate")
+plt.legend().set_visible(False)
+```
+*Cell 5:*
+```python
+
+```
+
+##### Quandl: United Stated Unemployment Claims
+- **Original Path**: `notebooks\data\quandl.fred_ccsa\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 9 (Code: 6, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.quandl import fred_ccsa, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: United Stated Unemployment Claims
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 1967 through the current day. It contains the value for the United States unemployment claims provided by the US Federal Reserve via the [FRED data initiative](https://research.stlouisfed.org/fred2/). We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/FRED/CCSA-Continued-Claims-Insured-Unemployment) on this dataset can be found on Quandl's website.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform partner data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Some of these sets (though not this one) are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform partner data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+With preamble in place, let's get started:
+
+The data goes all the way back to 1967 and is updated weekly.
+
+Blaze provides us with the first 10 rows of the data for display. Just to confirm, let's just count the number of rows in the Blaze expression:
+
+Let's go plot it for fun. This data set is definitely small enough to just put right into a Pandas DataFrame
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.quandl import fred_ccsa
+# Since this data is public domain and provided by Quandl for free, there is no _free version of this
+# data set, as found in the premium sets. This import gets you the entirety of this data set.
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+fred_ccsa.sort('asof_date')
+```
+*Cell 3:*
+```python
+fred_ccsa.count()
+```
+*Cell 4:*
+```python
+unrate_df = odo(fred_ccsa, pd.DataFrame)
+
+unrate_df.plot(x='asof_date', y='value')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("Unemployment Claims")
+plt.title("United States Unemployment Claims")
+plt.legend().set_visible(False)
+```
+*Cell 5:*
+```python
+unrate_recent = odo(fred_ccsa[fred_ccsa.asof_date >= '2002-01-01'], pd.DataFrame)
+
+unrate_recent.plot(x='asof_date', y='value')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("Unemployment Claims")
+plt.title("United States Unemployment Claims")
+plt.legend().set_visible(False)
+```
+*Cell 6:*
+```python
+
+```
+
+##### Quandl: United Stated Gross Domestic Product
+- **Original Path**: `notebooks\data\quandl.fred_gdp\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 8 (Code: 5, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.quandl import fred_gdp, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: United Stated Gross Domestic Product
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 1947 through the current day. It contains the value for the United Gross Domestic Product (GDP) as provided by the US Federal Reserve via the [FRED data initiative](https://research.stlouisfed.org/fred2/). We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/FRED/GDP-Gross-Domestic-Product-1-Decimal) on this dataset can be found on Quandl's website.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform partner data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Some of these sets (though not this one) are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform Store data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+With preamble in place, let's get started:
+
+The data goes all the way back to 1947 and is updated quarterly.
+
+Blaze provides us with the first 10 rows of the data for display. Just to confirm, let's just count the number of rows in the Blaze expression:
+
+Let's go plot for fun. 275 rows are definitely small enough to just put right into a Pandas Dataframe
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.quandl import fred_gdp
+# Since this data is public domain and provided by Quandl for free, there is no _free version of this
+# data set, as found in the premium sets. This import gets you the entirety of this data set.
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+fred_gdp.sort('asof_date')
+```
+*Cell 3:*
+```python
+fred_gdp.count()
+```
+*Cell 4:*
+```python
+gdp_df = odo(fred_gdp, pd.DataFrame)
+
+gdp_df.plot(x='asof_date', y='value')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("GDP (billions)")
+plt.title("United States GDP")
+plt.legend().set_visible(False)
+```
+*Cell 5:*
+```python
+
+```
+
+##### Quandl: US GDP, Implicit Price Deflator
+- **Original Path**: `notebooks\data\quandl.fred_gdpdef\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 8 (Code: 5, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.quandl import fred_gdpdef, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: US GDP, Implicit Price Deflator
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 1947 through the current day. It contains the value for the United States GDP, using the implicit price deflator by the US Federal Reserve via the [FRED data initiative](https://research.stlouisfed.org/fred2/). We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/FRED/GDPDEF) on this dataset can be found on Quandl's website.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform partner data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Some of these sets (though not this one) are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform partner data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+With preamble in place, let's get started:
+
+The data goes all the way back to 1947 and is updated quarterly.
+
+Blaze provides us with the first 10 rows of the data for display. Just to confirm, let's just count the number of rows in the Blaze expression:
+
+Let's go plot it for fun. This data set is definitely small enough to just put right into a Pandas DataFrame
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.quandl import fred_gdpdef
+# Since this data is public domain and provided by Quandl for free, there is no _free version of this
+# data set, as found in the premium sets. This import gets you the entirety of this data set.
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+fred_gdpdef.sort('asof_date')
+```
+*Cell 3:*
+```python
+fred_gdpdef.count()
+```
+*Cell 4:*
+```python
+gdpdef_df = odo(fred_gdpdef, pd.DataFrame)
+
+gdpdef_df.plot(x='asof_date', y='value')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("GDP Rate")
+plt.title("US GDP, Implicit Price Deflator")
+plt.legend().set_visible(False)
+```
+*Cell 5:*
+```python
+
+```
+
+##### Quandl: US Gross National Product
+- **Original Path**: `notebooks\data\quandl.fred_gnp\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 8 (Code: 5, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.quandl import fred_gnp, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: US Gross National Product
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 1947 through the current day. It contains the value for the United States gross national product (GNP) by the US Federal Reserve via the [FRED data initiative](https://research.stlouisfed.org/fred2/). We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/FRED/GNP) on this dataset can be found on Quandl's website.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform partner data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Some of these sets (though not this one) are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform partner data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+With preamble in place, let's get started:
+
+The data goes all the way back to 1947 and is updated quarterly.
+
+Blaze provides us with the first 10 rows of the data for display. Just to confirm, let's just count the number of rows in the Blaze expression:
+
+Let's go plot it for fun. This data set is definitely small enough to just put right into a Pandas DataFrame
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.quandl import fred_gnp
+# Since this data is public domain and provided by Quandl for free, there is no _free version of this
+# data set, as found in the premium sets. This import gets you the entirety of this data set.
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+fred_gnp.sort('asof_date')
+```
+*Cell 3:*
+```python
+fred_gnp.count()
+```
+*Cell 4:*
+```python
+gnp_df = odo(fred_gnp, pd.DataFrame)
+
+gnp_df.plot(x='asof_date', y='value')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("GNP")
+plt.title("US Gross National Product")
+plt.legend().set_visible(False)
+```
+*Cell 5:*
+```python
+
+```
+
+##### Quandl: United Stated Initial Unemployment Claims
+- **Original Path**: `notebooks\data\quandl.fred_icsa\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 7 (Code: 4, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.quandl import fred_icsa, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: United Stated Initial Unemployment Claims
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 1967 through the current day. It contains the value for the United Gross Domestic Product (GDP) as provided by the US Federal Reserve via the [FRED data initiative](https://research.stlouisfed.org/fred2/). We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/FRED/ICSA-Initial-Claims) on this dataset can be found on Quandl's website.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform partner data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Some of these sets (though not this one) are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform Store data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+With preamble in place, let's get started:
+
+The data goes all the way back to 1947 and is updated quarterly.
+
+Blaze provides us with the first 10 rows of the data for display. Just to confirm, let's just count the number of rows in the Blaze expression:
+
+Let's go plot for fun. 2545 rows are definitely small enough to just put right into a Pandas Dataframe
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.quandl import fred_icsa
+# Since this data is public domain and provided by Quandl for free, there is no _free version of this
+# data set, as found in the premium sets. This import gets you the entirety of this data set.
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+fred_icsa.sort('asof_date')
+```
+*Cell 3:*
+```python
+fred_icsa.count()
+```
+*Cell 4:*
+```python
+icsa_df = odo(fred_icsa, pd.DataFrame)
+
+icsa_df.plot(x='asof_date', y='value')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("Number of Clais")
+plt.title("United States Initial Unemployment Claims")
+plt.legend().set_visible(False)
+```
+
+##### Quandl: United Stated Unemployment Rate
+- **Original Path**: `notebooks\data\quandl.fred_unrate\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 8 (Code: 5, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.quandl import fred_unrate, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: United Stated Unemployment Rate
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 1948 through the current day. It contains the value for the United States unemployment rate provided by the US Federal Reserve via the [FRED data initiative](https://research.stlouisfed.org/fred2/). We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/FRED/UNRATE-Civilian-Unemployment-Rate) on this dataset can be found on Quandl's website.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform partner data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Some of these sets (though not this one) are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform partner data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+With preamble in place, let's get started:
+
+The data goes all the way back to 1947 and is updated monthly.
+
+Blaze provides us with the first 10 rows of the data for display. Just to confirm, let's just count the number of rows in the Blaze expression:
+
+Let's go plot it for fun. This data set is definitely small enough to just put right into a Pandas DataFrame
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.quandl import fred_unrate
+# Since this data is public domain and provided by Quandl for free, there is no _free version of this
+# data set, as found in the premium sets. This import gets you the entirety of this data set.
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+fred_unrate.sort('asof_date')
+```
+*Cell 3:*
+```python
+fred_unrate.count()
+```
+*Cell 4:*
+```python
+unrate_df = odo(fred_unrate, pd.DataFrame)
+
+unrate_df.plot(x='asof_date', y='value')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("Unemployment Rate")
+plt.title("United States Unemployment Rate")
+plt.legend().set_visible(False)
+```
+*Cell 5:*
+```python
+
+```
+
+##### Quandl: Overnight LIBOR
+- **Original Path**: `notebooks\data\quandl.fred_usdontd156n\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 7 (Code: 4, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.quandl import fred_usdontd156n as libor, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: Overnight LIBOR
+
+In this notebook, we'll take a look at data set available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 2001 through the current day. It contains the value for the London Interbank Borrowing Rate (LIBOR). We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/FRED/USDONTD156N) on this dataset can be found on Quandl's website.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform partner data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Some of these sets (though not this one) are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform partner data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+With preamble in place, let's get started:
+
+The data goes all the way back to 2001 and is updated daily.
+
+Blaze provides us with the first 10 rows of the data for display. Just to confirm, let's just count the number of rows in the Blaze expression:
+
+Let's go plot it for fun. This data set is definitely small enough to just put right into a Pandas DataFrame
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.quandl import fred_usdontd156n as libor
+# Since this data is public domain and provided by Quandl for free, there is no _free version of this
+# data set, as found in the premium sets. This import gets you the entirety of this data set.
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+libor.sort('asof_date')
+```
+*Cell 3:*
+```python
+libor.count()
+```
+*Cell 4:*
+```python
+libor_df = odo(libor, pd.DataFrame)
+
+libor_df.plot(x='asof_date', y='value')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("LIBOR")
+plt.title("London Interbank Offered Rate")
+plt.legend().set_visible(False)
+```
+
+##### Quandl: US GDP, Implicit Price Deflator
+- **Original Path**: `notebooks\data\quandl.ugid_infl_usa\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 8 (Code: 5, Markdown: 3)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.quandl import ugid_infl_usa, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: US GDP, Implicit Price Deflator
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from 1961 through the current day. It contains the value for the United States' inflation rate, using the price deflator. We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/UGID/INFL_USA-Inflation-GDP-deflator-United-States-of-America) on this dataset can be found on Quandl's website.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform partner data sets. These datasets are available using the [Blaze](http://blaze.pydata.org) library. Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Some of these sets (though not this one) are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+To learn more about using Blaze and generally accessing Educational Platform partner data, clone [this tutorial notebook](https://www.educational_platform.com/clone_notebook?id=561827d21777f45c97000054).
+
+With preamble in place, let's get started:
+
+The data goes all the way back to 1961 and is updated annually.
+
+Blaze provides us with the first 10 rows of the data for display. Just to confirm, let's just count the number of rows in the Blaze expression:
+
+Let's go plot it for fun. This data set is definitely small enough to just put right into a Pandas DataFrame
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.quandl import ugid_infl_usa
+# Since this data is public domain and provided by Quandl for free, there is no _free version of this
+# data set, as found in the premium sets. This import gets you the entirety of this data set.
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+ugid_infl_usa.sort('asof_date')
+```
+*Cell 3:*
+```python
+ugid_infl_usa.count()
+```
+*Cell 4:*
+```python
+inf_df = odo(ugid_infl_usa, pd.DataFrame)
+
+inf_df.plot(x='asof_date', y='value')
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("Inflation Rate")
+plt.title("US Inflation, Implicit Price Deflator")
+plt.legend().set_visible(False)
+```
+*Cell 5:*
+```python
+
+```
+
+##### Quandl: S&P 500 Volatility Index (VIX)
+- **Original Path**: `notebooks\data\quandl.yahoo_index_vix\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 19 (Code: 12, Markdown: 7)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.algorithm import attach_pipeline, pipeline_output, from educational_platform.interactive.data.quandl import yahoo_index_vix as dataset, from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.quandl import yahoo_index_vix, from educational_platform.pipeline.factors import AverageDollarVolume, from educational_platform.research import run_pipeline, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Quandl: S&P 500 Volatility Index (VIX)
+
+In this notebook, we'll take a look at data set , available on [Educational Platform](https://www.educational_platform.com/data). This dataset spans from January, 1990 through the current day. It contains the value for the index VIX, a measure of volatility in the S&P 500. We access this data via the API provided by [Quandl](https://www.quandl.com). [More details](https://www.quandl.com/data/YAHOO/INDEX_VIX-VIX-S-P-500-Volatility-Index) on this dataset can be found on Quandl's website.
+
+To be clear, this is a single value for VIX each day.

@@ -1,0 +1,25 @@
+# A Generalized Framework for Evaluating Trading Signals (Justin)
+
+Topic: 02_Strategy_Development
+Confidence: 0.80
+Keywords: ev, backtest, overfitting, strategy
+
+---
+
+## A Generalized Framework for Evaluating Trading Signals (Justin)
+
+Historically quant traders have used many price based signals to define an investment strategy. Many of these signals have been implemented into the popular [TA-lib library](http://ta-lib.org/), with an available Python library [here](https://github.com/mrjbq7/ta-lib).  Typically, a price based signal takes in historical prices as input to compute the signal's value.  For example, RSI [(Relative Strength Index)](http://www.investopedia.com/terms/r/rsi.asp), is commonly used for mean-reversion and momentum trading.  To compute RSI one must first choose the number of pricing days over which to compute the signal. Then, the trader chooses a range of values for determining when to enter a trade. The valid values for RSI is between 0 to 100. If a stock has undergone a sharp selloff recently, RSI values will trend towards 0, and after a strong rally, trend towards 100.  A common trading strategy is going long a stock when RSI is below 20, betting on mean-reversion.  Similarly, to go short when RSI is above 80.  However, other groups of traders have found success betting on persistent momentum in the stock (rather than mean-reversion) when RSI reaches an extreme reading. In which case, the trader will go long when RSI is above 80 betting that the stock will continue going higher.  
+
+This poses several questions:
+* So which is right? Should we use RSI as a _mean-reversion_ indicator or a _momentum_ indicator?  
+  * What range of RSI values shall we choose to determine if the momentum or mean-reversion condition is met?
+  * How many lookback days of prices should we use to compute the stock's RSI?
+* Besides RSI, can I integrate a second indicator into my investment strategy?
+
+Each decision made regarding specifying our trading signal (e.g. RSI) or how to interpret the signal's value for making a trading decision is effectively a free parameter in our system, and depending upon the range of reasonable values each free parameter can take, it can quickly explode the total combinations of possible settings. Each signal added to the strategy can quickly increase the total combinations possible into the many millions and even _billions_, even with just 2 signals, as we'll see in the below example. A discussion of strategy model overfitting, and evaluating how overfit a trading backtest may be, will not be addressed here, but will be the topic of a future blog post.  An excellent introduction for addressing trading strategy overfitting can be found here:  .
+
+The large parameter space of millions, or billions, of combinations over which our strategy will need to be tested in order to determine the subspace where the global maximum is likely located is why Bayesian Optimization can be so effective at quickly evaluating potentially profitable trading strategies.  Brute force grid-search over a billion combination parameter space is often intractable, even if each combination only takes 30-seconds to complete.  Bayesian optimization decreases the evaluation of the model over the global search space by an order of magnitude, as described in the previous section.
+
+The trading algorithm we will implement below will create a simple structure for passing in the free parameters of any number simple price based trading signals (simplified to work more easily with ta-lib functions). Then each signal is evaluated each trading day, when _all_ the conditions are true, a trade is entered, and held until the next signal evaluation period. 
+
+For the purposes of this optimization our objective function will be [Sharpe Ratio](http://www.investopedia.com/terms/s/sharperatio.asp) of the strategy. A broadly accepted metric from industry for evaluating trading strategy performance.  However, the framework implemented below allows for ease of swapping in any objective function desired by the analyst.

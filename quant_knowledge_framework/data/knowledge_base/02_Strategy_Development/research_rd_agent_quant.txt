@@ -1,0 +1,48 @@
+# R&D-Agent-Quant: Multi-Agent Framework for Automated Strategy Development
+
+**Source**: arxiv:2505.15155 (May 2025)
+
+## Overview
+First data-centric multi-agent framework for automating full-stack quantitative strategy R&D via coordinated factor-model co-optimization.
+
+## Architecture
+
+### Research Phase
+1. **Specification Unit**: Generates goal-aligned prompts from optimization targets
+2. **Synthesis Unit**: Grows task-specific knowledge forest, generates hypotheses
+3. **Task Mapping**: Converts hypotheses to executable backtesting tasks
+
+### Development Phase
+1. **Implementation Unit**: Code generation with Co-STEER agent
+2. **Validation Unit**: Real-market backtesting
+3. **Analysis Unit**: Unified metric evaluation
+4. **Bandit Scheduler**: Adaptive direction selection
+
+## Key Innovations
+
+### Co-STEER Agent
+- Chain-of-thought reasoning
+- Graph-based knowledge store
+- Code generation for factors and models
+- Knowledge evolution across iterations
+
+### Joint Factor-Model Optimization
+- Alternating optimization between factors and models
+- Factor mining: IC, ICIR, Rank IC, Rank ICIR
+- Model optimization: ARR, IR, MDD, Calmar Ratio
+
+## Results
+- **2x higher ARR** than classical factor libraries
+- **70% fewer factors** used
+- Cost: Under $10 per experiment
+- Beats state-of-the-art deep time-series models
+
+## Evaluation Metrics
+- Factor Predictive: IC, ICIR, Rank IC, Rank ICIR
+- Strategy Performance: ARR, IR, MDD, Calmar Ratio
+- Transaction costs: 0.05% buy, 0.15% sell
+
+## Implications
+- Modular framework adaptable to real-world settings
+- Automated hypothesis-implementation-validation loop
+- Efficient under fixed compute budgets

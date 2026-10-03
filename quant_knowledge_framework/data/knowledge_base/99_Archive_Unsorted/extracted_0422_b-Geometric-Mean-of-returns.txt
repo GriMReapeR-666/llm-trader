@@ -1,0 +1,14 @@
+# b. Geometric Mean of returns.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Geometric Mean of returns. 
+Find the Geometric Mean of the price of Citi bank (C) for the last 5 years. 
+
+---
+
+# Exercise 5 : Harmonic mean.

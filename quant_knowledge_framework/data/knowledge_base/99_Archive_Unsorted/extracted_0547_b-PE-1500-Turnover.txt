@@ -1,0 +1,13 @@
+# b. PE 1500 Turnover
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. PE 1500 Turnover
+
+Use the `calculate_daily_turnover` helper function to find and plot the turnover of the PE 1500 universe during 2016. Compare the average to that of the QTradableStocksUS.
+
+The mean turnover was almost twice as high as in the QTradableStocksUS, which has built-in smoothing features to prevent equities near the threshold from entering and exiting frequently.

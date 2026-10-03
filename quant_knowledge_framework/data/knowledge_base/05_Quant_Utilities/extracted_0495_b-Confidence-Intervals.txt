@@ -1,0 +1,70 @@
+# b. Confidence Intervals.
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python, pandas
+
+---
+
+## b. Confidence Intervals. 
+- Calculate the first, second, and third confidence intervals. 
+- Plot the PDF and the first, second, and third confidence intervals. 
+
+---
+
+# Exercise 4: Financial Applications: 
+Fit the returns of SPY from 2016-01-01 to 2016-05-01 to a normal distribution. 
+- Fit the returns to a normal distribution by clacluating the values of $\mu$ and $\sigma$
+- Plot the returns and the distribution, along with 3 confidence intervals. 
+- Use the Jarque-Bera test to check for normality. 
+
+---
+
+Congratulations on completing the Random Variables exercises!
+
+As you learn more about writing trading models and the Educational Platform platform, enter a daily [Educational Platform Contest](https://www.educational_platform.com/contest). Your strategy will be evaluated for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Functions
+class DiscreteRandomVariable:
+    def __init__(self, a=0, b=1):
+        self.variableType = ""
+        self.low = a
+        self.high = b
+        return
+    def draw(self, numberOfSamples):
+        samples = np.random.randint(self.low, self.high, numberOfSamples)
+        return samples
+    
+class BinomialRandomVariable(DiscreteRandomVariable):
+    def __init__(self, numberOfTrials = 10, probabilityOfSuccess = 0.5):
+        self.variableType = "Binomial"
+        self.numberOfTrials = numberOfTrials
+        self.probabilityOfSuccess = probabilityOfSuccess
+        return
+    def draw(self, numberOfSamples):
+        samples = np.random.binomial(self.numberOfTrials, self.probabilityOfSuccess, numberOfSamples)
+        return samples
+    
+def factorial(n):return reduce(lambda x,y:x*y,[1]+range(1,n+1))
+```
+*Cell 2:*
+```python
+# Useful Libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import statsmodels.stats as stats
+from statsmodels.stats import stattools
+from __future__ import division
+```
+*Cell 3:*
+```python
+# Histograms with 10 tosses.

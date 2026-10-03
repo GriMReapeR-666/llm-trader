@@ -1,0 +1,24 @@
+# Approximating the posterior with MCMC sampling
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Approximating the posterior with MCMC sampling
+
+PyMC3
+=====
+
+* Probabilistic Programming framework written in Python.
+* Allows for construction of probabilistic models using intuitive syntax.
+* Features advanced MCMC samplers.
+* Fast: Just-in-time compiled by Theano.
+* **Extensible**: easily incorporates custom MCMC algorithms and unusual probability distributions.
+* Authors: John Salvatier, Chris Fonnesbeck, Thomas Wiecki
+* Upcoming *beta* release!
+
+<center><img src="http://www.iskonline.org/media/news/end_detour.gif"></center>
+
+# Model returns distribution: Specifying our priors

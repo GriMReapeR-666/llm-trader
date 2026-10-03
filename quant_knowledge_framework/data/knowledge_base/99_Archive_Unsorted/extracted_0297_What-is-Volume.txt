@@ -1,0 +1,38 @@
+# What is Volume?
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## What is Volume?
+Volume is how much trading occurs for a given instrument, or set of instruments, over a given time period. 
+
+### Example Volume Computation
+For instance, consider a hypothetical equity asset $A$. If, over the course of a minute, $100,000$ shares of $A$ are bought, then the shares traded volume of $A$ is $100,000$. To find the dollar volume traded for $A$, which is the more often-used statistic, we need to take a weighted average of all the different prices $A$ traded for over the minute times the number of shares that traded at each price. This is equivalent to adding up the dollar volumes of all the individual trasnactions that occured. For instance, let's say in this case there were there separate transactions. One for 30,000 shares, one for $60,000$ shares, and one for $10,000$ shares. The prices were $30$ USD, $31$ USD, and $33$ USD, respectively. Let's model this out.
+
+So total dollar volume is $3.09$ million USD. Notice that this is equivalent to taking the dollar volume averaged price and multiplying by the number of shares traded over that bar.
+
+Often in real datasets you will be given averaged or 'last traded' data rather than individual trades. With averaged data, some average is taken over a bar (time period). With last traded data, only the final observation from that bar is reported. It is important to know if the data is averaged, volume averaged, or simply last traded. All of these will need to be treated differently.
+
+For pricing data, Educational Platform currently (as of April 2017) provides the last traded prices at a minute resolution. The volume is the sum of all volume in that bar. While we do not offer minutely volume-weighted price, daily volume-weighted price can be approximated from the minute bars.
+
+Let's look at some volume data.
+
+Notice that just plotting the volume gives us lots of gaps. This is because we are plotting data with time on the x-axis, and equities are only traded during part of the day. The rest of the day we have no data for volume. There is a small amount of overnight trading that occurs for equities, but it is often only useful as a data source as the liquidity is too low to trade. Educational Platform does not currently have data on overnight trading, just for regular market hours.
+
+Let's look at how this volume is balanced out over a single day.
+
+This is pretty noisy, but with pandas we can easily take an average across all the days in our sample to get a sense of how volume fluctuates on average. Here is the average volume for a given minute over the whole time period.
+
+### High Equity Volume After Market Open
+There tends to be high volume right after market open. This is due to a variety of factors including people wanting to update their positions based on price changes and new information that emerged before trading started. Since there was a ton of time and possibly news overnight while the market could not react, trading right after the open can be a bit volatile as pricing adjusts.
+
+### High Equity Volume Before Market Close
+There is a similar effect at the end of the day when people want to get in their final orders before trading closes and they no longer have the chance. Again there are a variety of factors that drive this increase, but the effect tends to be consistent.
+
+### Modeling Volume
+Volume can change a lot, and summary statistics such as mean volume may not always be representative. Model it as you would any other quantity and pay attention to whether your volume forecasts or measurements are useful. We do not discuss any specific models in this lecture as the models are often specific to the markets and instruments being traded.
+
+As with any other model, a model of volume needs to be carefully validated using rigorous statistics. As a rule of thumb you can expect more volume at the start and end of day in the US Equity market, but this will vary by equity and day, plus there will be shocks and half days. In practice you should apply just as much care as you would trying to model returns.

@@ -1,0 +1,14 @@
+# b. Measuring Tradability
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Measuring Tradability
+
+
+Find the average 200 day average dollar volume of the NetIncome 1500 universe using the `AverageDollarVolume` built in factor and compare to that of the QTradableStocksUS.
+
+# Exercise 3: Sector Balance

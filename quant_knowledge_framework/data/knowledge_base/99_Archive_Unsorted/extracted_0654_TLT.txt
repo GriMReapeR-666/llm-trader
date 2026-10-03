@@ -1,0 +1,17 @@
+# TLT
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## TLT
+
+Finally, we look at **TLT**, which tracks 20+ year treasury bonds. TLT stores about $6bn in assets. TLT started trading on `2002-06-24`.
+
+This one is a little more promising: it looks like there is a very rough correspondence between the two time-series, though only if we shift the green one back by a few hundred days. We can think of the green peak at around 2009 to correspond to the less pronounced blue peak around mid-2007. With this shift, the following troughs and rises also correspond. We shift the TLT data back by 300 days to get a better look.
+
+Having overlaid the time-series, we can see some kind of rough correspondence between the two, given some time-shift. We want to figure out what time shift maximizes the correspondence. We cannot immediately apply a [cross-correlation](https://en.wikipedia.org/wiki/Cross-correlation) because the data from the Fed is weekly and the TLT price data is daily. We have to make some adjustments before we can come to any conclusions on TLT -- thus, we postpone this investigation to a later time (i.e. a separate notebook).
+
+That being said, reflecting on IEI, IEF, and TLT, we may find ourselves somewhat surprised that there isn't a stronger relationship between Federal Reserve sentiment and treasury bond ETF price. We would expect that Fed sentiment would have a stronger impact on the shorter-term treasury bond ETFs.

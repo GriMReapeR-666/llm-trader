@@ -1,0 +1,31 @@
+# Experiment - Running Many Tests
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Experiment - Running Many Tests
+
+We'll start by defining a data frame.
+
+Now we'll populate it by adding `N` randomly generated timeseries of length `T`.
+
+Now we'll run a test on all pairs within our data looking for instances where our p-value is below our defined cutoff of 5%.
+
+Before we check how many significant results we got, let's run out some math to check how many we'd expect. The formula for the number of pairs given N series is
+
+$$\frac{N(N-1)}{2}$$
+
+There are no relationships in our data as it's all randomly generated. If our test is properly calibrated we should expect a false positive rate of 5% given our 5% cutoff. Therefore we should expect the following number of pairs that achieved significance based on pure random chance.
+
+Now let's compare to how many we actually found.
+
+We shouldn't expect the numbers to match too closely here on a consistent basis as we've only run one experiment. If we run many of these experiments we should see a convergence to what we'd expect.
+
+### Repeating the Experiment
+
+
+
+The average over many experiments should be closer.

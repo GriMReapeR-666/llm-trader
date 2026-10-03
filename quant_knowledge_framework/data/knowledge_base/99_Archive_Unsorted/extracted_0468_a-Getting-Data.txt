@@ -1,0 +1,10 @@
+# a. Getting Data
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Getting Data
+Use the techniques laid out in lecture to find the open price over a 2-year period for Starbucks (SBUX) and Dunkin Brands Group (DNKN). Print them out in a table.

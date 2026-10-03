@@ -1,0 +1,45 @@
+# Simulations
+
+Topic: 01_Regime_Detection
+Confidence: 0.33
+Keywords: atr, volatility
+
+---
+
+## Simulations
+
+Assume that we have 4 assets, each with a return series of length 1000. We can use `numpy.random.randn` to sample returns from a normal distribution.
+
+These return series can be used to create a wide range of portfolios. We will produce random weight vectors and plot those portfolios. As we want all our capital to be invested, the weights will have to sum to one.
+
+Next, let's evaluate how these random portfolios would perform by calculating the mean returns and the volatility (here we are using standard deviation). You can see that there is
+a filter so that we only plot portfolios with a standard deviation of < 2 for better illustration.
+
+We calculate the return using
+
+$$ R = p^T w $$
+
+where $R$ is the expected return, $p^T$ is the transpose of the vector for the mean
+returns for each time series and w is the weight vector of the portfolio. $p$ is a $N \times 1$
+column vector, so $p^T$ turns is a $1 \times N$ row vector which can be multiplied with the
+$N \times 1$ weight (column) vector w to give a scalar result. This is equivalent to the dot
+product used in the code. Keep in mind that `Python` has a reversed definition of
+rows and columns and the accurate `NumPy` version of the previous equation would
+be `R = w * p.T`
+
+Next, we calculate the standard deviation
+
+$$\sigma = \sqrt{w^T C w}$$
+
+where $C$ is the $N \times N$ covariance matrix of the returns. Please
+note that if we simply calculated the simple standard deviation with the appropriate weighting using `std(array(ret_vec).T*w)` we would get a slightly different
+’bullet’. This is because the simple standard deviation calculation would not take
+covariances into account. In the covariance matrix, the values on the diagonal
+represent the simple variances of each asset, while the off-diagonal entries are the variances between the assets. By using ordinary `std()` we effectively only regard the
+diagonal and miss the rest. A small but significant difference.
+
+Lets generate the mean returns and volatility for 500 random portfolios:
+
+Upon plotting these you will observe that they form a characteristic parabolic
+shape called the "Markowitz bullet" whose upper boundary is called the "efficient
+frontier", where we have the lowest variance for a given expected return.

@@ -1,0 +1,10 @@
+# a. Returns
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Returns 
+Find the daily returns for SPY over a 7-year window.

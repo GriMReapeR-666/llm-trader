@@ -1,0 +1,704 @@
+# Notebook Contents
+
+Topic: 05_Quant_Utilities
+Confidence: 0.67
+Keywords: data pipeline, python, pandas, standardize
+
+---
+
+## Notebook Contents
+
+There are two ways to access the data and you'll find both of them listed below. Just click on the section you'd like to read through.
+
+- <a href='#interactive'><strong>Interactive overview</strong></a>: This is only available on Research and uses blaze to give you access to large amounts of data. Recommended for exploration and plotting.
+- <a href='#pipeline'><strong>Pipeline overview</strong></a>: Data is made available through pipeline which is available on both the Research & Backtesting environment. Recommended for custom factor development and moving back & forth between research/backtesting.
+
+### Free samples and limits
+One key caveat: we limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free sample includes data until 2 months prior to the current date.
+
+To access the most up-to-date values for this data set for trading a live algorithm (as with other partner sets), you need to purchase acess to the full set.
+
+With preamble in place, let's get started:
+
+<a id='interactive'></a>
+#Interactive Overview
+### Accessing the data with Blaze and Interactive on Research
+Partner datasets are available on Educational Platform Research through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets, in an interactive, generic manner.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to reduce your dataset in size, convert it over to Pandas and then to use Pandas for further computation, manipulation and visualization.
+
+Helpful links:
+* [Query building for Blaze](http://blaze.readthedocs.io/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-sql.html).
+
+Once you've limited the size of your Blaze object, you can convert it to a Pandas DataFrames using:
+> `from odo import odo`  
+> `odo(expr, pandas.DataFrame)`
+
+
+###To see how this data can be used in your algorithm, search for the `Pipeline Overview` section of this notebook or head straight to <a href='#pipeline'>Pipeline Overview</a>
+
+Let's go over the columns:
+- **event_id**: the unique identifier for this buyback authorization.
+- **asof_date**: EventVestor's timestamp of event capture.
+- **trade_date**: for event announcements made before trading ends, trade_date is the same as event_date. For announcements issued after market close, trade_date is next market open day.
+- **symbol**: stock ticker symbol of the affected company.
+- **event_type**: this should always be *Buyback*.
+- **event_headline**: a short description of the event.
+- **buyback_type**: types include *new*, *additional*, *reinstates*, *suspends*, *reduction*
+- **buyback_purpose**: types include *general corporate*, *undervalued*, *stock options*, *acquisition*
+- **offer_type**: types include *open market, private placement, mixed offer, dutch auction, tender offers.*
+- **buyback_amount**: the amount of buyback_units being bought back
+- **buyback_units**: the units of buyback_amount: values include millions of dollars (or other local currency), shares in millions, or percent of shares outstanding.
+- **event_rating**: this is always 1. The meaning of this is uncertain.
+- **timestamp**: this is our timestamp on when we registered the data.
+- **sid**: the equity's unique identifier. Use this instead of the symbol.
+
+We've done much of the data processing for you. Fields like `timestamp` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, we'll fetch all entries for Microsoft. We're really only interested in the buyback amount, the units, and the date, so we'll display only those columns.
+
+Finally, suppose we want a DataFrame of Apple Buybacks, sorted in descending order by the buyback amount:
+
+<a id='pipeline'></a>
+
+#Pipeline Overview
+
+### Accessing the data in your algorithms & research
+The only method for accessing partner data within algorithms running on Educational Platform is via the pipeline API. Different data sets work differently but in the case of this data, you can add this data to your pipeline as follows:
+
+Import the data set here
+> `from educational_platform.pipeline.data.eventvestor import BuybackAuthorizations`
+
+Then in intialize() you could do something simple like adding the raw value of one of the fields to your pipeline:
+> `pipe.add(BuybackAuthorizations.total_scanned_messages.latest, 'total_scanned_messages')`
+
+Now that we've imported the data, let's take a look at which fields are available for each dataset.
+
+You'll find the dataset, the available fields, and the datatypes for each of those fields.
+
+Now that we know what fields we have access to, let's see what this data looks like when we run it through Pipeline.
+
+
+This is constructed the same way as you would in the backtester. For more information on using Pipeline in Research view this thread:
+https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+
+Taking what we've seen from above, let's see how we'd move that into the backtester.
+
+Now you can take that and begin to use it as a building block for your algorithms, for more examples on how to do that you can visit our <a href='https://www.educational_platform.com/posts/pipeline-factor-library-for-data'>data pipeline factor library</a>
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.eventvestor import buyback_auth as dataset
+
+# or if you want to import the free dataset, use:
+#from educational_platform.data.eventvestor import buyback_auth_free
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+dataset.dshape
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+dataset.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+dataset[:3]
+```
+*Cell 5:*
+```python
+# get the sid for MSFT
+symbols('MSFT')
+```
+*Cell 6:*
+```python
+# knowing that the MSFT sid is 5061:
+msft = dataset[dataset.sid==5061][['timestamp','buyback_amount', 'buyback_units']].sort('timestamp')
+msft
+```
+*Cell 7:*
+```python
+aapl_sid = symbols('AAPL').sid
+```
+*Cell 8:*
+```python
+aapl = dataset[dataset.sid==aapl_sid].sort('buyback_amount',ascending=False)
+aapl_df = odo(aapl, pd.DataFrame)
+aapl_df
+```
+*Cell 9:*
+```python
+# Import necessary Pipeline modules
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+```
+*Cell 10:*
+```python
+# For use in your algorithms
+# Using the full dataset in your pipeline algo
+from educational_platform.pipeline.data.eventvestor import BuybackAuthorizations
+
+from educational_platform.pipeline.factors.eventvestor import BusinessDaysSinceBuybackAuth
+```
+*Cell 11:*
+```python
+print "Here are the list of available fields per dataset:"
+print "---------------------------------------------------\n"
+
+def _print_fields(dataset):
+    print "Dataset: %s\n" % dataset.__name__
+    print "Fields:"
+    for field in list(dataset.columns):
+        print "%s - %s" % (field.name, field.dtype)
+    print "\n"
+
+for data in (BuybackAuthorizations,):
+    _print_fields(data)
+
+
+print "---------------------------------------------------\n"
+```
+*Cell 12:*
+```python
+# Let's see what this data looks like when we run it through Pipeline
+# This is constructed the same way as you would in the backtester. For more information
+# on using Pipeline in Research view this thread:
+# https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+pipe = Pipeline()
+       
+pipe.add(BuybackAuthorizations.previous_date.latest, 'previous_date')
+pipe.add(BuybackAuthorizations.previous_amount.latest, 'previous_amount')
+pipe.add(BusinessDaysSinceBuybackAuth(), "business_days")
+```
+*Cell 13:*
+```python
+# Setting some basic liquidity strings (just for good habit)
+dollar_volume = AverageDollarVolume(window_length=20)
+top_1000_most_liquid = dollar_volume.rank(ascending=False) < 1000
+
+pipe.set_screen(top_1000_most_liquid & BuybackAuthorizations.previous_amount.latest.notnan())
+```
+*Cell 14:*
+```python
+# The show_graph() method of pipeline objects produces a graph to show how it is being calculated.
+pipe.show_graph(format='png')
+```
+*Cell 15:*
+```python
+# run_pipeline will show the output of your pipeline
+pipe_output = run_pipeline(pipe, start_date='2013-11-01', end_date='2013-11-25')
+pipe_output
+```
+*Cell 16:*
+```python
+# This section is only importable in the backtester
+from educational_platform.algorithm import attach_pipeline, pipeline_output
+
+# General pipeline imports
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+
+# Import the datasets available
+# For use in your algorithms
+# Using the full dataset in your pipeline algo
+from educational_platform.pipeline.data.eventvestor import BuybackAuthorizations
+from educational_platform.pipeline.factors.eventvestor import BusinessDaysSinceBuybackAuth
+
+
+def make_pipeline():
+    # Create our pipeline
+    pipe = Pipeline()
+    
+    # Screen out penny stocks and low liquidity securities.
+    dollar_volume = AverageDollarVolume(window_length=20)
+    is_liquid = dollar_volume.rank(ascending=False) < 1000
+    
+    # Create the mask that we will use for our percentile methods.
+    base_universe = (is_liquid)
+
+    # Add pipeline factors
+    pipe.add(BuybackAuthorizations.previous_date.latest, 'previous_date')
+    pipe.add(BuybackAuthorizations.previous_amount.latest, 'previous_amount')
+    pipe.add(BusinessDaysSinceBuybackAuth(), "business_days")
+
+    # Set our pipeline screens
+    pipe.set_screen(is_liquid)
+    return pipe
+
+def initialize(context):
+    attach_pipeline(make_pipeline(), "pipeline")
+    
+def before_trading_start(context, data):
+    results = pipeline_output('pipeline')
+```
+
+##### EventVestor: CEO Changes
+- **Original Path**: `notebooks\data\eventvestor.ceo_change\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 16 (Code: 10, Markdown: 6)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.eventvestor import ceo_change, import pandas as pd
+
+**Explanatory Notes:**
+# EventVestor: CEO Changes
+
+In this notebook, we'll take a look at EventVestor's *CEO Changes* dataset, available on the [Educational Platform Store](https://www.educational_platform.com/store). This dataset spans January 01, 2007 through the current day.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform Store data sets. These datasets are available through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to reduce your dataset in size, convert it over to Pandas and then to use Pandas for further computation, manipulation and visualization.
+
+Helpful links:
+* [Query building for Blaze](http://blaze.pydata.org/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.pydata.org/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.pydata.org/en/latest/rosetta-sql.html).
+
+Once you've limited the size of your Blaze object, you can convert it to a Pandas DataFrames using:
+> `from odo import odo`  
+> `odo(expr, pandas.DataFrame)`
+
+### Free samples and limits
+One other key caveat: we limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free one includes about three years of historical data, though not up to the current day.
+
+With preamble in place, let's get started:
+
+Let's go over the columns:
+- **event_id**: the unique identifier for this CEO Change.
+- **asof_date**: EventVestor's timestamp of event capture.
+- **trade_date**: for event announcements made before trading ends, trade_date is the same as event_date. For announcements issued after market close, trade_date is next market open day.
+- **symbol**: stock ticker symbol of the affected company.
+- **event_type**: this should always be *CEO Change*.
+- **event_headline**: a short description of the event.
+- **change_status**: indicates whether the change is a proposal or a confirmation.
+- **change_scenario**: indicates if the CEO Change is *in*, *out*, or both.
+- **change_type**: indicates if the incoming CEO is interim or permanent.
+- **change_source**: is the incoming CEO an internal candidate, or recruited from the outside?
+- **change_reason**: reason for the CEO transition
+- **in_ceoname**: name of the incoming CEO
+- **in_ceoname**: gender of the incoming CEO
+- **out_ceoname**: name of the outgoing CEO
+- **out_ceogender**: gender of the outgoing CEO
+- **effective_date**: date as of which the CEO change is effective.
+- **event_rating**: this is always 1. The meaning of this is uncertain.
+- **timestamp**: this is our timestamp on when we registered the data.
+- **sid**: the equity's unique identifier. Use this instead of the symbol.
+
+We've done much of the data processing for you. Fields like `timestamp` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, we'll fetch all entries for Microsoft. We're really only interested in the CEO coming in, the CEO going out, and the date, so we'll display only those columns.
+
+Note that the `in_ceoname` and `out_ceoname` in these cases were NaNs because there was a long transition period. Steve Ballmer announced his resignation on 2013-08-24, and formally stepped down on 2014-02-05.
+
+Let's try another one:
+
+Now suppose want to know how many CEO changes there were in the past year in which a female CEO was incoming.
+
+Finally, suppose want this as a DataFrame:
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.eventvestor import ceo_change
+# or if you want to import the free dataset, use:
+# from educational_platform.data.eventvestor import ceo_change_free
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+ceo_change.dshape
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+ceo_change.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+ceo_change[:3]
+```
+*Cell 5:*
+```python
+# get the sid for MSFT
+symbols('MSFT')
+```
+*Cell 6:*
+```python
+# knowing that the MSFT sid is 5061:
+msft = ceo_change[ceo_change.sid==5061][['timestamp','in_ceoname', 'out_ceoname','change_status']].sort('timestamp')
+msft
+```
+*Cell 7:*
+```python
+# get the sid for AMD
+sid_amd = symbols('AMD').sid
+amd = ceo_change[ceo_change.sid==sid_amd][['timestamp','in_ceoname', 'out_ceoname','change_status']].sort('timestamp')
+amd
+```
+*Cell 8:*
+```python
+females_in = ceo_change[ceo_change['in_ceogender']=='Female']
+# Note that whenever you print a Blaze Data Object here, it will be automatically truncated to ten rows.
+females_in = females_in[females_in.asof_date > '2014-09-17']
+len(females_in)
+```
+*Cell 9:*
+```python
+females_in_df = odo(females_in, pd.DataFrame)
+females_in_df.sort('symbol', inplace=True)
+# let's get the first three rows
+females_in_df[:3]
+```
+*Cell 10:*
+```python
+
+```
+
+##### EventVestor: Clinical Trials
+- **Original Path**: `notebooks\data\eventvestor.clinical_trials\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 12 (Code: 8, Markdown: 4)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.eventvestor import clinical_trials, import pandas as pd
+
+**Explanatory Notes:**
+# EventVestor: Clinical Trials
+
+In this notebook, we'll take a look at EventVestor's *Clinical Trials* dataset, available on the [Educational Platform Store](https://www.educational_platform.com/store). This dataset spans January 01, 2007 through the current day, and documents announcements of key phases of clinical trials by biotech/pharmaceutical companies.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform Store data sets. These datasets are available through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to reduce your dataset in size, convert it over to Pandas and then to use Pandas for further computation, manipulation and visualization.
+
+Helpful links:
+* [Query building for Blaze](http://blaze.pydata.org/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.pydata.org/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.pydata.org/en/latest/rosetta-sql.html).
+
+Once you've limited the size of your Blaze object, you can convert it to a Pandas DataFrames using:
+> `from odo import odo`  
+> `odo(expr, pandas.DataFrame)`
+
+### Free samples and limits
+One other key caveat: we limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free one includes about three years of historical data, though not up to the current day.
+
+With preamble in place, let's get started:
+
+Let's go over the columns:
+- **event_id**: the unique identifier for this clinical trial.
+- **asof_date**: EventVestor's timestamp of event capture.
+- **trade_date**: for event announcements made before trading ends, trade_date is the same as event_date. For announcements issued after market close, trade_date is next market open day.
+- **symbol**: stock ticker symbol of the affected company.
+- **event_type**: this should always be *Clinical Trials*.
+- **event_headline**: a short description of the event.
+- **clinical_phase**: phases include *0, I, II, III, IV, Pre-Clinical*
+- **clinical_scope**: types of scope include *additional indications, all indications, limited indications*
+- **clinical_result**: result types include *negative, partial, positive*
+- **product_name**: name of the drug being investigated.
+- **event_rating**: this is always 1. The meaning of this is uncertain.
+- **timestamp**: this is our timestamp on when we registered the data.
+- **sid**: the equity's unique identifier. Use this instead of the symbol.
+
+We've done much of the data processing for you. Fields like `timestamp` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, we'll fetch all phase-3 announcements. We'll only display the columns for the sid and the drug name.
+
+Finally, suppose we want a DataFrame of GlaxoSmithKline Phase-III announcements, sorted in descending order by date:
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.eventvestor import clinical_trials
+# or if you want to import the free dataset, use:
+# from educational_platform.data.eventvestor import clinical_trials_free
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+clinical_trials.dshape
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+clinical_trials.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+clinical_trials[:3]
+```
+*Cell 5:*
+```python
+phase_three = clinical_trials[clinical_trials.clinical_phase == "Phase III"][['timestamp', 'sid','product_name']].sort('timestamp')
+# When displaying a Blaze Data Object, the printout is automatically truncated to ten rows.
+phase_three
+```
+*Cell 6:*
+```python
+gsk_sid = symbols('GSK').sid
+```
+*Cell 7:*
+```python
+gsk = clinical_trials[clinical_trials.sid==gsk_sid].sort('timestamp',ascending=False)
+gsk_df = odo(gsk, pd.DataFrame)
+# now filter down to the Phase 4 trials
+gsk_df = gsk_df[gsk_df.clinical_phase=="Phase III"]
+gsk_df
+```
+*Cell 8:*
+```python
+
+```
+
+##### EventVestor: Contract Wins
+- **Original Path**: `notebooks\data\eventvestor.contract_win\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 10 (Code: 6, Markdown: 4)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.eventvestor import contract_win, import pandas as pd
+
+**Explanatory Notes:**
+# EventVestor: Contract Wins
+
+In this notebook, we'll take a look at EventVestor's *Contract Wins* dataset, available on the [Educational Platform Store](https://www.educational_platform.com/store). This dataset spans January 01, 2007 through the current day, and documents major contract wins by companies.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform Store data sets. These datasets are available through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to reduce your dataset in size, convert it over to Pandas and then to use Pandas for further computation, manipulation and visualization.
+
+Helpful links:
+* [Query building for Blaze](http://blaze.pydata.org/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.pydata.org/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.pydata.org/en/latest/rosetta-sql.html).
+
+Once you've limited the size of your Blaze object, you can convert it to a Pandas DataFrames using:
+> `from odo import odo`  
+> `odo(expr, pandas.DataFrame)`
+
+### Free samples and limits
+One other key caveat: we limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free one includes about three years of historical data, though not up to the current day.
+
+With preamble in place, let's get started:
+
+Let's go over the columns:
+- **event_id**: the unique identifier for this contract win.
+- **asof_date**: EventVestor's timestamp of event capture.
+- **trade_date**: for event announcements made before trading ends, trade_date is the same as event_date. For announcements issued after market close, trade_date is next market open day.
+- **symbol**: stock ticker symbol of the affected company.
+- **event_type**: this should always be *Contract Win*.
+- **contract_amount**: the amount of amount_units the contract is for.
+- **amount_units**: the currency or other units for the value of the contract. Most commonly in millions of dollars.
+- **contract_entity**: name of the customer, if available
+- **event_rating**: this is always 1. The meaning of this is uncertain.
+- **timestamp**: this is our timestamp on when we registered the data.
+- **sid**: the equity's unique identifier. Use this instead of the symbol.
+
+We've done much of the data processing for you. Fields like `timestamp` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, we'll fetch all contract wins by Boeing. We'll display only the contract_amount, amount_units, contract_entity, and timestamp. We'll sort by date.
+
+Finally, suppose we want the above as a DataFrame:
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.eventvestor import contract_win
+# or if you want to import the free dataset, use:
+# from educational_platform.data.eventvestor import contract_win_free
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+contract_win.dshape
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+contract_win.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+contract_win[:3]
+```
+*Cell 5:*
+```python
+ba_sid = symbols('BA').sid
+wins = contract_win[contract_win.sid == ba_sid][['timestamp', 'contract_amount','amount_units','contract_entity']].sort('timestamp')
+# When displaying a Blaze Data Object, the printout is automatically truncated to ten rows.
+wins
+```
+*Cell 6:*
+```python
+ba_df = odo(wins, pd.DataFrame)
+# Printing a pandas DataFrame displays the first 30 and last 30 items, and truncates the middle.
+ba_df
+```
+
+##### EventVestor: Credit Facility
+- **Original Path**: `notebooks\data\eventvestor.credit_facility\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 11 (Code: 7, Markdown: 4)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.eventvestor import credit_facility, import pandas as pd
+
+**Explanatory Notes:**
+# EventVestor: Credit Facility
+
+In this notebook, we'll take a look at EventVestor's *Credit Facility* dataset, available on the [Educational Platform Store](https://www.educational_platform.com/store). This dataset spans January 01, 2007 through the current day, and documents financial events covering new or extended credit facilities.
+
+### Blaze
+Before we dig into the data, we want to tell you about how  you generally access Educational Platform Store data sets. These datasets are available through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to reduce your dataset in size, convert it over to Pandas and then to use Pandas for further computation, manipulation and visualization.
+
+Helpful links:
+* [Query building for Blaze](http://blaze.pydata.org/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.pydata.org/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.pydata.org/en/latest/rosetta-sql.html).
+
+Once you've limited the size of your Blaze object, you can convert it to a Pandas DataFrames using:
+> `from odo import odo`  
+> `odo(expr, pandas.DataFrame)`
+
+### Free samples and limits
+One other key caveat: we limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free one includes about three years of historical data, though not up to the current day.
+
+With preamble in place, let's get started:
+
+Let's go over the columns:
+- **event_id**: the unique identifier for this event.
+- **asof_date**: EventVestor's timestamp of event capture.
+- **trade_date**: for event announcements made before trading ends, trade_date is the same as event_date. For announcements issued after market close, trade_date is next market open day.
+- **symbol**: stock ticker symbol of the affected company.
+- **event_type**: this should always be *Credit Facility/Credit facility*.
+- **event_headline**: a brief description of the event
+- **credit_amount**: the amount of credit_units being availed
+- **credit_units**: the units for credit_amount: currency or other value. Most commonly in millions of USD.
+- **event_rating**: this is always 1. The meaning of this is uncertain.
+- **timestamp**: this is our timestamp on when we registered the data.
+- **sid**: the equity's unique identifier. Use this instead of the symbol.
+
+We've done much of the data processing for you. Fields like `timestamp` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, we'll fetch all events in which \$ 200M of credit was availed.
+
+Finally, suppose we want a DataFrame of that data, but we only want the symbol, timestamp, and event headline:
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the dataset
+from educational_platform.interactive.data.eventvestor import credit_facility
+# or if you want to import the free dataset, use:
+# from educational_platform.data.eventvestor import credit_facility_free
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+credit_facility.dshape
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+credit_facility.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+credit_facility[:3]
+```
+*Cell 5:*
+```python
+twohundreds = credit_facility[(credit_facility.credit_amount==200) & (credit_facility.credit_units=="$M")]
+# When displaying a Blaze Data Object, the printout is automatically truncated to ten rows.
+twohundreds.sort('timestamp')
+```
+*Cell 6:*
+```python
+twohundred_df = odo(twohundreds, pd.DataFrame)
+reduced = twohundred_df[['symbol','event_headline','timestamp']]
+# When printed: pandas DataFrames display the head(30) and tail(30) rows, and truncate the middle.
+reduced
+```
+*Cell 7:*
+```python
+
+```
+
+##### EventVestor: Dividend Announcements
+- **Original Path**: `notebooks\data\eventvestor.dividends\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 24 (Code: 15, Markdown: 9)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.algorithm import attach_pipeline, pipeline_output, from educational_platform.interactive.data.eventvestor import dividends_free  as dataset, from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.eventvestor import (, from educational_platform.pipeline.factors import AverageDollarVolume, from educational_platform.pipeline.factors.eventvestor import (, from educational_platform.research import run_pipeline, import pandas as pd
+
+**Explanatory Notes:**
+# EventVestor: Dividend Announcements
+
+In this notebook, we'll take a look at EventVestor's *Cash Dividend Announcement* dataset, available on the [Educational Platform Store](https://www.educational_platform.com/store). This dataset spans January 01, 2007 through the current day, and documents cash dividend announcements, including special dividends.

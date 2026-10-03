@@ -1,0 +1,34 @@
+# Next steps
+
+Topic: 05_Quant_Utilities
+Confidence: 0.43
+Keywords: numpy, python, pandas
+
+---
+
+## Next steps
+
+* Clone this notebook in the [Educational Platform Research Platform](http://blog.educational_platform.com/educational_platform-research-your-backtesting-data-meets-ipython-notebook/) and run it on your own to see if you can enhance the performance. 
+* You can also download just the notebook for use in your own environment [here]().
+* In a future blog post we will outline the connections to Kelly optimization which also tells us the amount of leverage to use.
+* We have added an optimization API which you can find [here](https://www.educational_platform.com/posts/optimize-api-now-available-in-algorithms).
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import cvxopt as opt
+from cvxopt import blas, solvers
+import pandas as pd
+
+np.random.seed(123)
+
+# Turn off progress printing 
+solvers.options['show_progress'] = False
+```
+*Cell 2:*
+```python

@@ -1,0 +1,337 @@
+# Use Out-of-Sample Testing
+
+Topic: 05_Quant_Utilities
+Confidence: 0.43
+Keywords: numpy, python, pandas
+
+---
+
+## Use Out-of-Sample Testing
+
+As mentioned above, out-of-sample testing is one of the best ways to reduce your risk. You should always use it, no matter the circumstances. Often one of the ways that false positives make it through your workflow is a lack of an out-of-sample test at the end.
+
+####Sources
+
+ * https://en.wikipedia.org/wiki/Multiple_comparisons_problem
+ * https://en.wikipedia.org/wiki/Sensitivity_and_specificity
+ * https://en.wikipedia.org/wiki/Bonferroni_correction
+ * https://fivethirtyeight.com/features/science-isnt-broken/
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+X = pd.Series(np.random.normal(0, 1, 100))
+Y = X
+
+r_s = stats.spearmanr(Y, X)
+print 'Spearman Rank Coefficient: ', r_s[0]
+print 'p-value: ', r_s[1]
+```
+*Cell 3:*
+```python
+X = pd.Series(np.random.normal(0, 1, 100))
+Y = X + np.random.normal(0, 1, 100)
+
+r_s = stats.spearmanr(Y, X)
+print 'Spearman Rank Coefficient: ', r_s[0]
+print 'p-value: ', r_s[1]
+```
+*Cell 4:*
+```python
+# Setting a cutoff of 5% means that there is a 5% chance
+# of us getting a significant p-value given no relationship
+# in our data (false positive).
+# NOTE: This is only true if the test's assumptions have been
+# satisfied and the test is therefore properly calibrated.
+# All tests have different assumptions.
+cutoff = 0.05
+
+X = pd.Series(np.random.normal(0, 1, 100))
+Y = X + np.random.normal(0, 1, 100)
+
+r_s = stats.spearmanr(Y, X)
+print 'Spearman Rank Coefficient: ', r_s[0]
+if r_s[1] < cutoff:
+    print 'There is significant evidence of a relationship.'
+else:
+    print 'There is not significant evidence of a relationship.'
+```
+*Cell 5:*
+```python
+df = pd.DataFrame()
+```
+*Cell 6:*
+```python
+N = 20
+T = 100
+
+for i in range(N):
+    X = np.random.normal(0, 1, T)
+    X = pd.Series(X)
+    name = 'X%s' % i
+    df[name] = X
+```
+*Cell 7:*
+```python
+df.head()
+```
+*Cell 8:*
+```python
+cutoff = 0.05
+
+significant_pairs = []
+
+for i in range(N):
+    for j in range(i+1, N):
+        Xi = df.iloc[:, i]
+        Xj = df.iloc[:, j]
+        
+        results = stats.spearmanr(Xi, Xj)
+        
+        pvalue = results[1]
+        
+        if pvalue < cutoff:
+            significant_pairs.append((i, j))
+```
+*Cell 9:*
+```python
+(N * (N-1) / 2) * 0.05
+```
+*Cell 10:*
+```python
+len(significant_pairs)
+```
+*Cell 11:*
+```python
+def do_experiment(N, T, cutoff=0.05):
+    df = pd.DataFrame()
+
+    # Make random data
+    for i in range(N):
+        X = np.random.normal(0, 1, T)
+        X = pd.Series(X)
+        name = 'X%s' % i
+        df[name] = X
+
+    significant_pairs = []
+
+    # Look for relationships
+    for i in range(N):
+        for j in range(i+1, N):
+            Xi = df.iloc[:, i]
+            Xj = df.iloc[:, j]
+
+            results = stats.spearmanr(Xi, Xj)
+
+            pvalue = results[1]
+
+            if pvalue < cutoff:
+                significant_pairs.append((i, j))
+    
+    return significant_pairs
+
+
+num_experiments = 100
+
+results = np.zeros((num_experiments,))
+
+for i in range(num_experiments):
+    # Run a single experiment
+    result = do_experiment(20, 100, cutoff=0.05)
+    
+    # Count how many pairs
+    n = len(result)
+    
+    # Add to array
+    results[i] = n
+```
+*Cell 12:*
+```python
+np.mean(results)
+```
+*Cell 13:*
+```python
+def get_pvalues_from_experiment(N, T):
+    df = pd.DataFrame()
+
+    # Make random data
+    for i in range(N):
+        X = np.random.normal(0, 1, T)
+        X = pd.Series(X)
+        name = 'X%s' % i
+        df[name] = X
+
+    pvalues = []
+
+    # Look for relationships
+    for i in range(N):
+        for j in range(i+1, N):
+            Xi = df.iloc[:, i]
+            Xj = df.iloc[:, j]
+
+            results = stats.spearmanr(Xi, Xj)
+
+            pvalue = results[1]
+
+            pvalues.append(pvalue)
+    
+    return pvalues
+
+```
+*Cell 14:*
+```python
+pvalues = get_pvalues_from_experiment(10, 100)
+plt.hist(pvalues)
+plt.ylabel('Frequency')
+plt.title('Observed p-value');
+```
+*Cell 15:*
+```python
+pvalues = get_pvalues_from_experiment(50, 100)
+plt.hist(pvalues)
+plt.ylabel('Frequency')
+plt.title('Observed p-value');
+```
+*Cell 16:*
+```python
+pvalues = get_pvalues_from_experiment(50, 100)
+plt.vlines(0.01, 0, 150, colors='r', linestyle='--', label='0.01 Cutoff')
+plt.vlines(0.05, 0, 150, colors='r', label='0.05 Cutoff')
+plt.hist(pvalues, label='P-Value Distribution')
+plt.legend()
+plt.ylabel('Frequency')
+plt.title('Observed p-value');
+```
+*Cell 17:*
+```python
+num_experiments = 100
+
+results = np.zeros((num_experiments,))
+
+for i in range(num_experiments):
+    # Run a single experiment
+    result = do_experiment(20, 100, cutoff=0.01)
+    
+    # Count how many pairs
+    n = len(result)
+    
+    # Add to array
+    results[i] = n
+```
+*Cell 18:*
+```python
+np.mean(results)
+```
+*Cell 19:*
+```python
+(N * (N-1) / 2) * 0.01
+```
+*Cell 20:*
+```python
+num_experiments = 100
+
+results = np.zeros((num_experiments,))
+
+N = 20
+
+T = 100
+
+desired_level = 0.05
+
+num_tests = N * (N - 1) / 2
+
+new_cutoff = desired_level / num_tests
+
+for i in range(num_experiments):
+    # Run a single experiment
+    result = do_experiment(20, 100, cutoff=new_cutoff)
+    
+    # Count how many pairs
+    n = len(result)
+    
+    # Add to array
+    results[i] = n
+```
+*Cell 21:*
+```python
+np.mean(results)
+```
+
+##### Principal Component Analysis
+- **Original Path**: `notebooks\lectures\PCA\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 47 (Code: 27, Markdown: 20)
+- **Imports/Dependencies**: from numpy import linalg as LA, from sklearn.decomposition import PCA, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Principal Component Analysis
+
+by Rene Zhang and Max Margenot
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [https://github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+---
+
+Applications in many fields, such as image processing, bioinformatics, and quantitative finance, involve large-scale data. Both the size and complexity of this data can make the computations required for analysis practically infeasible. Principal Component Analysis (PCA) is a classical method for dimension reduction. It uses the first several **principal components**, statistical features that explain most of the variation of a $m \times n$ data matrix $\mathbf{X}$, to describe the large-scale data matrix $\mathbf{X}$ economically.   
+
+We will introduce PCA with an image processing example. A grayscale digital image can be represented by a matrix, whose $(i,j)^{th}$ entry corresponds to the measurement of gray
+scale at the $(i,j)^{th}$ pixel. The following gray-scale image has $200 \times 200$ pixels, though it can be changed on the fly. We store it in a matrix $\mathbf{X}$. The number of rows of the  $\mathbf{X}$ is $200$, and the number of columns of $\mathbf{X}$ is $200$.
+
+We start with a simple checkboard pattern, add some random normal noise, and add a gradient.
+
+Set each row as a variable, with observations in the columns. Denote the covariance matrix of $\mathbf{X}$ as $\mathbf{C}$, where the size of $\mathbf{C}$ is $m \times m$. $\mathbf{C}$ is a matrix whose $(i,j)^{th}$ entry is the covariance between the $i^{th}$ row and $j^{th}$ row of the matrix $\mathbf{X}$.
+
+Performing principal component analysis decomposes the matrix $\mathbf{C}$ into:
+
+$$\mathbf{C} = \mathbf{L}\mathbf{P}\mathbf{L}^{\top},$$
+
+where $\mathbf{P}$ is a diagonal matrix $\mathbf{P}=\text{diag}(\lambda_1,\lambda_2,\dots,\lambda_m)$, with $\lambda_1 \geq \lambda_1 \geq \dots \lambda_m \geq 0$ being the eigenvalues of matrix $\mathbf{C}$. The matrix $\mathbf{L}$ is an orthogonal matrix, consisting the eigenvectors of matrix $\mathbf{C}$.
+
+The function `LA.eigh` lists the eigenvalues from small to large in $P$. Let us change the order first to list them from largest to smallest and make sure that $\mathbf{L}\mathbf{P}\mathbf{L}^{\top}==\mathbf{C}$. 
+
+Here we plot all of the eigenvalues:
+
+The $i^{th}$ **principal component** is given as $i^{th}$ row of $\mathbf{V}$, 
+
+ $$\mathbf{V} =\mathbf{L}^{\top} \mathbf{X}.$$
+
+
+If we multiply both sides on the left by $\mathbf{L}$, we get the following:
+
+ $$\mathbf{L}\mathbf{L}^{\top} \mathbf{X}= \mathbf{L}\mathbf{V}.$$
+
+The matrix $\mathbf{L}$ is the set of eigenvectors from a covariance matrix , so $\mathbf{L}\mathbf{L}^{\top} = \mathbf{I}$ and $\mathbf{L}\mathbf{L}^{\top}\mathbf{X} = \mathbf{X}$. The relationship among matrices of $\mathbf{X}$, $\mathbf{L}$, and $\mathbf{V}$ can be expressed as
+ 
+$$\mathbf{X} = \mathbf{L}\mathbf{V}.$$
+
+
+To approximate $\mathbf{X}$, we use $k$ eigenvectors that have largest eigenvalues:
+
+$$\mathbf{X} \approx \mathbf{L[:, 1:k]}\mathbf{L[:, 1:k]}^{\top} \mathbf{X}.$$
+
+Denote the approximated $\mathbf{X}$ as $\tilde{\mathbf{X}} = \mathbf{L[:, 1:k]}\mathbf{L[:, 1:k]}^{\top} \mathbf{X}$. When $k = m $, the $\tilde{\mathbf{X}}$ should be same as $\mathbf{X}$.
+
+The proportion of total variance due to the $i^{th}$ principal component is given by the ratio $\frac{\lambda_i}{\lambda_1 + \lambda_2 + \dots \lambda_m}.$ The sum of proportion of total variance should be $1$. As we defined, $\lambda_i$ is $i^{th}$ entry of $\mathbf{P}$, 
+
+$$\sum_{i}\frac{P_i}{\text{trace}(P)} = 1$$
+
+Where the trace$(P)$ is the sum of the diagonal of $P$.
+
+Recall the number of principal components is denoted as $k$. Let $k$ be $10, 20, 30, 60$ as examples and take a look at the corresponding approximated images.
+
+The number of variables in $X$ is $200$. When reducing the dimension to $k=60$, which uses half of the principal components, the approximated image is close to the original one.
+
+Moving forward, we do not have to do PCA by hand. Luckly, [scikit-learn](http://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html) has an implementation that we can use. Next, let us show an example in quantitative finance using sklearn.

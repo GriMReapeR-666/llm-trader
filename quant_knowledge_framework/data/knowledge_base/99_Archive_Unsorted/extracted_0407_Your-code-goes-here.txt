@@ -1,0 +1,25 @@
+# Your code goes here.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here. 
+print 'mode of l:', mode(l)
+```
+*Cell 9:*
+```python
+start = '2014-01-01'
+end = '2015-01-01'
+pricing = get_pricing('GS', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:]
+hist, bins = np.histogram(returns, 20)
+maxfreq = max(hist)
+
+print 'Mode of bins:', [(bins[i], bins[i+1]) for i, j in enumerate(hist) if j == maxfreq]
+
+```
+*Cell 10:*
+```python

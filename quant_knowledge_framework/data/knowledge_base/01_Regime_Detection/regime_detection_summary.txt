@@ -1,0 +1,18 @@
+# regime_detection
+
+Topic: 01_Regime_Detection
+Confidence: 0.67
+Keywords: market state, regime
+
+---
+
+Regime-Aware Portfolio Management
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: Risk Management
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+Regime-aware strategies detect market state changes and adjust exposure. Strategies fail when applying a single model across different market conditions.

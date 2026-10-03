@@ -1,0 +1,47 @@
+# Adjusting for Autocorrelation
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Adjusting for Autocorrelation
+
+We can adjust for autocorrelation in many of the same ways that we adjust for heteroscedasticity. Let's see if a model on the first-order differences of $Y$ has autocorrelated residuals:
+
+*Note: This new regression was conducted on the differences between data, and therefore the regression output must be back-transformed to reach a prediction in the original scale. Since we regressed the differences, we can add our predicted difference onto the original data to get our estimate:*
+
+$$\hat{Y_i} = Y_{i-1} + \hat{Y_{diff}}$$
+
+We can also perform a log transformation, if we so choose. This process is identical to the one we performed on the heteroscedastic data up above, so we will leave it out this time.
+
+# Example: Market Beta Calculation
+
+Let's calculate the market beta between TSLA and SPY using a simple linear regression, and then conduct a residual analysis on the regression to ensure the validity of our results. To regress TSLA and SPY, we will focus on their returns, not their price, and set SPY returns as our independent variable and TSLA returns as our outcome variable. The regression will give us a line of best fit: 
+
+$$\hat{r_{TSLA}} = \hat{\beta_0} + \hat{\beta_1}r_{SPY}$$
+
+The slope of the regression line $\hat{\beta_1}$ will represent our market beta, as for every $r$ percent change in the returns of SPY, the predicted returns of TSLA will change by $\hat{\beta_1}$.
+
+Let's start by conducting the regression the returns of the two assets.
+
+Our regression yielded an estimated market beta of 1.9253; according to the regression, for every 1% in return we see from the SPY, we should see 1.92% from TSLA.
+
+Now that we have the regression results and residuals, we can conduct our residual analysis. Our first step will be to plot the residuals and look for any red flags:
+
+By simply observing the distribution of residuals, it does not seem as if there are any abnormalities. The distribution is relatively random and no patterns can be observed (the clustering around the origin is a result of the nature of returns to cluster around 0 and is not a red flag). Our qualitative conclusion is that the data is homoscedastic and not autocorrelated and therefore satisfies the assumptions for linear regression.
+
+###Breusch-Pagan Heteroscedasticity Test
+
+Our qualitative assessment of the residual plot is nicely supplemented with a couple statistical tests. Let's begin by testing for heteroscedasticity using a Breusch-Pagan test. Using the `het_breuschpagan` function from the statsmodels package:
+
+Because the P-value is greater than 0.05, we do not have enough evidence to reject the null hypothesis that the relationship is homoscedastic. This result matches up with our qualitative conclusion.
+
+###Ljung-Box Autocorrelation Test
+
+Let's also check for autocorrelation quantitatively using a Ljung-Box test. Using the `acorr_ljungbox` function from the statsmodels package and the default maximum lag:
+
+Because the Ljung-Box test yielded p-values above 0.05 for all lags, we can conclude that the residuals are not autocorrelated. This result matches up with our qualitative conclusion.
+
+After having visually assessed the residual plot of the regression and then backing it up using statistical tests, we can conclude that the data satisfies the main assumptions and the linear model is valid.

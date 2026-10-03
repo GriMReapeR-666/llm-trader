@@ -1,0 +1,12 @@
+# Cointegration and Mean Reversion
+
+Topic: 05_Quant_Utilities
+Confidence: 0.88
+Keywords: cointegration
+
+---
+
+## Cointegration and Mean Reversion
+The idea behind cointegration is that even if the prices of two different assets both follow random walks, it is still possible that a linear combination of them is not a random walk. A common analogy is of a dog owner walking his dog with a retractable leash. If you look at the position of the dog owner, it may follow a random walk, and if you look at the dog separately, it also may follow a random walk, but the distance between them, the difference of their positions, may very well be mean reverting. If the dog is behind the owner, he may run to catch up and if the dog is ahead, the length of the leash may prevent him from getting too far away. 
+
+The dog and its owner are linked together and their distance is a mean reverting process.  In cointegration, we look for assets that are economically linked, so that if $P_t$ and $Q_t$ are both random walks, the linear combination, $P_t - b Q_t$, may not itself be a random walk and may be forecastable.

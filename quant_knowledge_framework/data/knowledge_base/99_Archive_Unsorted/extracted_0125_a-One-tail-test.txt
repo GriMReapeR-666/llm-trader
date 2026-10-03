@@ -1,0 +1,32 @@
+# a. One tail test.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. One tail test. 
+
+Using the techniques laid out in lecture, verify if we can state that the returns of TSLA **are greater** than 0.
+- Start by stating the null and alternative hypothesis
+    - Are we dealing with a one or two tailed test? Why? 
+- Calculate the mean differences, and the Z-test using the formula provided in class. 
+    - *Recall: This is a one parameter test, use the appropriate Z-test*
+- Use the stat library to calculate the associated p value with your t statistic. 
+    - Compare your found p-value to the set $\alpha$ value, and conclude. 
+    
+
+###### Useful Formulas: 
+$$ \text{Test statistic} =  \frac{\bar{X}*\mu - \theta_0}{s*{\bar{X}}} = \frac{\bar{X}_\mu - 0}{s\sqrt{n}} $$  
+
+###### One tail hypotheses.
+- *Null hypothesis: No difference in average returns in both population, the mean **is less** than 0*
+- *Althernative hypothesis: There is a difference in average returns of both populations, the mean is **not less** than 0*
+
+###### Comparing p-value with different $\alpha$ values
+With $\alpha = 0.01$, our p-value is greater than our $\alpha$ value, we thus **fail to reject** the null hypothesis.   
+With $\alpha = 0.5$, our p-value is greater than our $\alpha$ value, we thus **fail to reject** the null hypothesis.   
+With $\alpha = 0.1$, our p-value is greater than our $\alpha$ value, we thus **fail to reject** the null hypothesis. 
+
+In the graph above, we can clearly see the rejection region for all three values of $\alpha$ are bellow the found p-value.

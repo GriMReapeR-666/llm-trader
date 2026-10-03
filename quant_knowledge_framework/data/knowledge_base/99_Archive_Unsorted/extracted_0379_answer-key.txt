@@ -1,0 +1,37 @@
+# answer key ##
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## answer key ##
+score, pvalue, _ = coint(C,D)
+
+confidence_level = 0.05
+
+if pvalue < confidence_level:
+    print ("C and D are cointegrated")
+    print pvalue
+else:
+    print ("C and D are not cointegrated")
+    print pvalue
+
+C.name = "C"
+D.name = "D"
+pd.concat([C, D], axis=1).plot();
+```
+*Cell 7:*
+```python
+cn = continuous_future('CN', offset = 0, roll = 'calendar', adjustment = 'mul')
+sb = continuous_future('SB', offset = 0, roll = 'calendar', adjustment = 'mul')
+
+cn_price = history(cn, 'price', '2015-01-01', '2016-01-01', 'daily')
+sb_price = history(sb, 'price', '2015-01-01', '2016-01-01', 'daily')
+
+#Your code goes here
+#print history.__doc__
+```
+*Cell 8:*
+```python

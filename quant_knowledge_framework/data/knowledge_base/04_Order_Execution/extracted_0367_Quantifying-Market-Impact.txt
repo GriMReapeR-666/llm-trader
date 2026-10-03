@@ -1,0 +1,104 @@
+# **Quantifying Market Impact**
+
+Topic: 04_Order_Execution
+Confidence: 0.89
+Keywords: slippage, transaction cost, permanent impact, temporary impact, spread, execution, market impact
+
+---
+
+## **Quantifying Market Impact**
+
+Theoritical Market Impact models attempt to estimate transaction costs of trading by utilizing order attributes. There are many published market impact models. Here are some examples: 
+
+1. Educational Platform Volume Slippage Model 
+2. Almgren et al 2005
+3. Kissell et al. 2004
+4. J.P. Morgan Model 2010
+
+
+The models have a few commonalities such as the inclusion of relative order size, volatility as well as custom parameters calculated from observed trades.There are also notable differences in the models such as (1)  JPM explictly calls out spread impact, (2) Almgren considers fraction of outstanding shares traded daily, (3) Q Slipplage Model does not consider volatility , and (4) Kissel explicit parameter to proportion temporary and permenant impact, to name a few.
+
+The academic models have notions of temporary and permanant impact. **Temporary Impact** captures the impact on transaction costs due to urgency or aggressiveness of the trade. While **Permenant Impact** estimates with respect to information or short term alpha in a trade.
+
+### Almgren et al. model (2005)
+ 
+This model assumes the initial order, X, is completed at a uniform rate of trading over a volume time
+interval T. That is, the trade rate in volume units is v = X/T, and is held
+constant until the trade is completed. Constant rate in these units is
+equivalent to VWAP execution during the time of execution. 
+
+
+Almgren et al. model these two terms as
+
+
+
+$$\text{tcost} = 0.5 \overbrace{\gamma \sigma  \frac{X}{V}\left(\frac{\Theta}{V}\right)^{1/4}}^{\text{permanent}} + \overbrace{\eta \sigma \left| \frac{X}{VT} \right|^{3/5}}^{\text{temporary}} $$
+
+
+where $\gamma$ and $\eta$ are the "universal coefficients of market impact" and estimated by the authors using a large sample of institutional trades; $\sigma$ is the daily volatility of the stock; $\Theta$ is the total shares outstanding of the stock; $X$ is the number of shares you would like to trade (unsigned); $T$ is the time width in % of trading time over which you slice the trade; and $V$ is the average daily volume ("ADV") in shares of the stock. The interpretation of $\frac{\Theta}{V}$ is the inverse of daily "turnover", the fraction of the company's value traded each day.
+
+For reference, FB has 2.3B shares outstanding, its average daily volume over 20 days is 18.8M therefore its inverse turnover is approximately 122, put another way, it trades less than 4% of outstanding shares daily.
+
+
+
+### Potential Limitations
+
+Note that the Almgren et al (2005) and Kissell, Glantz and Malamut (2004) papers were released prior to the adoption and phased implementation of [__Reg NMS__](https://www.sec.gov/rules/final/34-51808.pdf), prior to the "quant meltdown" of August 2007, prior to the financial crisis hitting markets in Q4 2008, and other numerous developments in market microstructure. 
+
+
+So if we are trading 10% of ADV of a stock with a daily vol of 1.57% and we plan to do this over half the day, we would expect 8bps of TC (which is the Almgren estimate of temporary impact cost in this scenario). From the paper, this is a sliver of the output at various trading speeds:
+
+  Variable      |      IBM
+  ------------- | -------------
+  Inverse turnover ($\Theta/V$) | 263
+  Daily vol ($\sigma$)  | 1.57%
+  Trade % ADV (X/V) | 10%
+  
+  Item | Fast | Medium | Slow
+  -----|------|--------|-------
+  Permanent Impact (bps) | 20 | 20 | 20
+  Trade duration (day fraction %) | 10% | 20% | 50%
+  Temporary Impact (bps) | 22 | 15 | 8
+  Total Impact (bps) | 32 | 25 | 18
+  
+
+Trading 0.50% of ADV of a stock with a daily vol of 1.57% and we plan to do this over 30 minutes...
+
+Let's say we wanted to trade \$2M notional of Facebook, and we are going to send the trade to an execution algo (e.g., VWAP) to be sliced over 15 minutes.
+
+And to motivate some intuition, at the total expected cost varies as a function of how much % ADV we want to trade in 30 minutes.
+
+And let's look a tcost as a function of trading time and % ADV.
+
+Alternatively, we might want to get some intuition as to if we wanted to limit our cost, how does the trading time vary versus % of ADV.
+
+### The Breakdown: Permanent and Temporary
+
+For a typical stock, let's see how the tcost is broken down into permanent and temporary.
+
+### Kissell et al Model (2004)
+
+This model assumes there is a theoretical instaenous impact cost $I^*$ incurred by the investor if all shares $Q$ were released to the market.
+
+$$ MI_{bp} = b_1 I^* POV^{a_4} + (1-b_1)I^*$$
+
+
+$$ I^*  = a_1 (\frac{Q}{ADV})^{a_2} \sigma^{a_3}$$
+
+$$POV = \frac{Q}{Q+V}$$
+
+* $I^*$ is instanteous impact
+* $POV$ is percentage of volume trading rate
+* $V$ is the expected volume in the interval of trading
+* $b_1$ is the temporary impact parameter
+* $ADV$ is 30 day average daily volume
+* $Q$ is order size
+
+
+  Parameter      |      Fitted Values
+  ------------- | -------------
+  $b_1$ | 0.80
+  $a_1$  | 750
+  $a_2$  | 0.50
+  $a_3$  | 0.75
+  $a_4$  | 0.50

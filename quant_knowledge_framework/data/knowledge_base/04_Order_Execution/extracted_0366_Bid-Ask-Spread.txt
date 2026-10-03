@@ -1,0 +1,33 @@
+# Bid-Ask Spread
+
+Topic: 04_Order_Execution
+Confidence: 0.82
+Keywords: spread, bid-ask spread
+
+---
+
+## Bid-Ask Spread
+
+
+The following relationships between bid-ask spread and order attributes are seen in our live trading data:
+
+* As **market cap ** increases we expect spreads to decrease.  Larger companies tend to exhibit lower bid-ask spreads.
+
+* As **volatility ** increases we expect spreads to increase. Greater price uncertainty results in wider bid-ask spreads.
+
+* As  **average daily dollar volume ** increases, we expect spreads to decrease. Liquidity tends to be inversely proportional to spreads, due to larger number of participants and more frequent updates to quotes.
+
+* As  **price ** increases, we expect spreads to decrease (similar to market cap), although this relationship is not as strong.
+
+* As  **time of day ** progresses we expect spreads to decrease. During early stages of a trading day, price discovery takes place. in contrast, at market close order completion is the priority of most participants and activity is led by liquidity management, rather than price discovery.  
+
+The Trading Team developed a log-linear model fit to our live data that predicts the spread for a security with which we have the above listed attributes. 
+
+### Predict the spread for the following order : 
+* Stock: DPS
+* Qty:  425 shares
+* Time of day : 9:41 am July 19, 2017, 600 seconds from open
+* Market Cap : 1.67e10
+* Volatility: 18.8%
+* ADV : 929k shares  ; 84.5M dollars
+* Avg Price : 91.0159

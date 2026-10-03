@@ -1,0 +1,15 @@
+# a. Residual Analysis I
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Residual Analysis I
+- Model the data given bellow as a linear regression. 
+- Calculate and plot the residual of the data sets *(remember to use the coefficient and the value of x1 to find the predicted values of y)*
+- Print the sum of the residuals. 
+- Discuss the choice of regression model. 
+
+Run the Breush-Pagan test to check for heteroskedasticity in the residuals. Note that the residuals of the model should have constant variance, presence of heteroskedasticity would indicate our choice of model is not optimal.

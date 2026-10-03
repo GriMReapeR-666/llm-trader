@@ -1,0 +1,14 @@
+# Finding a Feasible Spread
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Finding a Feasible Spread
+For stocks, a natural starting point for identifying cointegrated pairs is looking at stocks in the same industry. However, competitors are not necessarily economic substitutes. Think of Apple and Blackberry.  It's not always the case that when one of those company's stock price jumps up, the other catches up. The economic link is fairly tenuous. Here it is more like the dog broke the leash and ran away from the owner.
+
+However, with pairs of futures, there may be economic forces that link the two prices. Consider heating oil and natural gas. Some power plants have the ability to use either one, depending on  which has become cheaper. So when heating oil has dipped below natural gas, increased demand for heating oil will push it back up. Platinum and Palladium are substitutes for some types of catalytic converters used for emission control. Corn and wheat are substitutes for animal feed. Corn and sugar are substitutes as sweeteners. There are many potential links to examine and test.
+
+Let's go through a specific example of futures prices that might be cointegrated.

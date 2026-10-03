@@ -1,0 +1,38 @@
+# How do institutional quant trading teams evaluate transaction cost ?
+
+Topic: 04_Order_Execution
+Confidence: 0.88
+Keywords: slippage, transaction cost, temporary impact, spread, execution, implementation shortfall, market impact, bid-ask spread
+
+---
+
+## How do institutional quant trading teams evaluate transaction cost ?
+
+Quantitiative institutional trading teams typically utilize execution tactics that aim to complete parent orders fully, while minimizing the cost of execution. To achieve this goal, parent orders are often split into a number of child orders, which are routed to different execution venues, with the goal to capture all the available liquidity and minimize the bid-ask spread. The parent-level execution price can be expressed as the volume-weighted average price of all child orders.
+
+**Q: What benchmark(s) should we compare our execution price to ?**
+
+*Educational Platform Trading Team Benchmarks :*
+* **Arrival Price** - the "decision" price of the algo, defined as the mid-quote at the time the algo placed the parent order (mid is the half-way point between the best bid and ask quotes)
+* **Interval VWAP** - volume-weighted average price during the life of the order
+* **T + 10 min** - reversion benchmark, price 10 min after the last fill vs execution price
+* **T + 30 min** - reversion benchmark, price 30 min after the last fill vs execution price
+* **Close** - reversion benchmark, price at close vs the execution price
+* **Open** - momentum benchmark, price at open vs the execution price
+* **Previous close**  - momentum benchmark, price at previous close vs execution price
+*Other metrics and definitions
+
+
+$$ Metric  = \frac{Side * (Benchmark - Execution\thinspace Price )* 100 * 100}{ Benchmark }$$
+
+*Key Ideas*
+* **Execution Price** - volume-weighted average price of all fills or child orders
+* **Cost vs Arrival Price** - difference between the arrival price and the execution price, expressed in basis points. The idea with this benchmark is to compare the execution price against the decision price of the strategy. This cost is sometimes called "slippage" or "implementation shortfall."
+
+The reversion metrics give us an indication of our temporary impact after the order has been executed. Generally, we'd expect the stock price to revert a bit, upon our order completion, as our contribution to the buy-sell imbalance is reflected in the market. The momentum metrics give us an indication of the direction of price drift prior to execution. Often, trading with significant momentum can affect our ability to minimize the bid-ask spread costs.
+
+When executing an order, one of the primary tradeoffs to consider is timing risk vs. market impact:
+* **Timing Risk** -  risk of price drift and information leakage as interval between arrival mid quote and last fill increases.
+* **Market Impact** - (high urgency) risk of moving the market by shortening the interval between arrival mid quote and last fill.
+
+Within this framework, neutral urgency of execution occurs at the intersection of market risk and market impact - in this case, each contributes the same to execution costs.

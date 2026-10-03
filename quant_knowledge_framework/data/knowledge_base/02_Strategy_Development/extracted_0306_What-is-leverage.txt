@@ -1,0 +1,23 @@
+# What is leverage?
+
+Topic: 02_Strategy_Development
+Confidence: 0.67
+Keywords: ev, strategy
+
+---
+
+## What is leverage?
+
+Leverage is borrowing money, then investing that money into some trading strategy so as to effectively multiply your initial capital base by some amount.
+
+### More Specifically
+
+Leverage is reinvesting debt to gain a greater return on an investment. We include debt in our asset portfolio as a financial instrument that pays one large cash flow upfront (the loan) and gradually pays negative cash flows out over time. The size of these negative cash flows is determined by the interest rate on our debt. The large upfront cashflow allows us to supplement our capital base. In this way we use our capital and our leverage together to purchase the assets necessary to execute our trading strategy.
+
+### Why would you do this?
+
+If you are confident in a strategy and believe it to be low risk, you can put more money than you currently have into that strategy in an effort to multiply your returns. You of course have to have confidence that the returns on your strategy will exceed the interest rate on your debt.
+
+#### Risk Adjusted Returns
+
+We'll talk about this more later, but risk adjusted return is expressed in the Sharpe Ratio (excess returns/risk). A strategy with a high Sharpe Ratio may not have good absolute returns, say $2\%$ annually, but if the Sharpe Ratio is high the risk will also be correspondingly low. Multiplying the capital base multiplies both the risk and returns of the strategy, keeping the Sharpe Ratio the same. See lower in the notebook for more.

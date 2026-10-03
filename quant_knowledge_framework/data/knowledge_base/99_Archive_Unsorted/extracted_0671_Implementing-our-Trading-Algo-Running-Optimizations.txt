@@ -1,0 +1,12 @@
+# Implementing our Trading Algo & Running Optimizations
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Implementing our Trading Algo & Running Optimizations
+We start by importing our tools. Also note that if you want to run this yourself you need to create a file in this folder called `creds.py` where you place your SigOpt credentials (a free trial is avaible if you go to [SigOpt.com](https://sigopt.com)).
+
+Next we will load in pricing data via Yahoo! finance.

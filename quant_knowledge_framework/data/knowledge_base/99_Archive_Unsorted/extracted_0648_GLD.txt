@@ -1,0 +1,15 @@
+# GLD
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## GLD
+
+We look at **GLD**, the largest gold ETF, storing assets of about \$24bn. GLD started trading on `2004-11-18`.
+
+It's interesting that the volatility in GLD seems to be quasi-cyclical. Now we'll overlay GLD and Fed Sentiment for each of the windows to look for patterns:
+
+While we can see a few movements that correspond, most do not correspond at all. It doesn't look like there's anything in the vein of a reliable linear relationship here, even if we were to adjust for some lag between the time-series.

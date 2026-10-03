@@ -1,0 +1,11 @@
+# Fundamental factor models
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Fundamental factor models
+
+Fundamentals are data having to do with the asset issuer, like the sector, size, and expenses of the company. In the fundamental factor model, we use the same equation as before, but interpret the terms differently. The factors $F_j$ represent the returns associated with some fundamental characteristics.

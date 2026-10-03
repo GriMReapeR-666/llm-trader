@@ -1,0 +1,29 @@
+# Volatility
+
+Topic: 01_Regime_Detection
+Confidence: 0.64
+Keywords: garman-klass, yang-zhang, volatility
+
+---
+
+## Volatility
+
+Volatilty is a statistical measure of dispersion of returns for a security. Calculated as the standard deviation of returns. The volatility of any given stock typically peaks at the open and therafter decreases until mid-day.The higher the volatility the more uncertainty in the returns. This uncertainty is an artifact of larger bid-ask spreads during the price discovery process at the start of the trading day. In contrast to liquidity, where we would prefer to trade at the open to take advantage of high volumes, to take advantage of low volatility we would trade at the close.
+
+We use two methods to calculate volatility for demonstration purposes, OHLC and, the most common, close-to-close. OHLC uses the Garman-Klass Yang-Zhang volatilty estimate that employs open, high, low, and close data. 
+
+OHLC VOLATILITY ESTIMATION METHOD 
+
+$$\sigma^2 = \frac{Z}{n} \sum \left[\left(\ln \frac{O_i}{C_{i-1}} \right)^2  +  \frac{1}{2} \left( \ln \frac{H_i}{L_i} \right)^2 - (2 \ln 2 -1) \left( \ln \frac{C_i}{O_i} \right)^2 \right]$$
+
+
+
+CLOSE TO CLOSE HISTORICAL VOLATILITY ESTIMATION METHOD
+
+Volatility is calculated as the annualised standard deviation of log returns as detailed in the equation below.
+
+$$ Log \thinspace return = x_1 = \ln (\frac{c_i + d_i}{c_i-1} ) $$
+ where d_i  = ordinary(not adjusted) dividend and ci is close price
+ $$ Volatilty =  \sigma_x \sqrt{ \frac{1}{N} \sum_{i=1}^{N} (x_i - \bar{x})^2 }$$
+
+See end of notebook for references

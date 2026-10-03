@@ -1,0 +1,22 @@
+# **Challenge file hash**
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Challenge file hash**
+
+The commpressed archive
++ MD5 hash: d72a2141baa6670d46c77b5f452f09f7
+
+The memory dump
++ MD5 hash: 9dd6cb1134c9b018020bad44f27394db
+
+Please follow the [flag submission rules](https://github.com/stuxnet999/MemLabs#flag-submission) when sending the email for solution verification.
+
+#### Lab 6
+**Source File**: `C:\Users\User\AppData\Local\Temp\kilo\memlabs_repo\Lab 6\README.md`
+
+# **MemLabs Lab 6 - The Reckoning**

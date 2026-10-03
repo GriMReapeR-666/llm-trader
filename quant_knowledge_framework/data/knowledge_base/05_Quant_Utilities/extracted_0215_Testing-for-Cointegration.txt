@@ -1,0 +1,23 @@
+# Testing for Cointegration
+
+Topic: 05_Quant_Utilities
+Confidence: 0.88
+Keywords: cointegration
+
+---
+
+## Testing for Cointegration
+That's an intuitive definition, but how do we test for this statistically? There is a convenient cointegration test that lives in `statsmodels.tsa.stattools`. Let's say that our confidence level is $0.05$. We should see a p-value below our cutoff, as we've artifically created two series that are the textbook definition of cointegration.
+
+### Correlation vs. Cointegration
+Correlation and cointegration, while theoretically similar, are not the same. To demonstrate this, we'll show examples of series that are correlated, but not cointegrated, and vice versa. To start let's check the correlation of the series we just generated.
+
+That's very high, as we would expect. But how would two series that are correlated but not cointegrated look? 
+
+### Correlation Without Cointegration
+A simple example is two series that just diverge.
+
+### Cointegration Without Correlation
+A simple example of this case is a normally distributed series and a square wave.
+
+Sure enough, the correlation is incredibly low, but the p-value shows that these are cointegrated.

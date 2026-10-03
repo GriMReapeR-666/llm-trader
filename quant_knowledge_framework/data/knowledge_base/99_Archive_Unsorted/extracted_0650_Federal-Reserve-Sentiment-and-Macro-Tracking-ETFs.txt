@@ -1,0 +1,38 @@
+# Federal Reserve Sentiment and Macro-Tracking ETFs
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Federal Reserve Sentiment and Macro-Tracking ETFs
+By John Loeber
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+### Abstract
+
+We try to find relationships between macro-tracking ETFs and the sentiment of the Federal Reserve Bank. We conclude that while these relationships seem to exist for certain ETFs, we need to incorporate higher-level macroeconomic variables to use these relationships as signals in practice.
+
+### Introduction
+
+[Prattle](http://prattle.co/) provides sentiment data from central bank communications. We explore their  Central Bank Sentiment Dataset: this dataset contains weekly *sentiment data* from many central banks around the globe (though we focus on the Federal Reserve Bank). The sentiment data wraps up all publications of the Fed from every week (between about 1998 and 2015) into a single real number representing the general sentiment of the Fed that week.
+
+We try to find a relationship between sentiment at the Federal Reserve and various macro-tracking ETFs. We quickly find that the data itself is quite noisy. To mitigate the noise, we use [Kalman-Filtered Moving Averages](https://www.quantopian.com/posts/quantopian-lecture-series-kalman-filters) in our investigation. In this context, a Kalman Filter is a mathematical tool that allows us to construct moving averages that don't have the drawbacks of traditionally calculated moving averages.
+
+We look at the following ETFs (relationship with the Fed Sentiment data included parenthetically):
+- SHY (no signal)
+- IEI (no signal)
+- IEF (possible signal)
+- TLT (probably a signal)
+- CWB (probably no signal)
+- DIA (probably a signal)
+- SPY (probably a signal)
+- GLD (probably no signal)
+
+### Conclusion
+
+We conclude that finding relationships between Fed Sentiment Data and certain macro-tracking ETFs is possible, and in the cases of DIA and SPY looks quite promising, but can be problematic because of macroeconomic [confounders](https://en.wikipedia.org/wiki/Confounding). It seems that for the ETFs that have a reasonably close correspondence to Fed Sentiment, both Fed Sentiment and those ETFs really respond to the same general macroeconomic variables. However, they respond at different speeds -- so sometimes the Fed Sentiment responds first, at other times the ETF price responds first. Thus, when taking Fed Sentiment data as a signal, it is not easy to know whether you are moving to capture a future trend, or whether you are moving to capture a past trend. This makes it harder to trade on Fed Sentiment, though not at all impossible.

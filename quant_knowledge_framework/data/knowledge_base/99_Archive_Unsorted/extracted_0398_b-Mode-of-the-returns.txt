@@ -1,0 +1,14 @@
+# b. Mode of the returns.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Mode of the returns. 
+Find the mode associated witht the returns of Goldman Sachs Corp. (GS). *Recall with returns, there may not be any values that appear more than once.*
+
+---
+
+# Exercise 4 : Geometric mean

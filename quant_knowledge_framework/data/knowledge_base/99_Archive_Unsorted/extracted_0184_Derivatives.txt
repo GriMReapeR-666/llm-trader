@@ -1,0 +1,12 @@
+# Derivatives
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Derivatives
+We have stated that a futures contract is a derivative, so let's be clear on what a derivative is. A derivative is a financial instrument whose value is dependent on the value of an underlying asset. This can be a complex relationship or it can be something very simple. Derivatives have been constructed for a variety of different purposes in order to make more and more intricate bets about the markets. They provide new ways to express your expectations of how the markets will move and are used to great effect in conjunction with more conventional investments. Large amounts of resources are devoted to the construction and pricing of exotic derivatives, though that is beyond the scope of this lecture.
+
+A futures contract is a standardized version of one of the simplest possible derivatives, the **forward contract**. Let's look at how forward contracts behave to give us a little more background on futures.

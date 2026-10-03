@@ -1,0 +1,17 @@
+# Helper Functions
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Helper Functions
+
+----
+
+#Exercise 1: Stationarity Testing
+
+##a. Checking For Stationarity
+
+Check whether the following series is stationary using the tests from the lecture.

@@ -1,0 +1,149 @@
+# Let's see an example of this
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: numpy, python, pandas
+
+---
+
+## Let's see an example of this
+n = 100
+
+def compare_correlation_and_spearman_rank(n, noise):
+    X = np.random.poisson(size=n)
+    Y = np.exp(X) + noise * np.random.normal(size=n)
+
+    Xrank = stats.rankdata(X, method='average')
+    # n-2 is the second to last element
+    Yrank = stats.rankdata(Y, method='average')
+
+    diffs = Xrank - Yrank # order doesn't matter since we'll be squaring these values
+    r_s = 1 - 6*sum(diffs*diffs)/(n*(n**2 - 1))
+    c_c = np.corrcoef(X, Y)[0,1]
+    
+    return r_s, c_c
+
+experiments = 1000
+spearman_dist = np.ndarray(experiments)
+correlation_dist = np.ndarray(experiments)
+for i in range(experiments):
+    r_s, c_c = compare_correlation_and_spearman_rank(n, 1.0)
+    spearman_dist[i] = r_s
+    correlation_dist[i] = c_c
+    
+print 'Spearman Rank Coefficient: ' + str(np.mean(spearman_dist))
+# Compare to the regular correlation coefficient
+print 'Correlation coefficient: ' + str(np.mean(correlation_dist))
+```
+*Cell 4:*
+```python
+plt.hist(spearman_dist, bins=50, alpha=0.5)
+plt.hist(correlation_dist, bins=50, alpha=0.5)
+plt.legend(['Spearman Rank', 'Regular Correlation'])
+plt.xlabel('Correlation Coefficient')
+plt.ylabel('Frequency');
+```
+*Cell 5:*
+```python
+n = 100
+noises = np.linspace(0, 3, 30)
+experiments = 100
+spearman = np.ndarray(len(noises))
+correlation = np.ndarray(len(noises))
+
+for i in range(len(noises)):
+    # Run many experiments for each noise setting
+    rank_coef = 0.0
+    corr_coef = 0.0
+    noise = noises[i]
+    for j in range(experiments):
+        r_s, c_c = compare_correlation_and_spearman_rank(n, noise)
+        rank_coef += r_s
+        corr_coef += c_c
+    spearman[i] = rank_coef/experiments
+    correlation[i] = corr_coef/experiments
+    
+plt.scatter(noises, spearman, color='r')
+plt.scatter(noises, correlation)
+plt.legend(['Spearman Rank', 'Regular Correlation'])
+plt.xlabel('Amount of Noise')
+plt.ylabel('Average Correlation Coefficient')
+```
+*Cell 6:*
+```python
+n = 100
+
+X = np.random.rand(n)
+Xrank = stats.rankdata(X, method='average')
+# n-2 is the second to last element
+Yrank = stats.rankdata([1,1] + list(X[:(n-2)]), method='average')
+
+diffs = Xrank - Yrank # order doesn't matter since we'll be squaring these values
+r_s = 1 - 6*sum(diffs*diffs)/(n*(n**2 - 1))
+print r_s
+```
+*Cell 7:*
+```python
+# Generate two random data sets
+np.random.seed(161)
+X = np.random.rand(10)
+Y = np.random.rand(10)
+
+r_s = stats.spearmanr(X, Y)
+print 'Spearman Rank Coefficient: ', r_s[0]
+print 'p-value: ', r_s[1]
+```
+*Cell 8:*
+```python
+mutual_fund_data = local_csv('mutual_fund_data.csv')
+expense = mutual_fund_data['Annual Expense Ratio'].values
+sharpe = mutual_fund_data['Three Year Sharpe Ratio'].values
+
+plt.scatter(expense, sharpe)
+plt.xlabel('Expense Ratio')
+plt.ylabel('Sharpe Ratio')
+
+r_S = stats.spearmanr(expense, sharpe)
+print 'Spearman Rank Coefficient: ', r_S[0]
+print 'p-value: ', r_S[1]
+```
+*Cell 9:*
+```python
+symbol_list = ['A', 'AA', 'AAC', 'AAL', 'AAMC', 'AAME', 'AAN', 'AAOI', 'AAON', 'AAP', 'AAPL', 'AAT', 'AAU', 'AAV', 'AAVL', 'AAWW', 'AB', 'ABAC', 'ABAX', 'ABB', 'ABBV', 'ABC', 'ABCB', 'ABCD', 'ABCO', 'ABCW', 'ABDC', 'ABEV', 'ABG', 'ABGB']
+
+# Get the returns over the lookback window
+start = '2014-12-01'
+end = '2015-01-01'
+historical_returns = get_pricing(symbol_list, fields='price', start_date=start, end_date=end).pct_change()[1:]
+
+# Compute our stock score
+scores = np.mean(historical_returns)
+print 'Our Scores\n'
+print scores
+print '\n'
+
+start = '2015-01-01'
+end = '2015-02-01'
+walk_forward_returns = get_pricing(symbol_list, fields='price', start_date=start, end_date=end).pct_change()[1:]
+walk_forward_returns = np.mean(walk_forward_returns)
+print 'The Walk Forward Returns\n'
+print walk_forward_returns
+print '\n'
+
+plt.scatter(scores, walk_forward_returns)
+plt.xlabel('Scores')
+plt.ylabel('Walk Forward Returns')
+
+r_s = stats.spearmanr(scores, walk_forward_returns)
+print 'Correlation Coefficient: ' + str(r_s[0])
+print 'p-value: ' + str(r_s[1])
+```
+
+##### b. Spearman Rank Correlation
+- **Original Path**: `notebooks\lectures\Spearman_Rank_Correlation\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 21 (Code: 10, Markdown: 11)
+- **Imports/Dependencies**: from quantopian.pipeline import Pipeline, from quantopian.pipeline.classifiers.morningstar import Sector, from quantopian.pipeline.data.builtin import USEquityPricing, from quantopian.pipeline.factors import CustomFactor, Returns, RollingLinearRegressionOfReturns, from quantopian.pipeline.filters import QTradableStocksUS, from quantopian.research import run_pipeline, from time import time, import math, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy.stats as stats
+
+**Explanatory Notes:**
+#Exercises: Spearman Rank Correlation

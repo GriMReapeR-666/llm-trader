@@ -1,0 +1,12 @@
+# Futures Positions Have Inherent Leverage
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Futures Positions Have Inherent Leverage
+In entering a futures position, you place down a certain amount of capital in a margin account. This margin account is exposed to the fluctuating futures price of the underlying that you have chosen. This creates a levered position off the bat as the value that you are exposed to (before delivery) in the account is different from the overall value that is on the hook at delivery.
+
+This internal leverage is determined on a contract to contract basis due to the different multipliers involved for different underlyings.

@@ -1,0 +1,53 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+plt.xlabel();## Your code goes here
+plt.ylabel();## Your code goes here
+plt.title(); ## Your code goes here
+```
+*Cell 11:*
+```python
+data1 = get_pricing('SBUX', fields='open_price', start_date='2013-01-01', end_date='2014-01-01')
+data2 = get_pricing('SPY', fields='open_price', start_date = '2013-01-01', end_date='2014-01-01')
+
+rdata1= data1.pct_change()[1:]
+rdata2= data2.pct_change()[1:]
+plt.scatter(rdata2, rdata1);
+```
+*Cell 12:*
+```python
+plt.scatter(rdata2, rdata1)
+
+a = ## Your code goes here
+b = ## Your code goes here
+
+x = np.arange(-0.02, 0.03, 0.01)
+y = a + (b*x)
+plt.plot(x,y, color='r');
+```
+
+##### Portfolio Analysis
+- **Original Path**: `notebooks\lectures\Portfolio_Analysis\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 62 (Code: 25, Markdown: 37)
+- **Imports/Dependencies**: import empyrical, import matplotlib.pyplot as plt, import pyfolio as pf
+
+**Explanatory Notes:**
+# Portfolio Analysis
+by Samuel Ching, Maxwell Margenot, Gus Gordon, and Delaney Mackenzie
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [https://github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+In professional quant workflows, it is critical to demonstrate the efficacy of any portfolio through rigorous testing. This is fundamental to understanding the risk profile as well as the performance of the portfolio. As such, quants and developers often have to build in-house tools to measure these metrics. To this end, we have created a package called pyfolio. pyfolio is a Python library for performance and risk analysis of financial portfolios, available on github [here](https://github.com/educational_platform/pyfolio). It allows us to easily generate tear sheets to analyze the risk and performance of trading algorithms as well as return streams in general.

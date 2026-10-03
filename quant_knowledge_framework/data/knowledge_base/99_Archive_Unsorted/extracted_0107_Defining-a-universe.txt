@@ -1,0 +1,11 @@
+# Defining a universe
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Defining a universe
+
+As always, we need to define our universe. In this case we use the QTradableStocksUS, as seen in the forums [here](https://www.quantopian.com/posts/working-on-our-best-universe-yet-qtradablestocksus).

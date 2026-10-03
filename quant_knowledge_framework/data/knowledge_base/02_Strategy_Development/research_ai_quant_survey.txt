@@ -1,0 +1,42 @@
+# AI in Quantitative Investment: Deep Learning to LLMs Survey
+
+**Source**: arxiv:2503.21422v1 (March 2025)
+
+## Overview
+Comprehensive survey of AI applications in quantitative investment, covering the evolution from traditional statistical models to deep learning and large language models (LLMs).
+
+## Key Concepts
+
+### Alpha Strategy Pipeline
+1. **Data Processing**: Clean, normalize, feature engineering
+2. **Model Prediction**: ML/DL models forecast returns
+3. **Portfolio Optimization**: Risk-adjusted allocation
+4. **Order Execution**: Minimize transaction costs
+
+### Deep Learning Contributions
+- Spatial interconnectedness analysis
+- Long-term temporal dependence modeling
+- News sentiment integration
+- Non-linear pattern recognition
+
+### LLM Applications
+- **As Predictors**: Return forecasting, sentiment analysis
+- **As Agents**: Autonomous research, factor generation, execution
+- **Multi-modal Processing**: Text, numbers, charts, audio
+
+### Notable Systems
+- **Alpha-GPT**: Human-AI interactive factor mining
+- **Alpha-GPT 2.0**: Automated alpha mining to modeling pipeline
+- **ChatGPT as Financial Analyst**: Factor generation from data schemas
+
+### Challenges
+- Overfitting in financial data
+- Interpretability of complex models
+- Hallucination in LLM outputs
+- Temporal leakage in training data
+
+### Future Directions
+- Autonomous quant research agents
+- Self-iterative strategy optimization
+- Multi-modal market understanding
+- Real-time adaptation to regime changes

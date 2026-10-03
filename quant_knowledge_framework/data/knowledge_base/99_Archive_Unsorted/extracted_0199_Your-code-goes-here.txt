@@ -1,0 +1,14 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+N =  # Days to expiry of futures contract
+cost_of_carry =  # Cost of Carry
+
+spot_price = pd.Series(np.ones(N), name = "Spot Price")
+futures_price = pd.Series(np.ones(N), name = "Futures Price")

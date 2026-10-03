@@ -1,0 +1,11 @@
+# No fractional shares
+
+Topic: 02_Strategy_Development
+Confidence: 0.67
+Keywords: ev, strategy
+
+---
+
+## No fractional shares
+
+Shares can only be bought in whole units, but algorithms often specify a dollar amount to be bought, which is rounded down to the nearest whole share. If we are buying many shares, one more or one fewer doesn't make a large difference. However, if our strategy is running on a small amount of capital, a fraction of a share is a significant amount of the holdings we anticipated having, so the reality will be far from what we intended. Our algorithm's sensitivity to such errors and the prices of the stocks we are investing in determine the minimum algorithm capacity below which it cannot run.

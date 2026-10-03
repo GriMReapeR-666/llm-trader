@@ -1,0 +1,11 @@
+# a. Mean
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Mean
+
+Determine the mean of the following artificial data in `sample`.

@@ -1,0 +1,497 @@
+# c. Predicting 2016 Temperatures
+
+Topic: 05_Quant_Utilities
+Confidence: 0.36
+Keywords: numpy, python, point in time, pandas
+
+---
+
+## c. Predicting 2016 Temperatures
+
+Use the means you found in parts a and b to attempt to predict  2016 temperature data for both cities. Do this by creating two histograms for the 2016 temperature data in `b16_df` and `p16_df` with a vertical line where the 2015 means were to represent your prediction.
+
+---
+
+Congratulations on completing the instability of parameter estimates exercises!
+
+As you learn more about writing trading models and the Educational Platform platform, enter a daily [Educational Platform Contest](https://www.educational_platform.com/contest). Your strategy will be evaluated for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solic
+itation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+from statsmodels.stats.stattools import jarque_bera
+
+# Set a seed so we can play with the data without generating new random numbers every time
+np.random.seed(321)
+
+```
+*Cell 2:*
+```python
+POPULATION_MU = 100
+POPULATION_SIGMA = 25
+sample_sizes = [5, 25, 100, 500]
+
+#Your code goes here
+
+for i in range(len(sample_sizes)):
+    sample = np.random.normal(POPULATION_MU, POPULATION_SIGMA, sample_sizes[i])
+    row = 'Mean',(i+1),':', np.mean(sample),'Std',(i+1),':',np.std(sample)
+    print ("{} {}{} {:<10f}    {} {}{} {}").format(*row)
+    
+print "\nAs sample size increases, the mean and standard deviation approach those of the population. However, even at the 500 sample level the sample mean is not the same as the population mean."
+
+```
+*Cell 3:*
+```python
+X = [ 31.,   6.,  21.,  32.,  41.,   4.,  48.,  38.,  43.,  36.,  50., 20.,  46.,  33.,   8.,  27.,  17.,  44.,  16.,  39.,   3.,  37.,
+        35.,  13.,  49.,   2.,  18.,  42.,  22.,  25.,  15.,  24.,  11., 19.,   5.,  40.,  12.,  10.,   1.,  45.,  26.,  29.,   7.,  30.,
+        14.,  23.,  28.,   0.,  34.,   9.,  47.]
+Y = [ 15.,  41.,  33.,  29.,   3.,  28.,  28.,   8.,  15.,  22.,  39., 38.,  22.,  10.,  39.,  40.,  24.,  15.,  21.,  25.,  17.,  33.,
+        40.,  32.,  42.,   5.,  39.,   8.,  15.,  25.,  37.,  33.,  14., 25.,   1.,  31.,  45.,   5.,   6.,  19.,  13.,  39.,  18.,  49.,
+        13.,  38.,   8.,  25.,  32.,  40.,  17.]
+Z = [ 38.,  23.,  16.,  35.,  48.,  18.,  48.,  38.,  24.,  27.,  24., 35.,  37.,  28.,  11.,  12.,  31.,  -1.,   9.,  19.,  20.,   0.,
+        23.,  33.,  34.,  24.,  14.,  28.,  12.,  25.,  53.,  19.,  42., 21.,  15.,  36.,  47.,  20.,  26.,  41.,  33.,  50.,  26.,  22.,
+        -1.,  35.,  10.,  25.,  23.,  24.,   6.]
+
+#Your code goes here
+
+print "Mean X: %.2f"% np.mean(X)
+print "Mean Y: %.2f"% np.mean(Y)
+print "Mean Z: %.2f"% np.mean(Z)
+
+```
+*Cell 4:*
+```python
+#Your code goes here
+
+Xp = jarque_bera(X)[1]
+Yp = jarque_bera(Y)[1]
+Zp = jarque_bera(Z)[1]
+
+print Xp, Yp, Zp
+
+if Xp < 0.05:
+    print 'The distribution of X is likely normal.'
+else:
+    print 'The distribution of X is likely not normal.'
+    
+if Yp < 0.05:
+    print 'The distribution of Y is likely normal.'
+else:
+    print 'The distribution of Y is likely not normal.'
+    
+if Zp < 0.05:
+    print 'The distribution of Z is likely normal.'
+else:
+    print 'The distribution of Z is likely not normal.'
+
+```
+*Cell 5:*
+```python
+#Your code goes here
+
+plt.hist([X, Y, Z], normed=1, histtype='bar', stacked=False, alpha = 0.7);
+plt.axvline(np.mean(X));
+plt.axvline(np.mean(Y), c='r');
+plt.axvline(np.mean(Z), c='g');
+
+print "All three datasets have a similar mean, but have very different distributions. Mean alone is very non-informative about what is going on in data, and should not be used alone as an estimator." 
+
+```
+*Cell 6:*
+```python
+def sharpe_ratio(asset, riskfree):
+    return np.mean(asset - riskfree)/np.std(asset - riskfree)
+
+start = '2010-01-01'
+end = '2015-01-01'
+
+treasury_ret = get_pricing('BIL', fields='price', start_date=start, end_date=end).pct_change()[1:]
+pricing = get_pricing('THO', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:]
+
+#Your code goes here
+
+for window in [50, 150, 300]:
+    running_sharpe = [sharpe_ratio(returns[i-window+10:i], treasury_ret[i-window+10:i]) for i in range(window-10, len(returns))]
+    mean_rs = np.mean(running_sharpe[:-200])
+    std_rs = np.std(running_sharpe[:-200])
+    
+    row = 'Sharpe Mean',(window),':', mean_rs,'Std', window,':',std_rs
+    print ("{} {:>3}{} {:<11f}    {:>5} {:>3}{} {}").format(*row)
+    
+print "As we increase the length of the window, the variability of the running sharpe ratio decreases." 
+
+```
+*Cell 7:*
+```python
+#Your code goes here
+
+for window in [50, 150, 300]:
+    running_sharpe = [sharpe_ratio(returns[i-window+10:i], treasury_ret[i-window+10:i]) for i in range(window-10, len(returns))]
+    mean_rs = np.mean(running_sharpe[:-200])
+    std_rs = np.std(running_sharpe[:-200])
+    
+    _, ax2 = plt.subplots()
+    
+    ax2.plot(range(window-10, len(returns)), running_sharpe)
+    ticks = ax2.get_xticks()
+
+    ax2.set_xticklabels([pricing.index[i].date() for i in ticks[:-1]])
+    
+    ax2.axhline(mean_rs)
+    ax2.axhline(mean_rs + std_rs, linestyle='--')
+    ax2.axhline(mean_rs - std_rs, linestyle='--')
+    
+    ax2.axvline(len(returns) - 200, color='pink');
+    plt.title(window, fontsize = 20)
+    plt.xlabel('Date')
+    plt.ylabel('Sharpe Ratio')
+    plt.legend(['Sharpe Ratio', 'Mean', '+/- 1 Standard Deviation'])
+
+    
+print "Despite the longer window Sharpe ratios having less variability, they are still unpredictable with repect to just the mean. But within the context of the standard deviation the mean has more predictive value, as we see that even in the out-of-sample periods the ratios of all window lengths stay mainly within 1 standard deviation of the mean."
+
+```
+*Cell 8:*
+```python
+b15_df = pd.DataFrame([ 29.,  22.,  19.,  17.,  19.,  19.,  15.,  16.,  18.,  25.,  21.,
+        25.,  29.,  27.,  36.,  38.,  40.,  44.,  49.,  50.,  58.,  61.,
+        67.,  69.,  74.,  72.,  76.,  81.,  81.,  80.,  83.,  82.,  80.,
+        79.,  79.,  80.,  74.,  72.,  68.,  68.,  65.,  61.,  57.,  50.,
+        46.,  42.,  41.,  35.,  30.,  27.,  28.,  28.],
+        columns = ['Weekly Avg Temp'],
+        index = pd.date_range('1/1/2012', periods=52, freq='W')          )
+
+#Your code goes here
+
+b15_mean = np.mean(b15_df['Weekly Avg Temp'])
+b15_std = np.std(b15_df['Weekly Avg Temp'])
+
+print "Boston Weekly Temp Mean: ", b15_mean
+print "Boston Weekly Temp Std:  ", b15_std
+
+```
+*Cell 9:*
+```python
+p15_df = pd.DataFrame([ 49.,  53.,  51.,  47.,  50.,  46.,  49.,  51.,  49.,  45.,  52.,
+        54.,  54.,  55.,  55.,  57.,  56.,  56.,  57.,  63.,  63.,  65.,
+        65.,  69.,  67.,  70.,  67.,  67.,  68.,  68.,  70.,  72.,  72.,
+        70.,  72.,  70.,  66.,  66.,  68.,  68.,  65.,  66.,  62.,  61.,
+        63.,  57.,  55.,  55.,  55.,  55.,  55.,  48.],
+        columns = ['Weekly Avg Temp'],
+        index = pd.date_range('1/1/2012', periods=52, freq='W'))
+
+#Your code goes here
+
+p15_mean = np.mean(p15_df['Weekly Avg Temp'])
+p15_std = np.std(p15_df['Weekly Avg Temp'])
+
+print "Palo Alto Weekly Temp Mean: ", p15_mean
+print "Palo Alto Weekly Temp Std:  ", p15_std
+
+```
+*Cell 10:*
+```python
+b16_df = pd.DataFrame([ 26.,  22.,  20.,  19.,  18.,  19.,  17.,  17.,  19.,  20.,  23., 22.,  28.,  28.,  35.,  38.,  42.,  47.,  49.,  56.,  59.,  61.,
+        61.,  70.,  73.,  73.,  73.,  77.,  78.,  82.,  80.,  80.,  81., 78.,  82.,  78.,  76.,  71.,  69.,  66.,  60.,  63.,  56.,  50.,
+        44.,  43.,  34.,  33.,  31.,  28.,  27.,  20.],
+        columns = ['Weekly Avg Temp'],
+        index = pd.date_range('1/1/2012', periods=52, freq='W'))
+
+p16_df = pd.DataFrame([ 50.,  50.,  51.,  48.,  48.,  49.,  50.,  45.,  52.,  50.,  51., 52.,  50.,  56.,  58.,  55.,  61.,  56.,  61.,  62.,  62.,  64.,
+        64.,  69.,  71.,  66.,  69.,  70.,  68.,  71.,  70.,  69.,  72., 71.,  66.,  69.,  70.,  70.,  66.,  67.,  64.,  64.,  65.,  61.,
+        61.,  59.,  56.,  53.,  55.,  52.,  52.,  51.],
+        columns = ['Weekly Avg Temp'],
+        index = pd.date_range('1/1/2012', periods=52, freq='W'))
+
+#Your code goes here
+
+b16_df.plot.hist(title = "Boston 2016 Temperature vs. Prediction");
+plt.axvline(b15_mean);
+
+p16_df.plot.hist(title = "Palo Alto 2016 Temperature vs. Prediction");
+plt.axvline(p15_mean);
+
+b_avg_error = np.mean(abs(b16_df['Weekly Avg Temp'] - b15_mean))
+p_avg_error = np.mean(abs(p16_df['Weekly Avg Temp'] - p15_mean))
+
+print "Avg of Absolute Value of Prediction Error in Boston:", b_avg_error
+print "Avg of Absolute Value of Prediction Error in Palo Alto:", p_avg_error
+
+print "\nWe know from parts a and b that the weather in Boston is much more variable than that of Palo Alto. As a result, we can predict that an estimate based on a sample mean in Boston will be less accurate than an estimate based on a sample from Palo Alto, which is confirmed by this test. The Palo Alto predictions had a much lower error than those of Boston. With mean alone we would not have been able to make any conclusions about the accuracy of our predictions."
+
+```
+
+##### Parameters
+- **Original Path**: `notebooks\lectures\Instability_of_Estimates\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 31 (Code: 12, Markdown: 19)
+- **Imports/Dependencies**: from statsmodels.stats.stattools import jarque_bera, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+#Instability of Parameter Estimates
+
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie. Algorithms by David Edwards.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+# Parameters
+
+A parameter is anything that a model uses to constrain its predictions. Commonly, a parameter is a quantity that helps to describe a data set or a distribution. For example, the mean of a normal distribution is a parameter; in fact, we say that a normal distribution is <i>parametrized</i> by its mean and variance. If we take the mean of a set of samples drawn from the normal distribution, we get an estimate of the mean of the distribution. Similarly, the mean of a set of observations is an estimate of the parameter of the underlying distribution (which is often assumed to be normal). Other parameters include the median, the correlation coefficient to another series, the standard deviation, and every other measurement of a data set.
+
+##You Never Know, You Only Estimate
+
+When you take the mean of a data set, you do not know the mean. You have estimated the mean as best you can from the data you have. The estimate can be off. This is true of any parameter you estimate. To actually understand what is going on you need to determine how good your estimate is by looking at its stability/standard error/confidence intervals.
+
+# Instability of estimates
+
+Whenever we consider a set of observations, our calculation of a parameter can only be an estimate. It will change as we take more measurements or as time passes and we get new observations. We can quantify the uncertainty in our estimate by looking at how the parameter changes as we look at different subsets of the data. For instance, standard deviation describes how different the mean of a set is from the mean of each observation, that is, from each observation itself. In financial applications, data often comes in time series. In this case, we can estimate a parameter at different points in time; say, for the previous 30 days. By looking at how much this moving estimate fluctuates as we change our time window, we can compute the instability of the estimated parameter.
+
+# Example: mean and standard deviation
+
+First, let's take a look at some samples from a normal distribution. We know that the mean of the distribution is 0 and the standard deviation is 1; but if we measure the parameters from our observations, we will get only approximately 0 and approximately 1. We can see how these estimates change as we take more and more samples:
+
+Notice that, although the probability of getting closer to 0 and 1 for the mean and standard deviation, respectively, increases with the number of samples, we do not always get better estimates by taking more data points. Whatever our expectation is, we can always get a different result, and our goal is often to compute the probability that the result is significantly different than expected.
+
+With time series data, we usually care only about contiguous subsets of the data. The moving average (also called running or rolling) assigns the mean of the previous $n$ data points to each point in time. Below, we compute the 90-day moving average of a stock price and plot it to see how it changes. There is no result in the beginning because we first have to accumulate at least 90 days of data.
+
+##Example: Non-Normal Underlying Distribution
+
+What happens if the underlying data isn't normal? A mean will be very deceptive. Because of this it's important to test for normality of your data. We'll use a Jarque-Bera test as an example.
+
+Sure enough, the mean is incredibly non-informative about what is going on in the data. We have collapsed all of our data into a single estimate, and lost of a lot of information doing so. This is what the distribution should look like if our hypothesis that it is normally distributed is correct.
+
+We'll test our data using the Jarque-Bera test to see if it's normal. A significant p-value indicates non-normality.
+
+Sure enough the value is < 0.05 and we say that X is not normal. This saves us from accidentally making horrible predictions.
+
+# Example: Sharpe ratio
+
+One statistic often used to describe the performance of assets and portfolios is the Sharpe ratio, which measures the additional return per unit additional risk achieved by a portfolio, relative to a risk-free source of return such as Treasury bills:
+$$R = \frac{E[r_a - r_b]}{\sqrt{Var(r_a - r_b)}}$$
+
+where $r_a$ is the returns on our asset and $r_b$ is the risk-free rate of return. As with mean and standard deviation, we can compute a rolling Sharpe ratio to see how our estimate changes through time.
+
+The Sharpe ratio looks rather volatile, and it's clear that just reporting it as a single value will not be very helpful for predicting future values. Instead, we can compute the mean and standard deviation of the data above, and then see if it helps us predict the Sharpe ratio for the next 100 days.
+
+The standard deviation in this case is about a quarter of the range, so this data is extremely volatile. Taking this into account when looking ahead gave a better prediction than just using the mean, although we still observed data more than one standard deviation away. We could also compute the rolling mean of the Sharpe ratio to try and follow trends; but in that case, too, we should keep in mind the standard deviation.
+
+##Example: Moving Average
+
+Let's say you take the average with a lookback window; how would you determine the standard error on that estimate? Let's start with an example showing a 90-day moving average.
+
+This lets us see the instability/standard error of the mean, and helps anticipate future variability in the data. We can quantify this variability by computing the mean and standard deviation of the rolling mean.
+
+In fact, the standard deviation, which we use to quantify variability, is itself variable. Below we plot the rolling standard deviation (for a 90-day window), and compute <i>its</i> mean and standard deviation.
+
+To see what this changing standard deviation means for our data set, let's plot the data again along with the Bollinger bands: the rolling mean, one rolling standard deviation (of the data) above the mean, and one standard deviation below.
+
+Note that although standard deviations give us more information about the spread of the data, we cannot assign precise probabilities to our expectations for future observations without assuming a particular distribution for the underlying process.
+
+# Conclusion
+
+Whenever we compute a parameter for a data set, we should also compute its volatility. Otherwise, we do not know whether or not we should expect new data points to be aligned with this parameter. A good way of computing volatility is dividing the data into subsets and estimating the parameter from each one, then finding the variability among the results. There may still be outside factors which are introduced after our sample period and which we cannot predict. However, the instability analysis and testing for standard error is still very useful for telling us how much we should distrust our estimates.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# We'll be doing some examples, so let's import the libraries we'll need
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+```
+*Cell 2:*
+```python
+# Set a seed so we can play with the data without generating new random numbers every time
+np.random.seed(123)
+
+normal = np.random.randn(500)
+print np.mean(normal[:10])
+print np.mean(normal[:100])
+print np.mean(normal[:250])
+print np.mean(normal)
+
+# Plot a stacked histogram of the data
+plt.hist([normal[:10], normal[10:100], normal[100:250], normal], normed=1, histtype='bar', stacked=True);
+plt.ylabel('Frequency')
+plt.xlabel('Value');
+```
+*Cell 3:*
+```python
+print np.std(normal[:10])
+print np.std(normal[:100])
+print np.std(normal[:250])
+print np.std(normal)
+```
+*Cell 4:*
+```python
+#Generate some data from a bi-modal distribution
+def bimodal(n):
+    X = np.zeros((n))
+    for i in range(n):
+        if np.random.binomial(1, 0.5) == 0:
+            X[i] = np.random.normal(-5, 1)
+        else:
+            X[i] =  np.random.normal(5, 1)
+    return X
+            
+X = bimodal(1000)
+
+#Let's see how it looks
+plt.hist(X, bins=50)
+plt.ylabel('Frequency')
+plt.xlabel('Value')
+print 'mean:', np.mean(X)
+print 'standard deviation:', np.std(X)
+```
+*Cell 5:*
+```python
+mu = np.mean(X)
+sigma = np.std(X)
+
+N = np.random.normal(mu, sigma, 1000)
+
+plt.hist(N, bins=50)
+plt.ylabel('Frequency')
+plt.xlabel('Value');
+```
+*Cell 6:*
+```python
+from statsmodels.stats.stattools import jarque_bera
+
+jarque_bera(X)
+```
+*Cell 7:*
+```python
+def sharpe_ratio(asset, riskfree):
+    return np.mean(asset - riskfree)/np.std(asset - riskfree)
+
+start = '2012-01-01'
+end = '2015-01-01'
+# Use an ETF that tracks 3-month T-bills as our risk-free rate of return
+treasury_ret = get_pricing('BIL', fields='price', start_date=start, end_date=end).pct_change()[1:]
+pricing = get_pricing('AMZN', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:] # Get the returns on the asset
+
+# Compute the running Sharpe ratio
+running_sharpe = [sharpe_ratio(returns[i-90:i], treasury_ret[i-90:i]) for i in range(90, len(returns))]
+
+# Plot running Sharpe ratio up to 100 days before the end of the data set
+_, ax1 = plt.subplots()
+ax1.plot(range(90, len(returns)-100), running_sharpe[:-100]);
+ticks = ax1.get_xticks()
+ax1.set_xticklabels([pricing.index[i].date() for i in ticks[:-1]]) # Label x-axis with dates
+plt.xlabel('Date')
+plt.ylabel('Sharpe Ratio');
+```
+*Cell 8:*
+```python
+# Compute the mean and std of the running Sharpe ratios up to 100 days before the end
+mean_rs = np.mean(running_sharpe[:-100])
+std_rs = np.std(running_sharpe[:-100])
+
+# Plot running Sharpe ratio
+_, ax2 = plt.subplots()
+ax2.set_xticklabels([pricing.index[i].date() for i in ticks[:-1]]) # Label x-axis with dates
+ax2.plot(range(90, len(returns)), running_sharpe)
+
+# Plot its mean and the +/- 1 standard deviation lines
+ax2.axhline(mean_rs)
+ax2.axhline(mean_rs + std_rs, linestyle='--')
+ax2.axhline(mean_rs - std_rs, linestyle='--')
+
+# Indicate where we computed the mean and standard deviations
+# Everything after this is 'out of sample' which we are comparing with the estimated mean and std
+ax2.axvline(len(returns) - 100, color='pink');
+plt.xlabel('Date')
+plt.ylabel('Sharpe Ratio')
+plt.legend(['Sharpe Ratio', 'Mean', '+/- 1 Standard Deviation'])
+
+print 'Mean of running Sharpe ratio:', mean_rs
+print 'std of running Sharpe ratio:', std_rs
+```
+*Cell 9:*
+```python
+# Load time series of prices
+start = '2012-01-01'
+end = '2015-01-01'
+pricing = get_pricing('AMZN', fields='price', start_date=start, end_date=end)
+
+# Compute the rolling mean for each day
+mu = pd.rolling_mean(pricing, window=90)
+
+# Plot pricing data
+_, ax1 = plt.subplots()
+ax1.plot(pricing) 
+ticks = ax1.get_xticks()
+ax1.set_xticklabels([pricing.index[i].date() for i in ticks[:-1]]) # Label x-axis with dates
+plt.ylabel('Price')
+plt.xlabel('Date')
+
+# Plot rolling mean
+ax1.plot(mu);
+plt.legend(['Price','Rolling Average']);
+```
+*Cell 10:*
+```python
+print 'Mean of rolling mean:', np.mean(mu)
+print 'std of rolling mean:', np.std(mu)
+```
+*Cell 11:*
+```python
+# Compute rolling standard deviation
+std = pd.rolling_std(pricing, window=90)
+
+# Plot rolling std
+_, ax2 = plt.subplots()
+ax2.plot(std)
+ax2.set_xticklabels([pricing.index[i].date() for i in ticks[:-1]]) # Label x-axis with dates
+plt.ylabel('Standard Deviation of Moving Average')
+plt.xlabel('Date')
+
+print 'Mean of rolling std:', np.mean(std)
+print 'std of rolling std:', np.std(std)
+```
+*Cell 12:*
+```python
+# Plot original data
+_, ax3 = plt.subplots()
+ax3.plot(pricing)
+ax3.set_xticklabels([pricing.index[i].date() for i in ticks[:-1]]) # Label x-axis with dates
+
+# Plot Bollinger bands
+ax3.plot(mu)
+ax3.plot(mu + std)
+ax3.plot(mu - std);
+plt.ylabel('Price')
+plt.xlabel('Date')
+plt.legend(['Price', 'Moving Average', 'Moving Average +1 Std', 'Moving Average -1 Std'])
+```
+
+##### Exercises: Instability of Parameter Estimates
+- **Original Path**: `notebooks\lectures\Instability_of_Estimates\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 22 (Code: 10, Markdown: 12)
+- **Imports/Dependencies**: from statsmodels.stats.stattools import jarque_bera, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Exercises: Instability of Parameter Estimates

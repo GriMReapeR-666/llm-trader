@@ -1,0 +1,34 @@
+# **Author** :bust_in_silhouette:
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Author** :bust_in_silhouette:
+
+P. Abhiram Kumar
+
+Digital Forensics, [**Team bi0s**](https://www.twitter.com/teambi0s)
+
++ Mail: **abhiram1999@gmail.com**
++ Twitter: [**@_abhiramkumar**](https://www.twitter.com/_abhiramkumar)
++ Personal Blog: [**stuxnet999.github.io**](https://stuxnet999.github.io)
+#### Setup Script (setup.sh)
+```bash
+#!/bin/sh
+sudo apt update
+sudo apt install -y python volatility ghex steghide
+```
+
+#### Lab 0
+**Source File**: `C:\Users\User\AppData\Local\Temp\kilo\memlabs_repo\Lab 0\README.md`
+
+# **MemLabs Lab 0 - Never Too Late Mister**
+
+This directory has been created to aid first-timers in learning how to approach a CTF-styled memory forensics challenge and also learn the plugins of the memory analysis framework, **Volatility**.
+
+So here I'll be writing a very elaborate walkthrough of a memory forensics challenge which I made for the **BSides Delhi CTF 2018**. The challenge is fairly easy in difficulty and I believe will be a great example challenge for everyone new to this.
+
+Onto the challenge now.

@@ -1,0 +1,18 @@
+# causal_inference
+
+Topic: 03_Portfolio_Management
+Confidence: 1.00
+Keywords: portfolio, correlation
+
+---
+
+Causal Portfolio Optimization
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: Causal Inference
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+Causal portfolio optimization moves beyond correlation to identify true causal relationships.

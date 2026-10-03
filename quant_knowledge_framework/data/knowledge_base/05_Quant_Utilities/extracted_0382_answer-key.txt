@@ -1,0 +1,31 @@
+# answer key ##
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: stationarity, python
+
+---
+
+## answer key ##
+results = sm.OLS(cl_price, sm.add_constant(ho_price)).fit()
+b = results.params['HO']
+
+print b
+spread = cl_price - b * ho_price
+print "p-value for in-sample stationarity: ", adfuller(spread)[1]
+# The p-value is less than 0.05 so we conclude that this spread calculation is stationary in sample
+spread.plot()
+plt.axhline(spread.mean(), color='black')
+plt.legend(['Spread']);
+```
+*Cell 12:*
+```python
+cl_out = get_pricing(cl, fields='price', 
+                        start_date='2016-01-01', end_date='2016-07-01')
+ho_out = get_pricing(ho, fields='price', 
+                        start_date='2016-01-01', end_date='2016-07-01')
+
+#Your code goes here
+```
+*Cell 13:*
+```python

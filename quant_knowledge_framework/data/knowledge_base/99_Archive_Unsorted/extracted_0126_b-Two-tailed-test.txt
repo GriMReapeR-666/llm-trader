@@ -1,0 +1,22 @@
+# b. Two tailed test.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Two tailed test. 
+Using the techniques laid out in lecture, verify if we can state that the returns of TSLA are equal to 0.
+
+###### Two tail hypotheses.
+- *Null hypothesis: No difference in average returns in both population, the mean **is** 0*
+- *Althernative hypothesis: There is a difference in average returns of both populations, the mean **is not** 0*
+
+With $\alpha = 0.01$, our p-value is greater than our $\alpha$ value, we thus **fail to reject** the null hypothesis.   
+With $\alpha = 0.5$, our p-value is greater than our $\alpha$ value, we thus **fail to reject** the null hypothesis.   
+With $\alpha = 0.1$, our p-value is greater than our $\alpha$ value, we thus **fail to reject** the null hypothesis. 
+
+----
+
+# Exercise 2:

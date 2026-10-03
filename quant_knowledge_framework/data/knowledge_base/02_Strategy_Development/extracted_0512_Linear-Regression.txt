@@ -1,0 +1,39 @@
+# Linear Regression
+
+Topic: 02_Strategy_Development
+Confidence: 0.43
+Keywords: ev, overfitting, expected value
+
+---
+
+## Linear Regression
+
+Linear regression is one of our most fundamental modeling techniques. We use it to estimate a linear relationship between a set of independent variables $X_i$ and a dependent outcome variable $y$. Our model takes the form of:
+
+$$ y_i = \beta_{0} 1 + \beta_{i, 1} x_{i, 1} + \dots + \beta_{i, p} x_{i, p} + \epsilon_i = x_i'\beta + \epsilon_i $$
+
+For $i \in \{1, \dots, n\}$, where $n$ is the number of observations. We write this in vector form as:
+
+$$ y = X\beta + \epsilon $$
+
+Where $y$ is a $n \times 1$ vector, $X$ is a $n \times p$ matrix, $\beta$ is a $p \times 1$ vector of coefficients, and $\epsilon$ is a standard normal error term. Typically we call a model with $p = 1$ a simple linear regression and a model with $p > 1$ a multiple linear regression. More background information on regressions can be found in the lectures on [simple linear regression](https://www.quantopian.com/lectures#Linear-Regression) and [multiple linear regression](https://www.quantopian.com/lectures#Multiple-Linear-Regression).
+
+Whenever we build a model, there will be gaps between what a model predicts and what is observed in the sample. The differences between these values are known as the residuals of the model and can be used to check for some of the basic assumptions that go into the model. The key assumptions to check for are:
+
+* **Linear Fit:** The underlying relationship should be linear
+* **Homoscedastic:** The data should have no trend in the variance
+* **Independent and Identically Distributed:** The residuals of the regression should be independent and identically distributed (i.i.d.) and show no signs of serial correlation
+
+We can use the residuals to help diagnose whether the relationship we have estimated is real or spurious.
+
+Statistical error is a similar metric associated with regression analysis with one important difference: While residuals quantify the gap between a regression model predictions and the observed sample, statistical error is the difference between a regression model and the unobservable expected value. We use residuals in an attempt to estimate this error.
+
+# Simple Linear Regression
+
+First we'll define a function that performs linear regression and plots the results.
+
+Let's define a toy relationship between $X$ and $Y$ that we can model with a linear regression. Here we define the relationship and construct a model on it, drawing the determined line of best fit with the regression parameters.
+
+This toy example has some generated noise, but all real data will also have noise. This is inherent in sampling from any sort of wild data-generating process. As a result, our line of best fit will never exactly fit the data (which is why it is only "best", not "perfect"). Having a model that fits every single observation that you have is a sure sign of [overfitting](https://www.quantopian.com/lectures/the-dangers-of-overfitting).
+
+For all fit models, there will be a difference between what the regression model predicts and what was observed, which is where residuals come in.

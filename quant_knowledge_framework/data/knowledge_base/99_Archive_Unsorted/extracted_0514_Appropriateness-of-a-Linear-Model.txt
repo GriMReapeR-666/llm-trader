@@ -1,0 +1,21 @@
+# Appropriateness of a Linear Model
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Appropriateness of a Linear Model
+
+By looking for patterns in residual plots we can determine whether a linear model is appropriate in the first place. A plain linear regression would not be appropriate for an underlying relationship of the form:
+
+$$Y = \beta_0 + \beta_1 X^2$$
+
+as a linear function would not be able to fully explain the relationship between $X$ and $Y$.
+
+If the relationship is not a good fit for a linear model, the residual plot will show a distinct pattern. In general, a residual plot of a linear regression on a non-linear relationship will show bias and be asymmetrical with respect to residual = 0 line while a residual plot of a linear regression on a linear relationship will be generally symmetrical over the residual = 0 axis.
+
+As an example, let's consider a new relationship between the variables $X$ and $Y$ that incorporates a quadratic term.
+
+The "inverted-U" shape shown by the residuals is a sign that a non-linear model might be a better fit than a linear one.

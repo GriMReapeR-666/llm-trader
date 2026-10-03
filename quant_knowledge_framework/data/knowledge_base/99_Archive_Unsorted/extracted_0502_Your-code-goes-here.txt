@@ -1,0 +1,20 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+
+first_ci =
+second_ci =
+third_ci = 
+
+print '1-sigma -> mu +/-', sigma
+print '2-sigma -> mu +/-', second_ci[1]
+print '3-sigma -> mu +/-', third_ci[1]
+```
+*Cell 10:*
+```python

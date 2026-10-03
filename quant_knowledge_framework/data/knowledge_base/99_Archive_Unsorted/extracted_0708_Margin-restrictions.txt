@@ -1,0 +1,11 @@
+# Margin restrictions
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Margin restrictions
+
+Many brokers will not allow borrowing money if we have less than a certain amount in our portfolio; the precise rules vary depending on the broker and the type of portfolio. This restricts us in a number of ways. For example, we cannot buy if we have insufficient funds, even if we sell at the same time to cover the cost. We must wait (days) for the money from the sell order to be transferred before we can place the buy order. This means that our algorithm cannot execute the trades it wants if we do not invest enough capital in it. Alternatively, it can be a cap on our algorithm's capacity if we keep a lot of cash uninvested in order to be able to buy when we want.

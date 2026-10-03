@@ -1,0 +1,36 @@
+# answer key ##
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## answer key ##
+score, pvalue, _ = coint(cn_price, sb_price)
+
+confidence_level = 0.05
+
+if pvalue < confidence_level:
+    print ("CN and SB are cointegrated")
+    print pvalue
+else:
+    print ("CN and SB are not cointegrated")
+    print pvalue
+
+cn_price.name = "CN"
+sb_price.name = "SB"
+pd.concat([cn_price, sb_price], axis=1).plot();
+```
+*Cell 9:*
+```python
+cl = continuous_future('CL', offset = 0, roll = 'calendar', adjustment = 'mul')
+ho = continuous_future('HO', offset = 0, roll = 'calendar', adjustment = 'mul')
+
+cl_price = history(cl, 'price', '2015-01-01', '2016-01-01', 'daily')
+ho_price = history(ho, 'price', '2015-01-01', '2016-01-01', 'daily')
+
+#Your code goes here
+```
+*Cell 10:*
+```python

@@ -1,0 +1,11 @@
+# a. Finding Variance, Covariance, and Correlation I
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Finding Variance, Covariance, and Correlation I
+
+By reading the matrix output from the `np.cov()` and `np.corrcoef()` functions, find the variance of the variables $A$ and $B$ and the covariance and correlation of their relationship.

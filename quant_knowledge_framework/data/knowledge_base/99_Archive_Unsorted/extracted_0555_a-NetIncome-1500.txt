@@ -1,0 +1,11 @@
+# a. NetIncome 1500
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. NetIncome 1500
+
+Create a universe consisting of the top 1500 equities by net income then find and print the list of equities included in the universe on 2016-07-01.

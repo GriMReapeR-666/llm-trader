@@ -1,0 +1,11 @@
+# Help Function
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Help Function
+
+The aforementioned functions are all available on the Educational Platform research platform (as you have seen). If you're stuck on any particular function, you can directly access the help page with the `help` function as follows.

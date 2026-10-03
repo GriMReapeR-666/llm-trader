@@ -1,0 +1,15 @@
+# b. Finding Correlated Pairs
+
+Topic: 03_Portfolio_Management
+Confidence: 1.00
+Keywords: correlation, portfolio
+
+---
+
+## b. Finding Correlated Pairs
+
+Find the most correlated pair of stocks in the following portfolio using 2015 pricing data and the `find_most_correlated` function defined in the Helper Functions section above.
+
+----
+
+# Exercise 4: Limitations of Correlation

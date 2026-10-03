@@ -1,0 +1,317 @@
+# d. Newey-West Correction
+
+Topic: 02_Strategy_Development
+Confidence: 0.25
+Keywords: ev, strategy
+
+---
+
+## d. Newey-West Correction
+
+Run 100 samples of the following autocorrelated distribution, this time accounting for the autocorrelation by using a Newey-West correction on the standard error, and measure how many of their 95% confidence intervals actually contain the true mean to see if the correction works. (Use the helper function `newey_west_SE` to find the corrected standard error)
+
+---
+
+Congratulations on completing the Confidence Intervals exercises!
+
+As you learn more about writing trading models and the Educational Platform platform, enter the daily [Educational Platform Contest](https://www.educational_platform.com/contest). Your strategy will be evaluated for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solic
+itation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+def generate_autocorrelated_data(theta, mu, sigma, N):
+    X = np.zeros((N, 1))
+    for t in range(1, N):
+        X[t] = theta * X[t-1] + np.random.normal(mu, sigma)
+    return X
+
+def newey_west_SE(data):
+    ind = range(0, len(data))
+    ind = sm.add_constant(ind)
+    model = regression.linear_model.OLS(data, ind).fit(cov_type='HAC',cov_kwds={'maxlags':1})
+    return model.bse[0]
+
+def newey_west_matrix(data):
+    ind = range(0, len(data))
+    ind = sm.add_constant(ind)
+    model = regression.linear_model.OLS(data, ind).fit()
+    return sw.cov_hac(model)
+```
+*Cell 2:*
+```python
+# Useful Libraries
+import numpy as np
+import seaborn as sns
+from scipy import stats
+import matplotlib.pyplot as plt
+from statsmodels.stats.stattools import jarque_bera
+import statsmodels.stats.sandwich_covariance as sw
+from statsmodels import regression
+import statsmodels.api as sm
+```
+*Cell 3:*
+```python
+np.random.seed(11)
+POPULATION_MU = 105
+POPULATION_SIGMA = 20
+sample_size = 50
+```
+*Cell 4:*
+```python
+sample = np.random.normal(POPULATION_MU, POPULATION_SIGMA, sample_size)
+
+#Your code goes here
+
+Mean = np.mean(sample)
+
+print "Mean:", Mean
+```
+*Cell 5:*
+```python
+#Your code goes here
+
+SD = np.std(sample)
+
+print "Standard Deviation:", SD
+```
+*Cell 6:*
+```python
+#Your code goes here
+
+SE = SD / np.sqrt(sample_size)
+
+print "Standard Error:", SE
+```
+*Cell 7:*
+```python
+#Your code goes here
+
+print "95% Confidence Interval:", (-1.96 * SE + Mean, 1.96 * SE + Mean)
+print "90% Confidence Interval:", (-1.64 * SE + Mean, 1.64 * SE + Mean)
+print "80% Confidence Interval:", (-1.28 * SE + Mean, 1.28 * SE + Mean)
+```
+*Cell 8:*
+```python
+n = 1000
+correct = 0
+samples = [np.random.normal(loc=POPULATION_MU, scale=POPULATION_SIGMA, size=sample_size) for i in range(n)]
+
+#Your code goes here
+
+for i in range(n):
+    sample_mean = np.mean(samples[i])
+    sample_SE = stats.sem(samples[i])
+    if ((POPULATION_MU >= -1.96 * sample_SE + sample_mean) and (POPULATION_MU <= 1.96 * sample_SE + sample_mean)):
+        correct += 1;
+
+print "Expected Result:", .95 * 1000
+print "Actual Result", correct
+```
+*Cell 9:*
+```python
+n = 500
+normal_samples = [np.mean(np.random.normal(loc=POPULATION_MU, scale=POPULATION_SIGMA, size=sample_size)) for i in range(n)]
+
+#Your code goes here
+
+plt.hist(normal_samples, 10)
+
+_, pvalue, _, _ = jarque_bera(normal_samples)
+
+print pvalue
+if pvalue > 0.05:
+    print 'The distribution of sample means is likely normal.'
+else:
+    print 'The distribution of sample means is likely not normal.'
+```
+*Cell 10:*
+```python
+n = 500
+expo_samples = [np.mean(np.random.exponential(POPULATION_MU, sample_size)) for i in range(n)]
+
+#Your code goes here
+
+plt.hist(expo_samples, 10)
+
+_, pvalue, _, _ = jarque_bera(expo_samples)
+
+print pvalue
+if pvalue > 0.05:
+    print 'The distribution of sample means is likely normal, despite the underlying distribution being non-normal (exponential).'
+else:
+    print 'The distribution of sample means is likely not normal.'
+```
+*Cell 11:*
+```python
+n = 500
+autocorrelated_samples = [(generate_autocorrelated_data(0.5, 0, 1, sample_size) + POPULATION_MU) for i in range(n)]
+autocorrelated_means = [np.mean(autocorrelated_samples[i]) for i in range(n)]
+
+#Your code goes here
+
+plt.hist(autocorrelated_means, 10)
+
+_, pvalue, _, _ = jarque_bera(autocorrelated_means)
+
+print pvalue
+if pvalue > 0.05:
+    print 'The distribution of sample means is likely normal, despite an autocorrelated underlying distribution.'
+else:
+    print 'The distribution of sample means is likely not normal.'
+```
+*Cell 12:*
+```python
+n = 500
+autocorrelated_samples = [(generate_autocorrelated_data(0.5, 0, 1, sample_size) + POPULATION_MU) for i in range(n)]
+autocorrelated_stds = [np.std(autocorrelated_samples[i]) for i in range(n)]
+
+#Your code goes here
+
+plt.hist(autocorrelated_stds, 10)
+
+_, pvalue, _, _ = jarque_bera(autocorrelated_stds)
+
+print pvalue
+if pvalue > 0.05:
+    print 'The distribution of sample standard deviations is likely normal.'
+else:
+    print 'The distribution of sample standard deviations is likely not normal, due to the autocorrelated underlying distribution and the different assumptions for the CLT for means and for standard deviations.'
+    
+```
+*Cell 13:*
+```python
+n = 100
+small_size = 3
+correct = 0
+samples = [np.random.normal(loc=POPULATION_MU, scale=POPULATION_SIGMA, size=small_size) for i in range(n)]
+    
+#Your code goes here
+    
+for i in range(n):
+    sample_mean = np.mean(samples[i])
+    sample_SE = stats.sem(samples[i])
+    if ((POPULATION_MU >= -1.96 * sample_SE + sample_mean) and (POPULATION_MU <= 1.96 * sample_SE + sample_mean)):
+        correct += 1
+
+print "Expected Result:", .95 * n
+print "Actual Result:", correct
+print "Due to the small sample size, the actual number of confidence intervals containing the population mean is much lower than what we would expect given a correctly calibrated interval."
+
+```
+*Cell 14:*
+```python
+n = 100
+small_size = 5
+correct = 0
+samples = [np.random.normal(loc=POPULATION_MU, scale=POPULATION_SIGMA, size=small_size) for i in range(n)]
+
+#Your code goes here
+    
+for i in range(n):
+    sample_mean = np.mean(samples[i])
+    sample_SE = stats.sem(samples[i])
+    h = sample_SE * stats.t.ppf((1+0.95) / 2, len(samples[i])-1)
+    if ((POPULATION_MU >= sample_mean - h) and (POPULATION_MU <= sample_mean + h)):
+        correct += 1
+
+print "Expected Result:", .95 * n
+print "Actual Result:", correct
+print "After using the t-distribution to correct for the smaller sample size, the actual number of confidence intervals containing the population mean is about what we expected."
+
+```
+*Cell 15:*
+```python
+n = 100
+correct = 0
+theta = 0.5
+noise_mu = 0
+noise_sigma = 1
+
+#Your code goes here
+
+for i in range(n):
+    X = generate_autocorrelated_data(theta, noise_mu, noise_sigma, sample_size) + POPULATION_MU
+    sample_mean = np.mean(X)
+    sample_SE = np.std(X) / np.sqrt(sample_size)
+    if ((POPULATION_MU >= -1.96 * sample_SE + sample_mean) and (POPULATION_MU <= 1.96 * sample_SE + sample_mean)):
+        correct += 1
+    
+
+print "Expected Result:", .95 * n
+print "Actual Result:", correct
+print "Because the underlying data was autocorrelated, the actual number of confidence intervals containing the population mean is much lower than what we expected."
+
+```
+*Cell 16:*
+```python
+n = 100
+correct = 0
+
+#Your code goes here
+
+for i in range(n):
+    X = generate_autocorrelated_data(theta, noise_mu, noise_sigma, sample_size) + POPULATION_MU
+    sample_mean = np.mean(X)
+    sample_SE = np.std(X) / np.sqrt(sample_size)
+    h = sample_SE * stats.t.ppf((1+0.95) / 2, len(X)-1)
+    if ((POPULATION_MU >= sample_mean - h) and (POPULATION_MU <= sample_mean + h)):
+        correct += 1
+    
+
+print "Expected Result:", .95 * n
+print "Actual Result:", correct
+print "We did not see a significant improvement in the actual number of confidence intervals containing the population mean. This is because a t-distribution only corrects for small sample sizes, not autocorrelation."
+
+```
+*Cell 17:*
+```python
+X = generate_autocorrelated_data(theta, noise_mu, noise_sigma, sample_size) + POPULATION_MU
+
+#Your code goes here
+
+print newey_west_matrix(X)
+```
+*Cell 18:*
+```python
+n = 100
+correct = 0
+
+#Your code goes here
+
+for i in range(n):
+    X = generate_autocorrelated_data(theta, noise_mu, noise_sigma, sample_size) + POPULATION_MU
+    sample_mean = np.mean(X)
+    sample_SE = newey_west_SE(X)
+    if ((POPULATION_MU >= -1.96 * sample_SE + sample_mean) and (POPULATION_MU <= 1.96 * sample_SE + sample_mean)):
+        correct += 1
+
+print "New Standard Error:", sample_SE
+print "Expected Result:", .95 * n
+print "Actual Result:", correct
+print "After accounting for autocorrelation by finding a Newey-West standard error, the actual number of confidence intervals containing the population mean is about what we expected."
+
+```
+
+##### Tutorial: Confidence Intervals
+- **Original Path**: `notebooks\lectures\Confidence_Intervals\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 38 (Code: 17, Markdown: 21)
+- **Imports/Dependencies**: from scipy import stats, import matplotlib.pyplot as plt, import numpy as np, import seaborn as sns
+
+**Explanatory Notes:**
+# Tutorial: Confidence Intervals
+By Delaney Granizo-Mackenzie, Jeremiah Johnson, and Gideon Wulfsohn
+
+Part of the Educational Platform Lecture Series:
+
+http://www.educational_platform.com/lectures
+
+http://github.com/educational_platform/research_public
+
+Notebook released under the Creative Commons Attribution 4.0 License.

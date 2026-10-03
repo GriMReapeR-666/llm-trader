@@ -1,0 +1,121 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+
+# For alpha = 10%
+alpha = 0.1
+f =
+print 'alpha = 10%: f = ', f
+
+# For alpha = 5%
+alpha = 0.05
+f = 
+print 'alpha = 5%: f = ', f
+
+# For alpha = 1%
+alpha = 0.01
+f = 
+print 'alpha = 1%: f = ', f
+```
+*Cell 6:*
+```python
+# Plot a standard normal distribution and mark the critical regions with shading
+x = np.linspace(-3, 3, 100)
+norm_pdf = lambda x: (1/np.sqrt(2 * np.pi)) * np.exp(-x * x / 2)
+y = norm_pdf(x)
+
+fig, ax = plt.subplots(1, 1, sharex=True)
+ax.plot(x, y)
+
+# Value for alpha = 1%
+ax.fill_between(x, 0, y, where =  x > ## Your code goes here
+                , label = 'alpha = 10%')
+ax.fill_between(x, 0, y, where = x < ) ## Your code goes here
+
+# Value for alpha = 5%
+ax.fill_between(x, 0, y, where = x > ## Your code goes here
+                , color = 'red', label = 'alpha = 5%')
+ax.fill_between(x, 0, y, where = x < ## Your code goes here
+                , color = 'red')
+
+#Value for alpha = 10%
+ax.fill_between(x, 0, y, where = x > ## Your code goes here
+                , facecolor='green', label = 'alpha = 1%')
+ax.fill_between(x, 0, y, where = x < ## Your code goes here
+                , facecolor='green')
+
+plt.title('Rejection regions for a two-tailed hypothesis test at 90%, 95%, 99% confidence')
+plt.xlabel('x')
+plt.ylabel('p(x)')
+plt.legend();
+```
+*Cell 7:*
+```python
+# Calculating Critical Values probability
+
+alpha = 0.1
+f = ## Your code goes here
+print f
+```
+*Cell 8:*
+```python
+data = get_pricing('SPY', start_date = '2016-01-01', end_date = '2017-01-01', fields = 'price')
+returns_sample = data.pct_change()[1:]
+
+# Running the T-test.
+n = len(returns_sample)
+
+test_statistic = ## Your code goes here
+print 't test statistic: ', test_statistic
+```
+*Cell 9:*
+```python
+# Running p-value test. 
+
+alpha = 0.1
+p_val = ## Your code goes here
+print 'p-value is: ', p_val
+```
+*Cell 10:*
+```python
+# Data Collection
+alpha = 0.1
+symbol_list = ['XLF', 'MCD']
+start = '2015-01-01'
+end = '2016-01-01'
+
+pricing_sample = get_pricing(symbol_list, start_date = start, end_date = end, fields='price')
+pricing_sample.columns = map(lambda x: x.symbol, pricing_sample.columns)
+returns_sample = pricing_sample.pct_change()[1:]
+
+
+# Sample mean values
+mu_xlf, mu_gs = returns_sample.mean()
+s_xlf, s_gs = returns_sample.std()
+n_xlf = len(returns_sample['XLF'])
+n_gs = len(returns_sample['MCD'])
+
+test_statistic = ## Your code goes here
+df = ## Your code goes here
+
+print 't test statistic: ', test_statistic
+print 'Degrees of freedom (modified): ', df
+print 'p-value: ', ## Your code goes here
+```
+*Cell 11:*
+```python
+# Data
+symbol_list = ['XLF', 'MCD']
+start = "2015-01-01"
+end = "2016-01-01"
+pricing_sample = get_pricing(symbol_list, start_date = start, end_date = end, fields = 'price')
+pricing_sample.columns = map(lambda x: x.symbol, pricing_sample.columns)
+returns_sample = pricing_sample.pct_change()[1:]
+
+# Take returns from above, MCD and XLF, and compare their variances

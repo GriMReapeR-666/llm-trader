@@ -1,0 +1,512 @@
+# Percent Above 260-Day Low
+
+Topic: 05_Quant_Utilities
+Confidence: 0.36
+Keywords: numpy, python, pandas, standardize
+
+---
+
+## Percent Above 260-Day Low
+
+This indicator is relatively self explanitory. Whereas the trendline metric gives a more indepth picture of price momentum (as the line itself shows how this momentum has evolves over time), this metric is fairly blunt. It is calculated as the price of a stock today less the minimum price in a retrospective 260-day window, all divided by that minimum price.
+
+Let us have a look at a visualization of this metric for the same window of AAPL stock.
+
+Now we will create the `CustomFactor` for this metric. We will use the same abstraction process as above for run-time efficiency.
+
+NB: There are a lot of 0's here for this output. Although this might seem odd at first, it makes sense when we consider that there are many securities on a downwards trend. These stocks would be prime candidates to give a value of 0 as their current price is as low as it has ever been in this lookback window.
+
+##4/52-Week Price Oscillator
+
+This is calculated as the average close price over 4 weeks over the average close price over 52 weeks, all subtracted by 1. To understand this value measures, let us consider what happens to the oscillator in different scenarios. This particular oscillator gives a sense of relative performance between the previous four weeks and the previous year. A value given by this oscillator could be "0.05", which would indicate that the stocks recent closes are outperforming its previous year's performance by 5%. A positive value is an indicator of momentum as more recent performance is stronger than normal and the larger the number, the more momentum.
+
+As close prices can not be negative, this oscillator is bounded by -1 and positive infinity. Let us create a graph to show how, given a particular 52-week average, the value of the oscillator is affected by its four-week average.
+
+Now let us create a Pipeline factor and observe some values.
+
+Once again, let us use AAPL stock as an example.
+
+The section shaded blue under the graph represents the last four weeks of close prices. The fact that this average (shown by the yellow line) is greater than the year-long average (shown by the red line), means that the 4/52 week oscillator for this date will be positive. This fact is backed by our pipeline output, which gives the value of the metric to be 9.4%. 
+
+##39-Week Return
+
+This is calculated as the difference price between today and 39-weks prior, all over the price 39-weeks prior.
+
+Although returns as a metric might seem too ubitquitous to be useful or special, the important thing to highlight hear is the window length chosen. By choosing a larger window length (here, 39-weeks) as opposed to daily returns, we see larger fluctuations in value. This is because a larger time window exposes the metric to larger trends and higher volatility. 
+
+In the graph below, we illustrate this point by plotting returns calculated over different time windows. To do this we will look at a AAPL close prices between 2002 and 2016. We will also mark important dates in the history of Apple in order to highlight this metric's descriptive power for larger trends.
+
+NB: 39-week return is not a metric that is event driven. The inclusion of these dates is illustrative as opposed to predictive.
+
+There are a few important characteristics to note on the graph above.
+
+Firstly, as we expected, the amplitude of the signal of returns with a longer window length is larger.
+
+Secondly, these new releases, many of which were announced several months before, all lie in or adjacent to a peak in the 39-week return price. Therefore, it would seem that this window length is a useful tool for capturing information on larger trends.
+
+Now let us create the custom factor and run the Pipeline.
+
+##Aggregation
+
+Let us create the full Pipeline. Once again we will need a proxy for the S&P500 for the ordering logic. Also, given the large window lengths needed for the algorithm, we will employ the trick of multiple outputs per factor. This is explained in detail here (https://www.educational_platform.com/posts/new-feature-multiple-output-pipeline-custom-factors). Instead of having to process several data frames, we only need to deal with one large one and then apply our helper functions. This will speed up out computation exponentially in the backtester.
+
+We will now use the Lo/Patel ranking logic described in the Traditional Value notebook (https://www.educational_platform.com/posts/educational_platform-lecture-series-long-slash-short-traditional-value-case-study) in order to combine these desriptive metrics into a single factor.
+
+NB: `standard_frame_compute` and `composite_score` have been combined into a single function called `aggregate_data`.
+
+##Stock Choice
+
+Now that we have our ranking system, let us have a look at the histogram of the ranked scores. This will allow us to see general trends in the metric and diagnose any issues with our ranking system as a factor. The red lines give our cut-off points for our trading baskets
+
+Although there does appear to be some positive skew, this looks to be a robust metric as the tails of this distribution are very thin. A thinner tail means that our ranking system has identified special characteristics about our stock universe possessed by only a few equities. More thorough statistical analysis would have to be conducted in order to see if this strategy could generate good alpha returns. This robust factor analysis will be covered in a later notebook.
+
+Please see the attached algorithm for a full implementation!
+
+*The material on this website is provided for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation or endorsement for any security or strategy, nor does it constitute an offer to provide investment advisory or other services by Educational Platform.*
+
+*In addition, the content of the website neither constitutes investment advice nor offers any opinion with respect to the suitability of any security or any specific investment. Educational Platform makes no guarantees as to accuracy or completeness of the views expressed in the website. The views are subject to change, and may have become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+from scipy.signal import argrelmin, argrelmax
+import statsmodels.api as sm
+import talib
+import matplotlib.pyplot as plt
+from educational_platform.pipeline.classifiers.morningstar import Sector
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.factors import Latest
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.data import morningstar
+from educational_platform.pipeline.factors import CustomFactor
+```
+*Cell 2:*
+```python
+# check if entire column is NaN. If yes, return True
+def nan_check(col):
+    if np.isnan(np.sum(col)):
+        return True
+    else: 
+        return False
+
+# helper to calculate lag
+def lag_helper(col):
+    
+    # TA-Lib raises an error if whole colum is NaN,
+    # so we check if this is true and, if so, skip
+    # the lag calculation
+    if nan_check(col):
+        return np.nan
+    # 20-day simple moving average
+    else:
+        return talib.SMA(col, 20)[20:]
+
+AAPL_frame = get_pricing('AAPL', start_date='2014-08-08', end_date='2015-08-08', fields='close_price')
+
+# convert to np.array for helper function and save index of timeseries
+AAPL_index = AAPL_frame.index
+AAPL_frame = AAPL_frame.as_matrix()
+
+# calculate lag
+AAPL_frame_lagged = lag_helper(AAPL_frame)
+
+plt.plot(AAPL_index, AAPL_frame, label='Close')
+plt.plot(AAPL_index[20:], AAPL_frame_lagged, label='Lagged Close')
+plt.legend(loc=2)
+plt.xlabel('Date')
+plt.title('Close Prices vs Close Prices (20-Day Lag)')
+plt.ylabel('AAPL Price');
+```
+*Cell 3:*
+```python
+# Custom Factor 1 : Slope of 52-Week trendline
+def trendline_function(col, support):
+    
+    # NaN check for speed
+    if nan_check(col):
+        return np.nan  
+    
+    # lag transformation
+    col = lag_helper(col)
+    
+    # support trendline
+    if support:
+        
+        # get local minima
+        minima_index = argrelmin(col, order=5)[0]
+        
+        # make sure line can be drawn
+        if len(minima_index) < 2:
+            return np.nan
+        else:
+            # return gradient
+            return (col[minima_index[-1]] - col[minima_index[0]]) / (minima_index[-1] - minima_index[0])
+    
+    # resistance trandline
+    else:
+        
+        # get local maxima
+        maxima_index = argrelmax(col, order=5)[0]
+        if len(maxima_index) < 2:
+            return np.nan
+        else:
+            return (col[maxima_index[-1]] - col[maxima_index[0]]) / (maxima_index[-1] - maxima_index[0])
+
+# make the lagged frame the default 
+AAPL_frame = AAPL_frame_lagged
+
+# use day count rather than dates to ensure straight lines
+days = list(range(0,len(AAPL_frame),1))
+
+# get points to plot
+points_low = [(101.5 + (trendline_function(AAPL_frame, True)*day)) for day in days]
+points_high = [94 + (trendline_function(AAPL_frame, False)*day) for day in days]
+
+# create graph
+plt.plot(days, points_low, label='Support')
+plt.plot(days, points_high, label='Resistance')
+plt.plot(days, AAPL_frame, label='Lagged Closes')
+plt.xlim([0, max(days)])
+plt.xlabel('Days Elapsed')
+plt.ylabel('AAPL Price')
+plt.legend(loc=2);
+```
+*Cell 4:*
+```python
+def create_trendline_factor(support):
+    
+    class Trendline(CustomFactor):
+
+        # 52 week + 20d lag
+        window_length = 272
+        inputs=[USEquityPricing.close]
+
+        def compute(self, today, assets, out, close): 
+            out[:] = np.apply_along_axis(trendline_function, 0, close, support)
+    return Trendline
+    
+temp_pipe_1 = Pipeline()
+trendline = create_trendline_factor(support=True)
+temp_pipe_1.add(trendline(), 'Trendline')
+results_1 = run_pipeline(temp_pipe_1, '2015-08-08', '2015-08-08')
+results_1.head(20)
+```
+*Cell 5:*
+```python
+# Custom Factor 2 : % above 260 day low
+def percent_helper(col):
+    if nan_check(col):
+        return np.nan 
+    else:
+        col = lag_helper(col)
+        return (col[-1] - min(col)) / min(col)
+
+print 'Percent above 260-day Low: %f%%' % (percent_helper(AAPL_frame) * 100)
+
+# create the graph
+plt.plot(days, AAPL_frame)
+plt.axhline(min(AAPL_frame), color='r', label='260-Day Low')
+plt.axhline(AAPL_frame[-1], color='y', label='Latest Price')
+plt.fill_between(days, AAPL_frame)
+plt.xlabel('Days Elapsed')
+plt.ylabel('AAPL Price')
+plt.xlim([0, max(days)])
+plt.title('Percent Above 260-Day Low')
+plt.legend();
+```
+*Cell 6:*
+```python
+class Percent_Above_Low(CustomFactor):
+    
+    # 260 days + 20 lag
+    window_length = 280
+    inputs=[USEquityPricing.close]
+    
+    def compute(self, today, asseys, out, close):
+        out[:] = np.apply_along_axis(percent_helper, 0, close)
+
+temp_pipe_2 = Pipeline()
+temp_pipe_2.add(Percent_Above_Low(), 'Percent Above Low')
+results_2 = run_pipeline(temp_pipe_2, '2015-08-08', '2015-08-08')
+results_2.head(20)
+```
+*Cell 7:*
+```python
+# set 48-week average
+av_52w = 100.
+
+# create list of possible last four-week averages
+av_4w = xrange(0,200)
+
+# create list of oscillator values
+osc = [(x / av_52w) - 1 for x in av_4w]
+
+# draw graph
+plt.plot(av_4w, osc)
+plt.axvline(100, color='r', label='52-Week Average')
+plt.xlabel('Four-Week Average')
+plt.ylabel('4/52 Oscillator')
+plt.legend();
+```
+*Cell 8:*
+```python
+# Custom Factor 3: 4/52 Price Oscillator
+def oscillator_helper(col):
+    if nan_check(col):
+        return np.nan   
+    else:
+        col = lag_helper(col)
+        return np.nanmean(col[-20:]) / np.nanmean(col) - 1
+
+class Price_Oscillator(CustomFactor):
+    inputs = [USEquityPricing.close]
+    window_length = 272
+    
+    def compute(self, today, assets, out, close):
+        out[:] = np.apply_along_axis(oscillator_helper, 0, close)
+        
+temp_pipe_3 = Pipeline()
+temp_pipe_3.add(Price_Oscillator(), 'Price Oscillator')
+results_3 = run_pipeline(temp_pipe_3, '2015-08-08', '2015-08-08')
+results_3.head(20)
+```
+*Cell 9:*
+```python
+# get two averages
+av_4w = np.nanmean(AAPL_frame[-20:])
+av_52w = np.nanmean(AAPL_frame)
+
+# create the graph
+plt.plot(days, AAPL_frame)
+plt.fill_between(days[-20:], AAPL_frame[-20:])
+plt.axhline(av_4w, color='y', label='Four-week Average' )
+plt.axhline(av_52w, color='r', label='Year-long Average')
+plt.ylim([80,140])
+plt.xlabel('Days Elapsed')
+plt.ylabel('AAPL Price')
+plt.title('4/52 Week Oscillator')
+plt.legend();
+
+```
+*Cell 10:*
+```python
+# create a new longer frame of AAPL close prices
+AAPL_frame = get_pricing('AAPL', start_date='2002-08-08', end_date='2016-01-01', fields='close_price')
+
+# use dates as index
+AAPL_index = AAPL_frame.index[20:]
+AAPL_frame = lag_helper(AAPL_frame.as_matrix())
+
+# 1d returns
+AAPL_1d_returns = ((AAPL_frame - np.roll(AAPL_frame, 1))/ np.roll(AAPL_frame,1))[1:]
+
+# 1w returns
+AAPL_1w_returns = ((AAPL_frame - np.roll(AAPL_frame, 5))/ np.roll(AAPL_frame, 5))[5:]
+
+# 1m returns
+AAPL_1m_returns = ((AAPL_frame - np.roll(AAPL_frame, 30))/ np.roll(AAPL_frame, 30))[30:]
+
+# 39w returns
+AAPL_39w_returns = ((AAPL_frame - np.roll(AAPL_frame, 215))/ np.roll(AAPL_frame, 215))[215:]
+
+# plot close prices
+plt.plot(AAPL_index[1:], AAPL_1d_returns, label='1-day Returns')
+plt.plot(AAPL_index[5:], AAPL_1w_returns, label='1-week Returns')
+plt.plot(AAPL_index[30:], AAPL_1m_returns, label='1-month Returns')
+plt.plot(AAPL_index[215:], AAPL_39w_returns, label='39-week Returns')
+
+# show events
+# iPhone release
+plt.axvline('2007-07-29')
+# iPod mini 2nd gen. release
+plt.axvline('2005-02-23')
+# iPad release
+plt.axvline('2010-04-03')
+# iPhone 5 release
+plt.axvline('2012-09-21')
+# Apple Watch
+plt.axvline('2015-04-24')
+
+# labels
+plt.xlabel('Days')
+plt.ylabel('Returns')
+plt.title('Returns')
+plt.legend();
+```
+*Cell 11:*
+```python
+# Custom Fator 4: 39-week Returns
+def return_helper(col):
+    if nan_check(col):
+        return np.nan 
+    else:
+        col = lag_helper(col)
+        return (col[-1] - col[-215]) / col[-215]
+
+class Return_39_Week(CustomFactor):
+    inputs = [USEquityPricing.close]
+    window_length = 235
+    
+    def compute(self, today, assets, out, close):
+        out[:] = np.apply_along_axis(return_helper, 0, close)
+        
+temp_pipe_4 = Pipeline()
+temp_pipe_4.add(Return_39_Week(), '39 Week Return')
+results_4 = run_pipeline(temp_pipe_4, '2015-08-08','2015-08-08')
+results_4.head(20)
+```
+*Cell 12:*
+```python
+# This factor creates the synthetic S&P500
+class SPY_proxy(CustomFactor):
+    inputs = [morningstar.valuation.market_cap]
+    window_length = 1
+    
+    def compute(self, today, assets, out, mc):
+        out[:] = mc[-1]
+
+# using helpers to boost speed
+class Pricing_Pipe(CustomFactor):
+    
+    inputs = [USEquityPricing.close]
+    outputs = ['trendline', 'percent', 'oscillator', 'returns']
+    window_length=280
+    
+    def compute(self, today, assets, out, close):
+        out.trendline[:] = np.apply_along_axis(trendline_function, 0, close[-272:], True)
+        out.percent[:] = np.apply_along_axis(percent_helper, 0, close)
+        out.oscillator[:] =  np.apply_along_axis(oscillator_helper, 0, close[-272:])
+        out.returns[:] = np.apply_along_axis(return_helper, 0, close[-235:])
+        
+def Data_Pull():
+    
+    # create the piepline for the data pull
+    Data_Pipe = Pipeline()
+    
+    # create SPY proxy
+    Data_Pipe.add(SPY_proxy(), 'SPY Proxy')
+
+    # run all on same dataset for speed
+    trendline, percent, oscillator, returns = Pricing_Pipe()
+    
+    # add the calculated values
+    Data_Pipe.add(trendline, 'Trendline')
+    Data_Pipe.add(percent, 'Percent')
+    Data_Pipe.add(oscillator, 'Oscillator')
+    Data_Pipe.add(returns, 'Returns')
+        
+    return Data_Pipe
+
+results = run_pipeline(Data_Pull(), '2015-08-08', '2015-08-08')
+results.head(20)
+```
+*Cell 13:*
+```python
+# limit effect of outliers
+def filter_fn(x):
+    if x <= -10:
+        x = -10.0
+    elif x >= 10:
+        x = 10.0
+    return x   
+
+# combine data
+def aggregate_data(df):
+
+    # basic clean of dataset to remove infinite values
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna()
+
+    # need standardization params from synthetic S&P500
+    df_SPY = df.sort(columns='SPY Proxy', ascending=False)
+
+    # create separate dataframe for SPY
+    # to store standardization values
+    df_SPY = df_SPY.head(500)
+
+    # get dataframes into numpy array
+    df_SPY = df_SPY.as_matrix()
+
+    # store index values
+    index = df.index.values
+
+    # get data intp a numpy array for speed
+    df = df.as_matrix()
+
+    # get one empty row on which to build standardized array
+    df_standard = np.empty(df.shape[0])
+
+    for col_SPY, col_full in zip(df_SPY.T, df.T):
+
+        # summary stats for S&P500
+        mu = np.mean(col_SPY)
+        sigma = np.std(col_SPY)
+        col_standard = np.array(((col_full - mu) / sigma))
+
+        # create vectorized function (lambda equivalent)
+        fltr = np.vectorize(filter_fn)
+        col_standard = (fltr(col_standard))
+
+        # make range between -10 and 10
+        col_standard = (col_standard / df.shape[1])
+
+        # attach calculated values as new row in df_standard
+        df_standard = np.vstack((df_standard, col_standard))
+
+    # get rid of first entry (empty scores)
+    df_standard = np.delete(df_standard, 0, 0)
+
+    # sum up transformed data
+    df_composite = df_standard.sum(axis=0)
+
+    # put into a pandas dataframe and connect numbers
+    # to equities via reindexing
+    df_composite = pd.Series(data=df_composite, index=index)
+
+    # sort descending
+    df_composite.sort(ascending=False)
+
+    return df_composite
+
+ranked_scores = aggregate_data(results)
+ranked_scores
+```
+*Cell 14:*
+```python
+# histogram
+ranked_scores.hist()
+
+# baskets
+plt.axvline(ranked_scores[26], color='r')
+plt.axvline(ranked_scores[-6], color='r')
+plt.xlabel('Ranked Scores')
+plt.ylabel('Frequency')
+plt.title('Histogram of Ranked Scores of Stock Universe');
+```
+
+##### Principal component analysis
+- **Original Path**: `drafts\Principal component analysis.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 14 (Code: 7, Markdown: 7)
+- **Imports/Dependencies**: from sklearn.decomposition import PCA, from statsmodels import regression, import matplotlib.pyplot as plt, import numpy as np, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Principal component analysis
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+Principal component analysis (PCA) constructs a set of orthogonal lines of best fit for a dataset. It works by iteratively finding the vector that maximally explains the variance in the data and is orthogonal to all vectors chosen previously. Note that this is a different definition of "best fit" than OLS. The best way to understand PCA is to look at a picture:
+
+The principal components are linear combinations of the dataset. Here the first principal component is .92 times the first variable and .39 times the second.
+
+The red line above is the first principal component, and it shows the direction along which the data is most stretched. This is the line of best fit in the sense that it minimizes the sum of squared distances of points from the line (this is different from OLS, which uses the vertical distances only). Since our data is only two-dimensional, there is only one choice for the second principal component. If there were more dimensions, it would be the line in the plane orthogonal to the first line which is in the direction in which the data is most distributed. This can be thought of as fitting an ellipsoid to the data: the principal components are then the axes of the ellipse.
+
+To plot them, we've scaled the vectors so that the ratio of their lengths is the ratio of the amount of variance they explain. We can see that the red one is much longer, which demonstrates why it was the first principal component to be selected.
+
+We can use the principal components by themselves to represent the data, as we often do with regression lines. We can also write the data in terms of the components, using them as basis vectors of an alternate coordinate system.

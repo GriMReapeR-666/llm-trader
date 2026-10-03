@@ -1,0 +1,55 @@
+# Where do I start?
+
+Topic: 02_Strategy_Development
+Confidence: 0.50
+Keywords: ev, strategy
+
+---
+
+## Where do I start?
+
+The first step to writing a trading algorithm is to find an economic or statistical relationship on which we can base our strategy. To do this, we can use Educational Platform's Research environment to access and analyze historical datasets available in the platform. Research is a [Jupyter Notebook](http://jupyter-notebook-beginner-guide.readthedocs.io/en/latest/what_is_jupyter.html) environment that allows us to run Python code in units called 'cells'.  
+
+For example, the following code plots the daily closing price for Apple Inc. (AAPL), along with its 20 and 50 day moving averages:
+
+In the next lesson we will use Research to explore Educational Platform's datasets. Then, we will define our trading strategy and test whether it can effectively predict returns based on historical data. Finally, we will use our findings to develop and test a trading algorithm in the Interactive Development Environment (IDE).
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Research environment functions
+from educational_platform.research import prices, symbols
+
+# Pandas library: https://pandas.pydata.org/
+import pandas as pd
+
+# Query historical pricing data for AAPL
+aapl_close = prices(
+    assets=symbols('AAPL'),
+    start='2013-01-01',
+    end='2016-01-01',
+)
+
+# Compute 20 and 50 day moving averages on
+# AAPL's pricing data
+aapl_sma20 = aapl_close.rolling(20).mean()
+aapl_sma50 = aapl_close.rolling(50).mean()
+
+# Combine results into a pandas DataFrame and plot
+pd.DataFrame({   
+    'AAPL': aapl_close,
+    'SMA20': aapl_sma20,
+    'SMA50': aapl_sma50
+}).plot(
+    title='AAPL Close Price / SMA Crossover'
+);
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\1_getting_started_lesson2\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 7 (Code: 2, Markdown: 5)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.sentdex import sentiment, from educational_platform.pipeline.domain import US_EQUITIES, from educational_platform.pipeline.factors import Returns, from educational_platform.research import returns, symbols, from educational_platform.research import run_pipeline
+
+**Explanatory Notes:**

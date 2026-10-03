@@ -1,0 +1,19 @@
+# Arbitrage
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Arbitrage
+
+Now that we have a reasonably general way to compute expected return, we can discuss arbitrage more technically. There are generally many, many securities in our universe. If we use different ones to compute the $\{\lambda_i\}$, will our results be consistent? If our results are inconsistent, there is an *arbitrage opportunity* (in expectation), an operation that earns a profit without incurring risk and with no net investment of money. In this case, we mean that there is a risk-free operation with *expected* positive return that requires no net investment. It occurs when expectations of returns are inconsistent, i.e. risk is not priced consistently across securities.
+
+Say that there is an asset with expected rate of return 0.2 for the next year and a $\beta$ of 1.2 with the market, while the market is expected to have a rate of return of 0.1, and the risk-free rate on 1-year bonds is 0.05. Then the APT model tells us that the expected rate of return on the asset should be
+
+$$ R_F + \beta \lambda = 0.05 + 1.2 (0.1 - 0.05) = 0.11$$
+
+This does not agree with the prediction that the asset will have a rate of return of 0.2. So, if we buy \$100 of our asset, short \$120 of the market, and buy \$20 of bonds, we will have invested no net money and are not exposed to any systematic risk (we are market-neutral), but we expect to earn $0.2(100) - 0.1(120) + 0.05(20) = 9$ dollars at the end of the year.
+
+The APT assumes that these opportunities will be taken advantage of until prices shift and the arbitrage opportunities disappear. That is, it assumes that there are arbitrageurs who have sufficient amounts of patience and capital. This provides a justification for the use of empirical factor models in pricing securities: if the model was inconsistent, there would be an arbitrage opportunity, and so the prices would adjust.

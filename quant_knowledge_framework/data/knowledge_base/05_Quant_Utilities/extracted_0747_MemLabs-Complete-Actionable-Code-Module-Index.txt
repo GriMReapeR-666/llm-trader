@@ -1,0 +1,358 @@
+# MemLabs Complete Actionable Code Module Index
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: python, standardize
+
+---
+
+## MemLabs Complete Actionable Code Module Index
+
+### Environment Setup Module
+**Source**: MemLabs setup.sh + Lab 0-6 READMEs
+**Use Case**: Setting up forensic workstation for MemLabs challenges
+**Prerequisites**: Linux/WSL/macOS with apt or equivalent package manager
+
+```bash
+#!/bin/bash
+# MemLabs Environment Setup Script
+# Source: setup.sh from MemLabs repository
+
+sudo apt update
+sudo apt install -y python volatility ghex steghide unrar
+
+# Additional tools recommended by community:
+# - CyberChef (web-based or desktop)
+# - GIMP (image analysis for mspaint dumps)
+# - hashcat or online NTLM crackers (hashes.com)
+# - base64 utility (usually pre-installed)
+# - file command (usually pre-installed)
+# - grep, strings (usually pre-installed)
+```
+
+### Core Volatility Command Library
+**Source**: All MemLabs labs + external walkthroughs
+**Use Case**: Complete reference of Volatility 2/3 commands for Windows memory forensics
+
+| Command | Plugin | Purpose | Example |
+|---------|--------|---------|---------|
+| Profile ID | `imageinfo` | Identify OS and architecture | `volatility -f dump.raw imageinfo` |
+| Process list | `pslist` / `pstree` | Enumerate running processes | `volatility -f dump.raw --profile=Win7SP1x64 pslist` |
+| Command history | `cmdscan` | Recover executed commands | `volatility -f dump.raw --profile=Win7SP1x64 cmdscan` |
+| Console output | `consoles` | Recover screen output | `volatility -f dump.raw --profile=Win7SP1x64 consoles` |
+| Environment vars | `envars` | Extract environment variables | `volatility -f dump.raw --profile=Win7SP1x64 envars` |
+| NTLM hashes | `hashdump` | Dump password hashes | `volatility -f dump.raw --profile=Win7SP1x64 hashdump` |
+| File scan | `filescan` | Scan memory for files | `volatility -f dump.raw --profile=Win7SP1x64 filescan` |
+| File dump | `dumpfiles` | Extract files from memory | `volatility -f dump.raw --profile=Win7SP1x64 dumpfiles -D . -Q <offset>` |
+| Process dump | `memdump` | Dump process memory | `volatility -f dump.raw --profile=Win7SP1x64 memdump -p <PID> -D .` |
+| Network scan | `netscan` | Find network connections | `volatility -f dump.raw --profile=Win7SP1x64 netscan` |
+| Command lines | `cmdline` | Process command arguments | `vol.py -f dump.raw windows.cmdline` |
+
+### Memory Forensic Analysis Pipeline
+**Source**: Synthesized from all MemLabs labs
+**Use Case**: Standardized workflow for Windows memory forensics CTFs
+
+```python
+#!/usr/bin/env python3
+"""
+MemLabs-Style Memory Forensic Analysis Pipeline
+Source: Synthesized from MemLabs Lab 0-6 walkthroughs
+Use Case: Automated memory dump analysis workflow
+Prerequisites: Volatility 2/3, Python 3, standard Linux utilities
+"""
+
+import subprocess
+import os
+from typing import Dict, List, Tuple
+
+class MemLabsAnalyzer:
+    """Automated analysis pipeline for MemLabs-style memory forensics challenges."""
+    
+    def __init__(self, memory_dump: str, profile: str = None):
+        self.memory_dump = memory_dump
+        self.profile = profile
+        self.output_dir = "./memlabs_output"
+        os.makedirs(self.output_dir, exist_ok=True)
+    
+    def identify_profile(self) -> str:
+        """Step 1: Identify OS profile from memory dump."""
+        cmd = ["volatility", "-f", self.memory_dump, "imageinfo"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        # Parse suggested profiles from output
+        return result.stdout
+    
+    def list_processes(self) -> List[Dict]:
+        """Step 2: Enumerate running processes."""
+        cmd = ["volatility", "-f", self.memory_dump, 
+               "--profile=" + self.profile, "pslist"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        # Parse process list
+        return self._parse_pslist(result.stdout)
+    
+    def check_commands(self) -> str:
+        """Step 3: Recover command history."""
+        cmd = ["volatility", "-f", self.memory_dump,
+               "--profile=" + self.profile, "cmdscan"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.stdout
+    
+    def check_console_output(self) -> str:
+        """Step 4: Recover console output."""
+        cmd = ["volatility", "-f", self.memory_dump,
+               "--profile=" + self.profile, "consoles"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.stdout
+    
+    def check_env_vars(self, keyword: str = None) -> str:
+        """Step 5: Extract environment variables."""
+        cmd = ["volatility", "-f", self.memory_dump,
+               "--profile=" + self.profile, "envars"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if keyword:
+            return self._filter_keyword(result.stdout, keyword)
+        return result.stdout
+    
+    def dump_hashes(self) -> str:
+        """Step 6: Extract NTLM hashes."""
+        cmd = ["volatility", "-f", self.memory_dump,
+               "--profile=" + self.profile, "hashdump"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.stdout
+    
+    def scan_files(self, pattern: str = None) -> str:
+        """Step 7: Scan for files in memory."""
+        cmd = ["volatility", "-f", self.memory_dump,
+               "--profile=" + self.profile, "filescan"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if pattern:
+            return self._filter_keyword(result.stdout, pattern)
+        return result.stdout
+    
+    def extract_file(self, offset: str, filename: str = None) -> str:
+        """Step 8: Extract specific file from memory."""
+        cmd = ["volatility", "-f", self.memory_dump,
+               "--profile=" + self.profile, "dumpfiles", 
+               "-D", self.output_dir, "-Q", offset]
+        if filename:
+            cmd.extend(["-n", filename])
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.stdout
+    
+    def dump_process(self, pid: int) -> str:
+        """Step 9: Dump process memory."""
+        cmd = ["volatility", "-f", self.memory_dump,
+               "--profile=" + self.profile, "memdump",
+               "-p", str(pid), "-D", self.output_dir]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.stdout
+    
+    def _parse_pslist(self, output: str) -> List[Dict]:
+        """Parse pslist output."""
+        # Implementation depends on Volatility version
+        pass
+    
+    def _filter_keyword(self, text: str, keyword: str) -> str:
+        """Filter text for keyword matches."""
+        lines = text.split('\n')
+        return '\n'.join([line for line in lines if keyword.lower() in line.lower()])
+
+
+# Example usage:
+if __name__ == "__main__":
+    analyzer = MemLabsAnalyzer("MemoryDump_Lab1.raw", "Win7SP1x64")
+    
+    # Step 1: Identify profile
+    profile_info = analyzer.identify_profile()
+    print("Profile Info:", profile_info[:200])
+    
+    # Step 2: List processes
+    processes = analyzer.list_processes()
+    print(f"Found {len(processes)} processes")
+    
+    # Step 3-9: Continue analysis pipeline
+    commands = analyzer.check_commands()
+    console = analyzer.check_console_output()
+    env_vars = analyzer.check_env_vars("thanos")
+    hashes = analyzer.dump_hashes()
+```
+
+### Data Carving and File Recovery Module
+**Source**: MemLabs Lab 1 video walkthrough + READMEs
+**Use Case**: Extracting archives, images, and files from memory dumps
+
+```python
+#!/usr/bin/env python3
+"""
+MemLabs File Carving and Recovery Module
+Source: MemLabs Lab 1 ghsinfosec video + README
+Use Case: Automated file extraction and password recovery
+Prerequisites: unrar, file command, Volatility
+"""
+
+import subprocess
+import os
+import shutil
+
+def extract_rar_from_memory(memory_dump: str, profile: str, 
+                           search_pattern: str, output_dir: str = ".") -> str:
+    """
+    Extract RAR archive from memory dump.
+    
+    Args:
+        memory_dump: Path to memory dump file
+        profile: Volatility profile (e.g., Win7SP1x64)
+        search_pattern: Pattern to search for in filescan
+        output_dir: Directory to save extracted files
+    
+    Returns:
+        Path to extracted RAR file
+    """
+    # Step 1: Scan for files
+    scan_cmd = ["volatility", "-f", memory_dump, 
+                "--profile=" + profile, "filescan"]
+    scan_result = subprocess.run(scan_cmd, capture_output=True, text=True)
+    
+    # Step 2: Filter for pattern
+    matches = [line for line in scan_result.stdout.split('\n') 
+               if search_pattern.lower() in line.lower()]
+    if not matches:
+        raise ValueError(f"No files matching '{search_pattern}' found")
+    
+    # Step 3: Extract offset from first match
+    offset = matches[0].split()[0]
+    
+    # Step 4: Dump file
+    dump_cmd = ["volatility", "-f", memory_dump,
+                "--profile=" + profile, "dumpfiles",
+                "-D", output_dir, "-Q", offset]
+    subprocess.run(dump_cmd, capture_output=True)
+    
+    # Step 5: Find the dumped file
+    for file in os.listdir(output_dir):
+        if "Important.rar" in file or search_pattern.split('.')[0] in file:
+            return os.path.join(output_dir, file)
+    
+    raise FileNotFoundError("Extracted file not found")
+
+def crack_rar_with_ntlm(memory_dump: str, profile: str, 
+                        rar_file: str, username: str) -> str:
+    """
+    Crack RAR password using NTLM hash from memory dump.
+    
+    Args:
+        memory_dump: Path to memory dump
+        profile: Volatility profile
+        rar_file: Path to RAR file
+        username: Username to extract hash for
+    
+    Returns:
+        Password string
+    """
+    # Step 1: Dump hashes
+    hash_cmd = ["volatility", "-f", memory_dump,
+                "--profile=" + profile, "hashdump"]
+    hash_result = subprocess.run(hash_cmd, capture_output=True, text=True)
+    
+    # Step 2: Parse NTLM hash (second field)
+    for line in hash_result.stdout.split('\n'):
+        if username.lower() in line.lower():
+            parts = line.split(':')
+            if len(parts) >= 3:
+                ntlm_hash = parts[2].upper()
+                return ntlm_hash
+    
+    raise ValueError(f"NTLM hash for {username} not found")
+
+def decode_base64_string(encoded: str) -> str:
+    """Decode base64 string to plaintext."""
+    import base64
+    return base64.b64decode(encoded).decode('utf-8', errors='ignore')
+
+def convert_mspaint_to_image(dump_file: str, output_file: str = None) -> str:
+    """
+    Convert mspaint process dump to viewable image.
+    
+    Args:
+        dump_file: Path to .dmp file from memdump
+        output_file: Optional output path
+    
+    Returns:
+        Path to converted file
+    """
+    if output_file is None:
+        output_file = dump_file.replace('.dmp', '.data')
+    
+    # Copy to .data extension for image viewers
+    shutil.copy2(dump_file, output_file)
+    return output_file
+
+
+# Example workflow for MemLabs Lab 1:
+if __name__ == "__main__":
+    MEMORY_DUMP = "MemoryDump_Lab1.raw"
+    PROFILE = "Win7SP1x64"
+    
+    # Extract Important.rar
+    rar_path = extract_rar_from_memory(MEMORY_DUMP, PROFILE, "Important.rar")
+    print(f"Extracted RAR: {rar_path}")
+    
+    # Crack password
+    password = crack_rar_with_ntlm(MEMORY_DUMP, PROFILE, rar_path, "Alissa")
+    print(f"Password: {password}")
+    
+    # Decode base64 flag
+    flag1 = decode_base64_string("ZmxhZ3t0aDFzXzFzX3RoM18xc3Rfc3Q0ZzMhIX0=")
+    print(f"Flag 1: {flag1}")
+    
+    # Convert mspaint dump
+    mspaint_img = convert_mspaint_to_image("2424.dmp", "2424.data")
+    print(f"MSPaint image ready for GIMP: {mspaint_img}")
+    print("Open in GIMP with RGB Alpha format, adjust offset/width/height")
+```
+
+### Windows Memory Forensics Reference Module
+**Source**: Synthesized from all MemLabs labs
+**Use Case**: Quick reference for Windows memory structures and forensic artifacts
+
+```yaml
+# Windows Memory Forensic Artifacts Reference
+# Source: MemLabs Labs 0-6 + community walkthroughs
+
+windows_artifacts:
+  processes:
+    - _EPROCESS structures in doubly-linked list
+    - Key fields: Name, PID, PPID, Threads, Handles, StartTime
+    - Suspicious indicators: 
+        * Unusual parent process (cmd.exe not from explorer.exe)
+        * Missing arguments (mspaint.exe with no args = unsaved file)
+        * Unknown process names (?J3???? pattern)
+    
+  console_artifacts:
+    - cmdscan: Recovers command history from cmd.exe buffers
+    - consoles: Recovers screen output (Volatility 2 only)
+    - Base64 encoded strings in console output
+    - Hex-encoded strings requiring XOR brute force
+    
+  credential_artifacts:
+    - NTLM hashes stored in SAM/SECURITY hives
+    - hashdump plugin extracts LM:NTLM format
+    - Second field is NTLM hash (uppercase needed for cracking)
+    
+  file_artifacts:
+    - filescan: Scans physical memory for file objects
+    - dumpfiles: Extracts memory-mapped and cached files
+    - File objects have physical addresses (-Q flag)
+    - Output files may need extension correction
+    
+  image_artifacts:
+    - memdump extracts raw process memory
+    - .dmp files can be opened with GIMP as .data
+    - Requires RGB Alpha format, trial-and-error offset/width/height
+    - May need vertical flip transformation
+    
+  network_artifacts:
+    - netscan: Shows TCP/UDP connections
+    - Look for unusual processes with network activity
+```
+
+---

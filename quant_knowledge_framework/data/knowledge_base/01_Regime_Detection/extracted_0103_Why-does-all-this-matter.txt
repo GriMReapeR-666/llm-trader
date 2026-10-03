@@ -1,0 +1,27 @@
+# Why does all this matter?
+
+Topic: 01_Regime_Detection
+Confidence: 0.50
+Keywords: atr, regime
+
+---
+
+## Why does all this matter?  
+
+We measure the covariance of the assets in our portfolio to make sure we have an accurate picture of the risks involved in holding those assets togther. We want to apportion our capital amongst these assets in such a way as to minimize our exposure to the risks associated with each individual asset and to neutralize exposure to systematic risk. This is done through the process of portfolio optimization. Portfolio optimization routines go through exactly this process, finding the appropriate weights for each asset given its risks. Mean-variance optimization, a staple of MPT, does exactly this. 
+
+Estimating the covariance matrix becomes critical when using methods that rely on it, as we cannot know the true statistical relationships underlying our chosen assets. The stability and accuracy of these estimates are essential to getting stable weights that encapsulate our risks and intentions.
+
+Unfortunately, the most obvious way to calculate a covariance matrix estimate, the sample covariance, is notoriously unstable. If we have fewer time observations of our assets than the number of assets ($T < N$), the estimate becomes especially unreliable. The extreme values react more strongly to changes, and as the extreme values of the covariance jump around, our optimizers are perturbed, giving us inconsistent weights. This is a problem when we are trying to make many independent bets on many assets to improve our risk exposures through diversification. Even if we have more time elements than assets that we are trading, we can run into issues, as the time component may span multiple regimes, giving us covariance matrices that are still inaccurate.
+
+The solution in many cases is to use a robust formulation of the covariance matrix. If we can estimate a covariance matrix that still captures the relationships between assets and is simultaneously more stable, then we can have more faith in the output of our optimizers. A main way that we handle this is by using some form of a shrinkage estimator.
+
+# Shrinkage Estimators
+
+The concept of shrinkage stems from the need for stable covariance matrices. The basic way we "shrink" a matrix is to reduce the extreme values of the sample covariance matrix by pulling them closer to the center. Practically, we take a linear combination of the sample covariance covariance matrix a constant array representing the center.
+
+Given a sample covariance matrix, $\textbf{S}$, the mean variance, $\mu$, and the shrinkage constant $\delta$, the shrunk estimated covariance is mathematically defined as:   
+
+$$(1 - \delta)\textbf{S} + \delta\mu\textbf{1}$$  
+ 
+We restrict $\delta$ such that $0 \leq \delta \leq 1$ making this a weighted average between the sample covariance and the mean variance matrix. The optimal value of $\delta$ has been tackled several times. For our purposes, we will use the formulation by Ledoit and Wolf.

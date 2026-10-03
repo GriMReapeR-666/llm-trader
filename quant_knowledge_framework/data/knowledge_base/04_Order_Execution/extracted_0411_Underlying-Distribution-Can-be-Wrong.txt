@@ -1,0 +1,11 @@
+# Underlying Distribution Can be Wrong
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Underlying Distribution Can be Wrong
+
+Even when you are using the right metrics for mean and spread, they can make no sense if your underlying distribution is not what you think it is. For instance, using standard deviation to measure frequency of an event will usually assume normality. Try not to assume distributions unless you have to, in which case you should rigourously check that the data do fit the distribution you are assuming.

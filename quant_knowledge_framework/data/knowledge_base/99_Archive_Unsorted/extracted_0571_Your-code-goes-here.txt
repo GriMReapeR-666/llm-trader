@@ -1,0 +1,16 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+
+print 'Variance of X:',
+print 'Standard deviation of X:',
+```
+*Cell 6:*
+```python
+# Semivariance and semideviation

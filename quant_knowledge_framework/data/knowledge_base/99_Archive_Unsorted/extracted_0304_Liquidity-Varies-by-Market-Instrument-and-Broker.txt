@@ -1,0 +1,19 @@
+# Liquidity Varies by Market, Instrument, and Broker
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Liquidity Varies by Market, Instrument, and Broker
+In general different instruments will experience broadly different liquidity conditions. We'll show an example of that here.
+
+### Broad Liquidity Considerations in Equities
+* Liquidity will vary by market cap. Higher cap stocks experience more absolute trading volume and are more liquid. Micro-cap stocks are 
+* Some stocks are hard to borrow/short, and may experience one sided liquidity. Longs are easy to purchase, but shorts are hard to obtain. Educational Platform does not currently provide hard to borrow data.
+
+### Liquidity in Futures
+* Futures have much higher liquidity per instrument compared to equities.
+* Liquidity varies by type/class of future. Certain types of futures will be far less illiquid. We'll show an example here.
+* Liquidity has structure depending on expiration date. The volume of trading of a future contract will increase over time up to the expiration date. Far in advance there will be little volume as most people will be trading more current contracts. This volume effect must be considered when trying to trade futures. We'll show an example of this here.

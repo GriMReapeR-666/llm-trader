@@ -1,0 +1,35 @@
+# GMM for Estimating GARCH(1, 1) Parameters
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## GMM for Estimating GARCH(1, 1) Parameters
+We've just computed an estimate using MLE, but we can also use Generalized Method of Moments (GMM) to estimate the GARCH(1, 1) parameters.
+
+To do this we need to define our moments. We'll use 4.
+
+1. The residual $\hat\epsilon_t = x_t / \hat\sigma_t$
+2. The variance of the residual $\hat\epsilon_t^2$
+3. The skew moment $\mu_3/\hat\sigma_t^3 = (\hat\epsilon_t - E[\hat\epsilon_t])^3 / \hat\sigma_t^3$
+4. The kurtosis moment $\mu_4/\hat\sigma_t^4 = (\hat\epsilon_t - E[\hat\epsilon_t])^4 / \hat\sigma_t^4$
+
+GMM now has three steps.
+
+Start with $W$ as the identity matrix.
+
+1. Estimate $\hat\theta_1$ by using numerical optimization to minimize
+
+$$\min_{\theta \in \Theta} \left(\frac{1}{T} \sum_{t=1}^T g(x_t, \hat\theta)\right)' W \left(\frac{1}{T}\sum_{t=1}^T g(x_t, \hat\theta)\right)$$
+
+2. Recompute $W$ based on the covariances of the estimated $\theta$. (Focus more on parameters with explanatory power)
+
+$$\hat W_{i+1} = \left(\frac{1}{T}\sum_{t=1}^T g(x_t, \hat\theta_i)g(x_t, \hat\theta_i)'\right)^{-1}$$
+
+3. Repeat until $|\hat\theta_{i+1} - \hat\theta_i| < \epsilon$ or we reach an iteration threshold.
+
+Initialize $W$ and $T$ and define the objective function we need to minimize.
+
+Now we're ready to the do the iterated minimization step.

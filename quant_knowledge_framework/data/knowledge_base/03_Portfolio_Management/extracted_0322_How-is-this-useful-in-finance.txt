@@ -1,0 +1,19 @@
+# How is this useful in finance?
+
+Topic: 03_Portfolio_Management
+Confidence: 1.00
+Keywords: correlation, portfolio, drawdown
+
+---
+
+## How is this useful in finance?
+
+### Determining related assets
+
+Once we've established that two series are probably related, we can use that in an effort to predict future values of the series. For example, let's look at the price of Apple and a semiconductor equipment manufacturer, Lam Research Corporation.
+
+### Constructing a portfolio of uncorrelated assets
+
+Another reason that correlation is useful in finance is that uncorrelated assets produce the best portfolios. The intuition for this is that if the assets are uncorrelated, a drawdown in one will not correspond with a drawdown in another. This leads to a very stable return stream when many uncorrelated assets are combined.
+
+# Limitations

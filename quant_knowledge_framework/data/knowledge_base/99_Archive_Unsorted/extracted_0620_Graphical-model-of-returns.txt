@@ -1,0 +1,10 @@
+# Graphical model of returns
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Graphical model of returns
+<img width=80% src='bayes_formula_mu2.svg'>

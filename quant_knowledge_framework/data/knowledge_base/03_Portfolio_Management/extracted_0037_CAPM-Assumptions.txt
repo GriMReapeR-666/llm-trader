@@ -1,0 +1,49 @@
+# CAPM Assumptions
+
+Topic: 03_Portfolio_Management
+Confidence: 0.60
+Keywords: capital allocation, allocation, portfolio
+
+---
+
+## CAPM Assumptions
+
+In our derivation of the CAPM, we made two main assumptions:
+* We assumed that investors are able to trade without delay or cost and that everyone is able to borrow or lend money at the risk free rate.
+* We assumed that all investors are "mean-variance optimizers". What this essentially means is that they would only demand portfolios that have the highest return attainable for a given level of risk. These portfolios are all found along the **efficient frontier**.
+
+The following is a programmatic derivation of the efficient frontier for portfolios of four assets.
+
+Each blue dot represents a different portfolio, while the red line skimming the outside of the cloud is the efficient frontier. The efficient frontier contains all portfolios that are the best for a given level of risk.
+
+The optimal, or most efficient, portfolio on this line is found by maximizing the Sharpe ratio, the ratio of excess return and volatility. We use this to determine the portfolio with the best risk-to-reward tradeoff.
+
+The line that represents the different combinations of a risk-free asset with a portfolio of risky assets is known as the Capital Allocations Line (CAL). The slope of the CAL is the Sharpe ratio. To maximize the Sharpe ratio, we need to find the steepest CAL, which coincides with the CAL that is tangential to the efficient frontier. This is why the efficient portfolio is sometimes referred to as the tangent portfolio.
+
+We can look at the returns and risk of the individual assets compared to the optimal portfolio we found to easily showcase the power of diversification.
+
+# Capital Market Line is CAL through market portfolio
+
+Our optimal portfolio has a decently high return as well as less risk than any individual asset, as expected. Theoeretically, all investors should demand this optimal, tangent portfolio. If we accumulate the portfolios of all investors, we end up with the market portfolio, since all shares must be held by someone. This means that the tangency portfolio is the market portfolio, essentially saying that demand must equal supply.
+
+When a risk-free asset is added to the portfolio, the Capital Asset Line turns into the Capital Market Line (CML). According to the CAPM, any stock or portfolio that lies to the right of CML would contain diversifiable risk and is therefore not efficient.
+
+The mapping of each security's beta to its expected return results in the Security Markets Line. The difference between a security's return and the expected return as predicted by CAPM is known as the alpha.
+
+For more details on the CAPM, check out the [wikipedia page](https://en.wikipedia.org/wiki/Capital_asset_pricing_model).
+
+# Arbitrage Pricing Theory
+
+The CAPM, while widely used and studied, has many drawbacks. With strict, limiting assumptions, it does not hold up well in empirical tests. Arbitrage Pricing Theory (APT) aims to generalize the CAPM model, as assets may be exposed to classes of risks other than the market risk and investors may care about things other than just the mean and variance.
+
+APT is a major asset pricing theory that relies on expressing the returns using a linear factor model:
+
+$$R_i = a_i + b_{i1} F_1 + b_{i2} F_2 + \ldots + b_{iK} F_K + \epsilon_i$$
+
+A factor is a return stream that is determined completely by some characteristic. For example, the CAPM has only one factor, market return. If we have modelled our rate of return as above, then the expected returns should take the form of:
+
+$$ E(R_i) = R_F + b_{i1} \lambda_1 + b_{i2} \lambda_2 + \ldots + b_{iK} \lambda_K $$
+
+where $R_F$ is the risk-free rate, and $\lambda_j$ is the risk premium - the return in excess of the risk-free rate - for factor $j$. This premium arises because investors require higher returns to compensate them for incurring higher risk.
+
+We'll compute the risk premia for our factors with Fama-Macbeth regression. However, there are various ways to compute each $\lambda_j$!

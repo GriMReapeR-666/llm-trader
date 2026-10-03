@@ -1,0 +1,13 @@
+# Relative Order Size
+
+Topic: 04_Order_Execution
+Confidence: 0.75
+Keywords: spread, execution, transaction cost
+
+---
+
+## Relative Order Size
+
+As we increase relative order size at a specified participation rate, the time to complete the order increases. Let's assume we execute an order using VWAP, a scheduling strategy, which executes orders over a pre-specified time window, according to the projections of volume distribution throughout that time window: At 3% participation rate for VWAP execution, we require the entire day to trade if our order represents 3% of average daily volume.
+
+If we expect our algo to have high relative order sizes then we may want to switch to liquidity management execution strategy when trading to ensure order completion by the end of the day. Liquidity management execution strategies have specific constraints for the urgency of execution, choice of execution venues and spread capture with the objective of order completion. Going back to our risk curves, we expect higher transaction costs the longer we trade. Therefore, the higher percent ADV of an order the more expensive to trade.

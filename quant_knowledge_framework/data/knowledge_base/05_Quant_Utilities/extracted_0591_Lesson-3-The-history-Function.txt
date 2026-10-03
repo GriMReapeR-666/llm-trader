@@ -1,0 +1,114 @@
+# Lesson 3: The `history` Function
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: python, pandas
+
+---
+
+## Lesson 3: The `history` Function
+
+The `history` function allows us to get trailing windows of historical pricing and volume data in Research. It requires 5 arguments: the contracts for which we want data, the data fields, a lookback frequency, and the start and end dates for the lookback window. Possible fields include `'price'`, `'open_price'`, `'high'`, `'low'`, `'close_price'`, `'volume'` and `'contract'`. Possible frequencies are `'daily'` and `'minute'`.
+
+Let's start by importing the `history` function from research's experimental library: 
+
+The return type of `history` depends on the input types of the `symbols` and `fields` parameters. If a single `Future` reference and a single field are specified, `history` returns a <a href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.Series.html">pandas Series</a>: 
+
+When a list of `Futures` and a single field are specified, the return type is a <a href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html">pandas DataFrame</a> indexed by date, with assets as columns:
+
+And if we pass a list of Futures and a list of fields, we get a <a href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.Panel.html">pandas Panel</a> indexed by field, having date as the major axis, and assets as the minor axis.
+
+To see the full doc string for `history`, run the cell at the <a href="#history_doc">end of this notebook.</a>
+
+### Futures Pricing & Volume
+
+Now, let's use `history` to get the close price and volume for the Crude Oil contract with delivery date in January 2016 (`CLF16`), for the 2 months leading up to its delivery date (`2015-12-21`).
+
+All pricing values for futures contracts correspond to unit prices. For a `CL` contract, this value denotes the price per barrel, and a single contract represents 1000 barrels (`multiplier`). In backtesting, if you hold a particular contract, the value of your portfolio will change by an amount equal to the change in price of the contract (unit price) * the multiplier.
+
+Plotting price and volume will give us a better idea of how these values change over time for this particular contract.
+
+Notice the rise and subsequent drop in trading volume prior to the delivery date of the contract? This is typical behavior for futures. Let's see what the volume looks like for a chain of consecutive contracts.
+
+Trading activity jumps from one contract to the next, and transitions happen just prior to the delivery of each contract.
+
+As you might imagine, having to explicitly reference a series of transient contracts when trading or simulating futures can make it difficult to work with them. In the next lesson we introduce a solution to this problem in the form of Continuous Futures.
+
+<a></a></a>
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from quantopian.research.experimental import history
+```
+*Cell 2:*
+```python
+clf16_price = history(
+    'CLF16', 
+    fields='price', 
+    frequency='daily', 
+    start='2015-10-21', 
+    end='2015-12-21'
+)
+
+clf16_price.head()
+```
+*Cell 3:*
+```python
+cl_fgh_16_volume = history(
+    symbols=['CLF16', 'CLG16', 'CLH16'], 
+    fields='volume', 
+    frequency='daily', 
+    start='2015-10-21', 
+    end='2015-12-21'
+)
+
+cl_fgh_16_volume.head()
+```
+*Cell 4:*
+```python
+clf16 = symbols('CLF16')
+
+clf16_data = history(
+    clf16, 
+    fields=['price', 'volume'], 
+    frequency='daily', 
+    start='2015-10-21', 
+    end='2015-12-21'
+)
+
+clf16_data.head()
+```
+*Cell 5:*
+```python
+clf16_data.plot(subplots=True);
+```
+*Cell 6:*
+```python
+cl_contracts = symbols(['CLF16', 'CLG16', 'CLH16', 'CLJ16', 'CLK16', 'CLM16'])
+
+cl_consecutive_contract_volume = history(
+    cl_contracts, 
+    fields='volume', 
+    frequency='daily', 
+    start='2015-10-21', 
+    end='2016-06-01'
+)
+```
+*Cell 7:*
+```python
+cl_consecutive_contract_volume.plot(title='Consecutive Contracts Volume Over Time');
+```
+*Cell 8:*
+```python
+print history.__doc__
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\4_futures_getting_started_lesson4\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 34 (Code: 8, Markdown: 26)
+- **Imports/Dependencies**: from quantopian.research.experimental import continuous_future, history
+
+**Explanatory Notes:**

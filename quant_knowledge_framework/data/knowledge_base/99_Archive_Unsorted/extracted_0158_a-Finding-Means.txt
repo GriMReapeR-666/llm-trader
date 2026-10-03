@@ -1,0 +1,11 @@
+# a. Finding Means
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Finding Means
+
+Find the means of the following three data sets $X$, $Y$, and $Z$.

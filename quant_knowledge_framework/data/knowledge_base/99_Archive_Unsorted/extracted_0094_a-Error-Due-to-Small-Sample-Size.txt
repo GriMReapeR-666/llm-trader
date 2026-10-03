@@ -1,0 +1,11 @@
+# a. Error Due to Small Sample Size
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Error Due to Small Sample Size
+
+Run 100 samples of size `small_size` and measure how many of their 95% confidence intervals actually contain the true mean.

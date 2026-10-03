@@ -1,0 +1,11 @@
+# b. T-distribution Correction
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. T-distribution Correction
+
+Run 100 samples from the autocorrelated distribution, this time attempting to account for the autocorrelation using a t-distribution, and measure how many of their 95% confidence intervals actually contain the true mean to see if the correction works.

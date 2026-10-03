@@ -1,0 +1,564 @@
+# Default Inputs
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Default Inputs
+Some factors have default inputs that should never be changed. For example the [VWAP built-in factor](https://www.educational_platform.com/help#built-in-factors) is always calculated from `USEquityPricing.close` and `USEquityPricing.volume`. When a factor is always calculated from the same `BoundColumns`, we can call the constructor without specifying `inputs`.
+
+In the next lesson, we will look at combining factors.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+
+# New from the last lesson, import the USEquityPricing dataset.
+from educational_platform.pipeline.data.builtin import USEquityPricing
+
+# New from the last lesson, import the built-in SimpleMovingAverage factor.
+from educational_platform.pipeline.factors import SimpleMovingAverage
+```
+*Cell 2:*
+```python
+mean_close_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10)
+```
+*Cell 3:*
+```python
+def make_pipeline():
+    
+    mean_close_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10)
+    
+    return Pipeline(
+        columns={
+            '10_day_mean_close': mean_close_10
+        }
+    )
+```
+*Cell 4:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+result
+```
+*Cell 5:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-07')
+result
+```
+*Cell 6:*
+```python
+def make_pipeline():
+
+    mean_close_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10)
+    latest_close = USEquityPricing.close.latest
+
+    return Pipeline(
+        columns={
+            '10_day_mean_close': mean_close_10,
+            'latest_close_price': latest_close
+        }
+    )
+```
+*Cell 7:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+result.head(5)
+```
+*Cell 8:*
+```python
+from educational_platform.pipeline.factors import VWAP
+vwap = VWAP(window_length=10)
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\2_pipeline_lesson4\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 11 (Code: 5, Markdown: 6)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import SimpleMovingAverage, from educational_platform.research import run_pipeline
+
+**Explanatory Notes:**
+##Combining Factors
+Factors can be combined, both with other Factors and with scalar values, via any of the builtin mathematical operators (+, -, *, etc). This makes it easy to write complex expressions that combine multiple Factors. For example, constructing a Factor that computes the average of two other Factors is simply:
+```
+>>> f1 = SomeFactor(...)
+>>> f2 = SomeOtherFactor(...)
+>>> average = (f1 + f2) / 2.0
+```
+In this lesson, we will create a pipeline that creates a `relative_difference` factor by combining a 10-day average factor and a 30-day average factor. 
+
+As usual, let's start with our imports:
+
+For this example, we need two factors: a 10-day mean close price factor, and a 30-day one:
+
+Then, let's create a percent difference factor by combining our `mean_close_30` factor with our `mean_close_10` factor.
+
+In this example, `percent_difference` is still a `Factor` even though it's composed as a combination of more primitive factors. We can add `percent_difference` as a column in our pipeline. Let's define `make_pipeline` to create a pipeline with `percent_difference` as a column (and not the mean close factors):
+
+Let's see what the new output looks like:
+
+In the next lesson, we will learn about filters.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.pipeline.factors import SimpleMovingAverage
+```
+*Cell 2:*
+```python
+mean_close_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10)
+mean_close_30 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
+```
+*Cell 3:*
+```python
+percent_difference = (mean_close_10 - mean_close_30) / mean_close_30
+```
+*Cell 4:*
+```python
+def make_pipeline():
+
+    mean_close_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10)
+    mean_close_30 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
+
+    percent_difference = (mean_close_10 - mean_close_30) / mean_close_30
+
+    return Pipeline(
+        columns={
+            'percent_difference': percent_difference
+        }
+    )
+```
+*Cell 5:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+result
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\2_pipeline_lesson5\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 28 (Code: 12, Markdown: 16)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import AverageDollarVolume, from educational_platform.pipeline.factors import SimpleMovingAverage, from educational_platform.research import run_pipeline
+
+**Explanatory Notes:**
+##Filters
+A Filter is a function from an asset and a moment in time to a boolean:
+```
+F(asset, timestamp) -> boolean
+```
+In Pipeline, [Filters](https://www.educational_platform.com/help#educational_platform_pipeline_filters_Filter) are used for narrowing down the set of securities included in a computation or in the final output of a pipeline. There are two common ways to create a `Filter`: comparison operators and `Factor`/`Classifier` methods.
+
+###Comparison Operators
+Comparison operators on `Factors` and `Classifiers` produce Filters. Since we haven't looked at `Classifiers` yet, let's stick to examples using `Factors`. The following example produces a filter that returns `True` whenever the latest close price is above $20.
+
+And this example produces a filter that returns True whenever the 10-day mean is below the 30-day mean.
+
+Remember, each security will get its own `True` or `False` value each day.
+
+###Factor/Classifier Methods
+Various methods of the `Factor` and `Classifier` classes return `Filters`. Again, since we haven't yet looked at `Classifiers`, let's stick to `Factor` methods for now (we'll look at `Classifier` methods later). The `Factor.top(n)` method produces a `Filter` that returns `True` for the top `n` securities of a given `Factor`. The following example produces a filter that returns `True` for exactly 200 securities every day, indicating that those securities were in the top 200 by last close price across all known securities.
+
+For a full list of `Factor` methods that return `Filters`, see [this link](https://www.educational_platform.com/help#educational_platform_pipeline_factors_Factor).
+
+For a full list of `Classifier` methods that return `Filters`, see [this link](https://www.educational_platform.com/help#educational_platform_pipeline_classifiers_Classifier).
+
+##Dollar Volume Filter
+As a starting example, let's create a filter that returns `True` if a security's 30-day average dollar volume is above $10,000,000. To do this, we'll first need to create an `AverageDollarVolume` factor to compute the 30-day average dollar volume. Let's include the built-in `AverageDollarVolume` factor in our imports:
+
+And then, let's instantiate our average dollar volume factor.
+
+By default, `AverageDollarVolume` uses `USEquityPricing.close` and `USEquityPricing.volume` as its `inputs`, so we don't specify them.
+
+Now that we have a dollar volume factor, we can create a filter with a boolean expression. The following line creates a filter returning `True` for securities with a `dollar_volume` greater than 10,000,000:
+
+To see what this filter looks like, let's can add it as a column to the pipeline we defined in the previous lesson.
+
+If we make and run our pipeline, we now have a column `high_dollar_volume` with a boolean value corresponding to the result of the expression for each security.
+
+##Applying a Screen
+By default, a pipeline produces computed values each day for every asset in the Educational Platform database. Very often however, we only care about a subset of securities that meet specific criteria (for example, we might only care about securities that have enough daily trading volume to fill our orders quickly). We can tell our Pipeline to ignore securities for which a filter produces `False` by passing that filter to our Pipeline via the `screen` keyword.
+
+To screen our pipeline output for securities with a 30-day average dollar volume greater than $10,000,000, we can simply pass our `high_dollar_volume` filter as the `screen` argument. This is what our `make_pipeline` function now looks like:
+
+When we run this, the pipeline output only includes securities that pass the `high_dollar_volume` filter on a given day. For example, running this pipeline on May 5th, 2015 results in an output for ~2,100 securities
+
+##Inverting a Filter
+The `~` operator is used to invert a filter, swapping all `True` values with `Falses` and vice-versa. For example, we can write the following to filter for low dollar volume securities:
+
+This will return `True` for all securities with an average dollar volume below or equal to $10,000,000 over the last 30 days.
+
+In the next lesson, we will look at combining filters.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.pipeline.factors import SimpleMovingAverage
+```
+*Cell 2:*
+```python
+last_close_price = USEquityPricing.close.latest
+close_price_filter = last_close_price > 20
+```
+*Cell 3:*
+```python
+mean_close_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10)
+mean_close_30 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
+mean_crossover_filter = mean_close_10 < mean_close_30
+```
+*Cell 4:*
+```python
+last_close_price = USEquityPricing.close.latest
+top_close_price_filter = last_close_price.top(200)
+```
+*Cell 5:*
+```python
+from educational_platform.pipeline.factors import AverageDollarVolume
+```
+*Cell 6:*
+```python
+dollar_volume = AverageDollarVolume(window_length=30)
+```
+*Cell 7:*
+```python
+high_dollar_volume = (dollar_volume > 10000000)
+```
+*Cell 8:*
+```python
+def make_pipeline():
+
+    mean_close_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10)
+    mean_close_30 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
+
+    percent_difference = (mean_close_10 - mean_close_30) / mean_close_30
+    
+    dollar_volume = AverageDollarVolume(window_length=30)
+    high_dollar_volume = (dollar_volume > 10000000)
+
+    return Pipeline(
+        columns={
+            'percent_difference': percent_difference,
+            'high_dollar_volume': high_dollar_volume
+        }
+    )
+```
+*Cell 9:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+result
+```
+*Cell 10:*
+```python
+def make_pipeline():
+
+    mean_close_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10)
+    mean_close_30 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
+
+    percent_difference = (mean_close_10 - mean_close_30) / mean_close_30
+
+    dollar_volume = AverageDollarVolume(window_length=30)
+    high_dollar_volume = dollar_volume > 10000000
+
+    return Pipeline(
+        columns={
+            'percent_difference': percent_difference
+        },
+        screen=high_dollar_volume
+    )
+```
+*Cell 11:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+print 'Number of securities that passed the filter: %d' % len(result)
+result
+```
+*Cell 12:*
+```python
+low_dollar_volume = ~high_dollar_volume
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\2_pipeline_lesson6\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 13 (Code: 6, Markdown: 7)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import SimpleMovingAverage, AverageDollarVolume, from educational_platform.research import run_pipeline
+
+**Explanatory Notes:**
+###Combining Filters
+Like factors, filters can be combined. Combining filters is done using the `&` (and) and `|` (or) operators. For example, let's say we want to screen for securities that are in the top 10% of average dollar volume and have a latest close price above $20. To start, let's make a high dollar volume filter using an `AverageDollarVolume` factor and `percentile_between`:
+
+Note: `percentile_between` is a `Factor` method returning a `Filter`.
+
+Next, let's create a `latest_close` factor and define a filter for securities that closed above $20:
+
+Now we can combine our `high_dollar_volume` filter with our `above_20` filter using the `&` operator:
+
+This filter will evaluate to `True` for securities where both `high_dollar_volume` and `above_20` are `True`. Otherwise, it will evaluate to `False`. A similar computation can be made with the `|` (or) operator.
+
+If we want to use this filter as a screen in our pipeline, we can simply pass `tradeable_filter` as the `screen` argument.
+
+When we run this, our pipeline output now only includes ~700 securities.
+
+In the next lesson, we'll look at masking factors and filters.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.pipeline.factors import SimpleMovingAverage, AverageDollarVolume
+```
+*Cell 2:*
+```python
+dollar_volume = AverageDollarVolume(window_length=30)
+high_dollar_volume = dollar_volume.percentile_between(90, 100)
+```
+*Cell 3:*
+```python
+latest_close = USEquityPricing.close.latest
+above_20 = latest_close > 20
+```
+*Cell 4:*
+```python
+tradeable_filter = high_dollar_volume & above_20
+```
+*Cell 5:*
+```python
+def make_pipeline():
+
+    mean_close_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10)
+    mean_close_30 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
+
+    percent_difference = (mean_close_10 - mean_close_30) / mean_close_30
+
+    dollar_volume = AverageDollarVolume(window_length=30)
+    high_dollar_volume = dollar_volume.percentile_between(90, 100)
+
+    latest_close = USEquityPricing.close.latest
+    above_20 = latest_close > 20
+
+    tradeable_filter = high_dollar_volume & above_20
+
+    return Pipeline(
+        columns={
+            'percent_difference': percent_difference
+        },
+        screen=tradeable_filter
+    )
+```
+*Cell 6:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+print 'Number of securities that passed the filter: %d' % len(result)
+result
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\2_pipeline_lesson7\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 12 (Code: 5, Markdown: 7)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import SimpleMovingAverage, AverageDollarVolume, from educational_platform.research import run_pipeline
+
+**Explanatory Notes:**
+##Masking
+Sometimes we want to ignore certain assets when computing pipeline expresssions. There are two common cases where ignoring assets is useful:
+1. We want to compute an expression that's computationally expensive, and we know we only care about results for certain assets. A common example of such an expensive expression is a `Factor` computing the coefficients of a regression ([RollingLinearRegressionOfReturns](https://www.educational_platform.com/help#educational_platform_pipeline_factors_RollingLinearRegressionOfReturns)).
+2. We want to compute an expression that performs comparisons between assets, but we only want those comparisons to be performed against a subset of all assets. For example, we might want to use the `Factor` method `top` to compute the top 200 assets by earnings yield, ignoring assets that don't meet some liquidity constraint.
+
+To support these two use-cases, all `Factors` and many `Factor` methods can accept a mask argument, which must be a `Filter` indicating which assets to consider when computing.
+
+###Masking Factors
+Let's say we want our pipeline to output securities with a high or low percent difference but we also only want to consider securities with a dollar volume above $10,000,000. To do this, let's rearrange our `make_pipeline` function so that we first create the `high_dollar_volume` filter. We can then use this filter as a `mask` for moving average factors by passing `high_dollar_volume` as the `mask` argument to `SimpleMovingAverage`.
+
+Applying the mask to `SimpleMovingAverage` restricts the average close price factors to a computation over the ~2000 securities passing the `high_dollar_volume` filter, as opposed to ~8000 without a mask. When we combine `mean_close_10` and `mean_close_30` to form `percent_difference`, the computation is performed on the same ~2000 securities.
+
+###Masking Filters
+Masks can be also be applied to methods that return filters like `top`, `bottom`, and `percentile_between`.
+
+Masks are most useful when we want to apply a filter in the earlier steps of a combined computation. For example, suppose we want to get the 50 securities with the highest open price that are also in the top 10% of dollar volume. Suppose that we then want the 90th-100th percentile of these securities by close price. We can do this with the following:
+
+Let's put this into `make_pipeline` and output an empty pipeline screened with our `high_close_price` filter.
+
+Running this pipeline outputs 5 securities on May 5th, 2015.
+
+Note that applying masks in layers as we did above can be thought of as an "asset funnel".
+
+In the next lesson, we'll look at classifiers.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.pipeline.factors import SimpleMovingAverage, AverageDollarVolume
+```
+*Cell 2:*
+```python
+# Dollar volume factor
+dollar_volume = AverageDollarVolume(window_length=30)
+
+# High dollar volume filter
+high_dollar_volume = (dollar_volume > 10000000)
+
+# Average close price factors
+mean_close_10 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=10, mask=high_dollar_volume)
+mean_close_30 = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30, mask=high_dollar_volume)
+
+# Relative difference factor
+percent_difference = (mean_close_10 - mean_close_30) / mean_close_30
+```
+*Cell 3:*
+```python
+# Dollar volume factor
+dollar_volume = AverageDollarVolume(window_length=30)
+
+# High dollar volume filter
+high_dollar_volume = dollar_volume.percentile_between(90,100)
+
+# Top open price filter (high dollar volume securities)
+top_open_price = USEquityPricing.open.latest.top(50, mask=high_dollar_volume)
+
+# Top percentile close price filter (high dollar volume, top 50 open price)
+high_close_price = USEquityPricing.close.latest.percentile_between(90, 100, mask=top_open_price)
+```
+*Cell 4:*
+```python
+def make_pipeline():
+
+    # Dollar volume factor
+    dollar_volume = AverageDollarVolume(window_length=30)
+
+    # High dollar volume filter
+    high_dollar_volume = dollar_volume.percentile_between(90,100)
+
+    # Top open securities filter (high dollar volume securities)
+    top_open_price = USEquityPricing.open.latest.top(50, mask=high_dollar_volume)
+
+    # Top percentile close price filter (high dollar volume, top 50 open price)
+    high_close_price = USEquityPricing.close.latest.percentile_between(90, 100, mask=top_open_price)
+
+    return Pipeline(
+        screen=high_close_price
+    )
+```
+*Cell 5:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+print 'Number of securities that passed the filter: %d' % len(result)
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\2_pipeline_lesson8\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 15 (Code: 7, Markdown: 8)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.classifiers.fundamentals import Sector, from educational_platform.pipeline.data import Fundamentals, from educational_platform.pipeline.factors import SimpleMovingAverage, AverageDollarVolume, from educational_platform.research import run_pipeline
+
+**Explanatory Notes:**
+##Classifiers
+A classifier is a function from an asset and a moment in time to a [categorical output](https://en.wikipedia.org/wiki/Categorical_variable) such as a `string` or `integer` label:
+```
+F(asset, timestamp) -> category
+```
+An example of a classifier producing a string output is the exchange ID of a security. To create this classifier, we'll have to import `Fundamentals.exchange_id` and use the [latest](https://www.educational_platform.com/tutorials/pipeline#lesson3) attribute to instantiate our classifier:
+
+Previously, we saw that the `latest` attribute produced an instance of a `Factor`. In this case, since the underlying data is of type `string`, `latest` produces a `Classifier`.
+
+Similarly, a computation producing the latest Morningstar sector code of a security is a `Classifier`. In this case, the underlying type is an `int`, but the integer doesn't represent a numerical value (it's a category) so it produces a classifier. To get the latest sector code, we can use the built-in `Sector` classifier.
+
+Using `Sector` is equivalent to `Fundamentals.morningstar_sector_code.latest`.
+
+###Building Filters from Classifiers
+Classifiers can also be used to produce filters with methods like `isnull`, `eq`, and `startswith`. The full list of `Classifier` methods producing `Filters` can be found [here](https://www.educational_platform.com/help#educational_platform_pipeline_classifiers_Classifier).
+
+As an example, if we wanted a filter to select for securities trading on the New York Stock Exchange, we can use the `eq` method of our `exchange` classifier.
+
+This filter will return `True` for securities having `'NYS'` as their most recent `exchange_id`.
+
+###Quantiles
+Classifiers can also be produced from various `Factor` methods. The most general of these is the `quantiles` method which accepts a bin count as an argument. The `quantiles` method assigns a label from 0 to (bins - 1) to every non-NaN data point in the factor output and returns a `Classifier` with these labels. `NaN`s are labeled with -1. Aliases are available for [quartiles](https://www.educational_platform.com/help/#educational_platform_pipeline_factors_Factor_quartiles) (`quantiles(4)`), [quintiles](https://www.educational_platform.com/help/#educational_platform_pipeline_factors_Factor_quintiles) (`quantiles(5)`), and [deciles](https://www.educational_platform.com/help/#educational_platform_pipeline_factors_Factor_deciles) (`quantiles(10)`). As an example, this is what a filter for the top decile of a factor might look like:
+
+Let's put each of our classifiers into a pipeline and run it to see what they look like.
+
+Classifiers are also useful for describing grouping keys for complex transformations on Factor outputs. Grouping operations such as [demean](https://www.educational_platform.com/help#educational_platform_pipeline_factors_Factor_demean) and [groupby](https://www.educational_platform.com/help#educational_platform_pipeline_factors_Factor_groupby) are outside the scope of this tutorial. A future tutorial will cover more advanced uses for classifiers.
+
+In the next lesson, we'll look at the different datasets that we can use in pipeline.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.factors import SimpleMovingAverage, AverageDollarVolume
+```
+*Cell 2:*
+```python
+from educational_platform.pipeline.data import Fundamentals
+
+# Since the underlying data of Fundamentals.exchange_id
+# is of type string, .latest returns a Classifier
+exchange = Fundamentals.exchange_id.latest
+```
+*Cell 3:*
+```python
+from educational_platform.pipeline.classifiers.fundamentals import Sector  
+morningstar_sector = Sector()
+```
+*Cell 4:*
+```python
+nyse_filter = exchange.eq('NYS')
+```
+*Cell 5:*
+```python
+dollar_volume_decile = AverageDollarVolume(window_length=10).deciles()
+top_decile = (dollar_volume_decile.eq(9))
+```
+*Cell 6:*
+```python
+def make_pipeline():
+    exchange = Fundamentals.exchange_id.latest
+    nyse_filter = exchange.eq('NYS')
+
+    morningstar_sector = Sector()
+
+    dollar_volume_decile = AverageDollarVolume(window_length=10).deciles()
+    top_decile = (dollar_volume_decile.eq(9))
+
+    return Pipeline(
+        columns={
+            'exchange': exchange,
+            'sector_code': morningstar_sector,
+            'dollar_volume_decile': dollar_volume_decile
+        },
+        screen=(nyse_filter & top_decile)
+    )
+```
+*Cell 7:*
+```python
+result = run_pipeline(make_pipeline(), '2015-05-05', '2015-05-05')
+print 'Number of securities that passed the filter: %d' % len(result)
+result.head(5)
+```
+
+##### notebook
+- **Original Path**: `notebooks\tutorials\4_futures_getting_started_lesson1\notebook.ipynb`
+- **Use Case**: Tutorials
+- **Cell Count**: 3 (Code: 1, Markdown: 2)
+- **Imports/Dependencies**: from educational_platform.research.experimental import history
+
+**Explanatory Notes:**

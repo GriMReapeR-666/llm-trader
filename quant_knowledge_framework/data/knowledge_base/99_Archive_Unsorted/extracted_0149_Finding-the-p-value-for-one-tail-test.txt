@@ -1,0 +1,14 @@
+# Finding the p-value for one tail test
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Finding the p-value for one tail test
+
+print 'p-value is: ', p_val
+```
+*Cell 4:*
+```python

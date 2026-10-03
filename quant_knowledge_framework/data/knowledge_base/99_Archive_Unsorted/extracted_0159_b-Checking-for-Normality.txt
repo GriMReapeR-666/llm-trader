@@ -1,0 +1,11 @@
+# b. Checking for Normality
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Checking for Normality
+
+Use the `jarque_bera` function to conduct a Jarque-Bera test on $X$, $Y$, and $Z$ to determine whether their distributions are normal.

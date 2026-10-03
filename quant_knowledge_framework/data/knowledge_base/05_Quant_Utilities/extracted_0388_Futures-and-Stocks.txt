@@ -1,0 +1,174 @@
+# Futures and Stocks
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: pandas, cointegration, stationarity, python, numpy
+
+---
+
+## Futures and Stocks
+There are many examples of potential relationships between futures and stocks. We already discussed one of them - the relationship between the crush spread and the price of soybean processors. Here are several more, though this is not meant to be a complete list:
+
+* Crude oil futures and oil stocks
+* Gold futures and gold mining stocks
+* Crude oil futures and airline stocks
+* Currency futures and exporters
+* Interest rate futures and utilities
+* Interest rate futures and Real Estate Investment Trusts (REITs)
+* Corn futures and agricultural processing companies (e.g., ADM)
+
+Consider the relationship between ten-year interest rate futures and the price of EQR, a large REIT. Interest rates heavily influence the value of real estate, so there is a strong economic connection between the value of interest rate futures and the value of REITs.
+
+If we apply a hypothesis test to the two price series we find that they are indeed cointegrated, corroborating our economic hypothesis.
+
+The next step would be to test if this signal is viable once we include market impact by trading EQR against the futures contract as a pair in a backtest.
+
+Trading strategies based on cointegrated pairs form buy and sell signals based on the *relative prices* of the pair.  We can also form trading signals based on *changes in prices*, or returns.  Of course we would expect that changes in futures prices to be contemporaneously correlated with stock prices, which is not forecastable.  If crude oil prices rise today, oil company stocks are likely to rise today also.  But perhaps there are lead/lag effects also between changes in futures and stocks returns.  We know there is evidence that the market can systematically underreact or overreact to other news releases, leading to trending and mean reversion.  Let's look at a few examples with futures.
+
+The first example looks at crude oil futures and oil company stocks.
+
+We have a high positive contemporaneous correlation, but a slightly negative lagged correlation.
+
+And when we form a linear regression of the excess returns of XOM on the lagged futures returns, the coefficient is significant and negative. This and the above correlations indicate that there might be a slight overreaction to the shift in oil prices.
+
+A coefficient of around $-0.02$ on the lagged futures return implies that if the oil price increased by 1% yesterday, the pure-play refiner is expected to go down by $2$ bp today. This would require more testing to formulate a functioning model, but it indicates that there might be some signal in drawing out the underreaction or overreaction of equity prices to changes in futures prices.
+
+This conjecture could be total data mining, but perhaps when the connection between the futures and stock is exceedingly obvious, like oil stocks and oil exploration companies or gold stocks and gold miners, the market overreacts to fundamental information, but when the relationship is more subtle, the market underreacts.
+
+Also, there may be other lead/lag effects over longer time scales than one-day, but as always, this could also lead to more data mining.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company. In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.tsa.stattools import coint, adfuller
+
+import matplotlib.pyplot as plt
+from educational_platform.research.experimental import continuous_future, history
+```
+*Cell 2:*
+```python
+soy_meal_mult = symbols('SMF17').multiplier
+soy_oil_mult = symbols('BOF17').multiplier
+soybean_mult = symbols('SYF17').multiplier
+```
+*Cell 3:*
+```python
+sm_future = continuous_future('SM', offset=0, roll='calendar', adjustment='mul')
+sm_price = history(sm_future, fields='price', start_date='2014-01-01', end_date='2017-01-01')
+
+bo_future = continuous_future('BO', offset=0, roll='calendar', adjustment='mul')
+bo_price = history(bo_future, fields='price', start_date='2014-01-01', end_date='2017-01-01')
+
+sm_price.plot()
+bo_price.multiply(soy_oil_mult//soy_meal_mult).plot()
+plt.ylabel('Price')
+plt.legend(['Soybean Meal', 'Soybean Oil']);
+```
+*Cell 4:*
+```python
+print 'p-value: ', coint(sm_price, bo_price)[1]
+```
+*Cell 5:*
+```python
+sm_future = continuous_future('SM', offset=1, roll='calendar', adjustment='mul')
+sm_price = history(sm_future, fields='price', start_date='2014-01-01', end_date='2017-01-01')
+
+bo_future = continuous_future('BO', offset=1, roll='calendar', adjustment='mul')
+bo_price = history(bo_future, fields='price', start_date='2014-01-01', end_date='2017-01-01')
+
+sy_future = continuous_future('SY', offset=0, roll='calendar', adjustment='mul')
+sy_price = history(sy_future, fields='price', start_date='2014-01-01', end_date='2017-01-01')
+
+crush = sy_price - (sm_price + bo_price)
+crush.plot()
+plt.ylabel('Crush Spread');
+```
+*Cell 6:*
+```python
+print 'p-value for stationarity: ', adfuller(crush)[1]
+```
+*Cell 7:*
+```python
+ty_future = continuous_future('TY', offset=0, roll='calendar', adjustment='mul')
+ty_prices = history(ty_future, fields='price', start_date='2009-01-01', end_date='2017-01-01')
+ty_prices.name = ty_future.root_symbol
+
+equities = symbols(['EQR', 'SPY'])
+equity_prices = get_pricing(equities, fields='price', start_date='2009-01-01', end_date='2017-01-01')
+equity_prices.columns = map(lambda x: x.symbol, equity_prices.columns)
+
+data = pd.concat([ty_prices, equity_prices], axis=1)
+data = data.dropna()
+```
+*Cell 8:*
+```python
+data.plot()
+plt.legend();
+```
+*Cell 9:*
+```python
+print 'Cointegration test p-value: ', coint(data['TY'], data['EQR'])[1]
+```
+*Cell 10:*
+```python
+cl_future = continuous_future('CL', offset=0, roll='calendar', adjustment='mul')
+cl_prices = history(cl_future, fields='price', start_date='2007-01-01', end_date='2017-04-06')
+cl_prices.name = cl_future.root_symbol
+
+equities = symbols(['XOM', 'SPY'])
+equity_prices = get_pricing(equities, fields='price', start_date='2007-01-01', end_date='2017-04-06')
+equity_prices.columns = map(lambda x: x.symbol, equity_prices.columns)
+
+data = pd.concat([cl_prices, equity_prices],axis=1)
+data = data.dropna()
+```
+*Cell 11:*
+```python
+#Take log of prices
+data['stock_ret'] = np.log(data['XOM']).diff()
+data['spy_ret'] = np.log(data['SPY']).diff()
+data['futures_ret'] = np.log(data['CL']).diff()
+
+# Compute excess returns in excess of SPY
+data['stock_excess'] = data['stock_ret'] - data['spy_ret']
+
+#Compute lagged futures returns
+data['futures_lag_diff'] = data['futures_ret'].shift(1)
+data = data[2:].dropna()
+data.tail(5)
+```
+*Cell 12:*
+```python
+#Compute contemporaneous correlation
+contemp_corr = data['stock_excess'].shift(1).corr(data['futures_lag_diff'])
+#Compute correlation of excess stock returns with lagged futures returns
+lagged_corr = data['stock_excess'].corr(data['futures_lag_diff'])
+print 'Contemporaneous correlation: ', contemp_corr
+print 'Lagged correlation         : ', lagged_corr
+```
+*Cell 13:*
+```python
+result = sm.OLS(data['stock_excess'], sm.add_constant(data['futures_lag_diff'])).fit()
+result.summary2()
+```
+*Cell 14:*
+```python
+data['futures_lag_diff'].plot(alpha=0.50, legend=True)
+data['stock_excess'].plot(alpha=0.50, legend=True);
+```
+
+##### Exercises: Mean Reversion on Futures
+- **Original Path**: `notebooks\lectures\Mean_Reversion_on_Futures\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 24 (Code: 9, Markdown: 15)
+- **Imports/Dependencies**: from educational_platform.research.experimental import history, continuous_future, from statsmodels.tsa.stattools import coint, adfuller, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import statsmodels, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Exercises: Mean Reversion on Futures
+By Chris Fenaroli, Delaney Mackenzie, and Maxwell Margenot

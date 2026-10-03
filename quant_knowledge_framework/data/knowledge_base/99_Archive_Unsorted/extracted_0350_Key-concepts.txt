@@ -1,0 +1,18 @@
+# Key concepts
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Key concepts
+
+----
+
+# Exercise 1: Temperatures
+Given this set of Fahrenheit and Celsius values, find a model that expresses the relationship between the two temperature scales.
+
+----
+
+# Exercise 2 : Confidence Intervals

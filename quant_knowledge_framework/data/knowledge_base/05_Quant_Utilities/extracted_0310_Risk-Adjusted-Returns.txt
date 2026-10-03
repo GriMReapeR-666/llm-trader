@@ -1,0 +1,147 @@
+# Risk-Adjusted Returns
+
+Topic: 05_Quant_Utilities
+Confidence: 0.36
+Keywords: numpy, normalize, python, pandas
+
+---
+
+## Risk-Adjusted Returns
+
+Comparing returns of different investment opportunities without taking risk into account is meaningless. Some return streams may be higher than others, but this may be due to the risks taken on rather than any merit in the strategy itself. Taking on higher risk should in theory lead to higher returns, but then how do we judge the quality of these returns for the amount of risk we have to handle? This is where risk-adjusted returns and methods of risk-adjustment come into play. If we adjust several return streams for risk then we can consider them on equal footing, independent of the risk. This allows us to effectively compare and determine which return streams are the best for a given desired risk profile.`
+
+One of the most prominent risk-adjusted measures is the Sharpe Ratio, defined as follows.
+
+$$ \text{Sharpe Ratio} = \frac{r_p - r_f}{\sigma_p} $$
+
+The Sharpe Ratio essentially normalizes the returns of a portfolio, giving us a metric that we can use as a measure of quality relative to other revenue streams. A higher Sharpe Ratio indicates that you are getting more return relative to the risk that your strategy is taking on.
+
+#### Compare Strategies by Sharpe Ratio and then Lever as Needed
+
+In general you want to compare the Sharpe Ratio of two strategies you may be interested in. Pick the strategy with the better Sharpe Ratio and then use leverage to multiply the returns up to where you want them. Assuming constraints like capital capacity don't kick in, you can add more money through leverage and bring a $2\%$ per year strategy up to a $10\%$ per year strategy while maintaining the same Sharpe, or invest a fraction of your available capital to bring a $20\%$ per year strategy's risk down to acceptable levels.
+
+#### Example
+
+We'll show a simple example using real numbers.
+
+### Portfolio Re-Weighting
+
+Portfolio weighting can be considered an example of applying leverage to a strategy. If you assign more of your portfolio weight to a strategy, you have upped the capital amount and multiplied both the returns and volatility. Likewise, if you have a strategy that has high returns but high volatility, you can provide it less weight so that you divide the volatility.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from __future__ import division
+```
+*Cell 2:*
+```python
+capital_base = 100000
+r_p = 0.05 # Aggregate performance of assets in the portfolio
+r_no_lvg = capital_base * r_p
+print 'Portfolio returns without leverage: {0}'.format(r_no_lvg)
+```
+*Cell 3:*
+```python
+debt = 100000
+
+r_lvg = (capital_base + debt) * r_p
+r_lvg_pct = r_lvg / capital_base
+# Returns are calculated over the initial capital base
+# Think of the debt as an asset purchased and added to the portfolio
+lvg_ratio = (debt + capital_base) / capital_base
+print 'Portfolio returns with leverage: {0}'.format(r_lvg)
+print 'Percentage returns with {1}x leverage: {0}'.format(r_lvg_pct, lvg_ratio)
+```
+*Cell 4:*
+```python
+capital_base = 100000
+debt = 50000
+i = 0.02
+r_p = 0.05
+
+int_pmt = i * debt
+r_lvg = (capital_base + debt) * r_p
+r_total = r_lvg - int_pmt
+r_pct_lvg = r_total / capital_base
+lvg_ratio = (capital_base + debt) / capital_base
+print 'Portfolio returns with leverage and interest: {0}'.format(r_total)
+print 'Percentage returns with {1}x leverage and {2}% interest: {0}'.format(r_pct_lvg, lvg_ratio, i * 100)
+```
+*Cell 5:*
+```python
+bt = get_backtest('57e297562a42c9103c11a920')
+```
+*Cell 6:*
+```python
+recorded_vars = bt.recorded_vars
+leverage = recorded_vars['leverage']
+daily_performance = bt.daily_performance
+daily_returns = daily_performance['returns']
+```
+*Cell 7:*
+```python
+plt.plot(leverage);
+plt.title("Leverage Ratio of a Trading Algorithm Over Time")
+plt.xlabel('Date');
+plt.ylabel('Leverage Ratio');
+plt.legend();
+```
+*Cell 8:*
+```python
+plt.plot(daily_returns);
+plt.xlabel('Date');
+plt.ylabel('Daily Returns');
+plt.legend();
+```
+*Cell 9:*
+```python
+print "Mean return: ", daily_returns.mean()
+print "Volatility: ", daily_returns.std()
+```
+*Cell 10:*
+```python
+# Note these are all expected returns. You need to validate that
+# your strategy will continue to produce these returns and volatility using other methods.
+# Just measuring historically is a very poor predictor of future performance.
+# We'll for now assume you've already validated that you can expect to keep seeing numbers similar to these.
+
+strat_A_ann_return = 0.22
+strat_A_ann_vol = 0.15
+
+strat_B_ann_return = 0.05
+strat_B_ann_vol = 0.02
+
+# We'll assume a risk free rate of 0.02
+risk_free_rate = 0.02
+
+print 'Strategy A Sharpe: %s' % ((strat_A_ann_return - risk_free_rate) / strat_A_ann_vol)
+print 'Strategy B Sharpe: %s' % ((strat_B_ann_return - risk_free_rate) / strat_B_ann_vol)
+
+# Add in leverage to B
+
+leverage = 3
+# Expressed in returns
+
+print 'Strategy B Sharpe: %s' % (
+    (strat_B_ann_return * leverage - risk_free_rate * leverage) / (strat_B_ann_vol * leverage)
+)
+print 'Strategy B Levered Annual Returns: %s' % (
+    (strat_B_ann_return * leverage - risk_free_rate * leverage)
+)
+```
+
+##### Exercises: Linear Correlation Analysis - Answer Key
+- **Original Path**: `notebooks\lectures\Linear_Correlation_Analysis\answers\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 26 (Code: 10, Markdown: 16)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Exercises: Linear Correlation Analysis - Answer Key

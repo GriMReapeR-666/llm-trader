@@ -1,0 +1,25 @@
+# Risk Premia
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Risk Premia
+
+As the number of assets in a portfolio increases, many of the idiosyncratic risks cancel out and are diversified away. This is the key reason why we want to avoid [position concentration risk](https://www.quantopian.com/lectures/position-concentration-risk). As your portfolio grows larger and makes more independent bets through diversification, the variance of the portfolio declines until only the systematic risk remains. As we cannot remove systematic risk, investors must be given a risk premium above the rate of risk-free return to compensate them for the risk they take on by investing in this portfolio. The individual firm-level risks in this portfolio do not have associated premia as this would create arbitrage opportunities. Shareholders could collect the risk premium while diversifying away the risk associated with them. That would mean additional profit without any additional exposure. This is the definition of an arbitrage opportunity!
+
+From this reasoning we can conclude that the premium on an asset should have no relation to its idiosyncratic risk, but should instead rely solely on the level of systematic risk it carries. In order to accurately compute the risk premium of an asset, and consequently our expected return, we need to find a measure of systematic risk. If we have that, then we can theoretically define the return of an asset in the following way:
+
+$$E[\mbox{Return}] = \mbox{Risk-Free Rate of Return} + \mbox{Risk Premium}$$
+
+One way to do this is to estimate how changes in the excess return of an asset are related to changes in the excess return of the market. Expressing this as a linear regression gives us the relationship as the change in expected return of an asset for each 1% change in the return of the market portfolio.
+
+In theory, this market portfolio should have no diversifiable risk left and would therefore only fluctuate with systematic shocks. In practice, we use a market index such as the S&P500 as a proxy for the market portfolio. The beta that we get from regressing an asset's returns on the returns of the market will be our measure of systematic risk. This beta represents the sensitivity of an asset's return stream to market-wide shocks.
+
+Given this beta, the risk premium of asset $i$ is defined as:
+
+$$\mbox{Risk Premium of Asset}_i = \beta (\mbox{Market Risk Premium})$$
+
+We call this simplistic model the Capital Asset Pricing Model (CAPM).

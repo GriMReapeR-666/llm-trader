@@ -1,0 +1,21 @@
+# **Challenge file hash**
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Challenge file hash**
+
+The commpressed archive
++ MD5 hash: 85418d442070afd787abcd7fb51ebd61
+
+The memory dump
++ MD5 hash: d2bc2f671bcc9281de5f73993de04df3
+
+Please follow the [flag submission rules](https://github.com/stuxnet999/MemLabs#flag-submission) when sending the email for solution verification.
+#### Lab 5
+**Source File**: `C:\Users\User\AppData\Local\Temp\kilo\memlabs_repo\Lab 5\README.md`
+
+# **MemLabs Lab 5 - Black Tuesday**

@@ -1,0 +1,18 @@
+# Closing a Futures Position
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Closing a Futures Position
+In order to close a futures position, you simply take up an opposite position in the same contract. The broker will see that you have two opposite positions in the same asset so you are flat, effectively closing the account's exposure. As this requires actually being able to open the opposing position, care needs to be taken to do this in a timely manner as futures have varying liquidity as they approach expiry. The majority of volume for a given contract tends to take place during this same period of time, but there is a chance that liquidity may drop and you will be unable to close your futures positions, resulting in you taking delivery.
+
+The delivery date calendar varies from underlying to underlying and from month to month, which means that you have to take proper care to make sure you unwind your positions in a timely manner.
+
+Here we plot the volume of futures contracts on "Light Sweet Crude Oil" with January, February, and March delivery.
+
+As one contract fades out of the spotlight, the contract for the next month fades in. It is common practice to **roll over** positions in contracts, closing the previous month's positions and opening up equivalent positions in the next set of contracts. Note that when you create a futures object, you can access the `expiration_date` attribute to see when the contract will stop trading.
+
+The expiration date for this crude oil contract is in December, but the delivery does not occur until January. This time lag between expiration and delivery varies for different underlyings. For example, the S&P 500 E-Mini contract, a financial future, has an expiration date in the same month as its delivery.

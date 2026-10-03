@@ -1,0 +1,13 @@
+# Considerations
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Considerations
+
+For PCA to work, we must first subtract the mean from each component of the data so that it is centered at the origin. The class we used above does this for us.
+
+PCA, like linear regression, is sensitive to the scaling of the data. Therefore, the data is often standardized before running the analysis so that all variables have variance 1, particularly if the series in the dataset have different units. We did not do this above since we were comparing returns with other returns, so it was reasonable to use the raw data. If we did want to standardize the data, it would look like this:

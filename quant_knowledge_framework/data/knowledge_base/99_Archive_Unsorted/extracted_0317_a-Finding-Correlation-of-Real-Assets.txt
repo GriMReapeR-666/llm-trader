@@ -1,0 +1,11 @@
+# a. Finding Correlation of Real Assets
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Finding Correlation of Real Assets
+
+Find the correlation between the stocks OKE and LAKE. Also check how they correlate with the provided benchmark.

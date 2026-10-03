@@ -1,0 +1,18 @@
+# transfer_learning
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+Transfer Learning for Portfolio Optimization
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: Machine Learning
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+Transfer learning leverages knowledge from related domains when historical data is scarce. Models trained on similar assets or time periods can generalize better.

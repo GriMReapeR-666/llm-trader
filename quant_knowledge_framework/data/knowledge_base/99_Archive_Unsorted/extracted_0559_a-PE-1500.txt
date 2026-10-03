@@ -1,0 +1,11 @@
+# a. PE 1500
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. PE 1500
+
+Create a universe consisting of the top 1500 equities by price to earnings ratio then find and print the list of equities included in the this universe on 2016-07-01.

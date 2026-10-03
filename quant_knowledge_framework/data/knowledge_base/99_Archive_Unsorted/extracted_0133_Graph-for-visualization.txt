@@ -1,0 +1,29 @@
+# Graph for visualization.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Graph for visualization.
+
+x = np.linspace(-3, 3, 100)
+norm_pdf = lambda x: (1/np.sqrt(2 * np.pi)) * np.exp(-x * x / 2)
+y = norm_pdf(x)
+
+fig, ax = plt.subplots(1, 1, sharex=True)
+ax.plot(x, y)
+
+ax.fill_between(x, 0, y, where = x > 1.282, label = 'Confidence region alpha = 0.1')
+ax.fill_between(x, 0, y, where = x > 1.645, label = 'Confidence region alpha = 0.05', color = 'green')
+ax.fill_between(x, 0, y, where = x > 2.326, label = 'Confidence region alpha = 0.01', color = 'red')
+plt.axvline(p_val, linestyle = 'dashed', label = 'Location of P Value')
+
+plt.title('Graph of rejection region and P-value')
+plt.xlabel('x')
+plt.ylabel('p(x)')
+plt.legend();
+```
+*Cell 5:*
+```python

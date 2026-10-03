@@ -1,0 +1,27 @@
+# Visualizing What's Going On
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Visualizing What's Going On
+
+What's happening here is that p-values should be uniformly distributed, given no signal in the underlying data. Basically, they carry no information whatsoever and will be equally likely to be 0.01 as 0.99. Because they're popping out randomly, you will expect a certain percentage of p-values to be underneath any threshold you choose. The lower the threshold the fewer will pass your test.
+
+Let's visualize this by making a modified function that returns p-values.
+
+We'll now collect a bunch of pvalues. As in any case we'll want to collect quite a number of p-values to start getting a sense of how the underlying distribution looks. If we only collect few, it will be noisy like this:
+
+Let's dial up our `N` parameter to get a better sense. Keep in mind that the number of p-values will increase at a rate of
+
+$$\frac{N (N-1)}{2}$$
+
+or approximately quadratically. Therefore we don't need to increase `N` by much.
+
+Starting to look pretty flat, as we expected. Lastly, just to visualize the process of drawing a cutoff, we'll draw two artificial lines.
+
+We can see that with a lower cutoff we should expect to get fewer false positives. Let's check that with our above experiment.
+
+And finally compare it to what we expected.

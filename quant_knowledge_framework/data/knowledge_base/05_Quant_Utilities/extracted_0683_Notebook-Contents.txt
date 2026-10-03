@@ -1,0 +1,216 @@
+# Notebook Contents
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: python, pandas, standardize
+
+---
+
+## Notebook Contents
+There are two ways to access the data and you'll find both of them listed below. Just click on the section you'd like to read through.
+
+- <a href="#interactive"><strong>Interactive overview</strong></a>: This is only available on Research and uses blaze to give you access to large amounts of data. Recommended for exploration and plotting.
+- <a href="#pipeline"><strong>Pipeline overview</strong></a>: Data is made available through pipeline which is available in both the Research & Backtesting environments. Recommended for factor development and moving back & forth between research/backtesting.
+
+### Free samples and limits
+The result of any expression is limited to 10,000 rows to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free sample includes data until 2 months prior to the current date.
+
+To access the most up-to-date values for this data set for trading a live algorithm (as with other partner sets), you need to purchase access to the full set.
+
+<a></a></a>
+
+# Interactive Overview
+### Accessing the data with Blaze and Interactive on Research
+Partner datasets are available on Educational Platform Research through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets, in an interactive, generic manner.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to perform a reduction expression on your dataset so that you don't have to pull the whole dataset into memory. You can convert the result of a blaze expression to a Pandas data structure (e.g. a [DataFrame](http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html)) and perform further computation, manipulation, and visualization on that structure.
+
+Helpful links:
+
+* [Query building for Blaze](http://blaze.readthedocs.io/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-sql.html).
+
+Once you have a Blaze expression that reduces the dataset to less than 10,000 rows, you can convert it to a Pandas DataFrames using:
+
+> `from odo import odo`
+> `odo(expr, pandas.DataFrame)`
+
+#### To see how to create a factor using this data, search for the `Pipeline Overview` section of this notebook or head straight to <a href="#pipeline">Pipeline Overview</a>.
+
+Let's go over the columns:
+
+- **symbol**: The ticker symbol of the company.
+- **sid**: The security ID (see [here](https://www.educational_platform.com/tutorials/getting-started#lesson3) for explanation).
+- **name**: The name of the company.
+- **asof_date**: The date to which this data applies/actual report date
+- **timestamp**: This is our timestamp on when we registered the data.
+- **predicted_five_day_log_return**: The predicted log return for the security over the next 5 days
+
+Fields like `timestamp` and `sid` are standardized across all Educational Platform Store Datasets, so the datasets are easy to combine. The `sid` field is also standardized across all Educational Platform equity databases.
+
+Now that we understand the data a bit better, let's get the `predicted_five_day_log_return` data for Apple (sid 24) and visualize it with a chart.
+
+<a></a></a>
+
+# Pipeline Overview
+[Pipeline](https://www.educational_platform.com/tutorials/pipeline) is a tool that can be used to define computations called factors, filters, or classifiers. These computations can be used in an algorithm to dynamically select securities, compute portfolio weights, compute risk factors, and more. 
+
+In research, pipeline is mostly used to explore these computations.
+
+The only method for accessing partner data within an algorithm on Educational Platform is in a pipeline. Before moving to [the IDE](https://www.educational_platform.com/algorithms) to work on an algorithm, it's a good idea to define your pipeline in research, so that you can iterate on an idea and analyze the output.
+
+To start, we need to import the following:
+
+To access partner data in pipeline, you must import the dataset. If the data is in a format that's difficult to use (e.g. event-based datasets), the data is sometimes available via built-in factors or filters. There are no such built-ins for the Alpha Vertex dataset as the prediction data is in a nice, usable format.
+
+Let's import the pipeline version of the Alpha Vertex dataset:
+
+Now that we've imported the data, let's take a look at which fields are available for each dataset, along with their datatypes.
+
+Now that we know what fields we have access to, let's define a [pipeline](https://www.educational_platform.com/tutorials/pipeline) that gets the latest predicted five day log return for the PreCog 500 dataset for stocks in the [Q1500US](https://www.educational_platform.com/tutorials/pipeline#lesson11).
+
+The set of ~500 stocks in the PreCog top 500 is derived from market cap at the beginning of each year, which we can see above!
+
+Now, you can to try writing an algorithm using this pipeline. The [final lesson in the Pipeline Tutorial](https://www.educational_platform.com/tutorials/pipeline#lesson12) gives an example of moving from research to the IDE.
+
+There is also an example algorithm using the PreCog 500 that can be found [here](https://www.educational_platform.com/posts/alpha-vertex-precog-dataset).
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the free sample of the dataset
+from educational_platform.interactive.data.alpha_vertex import (
+    # Top 100 Securities
+    precog_top_100 as dataset_100,
+    # Top 500 Securities
+    precog_top_500 as dataset_500
+)
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+dataset_500.asof_date.max()
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+dataset_500.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first few rows.
+dataset_500.peek()
+```
+*Cell 5:*
+```python
+# We start by defining a Blaze expression that gets the rows where symbol == AAPL.
+aapl_data = dataset_500[dataset_500.symbol == 'AAPL']
+
+# We then convert the Blaze expression to a pandas DataFrame, which is populated
+# with the data resulting from our Blaze expression.
+aapl_df = odo(aapl_data, pd.DataFrame)
+
+# Display the first few rows of the DataFrame.
+aapl_df.head()
+```
+*Cell 6:*
+```python
+# For plotting purposes, set the index of the DataFrame to the asof_date.
+aapl_df.set_index('asof_date', inplace=True)
+```
+*Cell 7:*
+```python
+# Plot the predicted 5-day log return data.
+aapl_df['predicted_five_day_log_return'].plot()
+```
+*Cell 8:*
+```python
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+```
+*Cell 9:*
+```python
+# These imports can be found in the store panel for each dataset
+# (https://www.educational_platform.com/data). Note that not all store datasets
+# can be used in pipeline yet.
+from educational_platform.pipeline.data.alpha_vertex import (
+    # Top 100 Securities
+    precog_top_100 as dataset_100,
+    # Top 500 Securities|
+    precog_top_500 as dataset_500
+)
+```
+*Cell 10:*
+```python
+print "Here are the list of available fields per dataset:"
+print "---------------------------------------------------\n"
+
+def _print_fields(dataset):
+    print "Dataset: %s\n" % dataset.__name__
+    print "Fields:"
+    for field in list(dataset.columns):
+        print "%s - %s" % (field.name, field.dtype)
+    print "\n"
+
+_print_fields(dataset_500)
+
+
+print "---------------------------------------------------\n"
+```
+*Cell 11:*
+```python
+# Import the Q1500US pipeline filter.
+from educational_platform.pipeline.filters.morningstar import Q1500US
+```
+*Cell 12:*
+```python
+# We only want to get the signal for stocks in the Q1500US that have a non-null
+# latest predicted_five_day_log_return.
+universe = (Q1500US() & dataset_500.predicted_five_day_log_return.latest.notnull())
+
+# Define our pipeline to return the latest prediction for the stocks in `universe`.
+pipe = Pipeline(columns= {
+                    'prediction': dataset_500.predicted_five_day_log_return.latest,
+                },
+                screen=universe)
+
+# Run our pipeline (this gets the data).
+pipe_output = run_pipeline(pipe, start_date='2014-01-01', end_date='2017-01-01')
+```
+*Cell 13:*
+```python
+# The result is a pandas DataFrame with a MultiIndex.
+pipe_output.head()
+```
+*Cell 14:*
+```python
+# Let's see how many securities we have a prediction for each day.
+pipe_output.groupby(pipe_output.index.get_level_values(0)).count().plot()
+```
+
+##### Alpha Vertex: PreCog 100/500 Securities
+- **Original Path**: `notebooks\data\alpha_vertex.precog_top_500\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 23 (Code: 14, Markdown: 9)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.alpha_vertex import (, from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.alpha_vertex import (, from educational_platform.pipeline.filters.morningstar import Q1500US, from educational_platform.research import run_pipeline, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Alpha Vertex: PreCog 100/500 Securities
+In this notebook, we'll take a look at the Alpha Vertex *Top 100/500 Securities PreCog* dataset, available on [Educational Platform](https://www.educational_platform.com/store). This dataset spans 2010 through the current day. PreCog uses machine learning models to forecast stock returns at multiple horizons.
+
+The *100* dataset contains 5 day predicted log returns for the top 100 securities by market cap. The *500* dataset contains 5 day predicted log returns for the top 500 securities by market cap.
+
+Update time: Daily data will be updated close to midnight for the previous day. So on the 27th, you will have data with an asof_date of the 26th.

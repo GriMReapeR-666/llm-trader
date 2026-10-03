@@ -1,0 +1,11 @@
+# b. Accessing Series Elements.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Accessing Series Elements.
+- Print every other element of the first 50 elements of series `s`.
+- Find the value associated with the index `2017-02-20`.

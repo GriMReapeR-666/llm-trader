@@ -1,0 +1,20 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+
+print 'Target semivariance of X:',
+print 'Target semideviation of X:', 
+```
+*Cell 8:*
+```python
+att = get_pricing('T', fields='open_price', start_date='2016-01-01', end_date='2017-01-01')
+```
+*Cell 9:*
+```python
+# Rolling mean

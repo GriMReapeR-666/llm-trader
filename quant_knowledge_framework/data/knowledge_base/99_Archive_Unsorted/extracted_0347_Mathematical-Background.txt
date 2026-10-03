@@ -1,0 +1,26 @@
+# Mathematical Background
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Mathematical Background
+
+This is a very brief overview of linear regression. For more, please see:
+https://en.wikipedia.org/wiki/Linear_regression
+
+##Ordinary Least Squares
+
+Regression works by optimizing the placement of the line of best fit (or plane in higher dimensions). It does so by defining how bad the fit is using an objective function. In ordinary least squares regression (OLS), what we use here, the objective function is:
+
+$$\sum_{i=1}^n (Y_i - a - bX_i)^2$$
+
+We use $a$ and $b$ to represent the potential candidates for $\alpha$ and $\beta$. What this objective function means is that for each point on the line of best fit we compare it with the real point and take the square of the difference. This function will decrease as we get better parameter estimates. Regression is a simple case of numerical optimization that has a closed form solution and does not need any optimizer. We just find the results that minimize the objective function.
+
+We will denote the eventual model that results from minimizing our objective function as:
+
+$$ \hat{Y} = \hat{\alpha} + \hat{\beta}X $$
+
+With $\hat{\alpha}$ and $\hat{\beta}$ being the chosen estimates for the parameters that we use for prediction and $\hat{Y}$ being the predicted values of $Y$ given the estimates.

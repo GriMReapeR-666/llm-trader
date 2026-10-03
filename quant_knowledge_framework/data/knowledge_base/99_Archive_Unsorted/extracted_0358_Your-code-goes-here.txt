@@ -1,0 +1,36 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+```
+*Cell 11:*
+```python
+lm, p_lm, fv, p_fv =  ## Your code goes here
+print 'p-value for f-statistic of the breush-pagan test:', ## Your code goes here
+print '===='  
+print "Since the p-value obtained is ______ than alpha (0.05), \
+we ______ reject the null hypothesis of the breush-pagan test"
+```
+*Cell 12:*
+```python
+# Predicted values of asset1
+y = ## Your code goes here
+
+plt.scatter(y, results.resid)
+plt.title('Scatter plot of Residuals to predicted model')
+plt.xlabel('Predicted Model')
+plt.ylabel('Residuals');
+```
+*Cell 13:*
+```python
+p1 = get_pricing('SPY', start_date = '2005-01-01', 
+                 end_date = '2010-01-01', 
+                 fields = 'price').pct_change()[1:]
+p2 = get_pricing('XLF', start_date = '2005-01-01', 
+                 end_date = '2010-01-01', 
+                 fields = 'price').pct_change()[1:]

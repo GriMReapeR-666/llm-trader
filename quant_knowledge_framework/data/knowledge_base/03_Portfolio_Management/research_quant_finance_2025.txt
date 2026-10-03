@@ -1,0 +1,56 @@
+# Advances in Quantitative Finance 2025: From Models to Systems
+
+**Source**: magazine.thalesians.com (December 2025)
+
+## Overview
+Annual review of quantitative finance research trends in 2025.
+
+## Key Themes
+
+### 1. System-Level View
+- Markets as interacting, data-rich, path-dependent systems
+- Market generators and particle simulations
+- Scenario-based methods for tail events
+- Square-root impact law as universal pattern
+
+### 2. AI Embedded, Not Idolized
+- ML, generative models, RL used selectively
+- Extends rather than replaces classical methods
+- Markowitz enhanced with ML
+- RL for genuinely sequential decisions
+
+### 3. Risk and Execution as Organizing Principles
+- Dynamic, time-consistent risk
+- Execution-aware portfolio choice
+- Robust pricing under model uncertainty
+- Liquidity and microstructure built into strategies
+
+## Notable Research Areas
+
+### Data-Driven Hedging with Generative Models
+- Synthetic data for portfolio construction
+- Scenario generation for stress testing
+
+### Reinforcement Learning for Portfolio Management
+- Adaptive trading strategies
+- Dynamic portfolio allocation
+- Challenges: training difficulty, validation sensitivity
+
+### Optimal Liquidation with Signals
+- Exact formulas for best trading strategy
+- Price impact and risk considerations
+- General propagator case solutions
+
+### Dynamic Portfolio Choice with Transaction Costs
+- Intertemporal hedging
+- Execution risk integration
+- Target portfolio preparation for future opportunities
+
+### FX Market Making with Internal Liquidity
+- Internal liquidity pool management
+- Multi-objective optimization (risk, profit, speed)
+- Predictable execution behavior for other LPs
+
+### Enhancing Markowitz with ML
+- Traditional mean-variance + ML enhancements
+- Robustness in modern markets

@@ -1,0 +1,23 @@
+# DIA
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## DIA
+
+Next, we look at **DIA**, which tracks the Dow Jones Industrial Average. DIA stores about \$11bn in assets. DIA started trading on `1998-01-20`. Since we have data only from 2002 onwards, we'll start our investigation at `2002-03-03`.
+
+This looks as if there could be a strong trading signal. (This potential signal warrants deeper investigation, which exceeds the scope of this notebook.) Note that certain shifts in Fed Sentiment Data precede the shifts in DIA Price, whereas in other cases the shift in Fed Sentiment Data is preceded by a shift in DIA price.
+
+What's troublesome with that -- and we pointed it out in the previous section on CWB -- is that the causal relationship is not clear. It's unclear which one of the two variables is acting and which is reacting. We remarked that it is implausible for a single ETF to influence Fed Sentiment, but we also know that it is possible for the ETF price change to be due to some other variable that *does* impact Fed Sentiment.
+
+In other words, the solution to the problem is that **there's some hidden macroeconomic [confounder](https://en.wikipedia.org/wiki/Confounding)**. The confounder explains why we sometimes see the ETF move first, and at other times see the Fed sentiment move first: there's some general macroeconomic variable (or, more likely, several of them) to which macro-tracking ETFs and Fed Sentiment respond with different speeds.
+
+An illustration of the confounding variable below:
+
+<img align="left" src="http://s7.postimg.org/xaxic2k57/fed1.png">
+
+This explains situations in which the ETF price moves first, followed by Fed sentiment, and it may also explain situations in which Fed sentiment moves first and ETF price follows. However, there is also the possibility of Fed sentiment moving first and, by itself, impacting ETF price. In those situations, it may be hard to measure the extent to which Fed sentiment impacted ETF price, and the extent to which some overarching variable impacted ETF price.

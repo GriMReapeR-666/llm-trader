@@ -1,0 +1,11 @@
+# b. Temperature in Palo Alto
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Temperature in Palo Alto
+
+Find the mean and standard deviation of Palo Alto weekly average temperature data for the year of 2015 stored in `p15_df`.

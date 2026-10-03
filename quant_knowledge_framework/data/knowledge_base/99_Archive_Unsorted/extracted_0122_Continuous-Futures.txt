@@ -1,0 +1,21 @@
+# Continuous Futures
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Continuous Futures
+With futures, it is difficult to get a continuous series of historical prices. Each time that you roll forward to a new contract, the price series incurs a jump. This jump negatively impacts our analysis of prices as the discontinuity introduces shocks in our return and volatility measures that may not be representative of the actual changes in the underlying.
+
+We use the continuous futures objects as part of the platform to get a continuous chain of historical data for futures contracts, taking these concerns into account. There are several ways to adjust for the cost of carry when looking at historical data, though people differ on what they prefer. The general consensus is that an adjustment should be done.
+
+We can have a continuous future "roll" forward either based on calendar dates or based on the shift in volume from the front month contract to the next. The `ContinuousFuture` object is not a tradable asset, however. It is an API construct that abstracts the chain of consecutive contracts for the same underlying. They maintain ongoing references to the active contract in the chain and make it easier to to maintain a dynamic reference to contracts that you want to order as well as to get historical series of data, all based on your chosen method of adjustment and your desired roll method.
+
+The above defined continuous future has an `offset` of $0$, indicating that we want it to reference the front month contract at each roll. Incrementing the offset causes the continuous future to instead monitor the contract that is displaced from the front month by that number.
+
+### Adjustments
+We can define a continuous future to use multiplicative adjustments, additive adjustments, or no adjustments (`'mul'`, `'add'`, `None`). The cost of carry that is realized as we shift from one contract to the next can be seen as the shock from a dividend payment. Adjustments are important to frame past prices relative to today's prices by including the cost of carry. Additive adjustments close the gaps betwen contracts by simply taking the differences and aggregating those back, while multiplicative adjustments scale previous prices using a ratio to close the gap.
+
+Once we have a continuous time series of prices we can conduct meaningful statistical analysis to form a foundation for our research.

@@ -1,0 +1,11 @@
+# Conclusions
+
+Topic: 02_Strategy_Development
+Confidence: 0.67
+Keywords: ev, backtest
+
+---
+
+## Conclusions
+
+In this blog, co-written by Educational Platform friend [Dr. Thomas Starke](http://drtomstarke.com/), we wanted to provide an intuitive and gentle introduction to Markowitz portfolio optimization which still remains relevant today. By simulating various random portfolios we have seen that certain portfolios perform better than others. Convex optimization using `cvxopt` allowed us to then numerically determine the portfolios that live on the *efficient frontier*. The zipline backtest serves as an example but also shows compelling performance.

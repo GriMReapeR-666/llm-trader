@@ -1,0 +1,917 @@
+# Next Steps
+
+Topic: 04_Order_Execution
+Confidence: 0.44
+Keywords: slippage, maker, execution, sor
+
+---
+
+## Next Steps
+
+This was a lot of material and there is still even more to cover! Make sure you play around with the cells in each notebook to accustom yourself to the syntax featured here and to figure out any limitations. If you want to delve even deeper into the material, the [documentation for Python](https://docs.python.org/2/) is all available online. We are in the process of developing a second part to this Python tutorial, designed to provide you with even more programming knowledge, so keep an eye on the [Educational Platform Lectures Page](educational_platform.com/lectures) and the [forums](educational_platform.com/posts) for any new lectures.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# This is a comment
+# These lines of code will not change any values
+# Anything following the first # is not run as code
+```
+*Cell 2:*
+```python
+""" This is a special string """
+```
+*Cell 3:*
+```python
+my_integer = 50
+print my_integer, type(my_integer)
+```
+*Cell 4:*
+```python
+one = 1
+print One
+```
+*Cell 5:*
+```python
+my_float = 1.0
+print my_float, type(my_float)
+my_float = float(1)
+print my_float, type(my_float)
+```
+*Cell 6:*
+```python
+my_int = int(3.14159)
+print my_int, type(my_int)
+```
+*Cell 7:*
+```python
+my_string = 'This is a string with single quotes'
+print my_string
+my_string = "This is a string with double quotes"
+print my_string
+```
+*Cell 8:*
+```python
+my_string = '"Jabberwocky", by Lewis Carroll'
+print my_string
+my_string = "'Twas brillig, and the slithy toves / Did gyre and gimble in the wabe;"
+print my_string
+```
+*Cell 9:*
+```python
+my_bool = True
+print my_bool, type(my_bool)
+```
+*Cell 10:*
+```python
+print 'Addition: ', 2 + 2
+print 'Subtraction: ', 7 - 4
+print 'Multiplication: ', 2 * 5
+print 'Division: ', 10 / 2
+print 'Exponentiation: ', 3**2
+```
+*Cell 11:*
+```python
+print 'Modulo: ', 15 % 4
+```
+*Cell 12:*
+```python
+first_integer = 4
+second_integer = 5
+print first_integer * second_integer
+```
+*Cell 13:*
+```python
+first_integer = 11
+second_integer = 3
+print first_integer / second_integer
+```
+*Cell 14:*
+```python
+first_number = 11.0
+second_number = 3.0
+print first_number / second_number
+```
+*Cell 15:*
+```python
+import math
+```
+*Cell 16:*
+```python
+print 'Pi: ', math.pi
+print "Euler's Constant: ", math.e
+```
+*Cell 17:*
+```python
+print 'Cosine of pi: ', math.cos(math.pi)
+```
+*Cell 18:*
+```python
+my_list = [1, 2, 3]
+print my_list
+```
+*Cell 19:*
+```python
+print my_list[0]
+print my_list[2]
+```
+*Cell 20:*
+```python
+print 'The first, second, and third list elements: ', my_list[0], my_list[1], my_list[2]
+print 'Accessing outside the list bounds causes an error: ', my_list[3]
+```
+*Cell 21:*
+```python
+print len(my_list)
+```
+*Cell 22:*
+```python
+print my_list
+my_list[0] = 42
+print my_list
+```
+*Cell 23:*
+```python
+my_string = "Strings never change"
+my_string[0] = 'Z'
+```
+*Cell 24:*
+```python
+my_list_2 = ['one', 'two', 'three']
+print my_list_2
+```
+*Cell 25:*
+```python
+my_list_3 = [True, 'False', 42]
+```
+*Cell 26:*
+```python
+my_list_4 = my_list + my_list_2 + my_list_3
+print my_list_4
+```
+*Cell 27:*
+```python
+my_list = ['friends', 'romans', 'countrymen', 'lend', 'me', 'your', 'ears']
+```
+*Cell 28:*
+```python
+print my_list[2:4]
+```
+*Cell 29:*
+```python
+print my_list[1:]
+```
+*Cell 30:*
+```python
+print my_list[:4]
+```
+*Cell 31:*
+```python
+print my_list[-1]
+```
+*Cell 32:*
+```python
+print my_list[0:7:2]
+```
+*Cell 33:*
+```python
+print my_list[::2]
+```
+*Cell 34:*
+```python
+print my_list[:]
+```
+*Cell 35:*
+```python
+print my_list[::-1]
+```
+*Cell 36:*
+```python
+b = 10
+my_list = range(b)
+print my_list
+```
+*Cell 37:*
+```python
+a = 0
+b = 10
+my_list = range(a, b)
+print my_list
+```
+*Cell 38:*
+```python
+a = 0
+b = 10
+step = 2
+my_list = range(a, b, step)
+print my_list
+```
+*Cell 39:*
+```python
+my_tuple = 'I', 'have', 30, 'cats'
+print my_tuple
+```
+*Cell 40:*
+```python
+my_tuple = ('I', 'have', 30, 'cats')
+print my_tuple
+```
+*Cell 41:*
+```python
+my_tuple[3] = 'dogs' # Attempts to change the 'cats' value stored in the the tuple to 'dogs'
+```
+*Cell 42:*
+```python
+print my_tuple[1:3]
+```
+*Cell 43:*
+```python
+my_other_tuple = ('make', 'that', 50)
+print my_tuple + my_other_tuple
+```
+*Cell 44:*
+```python
+str_1, str_2, int_1 = my_other_tuple
+print str_1, str_2, int_1
+```
+*Cell 45:*
+```python
+things_i_like = {'dogs', 7, 'the number 4', 4, 4, 4, 42, 'lizards', 'man I just LOVE the number 4'}
+print things_i_like, type(things_i_like)
+```
+*Cell 46:*
+```python
+animal_list = ['cats', 'dogs', 'dogs', 'dogs', 'lizards', 'sponges', 'cows', 'bats', 'sponges']
+animal_set = set(animal_list)
+print animal_set # Removes all extra instances from the list
+```
+*Cell 47:*
+```python
+print len(animal_set)
+```
+*Cell 48:*
+```python
+'cats' in animal_set # Here we check for membership using the `in` keyword.
+```
+*Cell 49:*
+```python
+print animal_set | things_i_like # You can also write things_i_like | animal_set with no difference
+```
+*Cell 50:*
+```python
+print animal_set & things_i_like # You can also write things_i_like & animal_set with no difference
+```
+*Cell 51:*
+```python
+my_dict = {"High Fantasy": ["Wheel of Time", "Lord of the Rings"], 
+           "Sci-fi": ["Book of the New Sun", "Neuromancer", "Snow Crash"],
+           "Weird Fiction": ["At the Mountains of Madness", "The House on the Borderland"]}
+```
+*Cell 52:*
+```python
+print my_dict["Sci-fi"]
+```
+*Cell 53:*
+```python
+my_dict["Sci-fi"] = "I can't read"
+print my_dict["Sci-fi"]
+```
+*Cell 54:*
+```python
+my_dict["Historical Fiction"] = ["Pillars of the Earth"]
+print my_dict["Historical Fiction"]
+```
+*Cell 55:*
+```python
+print my_dict
+```
+*Cell 56:*
+```python
+first_string = '"Beware the Jabberwock, my son! /The jaws that bite, the claws that catch! /'
+second_string = 'Beware the Jubjub bird, and shun /The frumious Bandersnatch!"/'
+third_string = first_string + second_string
+print third_string
+```
+*Cell 57:*
+```python
+my_string = 'Supercalifragilisticexpialidocious'
+print 'The first letter is: ', my_string[0] # Uppercase S
+print 'The last letter is: ', my_string[-1] # lowercase s
+print 'The second to last letter is: ', my_string[-2] # lowercase u
+print 'The first five characters are: ', my_string[0:5] # Remember: slicing doesn't include the final element!
+print 'Reverse it!: ', my_string[::-1]
+```
+*Cell 58:*
+```python
+print 'Count of the letter i in Supercalifragilisticexpialidocious: ', my_string.count('i')
+print 'Count of "li" in the same word: ', my_string.count('li')
+```
+*Cell 59:*
+```python
+print 'The first time i appears is at index: ', my_string.find('i')
+```
+*Cell 60:*
+```python
+print "All i's are now a's: ", my_string.replace('i', 'a')
+```
+*Cell 61:*
+```python
+print "It's raining cats and dogs".replace('dogs', 'more cats')
+```
+*Cell 62:*
+```python
+my_string = "I can't hear you"
+print my_string.upper()
+my_string = "I said HELLO"
+print my_string.lower()
+```
+*Cell 63:*
+```python
+my_string = "{0} {1}".format('Marco', 'Polo')
+print my_string
+```
+*Cell 64:*
+```python
+my_string = "{1} {0}".format('Marco', 'Polo')
+print my_string
+```
+*Cell 65:*
+```python
+print 'insert %s here' % 'value'
+```
+*Cell 66:*
+```python
+print 'There are %s cats in my %s' % (13, 'apartment')
+```
+*Cell 67:*
+```python
+print 5 == 5
+```
+*Cell 68:*
+```python
+print 5 > 5
+```
+*Cell 69:*
+```python
+m = 2
+n = 23
+print m < n
+```
+*Cell 70:*
+```python
+statement_1 = 10 > 2
+statement_2 = 4 <= 6
+print "Statement 1 truth value: {0}".format(statement_1)
+print "Statement 2 truth value: {0}".format(statement_2)
+print "Statement 1 and Statement 2: {0}".format(statement_1 and statement_2)
+```
+*Cell 71:*
+```python
+print ((2 < 3) and (3 > 0)) or ((5 > 6) and not (4 < 2))
+```
+*Cell 72:*
+```python
+# Similar to how float() and int() work, bool() forces a value to be considered a boolean!
+print bool('')
+```
+*Cell 73:*
+```python
+print bool('I have character!')
+```
+*Cell 74:*
+```python
+print bool([])
+```
+*Cell 75:*
+```python
+print bool([1, 2, 3])
+```
+*Cell 76:*
+```python
+# This is the basic format of an if statement. This is a vacuous example. 
+# The string "Condition" will always evaluated as True because it is a
+# non-empty string. he purpose of this code is to show the formatting of
+# an if-statement.
+if "Condition": 
+    # This block of code will execute because the string is non-empty
+    # Everything on these indented lines
+    print True
+else:
+    # So if the condition that we examined with if is in fact False
+    # This block of code will execute INSTEAD of the first block of code
+    # Everything on these indented lines
+    print False
+# The else block here will never execute because "Condition" is a non-empty string.
+```
+*Cell 77:*
+```python
+i = 4
+if i == 5:
+    print 'The variable i has a value of 5'
+```
+*Cell 78:*
+```python
+i = 4
+if i == 5:
+    print "All lines in this indented block are part of this block"
+    print 'The variable i has a value of 5'
+else:
+    print "All lines in this indented block are part of this block"
+    print 'The variable i is not equal to 5'
+```
+*Cell 79:*
+```python
+i = 1
+if i == 1:
+    print 'The variable i has a value of 1'
+elif i == 2:
+    print 'The variable i has a value of 2'
+elif i == 3:
+    print 'The variable i has a value of 3'
+else:
+    print "I don't care what i is"
+```
+*Cell 80:*
+```python
+i = 10
+if i % 2 == 0:
+    if i % 3 == 0:
+        print 'i is divisible by both 2 and 3! Wow!'
+    elif i % 5 == 0:
+        print 'i is divisible by both 2 and 5! Wow!'
+    else:
+        print 'i is divisible by 2, but not 3 or 5. Meh.'
+else:
+    print 'I guess that i is an odd number. Boring.'
+```
+*Cell 81:*
+```python
+i = 5
+j = 12
+if i < 10 and j > 11:
+    print '{0} is less than 10 and {1} is greater than 11! How novel and interesting!'.format(i, j)
+```
+*Cell 82:*
+```python
+my_string = "Carthago delenda est"
+if my_string == "Carthago delenda est":
+    print 'And so it was! For the glory of Rome!'
+else:
+    print 'War elephants are TERRIFYING. I am staying home.'
+```
+*Cell 83:*
+```python
+if 'a' in my_string or 'e' in my_string:
+    print 'Those are my favorite vowels!'
+```
+*Cell 84:*
+```python
+i = 5
+while i > 0: # We can write this as 'while i:' because 0 is False!
+    i -= 1
+    print 'I am looping! {0} more to go!'.format(i)
+```
+*Cell 85:*
+```python
+for i in range(5):
+    print 'I am looping! I have looped {0} times!'.format(i + 1)
+```
+*Cell 86:*
+```python
+my_list = {'cats', 'dogs', 'lizards', 'cows', 'bats', 'sponges', 'humans'} # Lists all the animals in the world
+mammal_list = {'cats', 'dogs', 'cows', 'bats', 'humans'} # Lists all the mammals in the world
+my_new_list = set()
+for animal in my_list:
+    if animal in mammal_list:
+        # This adds any animal that is both in my_list and mammal_list to my_new_list
+        my_new_list.add(animal)
+        
+print my_new_list
+```
+*Cell 87:*
+```python
+i = 10
+while True:
+    if i == 14:
+        break
+    i += 1 # This is shorthand for i = i + 1. It increments i with each iteration.
+    print i
+```
+*Cell 88:*
+```python
+for i in range(5):
+    if i == 2:
+        break
+    print i
+```
+*Cell 89:*
+```python
+i = 0
+while i < 5:
+    i += 1
+    if i == 3:
+        continue
+    print i
+```
+*Cell 90:*
+```python
+for i in range(5):
+    loop_string = 'I transcend the loop!'
+    print 'I am eternal! I am {0} and I exist everywhere!'.format(i)
+
+print 'I persist! My value is {0}'.format(i)
+print loop_string
+```
+*Cell 91:*
+```python
+my_dict = {'firstname' : 'Inigo', 'lastname' : 'Montoya', 'nemesis' : 'Rugen'}
+```
+*Cell 92:*
+```python
+for key in my_dict:
+    print key
+```
+*Cell 93:*
+```python
+for key in my_dict:
+    print my_dict[key]
+```
+*Cell 94:*
+```python
+for key, value in my_dict.items():
+    print key, ':', value
+```
+*Cell 95:*
+```python
+def hello_world():
+    """ Prints Hello, world! """
+    print 'Hello, world!'
+
+hello_world()
+```
+*Cell 96:*
+```python
+for i in range(5):
+    hello_world()
+```
+*Cell 97:*
+```python
+def see_the_scope():
+    in_function_string = "I'm stuck in here!"
+
+see_the_scope()
+print in_function_string
+```
+*Cell 98:*
+```python
+def free_the_scope():
+    in_function_string = "Anything you can do I can do better!"
+    return in_function_string
+my_string = free_the_scope()
+print my_string
+```
+*Cell 99:*
+```python
+def multiply_by_five(x):
+    """ Multiplies an input number by 5 """
+    return x * 5
+
+n = 4
+print n
+print multiply_by_five(n)
+```
+*Cell 100:*
+```python
+def calculate_area(length, width):
+    """ Calculates the area of a rectangle """
+    return length * width
+```
+*Cell 101:*
+```python
+l = 5
+w = 10
+print 'Area: ', calculate_area(l, w)
+print 'Length: ', l
+print 'Width: ', w
+```
+*Cell 102:*
+```python
+def calculate_volume(length, width, depth):
+    """ Calculates the volume of a rectangular prism """
+    return length * width * depth
+```
+*Cell 103:*
+```python
+def sum_values(*args):
+    sum_val = 0
+    for i in args:
+        sum_val += i
+    return sum_val
+```
+*Cell 104:*
+```python
+print sum_values(1, 2, 3)
+print sum_values(10, 20, 30, 40, 50)
+print sum_values(4, 2, 5, 1, 10, 249, 25, 24, 13, 6, 4)
+```
+*Cell 105:*
+```python
+def test_args(*args):
+    print type(args)
+
+test_args(1, 2, 3, 4, 5, 6)
+```
+*Cell 106:*
+```python
+def has_a_vowel(word):
+    """ 
+    Checks to see whether a word contains a vowel 
+    If it doesn't contain a conventional vowel, it
+    will check for the presence of 'y' or 'w'. Does
+    not check to see whether those are in the word
+    in a vowel context.
+    """
+    vowel_list = ['a', 'e', 'i', 'o', 'u']
+    
+    for vowel in vowel_list:
+        if vowel in word:
+            return True
+    # If there is a vowel in the word, the function returns, preventing anything after this loop from running
+    return False
+```
+*Cell 107:*
+```python
+my_word = 'catnapping'
+if has_a_vowel(my_word):
+    print 'How surprising, an english word contains a vowel.'
+else:
+    print 'This is actually surprising.'
+```
+*Cell 108:*
+```python
+def point_maker(x, y):
+    """ Groups x and y values into a point, technically a tuple """
+    return x, y
+```
+*Cell 109:*
+```python
+a = point_maker(0, 10)
+b = point_maker(5, 3)
+def calculate_slope(point_a, point_b):
+    """ Calculates the linear slope between two points """
+    return (point_b[1] - point_a[1])/(point_b[0] - point_a[0])
+print "The slope between a and b is {0}".format(calculate_slope(a, b))
+```
+*Cell 110:*
+```python
+print "The slope-intercept form of the line between a and b, using point a, is: y - {0} = {2}(x - {1})".format(a[1], a[0], calculate_slope(a, b))
+```
+
+##### notebook
+- **Original Path**: `notebooks\lectures\Introduction_to_Research\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 52 (Code: 26, Markdown: 26)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+#Introduction to the Research Environment
+
+The research environment is powered by IPython notebooks, which allow one to perform a great deal of data analysis and statistical validation. We'll demonstrate a few simple techniques here.
+
+##Code Cells vs. Text Cells
+
+As you can see, each cell can be either code or text. To select between them, choose from the 'Cell Type' dropdown menu on the top left.
+
+##Executing a Command
+
+A code cell will be evaluated when you press play, or when you press the shortcut, shift-enter. Evaluating a cell evaluates each line of code in sequence, and prints the results of the last line below the cell.
+
+Sometimes there is no result to be printed, as is the case with assignment.
+
+Remember that only the result from the last line is printed.
+
+However, you can print whichever lines you want using the `print` statement.
+
+##Knowing When a Cell is Running
+
+While a cell is running, a `[*]` will display on the left. When a cell has yet to be executed, `[ ]` will display. When it has been run, a number will display indicating the order in which it was run during the execution of the notebook `[5]`. Try on this cell and note it happening.
+
+##Importing Libraries
+
+The vast majority of the time, you'll want to use functions from pre-built libraries. You can't import every library on Educational Platform due to security issues, but you can import most of the common scientific ones. Here I import numpy and pandas, the two most common and useful libraries in quant finance. I recommend copying this import statement to every new notebook.
+
+Notice that you can rename libraries to whatever you want after importing. The `as` statement allows this. Here we use `np` and `pd` as aliases for `numpy` and `pandas`. This is a very common aliasing and will be found in most code snippets around the web. The point behind this is to allow you to type fewer characters when you are frequently accessing these libraries.
+
+##Tab Autocomplete
+
+Pressing tab will give you a list of IPython's best guesses for what you might want to type next. This is incredibly valuable and will save you a lot of time. If there is only one possible option for what you could type next, IPython will fill that in for you. Try pressing tab very frequently, it will seldom fill in anything you don't want, as if there is ambiguity a list will be shown. This is a great way to see what functions are available in a library.
+
+Try placing your cursor after the `.` and pressing tab.
+
+##Getting Documentation Help
+
+Placing a question mark after a function and executing that line of code will give you the documentation IPython has for that function. It's often best to do this in a new cell, as you avoid re-executing other code and running into bugs.
+
+##Sampling
+
+We'll sample some random data using a function from `numpy`.
+
+##Plotting
+
+We can use the plotting library we imported as follows.
+
+###Squelching Line Output
+
+You might have noticed the annoying line of the form `[<matplotlib.lines.Line2D at 0x7f72fdbc1710>]` before the plots. This is because the `.plot` function actually produces output. Sometimes we wish not to display output, we can accomplish this with the semi-colon as follows.
+
+###Adding Axis Labels
+
+No self-respecting quant leaves a graph without labeled axes. Here are some commands to help with that.
+
+##Generating Statistics
+
+Let's use `numpy` to take some simple statistics.
+
+##Getting Real Pricing Data
+
+Randomly sampled data can be great for testing ideas, but let's get some real data. We can use `get_pricing` to do that. You can use the `?` syntax as discussed above to get more information on `get_pricing`'s arguments.
+
+Our data is now a dataframe. You can see the datetime index and the colums with different pricing data.
+
+This is a pandas dataframe, so we can index in to just get price like this. For more info on pandas, please [click here](http://pandas.pydata.org/pandas-docs/stable/10min.html).
+
+Because there is now also date information in our data, we provide two series to `.plot`. `X.index` gives us the datetime index, and `X.values` gives us the pricing values. These are used as the X and Y coordinates to make a graph.
+
+We can get statistics again on real data.
+
+##Getting Returns from Prices
+
+We can use the `pct_change` function to get returns. Notice how we drop the first element after doing this, as it will be `NaN` (nothing -> something results in a NaN percent change).
+
+We can plot the returns distribution as a histogram.
+
+Get statistics again.
+
+Now let's go backwards and generate data out of a normal distribution using the statistics we estimated from Microsoft's returns. We'll see that we have good reason to suspect Microsoft's returns may not be normal, as the resulting normal distribution looks far different.
+
+##Generating a Moving Average
+
+`pandas` has some nice tools to allow us to generate rolling statistics. Here's an example. Notice how there's no moving average for the first 60 days, as we don't have 60 days of data on which to generate the statistic.
+
+This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company. In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+2 + 2
+```
+*Cell 2:*
+```python
+X = 2
+```
+*Cell 3:*
+```python
+2 + 2
+3 + 3
+```
+*Cell 4:*
+```python
+print 2 + 2
+3 + 3
+```
+*Cell 5:*
+```python
+#Take some time to run something
+c = 0
+for i in range(10000000):
+    c = c + i
+c
+```
+*Cell 6:*
+```python
+import numpy as np
+import pandas as pd
+
+# This is a plotting library for pretty pictures.
+import matplotlib.pyplot as plt
+```
+*Cell 7:*
+```python
+np.random.
+```
+*Cell 8:*
+```python
+np.random.normal?
+```
+*Cell 9:*
+```python
+# Sample 100 points with a mean of 0 and an std of 1. This is a standard normal distribution.
+X = np.random.normal(0, 1, 100)
+```
+*Cell 10:*
+```python
+plt.plot(X)
+```
+*Cell 11:*
+```python
+plt.plot(X);
+```
+*Cell 12:*
+```python
+X = np.random.normal(0, 1, 100)
+X2 = np.random.normal(0, 1, 100)
+
+plt.plot(X);
+plt.plot(X2);
+plt.xlabel('Time') # The data we generated is unitless, but don't forget units in general.
+plt.ylabel('Returns')
+plt.legend(['X', 'X2']);
+```
+*Cell 13:*
+```python
+np.mean(X)
+```
+*Cell 14:*
+```python
+np.std(X)
+```
+*Cell 15:*
+```python
+data = get_pricing('MSFT', start_date='2012-1-1', end_date='2015-6-1')
+```
+*Cell 16:*
+```python
+data
+```
+*Cell 17:*
+```python
+X = data['price']
+```
+*Cell 18:*
+```python
+plt.plot(X.index, X.values)
+plt.ylabel('Price')
+plt.legend(['MSFT']);
+```
+*Cell 19:*
+```python
+np.mean(X)
+```
+*Cell 20:*
+```python
+np.std(X)
+```
+*Cell 21:*
+```python
+R = X.pct_change()[1:]
+```
+*Cell 22:*
+```python
+plt.hist(R, bins=20)
+plt.xlabel('Return')
+plt.ylabel('Frequency')
+plt.legend(['MSFT Returns']);
+```
+*Cell 23:*
+```python
+np.mean(R)
+```
+*Cell 24:*
+```python
+np.std(R)
+```
+*Cell 25:*
+```python
+plt.hist(np.random.normal(np.mean(R), np.std(R), 10000), bins=20)
+plt.xlabel('Return')
+plt.ylabel('Frequency')
+plt.legend(['Normally Distributed Returns']);
+```
+*Cell 26:*
+```python
+# Take the average of the last 60 days at each timepoint.
+MAVG = pd.rolling_mean(X, window=60)
+plt.plot(X.index, X.values)
+plt.plot(MAVG.index, MAVG.values)
+plt.ylabel('Price')
+plt.legend(['MSFT', '60-day MAVG']);
+```
+
+##### Introduction to Volume, Slippage, and Liquidity
+- **Original Path**: `notebooks\lectures\Introduction_to_Volume_Slippage_and_Liquidity\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 33 (Code: 15, Markdown: 18)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Introduction to Volume, Slippage, and Liquidity
+by Delaney Mackenzie and Maxwell Margenot
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](github.com/educational_platform/research_public)

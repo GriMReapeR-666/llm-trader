@@ -1,0 +1,15 @@
+# a. Filtering.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Filtering.
+- Filter pricing data from the last question (stored in `prices`) to only print values where:
+    - BP > 30
+    - XOM < 100
+    - The intersection of both above conditions (BP > 30 **and** XOM < 100)
+    - The union of the previous composite condition along with TOT having no `nan` values ((BP > 30 **and** XOM < 100) **or** TOT is non-`NaN`).
+- Add a column for TSLA and drop the column for XOM.

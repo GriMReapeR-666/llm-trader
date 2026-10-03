@@ -1,0 +1,19 @@
+# Lecture Link :
+
+Topic: 05_Quant_Utilities
+Confidence: 1.00
+Keywords: stationarity, cointegration
+
+---
+
+## Lecture Link :
+https://www.educational_platform.com/lectures/integration-cointegration-and-stationarity
+
+###IMPORTANT NOTE: 
+This lecture corresponds to the Integration, Cointegration, and Stationarity lecture, which is part of the Educational Platform lecture series. This homework expects you to rely heavily on the code presented in the corresponding lecture. Please copy and paste regularly from that lecture when starting to work on the problems, as trying to do them from scratch will likely be too difficult.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+----

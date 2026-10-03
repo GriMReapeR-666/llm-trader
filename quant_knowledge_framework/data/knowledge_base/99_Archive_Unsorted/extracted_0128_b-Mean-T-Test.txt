@@ -1,0 +1,28 @@
+# b. Mean T-Test
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Mean T-Test
+Run a T-test on the SPY returns, to determine if the mean returns is 0.01.   
+- Find the two critical values for a 90% two tailed $z$-test
+- Use the formula above to run a t-test on the sample data.
+- Conclude about the test results.
+
+From the previous question, we find a critical value of 1.645. 
+
+We find that
+$-1.645 < 1.05 < 1.645$.
+We thus conclude that we **fail to reject** our $H_0$
+
+# c. Mean p-value test
+Given the returns data above, use the p-value to determine the results of the previous hypothesis test. 
+
+As we can see above, our p-value is greater than our significant level, $\alpha = 0.1$, we thus **fail to reject** the null hypothesis.
+
+----
+
+# Exercise 3: Multiple Variables Tests.

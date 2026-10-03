@@ -1,0 +1,38 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+results = smr.linear_model.OLS(returns1.values, sm.add_constant(returns2.values)).fit()
+```
+*Cell 11:*
+```python
+lm, p_lm, fv, p_fv = het_breushpagan(results.resid, results.model.exog)
+print 'p-value for f-statistic of the breush-pagan test:', p_fv
+print '===='  
+print "Since the p-value obtained is greater than alpha (0.05), \
+we can't reject the null hypothesis of the breush-pagan test, and state that there is \
+no presence of heteroskedasticity"
+```
+*Cell 12:*
+```python
+# Predicted values of asset1
+y = results.params[0] + results.params[1]*returns1.values
+
+plt.scatter(y, results.resid)
+plt.title('Scatter plot of Residuals to predicted model')
+plt.xlabel('Predicted Model')
+plt.ylabel('Residuals');
+```
+*Cell 13:*
+```python
+p1 = get_pricing('SPY', start_date = '2005-01-01', 
+                 end_date = '2010-01-01', 
+                 fields = 'price').pct_change()[1:]
+p2 = get_pricing('XLF', start_date = '2005-01-01', 
+                 end_date = '2010-01-01', 
+                 fields = 'price').pct_change()[1:]

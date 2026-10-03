@@ -1,0 +1,11 @@
+# c. Sector Exposure
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c. Sector Exposure
+
+Use the pipeline API with the QTradableStocksUS as a screen to find and print the sector composition of the universe on 2016-07-01.

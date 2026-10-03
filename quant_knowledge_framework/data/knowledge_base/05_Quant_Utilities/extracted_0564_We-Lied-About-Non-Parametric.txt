@@ -1,0 +1,17 @@
+# We Lied About 'Non-Parametric'
+
+Topic: 05_Quant_Utilities
+Confidence: 0.67
+Keywords: stationarity, cointegration
+
+---
+
+## We Lied About 'Non-Parametric'
+
+You'll notice the VaR computation conspicuously uses a lookback window. This is a parameter to the otherwise 'non-parametric' historical VaR. Keep in mind that because lookback window affects VaR, it's important to pick a lookback window that's long enough for the VaR to converge. To check if our value has seemingly converged let's run an experiment.
+
+Also keep in mind that even if something has converged on a say 500 day window, that may be ignoring a financial collapse that happened 1000 days ago, and therefore is ignoring crucial data. On the other hand, using all time data may be useless for reasons of non-stationarity in returns varaince. Basically as returns variance changes over time, older measurements may reflect state that is no longer accurate. For more information on non-stationarity you can check out [this lecture](https://www.quantopian.com/lectures/integration-cointegration-and-stationarity).
+
+We can see here that VaR does appear to converge within a 400-600 lookback window period. Therefore our 520 day parameter should be fine. In fact, 1000 may be better as it uses strictly more information, but more computationally intensive and prey to stationarity concerns.
+
+It can be useful to do analyses like this when evaluating whether a VaR is meaningful. Another check we'll do is for stationarity of the portfolio returns over this time period.

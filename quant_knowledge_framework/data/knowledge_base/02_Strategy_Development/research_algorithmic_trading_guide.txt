@@ -1,0 +1,113 @@
+# Algorithmic Trading: Complete Guide to Strategies and Execution
+
+**Source**: Multiple sources (TradingWizard, IBKR, Investopedia)
+
+## Overview
+Comprehensive guide to algorithmic trading strategies, execution, and AI automation.
+
+## Strategy Categories
+
+### 1. Trend Following
+- Moving average crossovers
+- Momentum-based strategies
+- Breakout detection
+- Suitable for: Medium-to-long horizons
+
+### 2. Mean Reversion
+- RSI oversold/overbought
+- Bollinger Band boundaries
+- Statistical arbitrage pairs
+- Suitable for: Lower-volatility instruments
+
+### 3. Market Making
+- Bid-ask spread capture
+- Inventory management
+- Quoting algorithms
+- Suitable for: High-frequency, liquid markets
+
+### 4. Arbitrage
+- Cross-market price discrepancies
+- Statistical arbitrage
+- Risk arbitrage (mergers)
+- Suitable for: Low-latency infrastructure
+
+### 5. Sentiment-Based
+- News sentiment analysis
+- Social media monitoring
+- Event-driven trading
+- Suitable for: Short-term, high-impact events
+
+## Execution Pipeline
+
+### Phase 1: Data Acquisition
+- Millisecond tick data
+- Remove duplicates, fix gaps
+- Eliminate survivorship bias
+- Point-in-time data validation
+
+### Phase 2: Feature Engineering
+- Order flow imbalances
+- VWAP deviations
+- ATR volatility measures
+- Technical indicator computation
+
+### Phase 3: In-Sample Training
+- 70% historical data
+- Logic rule establishment
+- Risk-adjusted optimization
+
+### Phase 4: Out-of-Sample Testing
+- 30% unseen data
+- Performance comparison
+- Curve fitting detection
+
+### Phase 5: Walk-Forward Analysis
+- Rolling 6-month optimization
+- 1-month testing
+- Continuous re-optimization
+
+### Phase 6: Paper Trading
+- Real-time data, simulated orders
+- Latency and slippage tracking
+- Infrastructure validation
+
+### Phase 7: Live Deployment
+- Small capital start
+- Strict loss limits
+- Continuous monitoring
+
+## AI Automation Components
+
+### Machine Learning Models
+- Neural networks for pattern recognition
+- Reinforcement learning for action optimization
+- NLP for sentiment extraction
+- Computer vision for chart patterns
+
+### Key Metrics
+- Sharpe Ratio > 1.5: Excellent risk-adjusted returns
+- Max Drawdown < 40%: Structural tradeability
+- Daily loss limits: Hard-coded failsafes
+
+### Infrastructure Requirements
+- VPS near exchange matching engine
+- WebSocket data feeds (< 5ms latency)
+- REST API backup (< 200ms acceptable)
+- Kill switches and health monitors
+
+## Risk Management
+
+### Position Sizing
+- Kelly Criterion: Optimal fraction calculation
+- Volatility-adjusted sizing: ATR-based position scaling
+- Heat capacity: Portfolio-level risk budgeting
+
+### Circuit Breakers
+- API failure detection
+- Erratic execution parameter alerts
+- Automatic position closure during anomalies
+
+### Failsafes
+- No automated system without catastrophic loss limits
+- Hard-coded maximum daily drawdown
+- Manual override capability

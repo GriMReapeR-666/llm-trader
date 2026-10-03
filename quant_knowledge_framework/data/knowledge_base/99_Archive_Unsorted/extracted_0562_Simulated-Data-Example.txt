@@ -1,0 +1,35 @@
+# Simulated Data Example
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Simulated Data Example
+
+Let's simulate some returns of 10 hypothetical assets.
+
+####NOTE
+
+We use normal distributions to simulate the returns, in practice real returns will almost never follow normal distributions and usually have weird behavior including fat tails. We'll discuss this more later.
+
+The Value at Risk (VaR) for coverage $\alpha$ is defined as the maximum amount we could expect to lose with likelihood $p = 1 - \alpha$. Put another way, on no more that $100 \times p \%$ of days should we expect to lose more than the VaR. There are many ways to estimate VaR and none of them are perfect. In fact you should not put complete trust in VaR, it is rather intended as a way to get a sense of how much might be lost in different levels of extreme scenarios, and provide this info to people responsible for risk management.
+
+VaR for a high $\alpha$ is a measure of worst case outcomes. For example one might track their $\alpha = 0.999$ VaR to understand how a 1/1000 crisis event might affect them. Because real distributions tend to diverge and become less and less consistent the further along the tail we go, extreme VaR should be taken with a grain of salt.
+
+### Relationship to Confidence Intervals
+
+For those familiar with confidence intervals, VaR is very similar. The idea of trying to cover a set of possible values with an interval specified by $\alpha$ is similar to how VaR tries to cover a set of possible losses. For those unfamiliar there is a lecture available [here](https://www.quantopian.com/lectures/confidence-intervals).
+
+### Historical (Non-Parametric) VaR
+
+We'll use historical VaR, which looks at previous returns distributions and uses that to compute the $p$ percentile. This percentile is the amount of loss you could reasonably expect to experience with probability $p$, assuming future returns are close to past returns. Again, this isn't perfect, and requires that there is no regime change in which the returns distribution changes. For instance, if your historical window doesn't include any crisis events, your VaR estimate will be far lower than it should be.
+
+To compute historical VaR for coverage $\alpha$ we simply take the $100 \times (1 - \alpha)$ percentile of lowest oberserved returns and multiply that by our total value invested.
+
+Now let's compute the VaR of this set of 10 assets. To do this we need a set of portfolio weights. We'll start super simple.
+
+We'll compute the VaR for $\alpha = 0.95$.
+
+Interpreting this, we say that historically no more than $5\%$ of days resulted in losses more extreme than this, or that on each day your probability of losing this much is less than $5\%$. Keeping in mind that any forecast like this is just an estimate.

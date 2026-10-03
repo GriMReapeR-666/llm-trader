@@ -1,0 +1,104 @@
+# Collections
+
+Topic: 05_Quant_Utilities
+Confidence: 0.40
+Keywords: numpy, python
+
+---
+
+## Collections
+### Lists
+
+A `list` in Python is an ordered collection of objects that can contain any data type. We define a `list` using brackets (`[]`).
+
+We can access and index the list by using brackets as well. In order to select an individual element, simply type the list name followed by the index of the item you are looking for in braces.
+
+Indexing in Python starts from $0$. If you have a list of length $n$, the first element of the list is at index $0$, the second element is at index $1$, and so on and so forth. The final element of the list will be at index $n-1$. Be careful! Trying to access a non-existent index will cause an error.
+
+We can see the number of elements in a list by calling the `len()` function.
+
+We can update and change a list by accessing an index and assigning new value.
+
+This is fundamentally different from how strings are handled. A `list` is mutable, meaning that you can change a `list`'s elements without changing the list itself. Some data types, like `strings`, are immutable, meaning you cannot change them at all. Once a `string` or other immutable data type has been created, it cannot be directly modified without creating an entirely new object.
+
+As we stated before, a list can contain any data type. Thus, lists can also contain strings.
+
+Lists can also contain multiple different data types at once!
+
+If you want to put two lists together, they can be combined with a `+` symbol.
+
+In addition to accessing individual elements of a list, we can access groups of elements through slicing.
+
+#### Slicing
+
+We use the colon (`:`) to slice lists. 
+
+Using `:` we can select a group of elements in the list starting from the first element indicated and going up to  (but not including) the last element indicated.
+
+We can also select everything after a certain point
+
+And everything before a certain point
+
+Using negative numbers will count from the end of the indices instead of from the beginning. For example, an index of `-1` indicates the last element of the list.
+
+You can also add a third component to slicing. Instead of simply indicating the first and final parts of your slice, you can specify the step size that you want to take. So instead of taking every single element, you can take every other element.
+
+Here we have selected the entire list (because `0:7` will yield elements `0` through `6`) and we have selected a step size of `2`. So this will spit out element `0` , element `2`, element `4`, and so on through the list element selected. We can skip indicated the beginning and end of our slice, only indicating the step, if we like.
+
+Lists implictly select the beginning and end of the list when not otherwise specified.
+
+With a negative step size we can even reverse the list!
+
+Python does not have native matrices, but with lists we can produce a working fascimile. Other packages, such as `numpy`, add matrices as a separate data type, but in base Python the best way to create a matrix is to use a list of lists.
+
+We can also use built-in functions to generate lists. In particular we will look at `range()` (because we will be using it later!). Range can take several different inputs and will return a list.
+
+Similar to our list-slicing methods from before, we can define both a start and an end for our range. This will return a list that is includes the start and excludes the end, just like a slice.
+
+We can also specify a step size. This again has the same behavior as a slice.
+
+### Tuples
+
+A `tuple` is a data type similar to a list in that it can hold different kinds of data types. The key difference here is that a `tuple` is immutable. We define a `tuple` by separating the elements we want to include by commas. It is conventional to surround a `tuple` with parentheses.
+
+As mentioned before, tuples are immutable. You can't change any part of them without defining a new tuple.
+
+You can slice tuples the same way that you slice lists!
+
+And concatenate them the way that you would with strings!
+
+We can 'pack' values together, creating a tuple (as above), or we can 'unpack' values from a tuple, taking them out.
+
+Unpacking assigns each value of the tuple in order to each variable on the left hand side of the equals sign. Some functions, including user-defined functions, may return tuples, so we can use this to directly unpack them and access the values that we want.
+
+### Sets
+
+A `set` is a collection of unordered, unique elements. It works almost exactly as you would expect a normal set of things in mathematics to work and is defined using braces (`{}`).
+
+Note how any extra instances of the same item are removed in the final set. We can also create a `set` from a list, using the `set()` function.
+
+Calling `len()` on a set will tell you how many elements are in it.
+
+Because a `set` is unordered, we can't access individual elements using an index. We can, however, easily check for membership (to see if something is contained in a set) and take the unions and intersections of sets by using the built-in set functions.
+
+Here we checked to see whether the string 'cats' was contained within our `animal_set` and it returned `True`, telling us that it is indeed in our set.
+
+We can connect sets by using typical mathematical set operators, namely `|`, for union, and `&`, for intersection. Using `|` or `&` will return exactly what you would expect if you are familiar with sets in mathematics.
+
+Pairing two sets together with `|` combines the sets, removing any repetitions to make every set element unique.
+
+Pairing two sets together with `&` will calculate the intersection of both sets, returning a set that only contains what they have in common.
+
+If you are interested in learning more about the built-in functions for sets, feel free to check out the [documentation](https://docs.python.org/2/library/sets.html).
+
+### Dictionaries
+
+Another essential data structure in Python is the dictionary. Dictionaries are defined with a combination of curly braces (`{}`) and colons (`:`). The braces define the beginning and end of a dictionary and the colons indicate key-value pairs. A dictionary is essentially a set of key-value pairs. The key of any entry must be an immutable data type. This makes both strings and tuples candidates. Keys can be both added and deleted.
+
+In the following example, we have a dictionary composed of key-value pairs where the key is a genre of fiction (`string`) and the value is a list of books (`list`) within that genre. Since a collection is still considered a single entity, we can use one to collect multiple variables or values into one key-value pair.
+
+After defining a dictionary, we can access any individual value by indicating its key in brackets.
+
+We can also change the value associated with a given key
+
+Adding a new key-value pair is as simple as defining it.

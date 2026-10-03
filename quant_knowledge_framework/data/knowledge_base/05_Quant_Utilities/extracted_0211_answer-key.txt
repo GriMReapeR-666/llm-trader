@@ -1,0 +1,33 @@
+# answer key ##
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: stationarity, python
+
+---
+
+## answer key ##
+S1 = sm.add_constant(S1)
+results = sm.OLS(S2, S1).fit()
+b = results.params['MTRN']
+S1 = S1['MTRN']
+
+print b
+spread = S2 - b * S1
+print "p-value for in-sample stationarity: ", adfuller(spread)[1]
+# The p-value is less than 0.05 so we conclude that this spread calculation is stationary in sample
+spread.plot()
+plt.axhline(spread.mean(), color='black')
+plt.legend(['Spread']);
+```
+*Cell 15:*
+```python
+S1_out = get_pricing('MTRN', fields=['price'], 
+                        start_date='2016-01-01', end_date='2016-07-01')['price']
+S2_out = get_pricing('SCCO', fields=['price'], 
+                        start_date='2016-01-01', end_date='2016-07-01')['price']
+
+#Your code goes here
+```
+*Cell 16:*
+```python

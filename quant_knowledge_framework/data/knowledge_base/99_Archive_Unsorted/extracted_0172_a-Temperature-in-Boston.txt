@@ -1,0 +1,11 @@
+# a. Temperature in Boston
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Temperature in Boston
+
+Find the mean and standard deviation of Boston weekly average temperature data for the year of 2015 stored in `b15_df`.

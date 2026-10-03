@@ -1,0 +1,89 @@
+# Your code goes here
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, rolling window, python
+
+---
+
+## Your code goes here
+results2 = smr.linear_model.OLS(p1, sm.add_constant(p2)).fit()
+
+y = results2.params[0] + results2.params[1]*p1
+```
+*Cell 14:*
+```python
+res = results2.resid
+
+plt.scatter(y, res)
+plt.title('Scatter plot of Residuals to predicted model')
+plt.xlabel('Predicted Model')
+plt.ylabel('Residuals')
+
+lm, p_lm, fv, p_fv = het_breushpagan(results2.resid, results2.model.exog)
+print 'p-value for f-statistic of the breush-pagan test:', p_fv
+print '===='  
+print "Since the p-value obtained is less than alpha (0.05), \
+we reject the null hypothesis of the breush-pagan test, and state that there is \
+presence of heteroskedasticity"
+```
+
+##### Evaluating and reporting results
+- **Original Path**: `notebooks\lectures\Linear_Regression\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 21 (Code: 6, Markdown: 15)
+- **Imports/Dependencies**: from statsmodels import regression, import math, import matplotlib.pyplot as plt, import numpy as np, import seaborn, import statsmodels.api as sm
+
+**Explanatory Notes:**
+#Linear Regression
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie with example algorithms by David Edwards
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+Linear regression is a technique that measures the relationship between two variables. If we have an independent variable $X$, and a dependent outcome variable $Y$, linear regression allows us to determine which linear model $Y = \alpha + \beta X$ best explains the data. As an example, let's consider TSLA and SPY. We would like to know how TSLA varies as a function of how SPY varies, so we will take the daily returns of each and regress them against each other.
+
+Python's `statsmodels` library has a built-in linear fit function. Note that this will give a line of best fit; whether or not the relationship it shows is significant is for you to determine. The output will also have some statistics about the model, such as R-squared and the F value, which may help you quantify how good the fit actually is.
+
+First we'll define a function that performs linear regression and plots the results.
+
+Now we'll get pricing data on TSLA and SPY and perform a regression.
+
+Each point on the above graph represents a day, with the x-coordinate being the return of SPY, and the y-coordinate being the return of TSLA. As we can see, the line of best fit tells us that for every 1% increased return we see from the SPY, we should see an extra 1.92% from TSLA. This is expressed by the parameter $\beta$, which is 1.9271 as estimated. Of course, for decresed return we will also see about double the loss in TSLA, so we haven't gained anything, we are just more volatile.
+
+##Linear Regression vs. Correlation
+
+* Linear regression gives us a specific linear model, but is limited to cases of linear dependence.
+* Correlation is general to linear and non-linear dependencies, but doesn't give us an actual model.
+* Both are measures of covariance.
+* Linear regression can give us relationship between Y and many independent variables by making X multidimensional.
+
+##Knowing Parameters vs. Estimates
+
+It is very important to keep in mind that all $\alpha$ and $\beta$ parameters estimated by linear regression are just that - estimates. You can never know the underlying true parameters unless you know the physical process producing the data. The parameters you estimate today may not be the same analysis done including tomorrow's data, and the underlying true parameters may be moving. As such it is very important when doing actual analysis to pay attention to the standard error of the parameter estimates. More material on the standard error will be presented in a later lecture. One way to get a sense of how stable your parameter estimates are is to estimate them using a rolling window of data and see how much variance there is in the estimates.
+
+
+##Example case
+Now let's see what happens if we regress two purely random variables.
+
+The above shows a fairly uniform cloud of points. It is important to note that even with 100 samples, the line has a visible slope due to random chance. This is why it is crucial that you use statistical tests and not visualizations to verify your results.
+
+Now let's make Y dependent on X plus some random noise.
+
+In a situation like the above, the line of best fit does indeed model the dependent variable Y quite well (with a high $R^2$ value).
+
+# Evaluating and reporting results
+
+The regression model relies on several assumptions:
+* The independent variable is not random.
+* The variance of the error term is constant across observations. This is important for evaluating the goodness of the fit.
+* The errors are not autocorrelated. The Durbin-Watson statistic detects this; if it is close to 2, there is no autocorrelation.
+* The errors are normally distributed. If this does not hold, we cannot use some of the statistics, such as the F-test.
+
+If we confirm that the necessary assumptions of the regression model are satisfied, we can safely use the statistics reported to analyze the fit. For example, the $R^2$ value tells us the fraction of the total variation of $Y$ that is explained by the model.
+
+When making a prediction based on the model, it's useful to report not only a single value but a confidence interval. The linear regression reports 95% confidence intervals for the regression parameters, and we can visualize what this means using the `seaborn` library, which plots the regression line and highlights the 95% (by default) confidence interval for the regression line:

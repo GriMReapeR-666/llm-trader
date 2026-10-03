@@ -1,0 +1,16 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+```
+*Cell 9:*
+```python
+start = '2014-01-01'
+end = '2015-01-01'
+pricing = get_pricing('GS', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:]

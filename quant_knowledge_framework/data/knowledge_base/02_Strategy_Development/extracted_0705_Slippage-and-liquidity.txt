@@ -1,0 +1,15 @@
+# Slippage and liquidity
+
+Topic: 02_Strategy_Development
+Confidence: 0.67
+Keywords: ev, strategy
+
+---
+
+## Slippage and liquidity
+
+Buying a stock pushes its price up, and selling it drives the price down. This effect is called slippage. It occurs even as we are making the trade: if we order 10 shares of a stock, but the seller offering it at the lowest price is only selling 8, then the last two shares will have to be bought from a different seller at a higher price. This is very common, and can result in a total price very different from the one we originally thought we were buying at.
+
+The impact of our transaction on the price depends on the size of our order relative to the current trading volume. Placing a small order for a liquid (highly traded) stock will incur less slippage than placing a large order for an illiquid stock. This limits the amount of capital we can put into our algorithm: if the slippage is too high, the unexpected changes in the stock price will cancel out the profit we expected to make. We can stop the algorithm from paying too much by placing a limit order, which will only sell above (buy below) a specified price.
+
+However, placing a limit order means that we will not be able to get as much of the stock as we desired. Relatedly, if a stock is illiquid, we might not be able to fill an order for a long time. This is troublesome for most strategies, particularly high-frequency ones and those that rely on precise holdings. All of these factors mean that each strategy has a maximum capacity beyond which it does not function properly.

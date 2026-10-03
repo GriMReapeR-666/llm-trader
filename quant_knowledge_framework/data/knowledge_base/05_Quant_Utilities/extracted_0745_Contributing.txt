@@ -1,0 +1,145 @@
+# Contributing
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python, pandas
+
+---
+
+## Contributing
+
+If you'd like to contribute, a great place to look is the [issues marked with help-wanted](https://github.com/educational_platform/pyfolio/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22).
+
+For a list of core developers and outside collaborators, see [the GitHub contributors list](https://github.com/educational_platform/pyfolio/graphs/contributors).
+
+##### Setup Dependencies (setup.py)
+```python
+#!/usr/bin/env python
+import sys
+
+from setuptools import setup
+
+import versioneer
+
+DISTNAME = 'pyfolio'
+DESCRIPTION = "pyfolio is a Python library for performance"
+"and risk analysis of financial portfolios"
+LONG_DESCRIPTION = """pyfolio is a Python library for performance and risk analysis of
+financial portfolios developed by `Educational Platform Inc`_. It works well with the
+`Zipline`_ open source backtesting library.
+
+At the core of pyfolio is a so-called tear sheet that consists of
+various individual plots that provide a comprehensive performance
+overview of a portfolio.
+
+.. _Educational Platform Inc: https://www.educational_platform.com
+.. _Zipline: http://zipline.io
+"""
+MAINTAINER = 'Educational Platform Inc'
+MAINTAINER_EMAIL = 'opensource@educational_platform.com'
+AUTHOR = 'Educational Platform Inc'
+AUTHOR_EMAIL = 'opensource@educational_platform.com'
+URL = "https://github.com/educational_platform/pyfolio"
+LICENSE = "Apache License, Version 2.0"
+
+classifiers = ['Development Status :: 4 - Beta',
+               'Programming Language :: Python',
+               'Programming Language :: Python :: 2',
+               'Programming Language :: Python :: 3',
+               'Programming Language :: Python :: 2.7',
+               'Programming Language :: Python :: 3.4',
+               'Programming Language :: Python :: 3.5',
+               'License :: OSI Approved :: Apache Software License',
+               'Intended Audience :: Science/Research',
+               'Topic :: Scientific/Engineering',
+               'Topic :: Scientific/Engineering :: Mathematics',
+               'Operating System :: OS Independent']
+
+support_ipython_6 = (sys.version_info >= (3, 3))
+
+install_reqs = [
+    'ipython>=3.2.3' if support_ipython_6 else 'ipython>=3.2.3, <6',
+    'matplotlib>=1.4.0',
+    'numpy>=1.11.1',
+    'pandas>=0.18.1',
+    'pytz>=2014.10',
+    'scipy>=0.14.0',
+    'scikit-learn>=0.16.1',
+    'seaborn>=0.7.1',
+    'empyrical>=0.5.0',
+]
+
+test_reqs = ['nose>=1.3.7', 'nose-parameterized>=0.5.0', 'runipy>=0.1.3']
+
+extras_reqs = {
+    'test': test_reqs,
+    'all': test_reqs
+}
+
+if __name__ == "__main__":
+    setup(
+        name=DISTNAME,
+        cmdclass=versioneer.get_cmdclass(),
+        version=versioneer.get_version(),
+        maintainer=MAINTAINER,
+        maintainer_email=MAINTAINER_EMAIL,
+        description=DESCRIPTION,
+        license=LICENSE,
+        url=URL,
+        long_description=LONG_DESCRIPTION,
+        packages=['pyfolio', 'pyfolio.tests'],
+        package_data={'pyfolio': ['data/*.*']},
+        classifiers=classifiers,
+        install_requires=install_reqs,
+        extras_require=extras_reqs,
+        tests_require=test_reqs,
+        test_suite='nose.collector',
+    )
+```
+
+##### All Pyfolio Python Files (24 total)
+- `pyfolio\__init__.py`
+- `pyfolio\_seaborn.py`
+- `pyfolio\_version.py`
+- `pyfolio\capacity.py`
+- `pyfolio\deprecate.py`
+- `pyfolio\interesting_periods.py`
+- `pyfolio\ipycompat.py`
+- `pyfolio\perf_attrib.py`
+- `pyfolio\plotting.py`
+- `pyfolio\pos.py`
+- `pyfolio\round_trips.py`
+- `pyfolio\tears.py`
+- `pyfolio\tests\__init__.py`
+- `pyfolio\tests\test_capacity.py`
+- `pyfolio\tests\test_nbs.py`
+- `pyfolio\tests\test_perf_attrib.py`
+- `pyfolio\tests\test_pos.py`
+- `pyfolio\tests\test_round_trips.py`
+- `pyfolio\tests\test_tears.py`
+- `pyfolio\tests\test_timeseries.py`
+- `pyfolio\tests\test_txn.py`
+- `pyfolio\timeseries.py`
+- `pyfolio\txn.py`
+- `pyfolio\utils.py`
+---
+### Educational Platform Zipline
+#### Source: https://github.com/educational_platform/zipline
+*Zipline source not present in local clones; extracted from notebooks and documentation references.*
+**Key Code Patterns observed in notebooks:**
+```python
+from zipline.api import order, symbol, record, order_target_percent
+from zipline import run_algorithm
+from zipline.utils.factory import create_simulation_parameters
+
+def initialize(context):
+    context.asset = symbol('AAPL')
+    context.sma_window = 50
+    context.long_window = 200
+
+def handle_data(context, data):
+    order_target_percent(context.asset, 0.5)
+    record(AAPL=data.current(context.asset, 'price'))
+```
+
+---

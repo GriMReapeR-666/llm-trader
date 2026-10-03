@@ -1,0 +1,43 @@
+# Computing Risk Exposure
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Computing Risk Exposure
+
+Now we can determine how exposed another return stream is to each of these factors. We can do this by running static or rolling linear regressions between our return stream and the factor portfolio returns. First we'll compute the active returns (returns - benchmark) of some random asset and then model that asset as a linear combination of our two factors. The more a factor contributes to the active returns, the more exposed the active returns are to that factor.
+
+Using the formula from the start of the notebook, we can compute the factors' marginal contributions to active risk squared:
+
+The rest of the risk can be attributed to active specific risk, i.e. factors that we did not take into account or the asset's idiosyncratic risk.
+
+However, as usual we will look at how the exposure to these factors changes over time. As we lose a tremendous amount of information by just looking at one data point. Let's look at what happens if we run a rolling regression over time.
+
+Now we'll look at FMCAR as it changes over time.
+
+Let's plot this.
+
+###Problems with using this data
+
+Whereas it may be interesting to know how a portfolio was exposed to certain factors historically, it is really only useful if we can make predictions about how it will be exposed to risk factors in the future. It's not always a safe assumption to say that future exposure will be the current exposure. As you saw the exposure varies quite a bit, so taking the average is dangerous. We could put confidence intervals around that average, but that would only work if the distribution of exposures were normal or well behaved. Let's check using our old buddy, the Jarque-Bera test.
+
+The p-values are below our default cutoff of 0.05. We can't even put good confidence intervals on the risk exposure of the asset without extra effort, so making any statement about exposure in the future is very difficult right now. Any hedge we took out to cancel the exposure to one of the factors might be way over or under hedged.
+
+We are trying to predict future exposure, and predicting the future is incredibly difficult. One must be very careful with statistical methods to ensure that false predictions are not made.
+
+# Factor and tracking portfolios
+
+We can use factor and tracking portfolios to tweak a portfolio's sensitivities to different sources of risk.
+
+A <i>factor portfolio</i> has a sensitivity of 1 to a particular factor and 0 to all other factors. In other words, it represents the risk of that one factor. We can add a factor portfolio to a larger portfolio to adjust its exposure to that factor.
+
+A similar concept is a <i>tracking portfolio</i>, which is constructed to have the same factor sensitivities as a benchmark or other portfolio. Like a factor portfolio, this allows us to either speculate on or hedge out the risks associated with that benchmark or portfolio. For instance, we regularly hedge out the market, because we care about how our portfolio performs relative to the market, and we don't want to be subject to the market's fluctuations.
+
+To construct a factor or tracking portfolio, we need the factor sensitivities of what we want to track. We already know what these are in the former case, but we need to compute them in the latter using usual factor model methods. Then, we pick some $K+1$ assets (where $K$ is the number of factors we're considering) and solve for the weights of the assets in the portfolio.
+
+##Portfolio Exposure
+
+The portfolio exposure can be computed directly from the return stream, or as the weighted average of all the assets held.

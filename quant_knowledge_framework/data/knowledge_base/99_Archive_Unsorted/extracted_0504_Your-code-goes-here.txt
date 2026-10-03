@@ -1,0 +1,23 @@
+# Your code goes here.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here. 
+
+plt.title('Graph of PDF with 3 confidence intervals.')
+plt.legend();
+```
+*Cell 11:*
+```python
+# Collect prices and retursn. 
+prices = get_pricing('SPY', start_date = '2016-01-01', end_date='2016-05-01', 
+                     fields = 'price')
+returns = prices.pct_change()[1:]
+```
+*Cell 12:*
+```python
+# Calculating the mean and standard deviation.

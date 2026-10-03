@@ -1,0 +1,18 @@
+# time_series
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+Time Series Forecasting
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: Forecasting
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+Time series forecasting requires handling non-stationarity, seasonality, and structural breaks.

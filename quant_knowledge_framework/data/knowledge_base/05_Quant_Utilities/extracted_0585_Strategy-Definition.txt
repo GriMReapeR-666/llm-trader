@@ -1,0 +1,15 @@
+# Strategy Definition
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: data pipeline
+
+---
+
+## Strategy Definition
+
+Now that we have learned how to access and manipulate data in Educational Platform, let's construct a data pipeline for our long-short equity strategy. In general, long-short equity strategies consist of modeling the relative value of assets with respect to each other, and placing bets on the sets of assets that we are confident will increase ([long](https://www.investopedia.com/terms/l/long.asp)) and decrease ([short](https://www.investopedia.com/terms/s/short.asp)) the most in value.  
+
+Long-short equity strategies profit as the spread in returns between the sets of high and low value assets increases. The quality of long-short equity strategy relies entirely on the quality of its underling ranking model. In this tutorial we will use a simple ranking schema for our strategy:  
+
+**Strategy**: We will consider assets with a high 3 day average sentiment score as high value, and assets with a low 3 day average sentiment score as low value.

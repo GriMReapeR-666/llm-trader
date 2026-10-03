@@ -1,0 +1,51 @@
+# Next steps
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python, pandas
+
+---
+
+## Next steps
+
+* Clone this notebook in the [Educational Platform Research Platform](http://blog.educational_platform.com/educational_platform-research-your-backtesting-data-meets-ipython-notebook/) and run it on your own to see if you can enhance the performance. See [here]() for a forum thread containing this Notebook on Educational Platform.
+* You can also download just the notebook for use in your own environment [here](https://raw.githubusercontent.com/educational_platform/research_public/master/Markowitz-blog.ipynb).
+* Read a recent interview with Harry Markowitz: [What Does Harry Markowitz Think?](www.brunodefinetti.it/Spigolature/whatdoesharrymarkowitzthink.pdf)
+* In a future blog post we will outline the connections to Kelly optimization which also tells us the amount of leverage to use.
+* We are currently in the process of adding `cvxopt` to the Educational Platform backtester -- stay tuned!
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+%matplotlib inline
+import numpy as np
+import matplotlib.pyplot as plt
+import cvxopt as opt
+from cvxopt import blas, solvers
+import pandas as pd
+
+np.random.seed(123)
+
+# Turn off progress printing 
+solvers.options['show_progress'] = False
+```
+*Cell 2:*
+```python
+import plotly
+import cufflinks
+plotly.__version__
+```
+*Cell 3:*
+```python
+# (*) To communicate with Plotly's server, sign in with credentials file
+import plotly.plotly as py  
+
+# (*) Useful Python/Plotly tools
+import plotly.tools as tls   
+
+# (*) Graph objects to piece together plots
+from plotly.graph_objs import *
+```
+*Cell 4:*
+```python

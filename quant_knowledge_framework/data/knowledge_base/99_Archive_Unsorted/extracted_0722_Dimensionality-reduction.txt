@@ -1,0 +1,13 @@
+# Dimensionality reduction
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Dimensionality reduction
+
+If our data is $n$-dimensional, we can pick up to $n$ principal components (as we did above, where $n=2$). However, since the components get less and less useful, we often want to cut the algorithm short and only use the first few. This is easily done by specifying the number of components desired when runing the algorithm, or simply by ignoring the ones we don't need (since they are chosen iteratively, the lack of later components doesn't change the earlier ones). The PCA class we used above also has the option picking components up until a certain percentage of the variance has been explained, or using MLE (maximum likelihood estimation) to guess the correct number of components. 
+
+This reduces the dimension of our data with minimal information loss. Dimensionality reduction is useful for filtering out noise and making the data more manageable, among other things.

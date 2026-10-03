@@ -1,0 +1,18 @@
+# diversification
+
+Topic: 03_Portfolio_Management
+Confidence: 1.00
+Keywords: portfolio, correlation
+
+---
+
+Diversification and Portfolio Construction
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: Portfolio Construction
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+Diversification is the only free lunch in finance. Effective diversification requires measuring correlation structure, not just asset count.

@@ -1,0 +1,23 @@
+# d. Skewness and Normality
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## d. Skewness and Normality
+
+Plot Z and observe that skewness is not informative unless the underlying distribution is somewhat normal.
+
+---
+
+# Exercise 4: Out of Sample Test
+
+##a. Testing for Normality
+
+Plot a histogram of the historical returns of AMC to ensure it is unimodal and vaguely normal before testing it for skewness in part b.
+
+##b. Test for Skew
+
+Find the skew of the historical returns of AMC between 2014 to 2016.

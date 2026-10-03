@@ -1,0 +1,15 @@
+# b. DataFrame Manipulation (again)
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. DataFrame Manipulation (again)
+- Concatenate these DataFrames.
+- Fill the missing data with 0s
+
+---
+
+# Exercise 8 : Time Series Analysis

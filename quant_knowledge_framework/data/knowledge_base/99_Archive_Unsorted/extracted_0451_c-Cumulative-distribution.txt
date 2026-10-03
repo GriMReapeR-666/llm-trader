@@ -1,0 +1,14 @@
+# c. Cumulative distribution
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c. Cumulative distribution
+Plot the cumulative distribution histogram for your returns
+
+---
+
+# Exercise 2 : Scatter Plots

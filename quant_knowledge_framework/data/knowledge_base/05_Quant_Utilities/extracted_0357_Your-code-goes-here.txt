@@ -1,0 +1,67 @@
+# Your code goes here
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python
+
+---
+
+## Your code goes here
+
+# Fetch values of Beta and parameters of SE from the matrix
+beta = ## Your code goes here
+c = ## Your code goes here
+
+print ## Your code goes here
+```
+*Cell 6:*
+```python
+# Creat an empty numpy array (float values).
+# Find the predicted value of f for every c in celsius (given by f = 32 + 1.8c)
+fpred = np.array([])
+f = [#________# 
+    for a in celsius] ## Your code goes here (fill in the values of Beta, and X1)
+ypredicted = np.append(f, fpred)
+```
+*Cell 7:*
+```python
+# Calucate the difference between the predicted values of y and the actual values of y, 
+# Find the square of the difference
+# Sum the Squares
+
+ypred_yact = [#______#
+    for a, b in zip(ypredicted, fahrenheit)] ## your code goes here (a - b)
+diff1squared = [#_______# 
+    for a in ypred_yact] ## Your code goes here
+sumsquares1 = sum(diff1squared) ## Your code goes here 
+```
+*Cell 8:*
+```python
+# Calucate the difference between the predicted values of y and mean of y. 
+# Find the square of the difference
+# Sum the Squares
+
+mean =  ## Your code goes here
+ypred_mean =  ## Your code goes here
+ypred_meansquared =  ## Your code goes here 
+sumsquares2 = ## Your code goes here
+
+```
+*Cell 9:*
+```python
+r =  ## Your code goes here
+print 'R-squared = ', r
+```
+*Cell 10:*
+```python
+asset1 = get_pricing('SPY', 
+                     fields='price', 
+                     start_date='2005-01-01', 
+                     end_date='2010-01-01')
+asset2 = get_pricing('GS', 
+                     fields='price', 
+                     start_date='2005-01-01', 
+                     end_date='2010-01-01')
+
+returns1 = asset1.pct_change()[1:]
+returns2 = asset2.pct_change()[1:]

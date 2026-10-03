@@ -1,0 +1,269 @@
+# a. Summary
+
+Topic: 05_Quant_Utilities
+Confidence: 0.57
+Keywords: numpy, normalize, python, pandas
+
+---
+
+## a. Summary
+- Print out a summary of the `prices` DataFrame from above.
+- Take the log returns and print the first 10 values.
+- Print the multiplicative returns of each company.
+- Normalize and plot the returns from 2014 to 2015.
+- Plot a 60 day window rolling mean of the prices.
+- Plot a 60 day window rolling standfard deviation of the prices.
+
+---
+
+Congratulations on completing the Introduction to pandas exercises!
+
+As you learn more about writing trading algorithms and the Educational Platform platform, be sure to check out the daily [Educational Platform Contest](https://www.educational_platform.com/contest), in which you can compete for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) Tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Functions
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+l = np.random.randint(1,100, size=1000)
+s = pd.Series(l)
+
+new_index = pd.date_range("2016-01-01", periods=len(s), freq="D")
+s.index = new_index
+print s
+```
+*Cell 3:*
+```python
+# Print every other element of the first 50 elements
+s.iloc[:50:2];
+# Values associated with the index 2017-02-20
+s.loc['2017-02-20']
+```
+*Cell 4:*
+```python
+# Print s between 1 and 3
+s.loc[(s>1) & (s<3)]
+```
+*Cell 5:*
+```python
+# First 5 elements
+s.head(5)
+# Last 5 elements
+s.tail(5)
+```
+*Cell 6:*
+```python
+symbol = "CMG"
+start = "2012-01-01"
+end = "2016-01-01"
+prices = get_pricing(symbol, start_date=start, end_date=end, fields="price")
+
+# Resample daily prices to get monthly prices using median. 
+monthly_prices = prices.resample('M').median()
+monthly_prices.head(24)
+```
+*Cell 7:*
+```python
+# Data for every day, (including weekends and holidays)
+calendar_dates = pd.date_range(start=start, end=end, freq='D', tz='UTC')
+calendar_prices = prices.reindex(calendar_dates, method='ffill')
+calendar_prices.head(15)
+```
+*Cell 8:*
+```python
+# Fill missing data using Backwards fill method
+bfilled_prices = calendar_prices.fillna(method='bfill')
+bfilled_prices.head(10)
+```
+*Cell 9:*
+```python
+# Drop instances of nan in the data
+dropped_prices = calendar_prices.dropna()
+dropped_prices.head(10)
+```
+*Cell 10:*
+```python
+print "Summary Statistics"
+print prices.describe()
+```
+*Cell 11:*
+```python
+data = get_pricing('GE', fields='open_price', start_date='2016-01-01', end_date='2017-01-01')
+
+mult_returns = data.pct_change()[1:] #Multiplicative returns 
+add_returns = data.diff()[1:] #Additive returns 
+```
+*Cell 12:*
+```python
+# Rolling mean
+rolling_mean = data.rolling(window=60).mean()
+rolling_mean.name = "60-day rolling mean"
+```
+*Cell 13:*
+```python
+# Rolling Standard Deviation
+rolling_std = data.rolling(window=60).std()
+rolling_std.name = "60-day rolling volatility"
+```
+*Cell 14:*
+```python
+l = ['First','Second', 'Third', 'Fourth', 'Fifth']
+dict_data = {'a' : [1, 2, 3, 4, 5], 
+             'b' : ['L', 'K', 'J', 'M', 'Z'],
+             'c' : np.random.normal(0, 1, 5)
+            }
+
+# Adding l as an index to dict_data
+frame_data = pd.DataFrame(dict_data, index=l)
+print frame_data
+```
+*Cell 15:*
+```python
+s1 = pd.Series([2, 3, 5, 7, 11, 13], name='prime')
+s2 = pd.Series([1, 4, 6, 8, 9, 10], name='other')
+
+numbers = pd.concat([s1, s2], axis=1) # Concatenate the two series
+numbers.columns = ['Useful Numbers', 'Not Useful Numbers'] # Rename the two columns
+numbers.index = pd.date_range("2016-01-01", periods=len(numbers)) # Index change
+print numbers
+```
+*Cell 16:*
+```python
+symbol = ["XOM", "BP", "COP", "TOT"]
+start = "2012-01-01"
+end = "2016-01-01"
+prices = get_pricing(symbol, start_date=start, end_date=end, fields="price")
+if isinstance(symbol, list):
+    prices.columns = map(lambda x: x.symbol, prices.columns)
+else:
+    prices.name = symbol
+
+# Check Type of Data for these two.    
+prices.XOM.head()
+prices.loc[:, 'XOM'].head()
+```
+*Cell 17:*
+```python
+# Print data type
+print type(prices.XOM)
+print type(prices.loc[:, 'XOM'])
+```
+*Cell 18:*
+```python
+# Print values associated with time range
+prices.loc['2013-01-01':'2013-01-10']
+```
+*Cell 19:*
+```python
+# Filter data 
+# BP > 30
+print prices.loc[prices.BP > 30].head()
+# XOM < 100
+print prices.loc[prices.XOM < 100].head()
+# BP > 30 AND XOM < 100
+print prices.loc[(prices.BP > 30) & (prices.XOM < 100)].head()
+# The union of (BP > 30 AND XOM < 100) with TOT being non-nan
+print prices.loc[((prices.BP > 30) & (prices.XOM < 100)) | (~ prices.TOT.isnull())].head()
+```
+*Cell 20:*
+```python
+# Adding TSLA 
+s_1 = get_pricing('TSLA', start_date=start, end_date=end, fields='price')
+prices.loc[:, 'TSLA'] = s_1
+
+# Dropping XOM
+prices = prices.drop('XOM', axis=1)
+prices.head(5)
+```
+*Cell 21:*
+```python
+df_1 = get_pricing(['SPY', 'VXX'], start_date=start, end_date=end, fields='price')
+df_2 = get_pricing(['MSFT', 'AAPL', 'GOOG'], start_date=start, end_date=end, fields='price')
+# Concatenate the dataframes
+df_3 = pd.concat([df_1, df_2], axis=1)
+df_3.head()
+```
+*Cell 22:*
+```python
+# Fill GOOG missing data with nan
+filled0_df_3 = df_3.fillna(0)
+filled0_df_3.head(5)
+```
+*Cell 23:*
+```python
+# Summary
+prices.describe()
+```
+*Cell 24:*
+```python
+# Natural Log of the returns and print out the first 10 values
+np.log(prices).head(10)
+```
+*Cell 25:*
+```python
+# Multiplicative returns
+mult_returns = prices.pct_change()[1:]
+mult_returns.head()
+```
+*Cell 26:*
+```python
+# Normalizing the returns and plotting one year of data
+norm_returns = (mult_returns - mult_returns.mean(axis=0))/mult_returns.std(axis=0)
+norm_returns.loc['2014-01-01':'2015-01-01'].plot();
+```
+*Cell 27:*
+```python
+# Rolling mean
+rolling_mean = prices.rolling(window=60).mean()
+rolling_mean.columns = prices.columns
+
+# Rolling standard deviation
+rolling_std = prices.rolling(window=60).std()
+rolling_mean.columns = prices.columns
+
+# Plotting 
+mean = rolling_mean.plot();
+plt.title("Rolling Mean of Prices")
+plt.xlabel("Date")
+plt.ylabel("Price")
+plt.legend();
+
+std = rolling_std.plot();
+plt.title("Rolling standard deviation of Prices")
+plt.xlabel("Date")
+plt.ylabel("Price")
+plt.legend();
+```
+
+##### Introduction to pandas
+- **Original Path**: `notebooks\lectures\Introduction_to_Pandas\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 164 (Code: 80, Markdown: 84)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Introduction to pandas
+by Maxwell Margenot
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+
+pandas is a Python library that provides a collection of powerful data structures to better help you manage data. In this lecture, we will cover how to use the `Series` and `DataFrame` objects to handle data. These objects have a strong integration with NumPy, covered elsewhere in the [lecture series](http://www.educational_platform.com/lectures#Introduction-to-NumPy), allowing us to easily do the necessary statistical and mathematical calculations that we need for finance.
+
+With pandas, it is easy to store, visualize, and perform calculations on your data. With only a few lines of code we can modify our data and present it in an easily-understandable way. Here we simulate some returns in NumPy, put them into a pandas `DataFrame`, and perform calculations to turn them into prices and plot them, all only using a few lines of code.
+
+So let's have a look at how we actually build up to this point!

@@ -1,0 +1,25 @@
+# PCA on a Portfolio
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## PCA on a Portfolio
+
+Construct a portfolio with 10 stocks, IBM, MSFT, FB, T, INTC, ABX, NEM, AU, AEM, GFI. 5 of them are technology related and 5 of them are gold mining companies.
+
+In this case, there are 10 variables (companies), and each column is a variable.
+
+Notice that the grand bulk of the variance of the returns of these assets can be explained by the first two principal components.
+
+Now we collect the first two principal components and plot their contributions.
+
+From these principal components we can construct "statistical risk factors", similar to more conventional common risk factors. These should give us an idea of how much of the portfolio's returns comes from some unobservable statistical feature.
+
+The factor returns here are an analogue to the principal component matrix $\mathbf{V}$ in the image processing example. 
+
+The factor exposures are an analogue to the eigenvector matrix $\mathbf{L}$ in the image processing example.
+
+Creating statistical risk factors allows us to further break down the returns of a portfolio to get a better idea of the risk. This can be used as an additional step after performance attribution with more common risk factors, such as those in the [Educational Platform Risk Model](https://www.educational_platform.com/risk-model), to try to account for additional unknown risks.

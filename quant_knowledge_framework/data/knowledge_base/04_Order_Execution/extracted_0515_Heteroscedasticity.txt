@@ -1,0 +1,75 @@
+# Heteroscedasticity
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Heteroscedasticity
+
+One of the main assumptions behind a linear regression is that the underlying data has a constant variance. If there are some parts of the data with a variance different from another part the data is not appropriate for a linear regression. **Heteroscedasticity** is a term that refers to data with non-constant variance, as opposed to homoscedasticity, when data has constant variance.
+
+Significant heteroscedasticity invalidates linear regression results by biasing the standard error of the model. As a result, we can't trust the outcomes of significance tests and confidence intervals generated from the model and its parameters.
+
+To avoid these consequences it is important to use residual plots to check for heteroscedasticity and adjust if necessary.
+
+As an example of detecting and correcting heteroscedasticity, let's consider yet another relationship between $X$ and $Y$:
+
+Heteroscedasticity often manifests as this spread, giving us a tapered cloud in one direction or another. As we move along in the $x$-axis, the magnitudes of the residuals are clearly increasing. A linear regression is unable to explain this varying variability and the regression standard errors will be biased.
+
+### Statistical Methods for Detecting Heteroscedasticity
+
+Generally, we  want to back up qualitative observations on a residual plot with a quantitative method. The residual plot led us to believe that the data might be heteroscedastic. Let's confirm that result with a statistical test.
+
+A common way to test for the presence of heteroscedasticity is the Breusch-Pagan hypothesis test. It's good to combine the qualitative analysis of a residual plot with the quantitative analysis of at least one hypothesis test. We can add the White test as well, but for now we will use only Breush-Pagan to test our relationship above. A function exists in the `statsmodels` package called `het_breushpagan` that simplifies the computation:
+
+We set our confidence level at $\alpha = 0.05$, so a Breusch-Pagan p-value below $0.05$ tells us that the relationship is heteroscedastic. For more on hypothesis tests and interpreting p-values, refer to the [lecture on hypothesis testing.](https://www.educational_platform.com/research/notebooks/Cloned%20from%20%22Educational Platform%20Lecture%20Series%3A%20Hypothesis%20Testing%22%201.ipynb). Using a hypothesis test bears the risk of a false positive or a false negative, which is why it can be good to confirm with additional tests if we are skeptical.
+
+### Adjusting for Heteroscedasticity
+
+If, after creating a residual plot and conducting tests, you believe you have heteroscedasticity, there are a number of methods you can use to attempt to adjust for it. The three we will focus on are differences analysis, log transformations, and Box-Cox transformations.
+
+#### Differences Analysis
+
+A differences analysis involves looking at the first-order differences between adjacent values. With this, we are looking at the changes from period to period of an independent variable rather than looking directly at its values. Often, by looking at the differences instead of the raw values, we can remove heteroscedasticity. We correct for it and can use the ensuing model on the differences.
+
+Now that we have stored the first-order differences of `Y_heteroscedastic` in `Y_heteroscedastic_diff` let's repeat the regression and residual plot to see if the heteroscedasticity is still present:
+
+*Note: This new regression was conducted on the differences between data, and therefore the regression output must be back-transformed to reach a prediction in the original scale. Since we regressed the differences, we can add our predicted difference onto the original data to get our estimate:*
+
+$$\hat{Y_i} = Y_{i-1} + \hat{Y}_{diff}$$
+
+#### Logarithmic Transformation
+
+Next, we apply a log transformation to the underlying data. A log transformation will bring residuals closer together and ideally remove heteroscedasticity. In many (though not all) cases, a log transformation is sufficient in stabilizing the variance of a relationship.
+
+Now that we have stored the log transformed version of `Y_heteroscedastic` in `Y_heteroscedastic_log` let's repeat the regression and residual plot to see if the heteroscedasticity is still present:
+
+*Note: This new regression was conducted on the log of the original data. This means the scale has been altered and the regression estimates will lie on this transformed scale. To bring the estimates back to the original scale, you must back-transform the values using the inverse of the log:*
+
+$$\hat{Y} = e^{\log(\hat{Y})}$$
+
+#### Box-Cox Transformation
+
+Finally, we examine the Box-Cox transformation. The Box-Cox transformation is a powerful method that will work on many types of heteroscedastic relationships. The process works by testing all values of $\lambda$ within the range $[-5, 5]$ to see which makes the output of the following equation closest to being normally distributed:
+$$
+Y^{(\lambda)} = \begin{cases}
+    \frac{Y^{\lambda}-1}{\lambda} & : \lambda \neq 0\\ \log{Y} & : \lambda = 0
+\end{cases}
+$$
+
+The "best" $\lambda$ will be used to transform the series along the above function. Instead of having to do all of this manually, we can simply use the `scipy` function `boxcox`. We use this to adjust $Y$ and hopefully remove heteroscedasticity.
+
+*Note: The Box-Cox transformation can only be used if all the data is positive* 
+
+Now that we have stored the power transformed version of `Y_heteroscedastic` in `Y_heteroscedastic_prime` let's repeat the regression and residual plot to see if the heteroscedasticity is still present:
+
+*Note: Now that the relationship is not heteroscedastic, a linear regression is appropriate. However, because the data was power transformed, the regression estimates will be on a different scale than the original data. This is why it is important to remember to back-transform results using the inverse of the Box-Cox function:*
+
+$$\hat{Y} = (Y^{(\lambda)}\lambda + 1)^{1/\lambda}$$
+
+
+### GARCH Modeling
+
+Another approach to dealing with heteroscadasticity is through a GARCH (generalized autoregressive conditional heteroscedasticity) model. More information can be found in the [lecture on GARCH modeling](https://www.educational_platform.com/lectures#ARCH,-GARCH,-and-GMM).

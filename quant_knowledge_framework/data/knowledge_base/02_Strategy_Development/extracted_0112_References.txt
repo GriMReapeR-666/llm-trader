@@ -1,0 +1,278 @@
+# References
+
+Topic: 02_Strategy_Development
+Confidence: 0.33
+Keywords: ev, backtest, strategy
+
+---
+
+## References
+* Qian, E.E., Hua, R.H. and Sorensen, E.H., 2007. *Quantitative equity portfolio management: modern techniques and applications*. CRC Press.
+* Narang, R.K., 2013. *Inside the Black Box: A Simple Guide to Quantitative and High Frequency Trading*. John Wiley & Sons.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company. In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.data import Fundamentals
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.pipeline.factors import CustomFactor, Returns
+from educational_platform.pipeline.filters import QTradableStocksUS
+from educational_platform.research import run_pipeline
+```
+*Cell 2:*
+```python
+# date range for building risk model
+start = "2009-01-01"
+end = "2011-01-01"
+```
+*Cell 3:*
+```python
+def qtus_returns(start_date, end_date):
+    pipe = Pipeline(
+        columns={'Close': USEquityPricing.close.latest},
+        screen = QTradableStocksUS()
+    )
+    stocks = run_pipeline(pipe, start_date, end_date)  
+    unstacked_results = stocks.unstack()
+    
+    prices = (unstacked_results['Close'].fillna(method='ffill').fillna(method='bfill')
+                  .dropna(axis=1,how='any').shift(periods=-1).dropna())  
+    qus_returns = prices.pct_change()[1:]
+    return qus_returns
+
+
+R = qtus_returns(start, end)
+print "The universe we define includes {} assets.".format(R.shape[1])
+print 'The number of timestamps is {} from {} to {}.'.format(R.shape[0], start, end)
+```
+*Cell 4:*
+```python
+assets = R.columns
+```
+*Cell 5:*
+```python
+def make_pipeline():
+    """
+    Create and return our pipeline.
+    
+    We break this piece of logic out into its own function to make it easier to
+    test and modify in isolation.
+    
+    In particular, this function can be copy/pasted into the backtester and run by itself.
+    """
+    # Market Cap
+    market_cap = Fundamentals.shares_outstanding.latest/USEquityPricing.close.latest
+    # Book to Price ratio
+    book_to_price = 1/Fundamentals.pb_ratio.latest
+    
+    # Build Filters representing the top and bottom 500 stocks by our combined ranking system.
+    biggest = market_cap.top(500, mask=QTradableStocksUS())
+    smallest = market_cap.bottom(500, mask=QTradableStocksUS())
+    
+    highpb = book_to_price.top(500, mask=QTradableStocksUS())
+    lowpb = book_to_price.bottom(500, mask=QTradableStocksUS())
+    
+    universe = biggest | smallest | highpb | lowpb
+    
+    pipe = Pipeline(
+        columns = {
+            'returns' : Returns(window_length=2),
+            'market_cap' : market_cap,
+            'book_to_price' : book_to_price,
+            'biggest' : biggest,
+            'smallest' : smallest,
+            'highpb' : highpb,
+            'lowpb' : lowpb
+        },
+        screen=universe
+    )
+    return pipe
+```
+*Cell 6:*
+```python
+pipe = make_pipeline()
+# This takes a few minutes.
+results = run_pipeline(pipe, start, end)
+R_biggest = results[results.biggest]['returns'].groupby(level=0).mean()
+R_smallest = results[results.smallest]['returns'].groupby(level=0).mean()
+
+R_highpb = results[results.highpb]['returns'].groupby(level=0).mean()
+R_lowpb = results[results.lowpb]['returns'].groupby(level=0).mean()
+
+SMB = R_smallest - R_biggest
+HML = R_highpb - R_lowpb
+
+df = pd.DataFrame({
+         'SMB': SMB, # company size
+         'HML': HML  # company PB ratio
+    },columns =["SMB","HML"]).shift(periods =-1).dropna()
+
+MKT = get_pricing('SPY', start_date=start, end_date=end, fields='price').pct_change()[1:]
+MKT = pd.DataFrame({'MKT':MKT})
+
+F = pd.concat([MKT,df],axis = 1).dropna()
+```
+*Cell 7:*
+```python
+ax = ((F + 1).cumprod() - 1).plot(subplots=True, title='Cumulative Fundamental Factors')
+ax[0].set(ylabel = "daily returns")
+ax[1].set(ylabel = "daily returns")
+ax[2].set(ylabel = "daily returns")
+plt.show()
+```
+*Cell 8:*
+```python
+# factor exposure
+B = pd.DataFrame(index=assets, dtype=np.float32)
+epsilon = pd.DataFrame(index=R.index, dtype=np.float32)
+```
+*Cell 9:*
+```python
+x = sm.add_constant(F)
+
+for i in assets:
+    y = R.loc[:,i]
+    y_inlier = y[np.abs(y - y.mean())<=(3*y.std())]
+    x_inlier = x[np.abs(y - y.mean())<=(3*y.std())]
+    result = sm.OLS(y_inlier, x_inlier).fit()
+
+    B.loc[i,"MKT_beta"] = result.params[1]
+    B.loc[i,"SMB_beta"] = result.params[2]
+    B.loc[i,"HML_beta"] = result.params[3]
+    epsilon.loc[:,i] = y - (x.iloc[:,0] * result.params[0] +
+                            x.iloc[:,1] * result.params[1] + 
+                            x.iloc[:,2] * result.params[2] +
+                            x.iloc[:,3] * result.params[3])
+ 
+```
+*Cell 10:*
+```python
+fig,axes = plt.subplots(3, 1)
+ax1,ax2,ax3 =axes
+
+B.iloc[0:10,0].plot.barh(ax=ax1, figsize=[15,15], title=B.columns[0])
+B.iloc[0:10,1].plot.barh(ax=ax2, figsize=[15,15], title=B.columns[1])
+B.iloc[0:10,2].plot.barh(ax=ax3, figsize=[15,15], title=B.columns[2])
+
+ax1.set(xlabel='beta')
+ax2.set(xlabel='beta')
+ax3.set(xlabel='beta')
+plt.show()
+```
+*Cell 11:*
+```python
+B.loc[symbols('AAPL'),:]
+```
+*Cell 12:*
+```python
+F.head(3)
+```
+*Cell 13:*
+```python
+B.head(3)
+```
+*Cell 14:*
+```python
+w = np.ones([1,R.shape[1]])/R.shape[1]
+```
+*Cell 15:*
+```python
+def compute_common_factor_variance(factors, factor_exposures, w):   
+    B = np.asarray(factor_exposures)
+    F = np.asarray(factors)
+    V = np.asarray(factors.cov())
+    
+    return w.dot(B.dot(V).dot(B.T)).dot(w.T)
+
+common_factor_variance = compute_common_factor_variance(F, B, w)[0][0]
+print("Common Factor Variance: {0}".format(common_factor_variance))
+```
+*Cell 16:*
+```python
+def compute_specific_variance(epsilon, w):       
+    
+    D = np.diag(np.asarray(epsilon.var())) * epsilon.shape[0] / (epsilon.shape[0]-1)
+
+    return w.dot(D).dot(w.T)
+
+specific_variance = compute_specific_variance(epsilon, w)[0][0]
+print("Specific Variance: {0}".format(specific_variance))
+```
+*Cell 17:*
+```python
+common_factor_pct = common_factor_variance/(common_factor_variance + specific_variance)*100.0
+print("Percentage of Portfolio Variance Due to Common Factor Risk: {0:.2f}%".format(common_factor_pct))
+```
+*Cell 18:*
+```python
+w_0 = np.random.rand(R.shape[1])
+w_0 = w_0/np.sum(w_0)
+```
+*Cell 19:*
+```python
+f = B.T.dot(w_0)
+f
+```
+*Cell 20:*
+```python
+bt_wsj = get_backtest('59232d19c931f1619e6423c9')
+```
+*Cell 21:*
+```python
+bt_wsj.create_perf_attrib_tear_sheet();
+```
+
+##### Factor Risk Exposure
+- **Original Path**: `notebooks\lectures\Factor_Risk_Exposure\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 28 (Code: 12, Markdown: 16)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data import Fundamentals, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import CustomFactor, Returns, from educational_platform.research import run_pipeline, from statsmodels import regression, from statsmodels.stats.stattools import jarque_bera, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy.stats as stats, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Factor Risk Exposure
+
+By Evgenia "Jenny" Nitishinskaya, Delaney Granizo-Mackenzie, and Maxwell Margenot.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+##DISCLAIMER:
+
+As always, this analysis is based on historical data, and risk exposures estimated on historical data may or may not affect the exposures going forward. As such, computing the risk exposure of to a factor is not enough. You must put confidence bounds on that risk exposure, and determine whether the risk exposure can even be modeled reasonably. For more information on this, please see our other lectures, especially Instability of Parameter Estimates.
+
+##Using Factor Models to Determine Risk Exposure
+
+We can use factor models to analyze the sources of risks and returns in portfolios. Recall that a factor model expresses the returns as
+
+$$R_i = a_i + b_{i1} F_1 + b_{i2} F_2 + \ldots + b_{iK} F_K + \epsilon_i$$
+
+By modelling the historical returns, we can see how much of them is due to speculation on different factors and how much to asset-specific fluctuations ($\epsilon_p$). We can also examine what sources of risk the portfolio is exposed to. 
+
+In risk analysis, we often model active returns (returns relative to a benchmark) and active risk (standard deviation of active returns, also known as tracking error or tracking risk).
+
+For instance, we can find a factor's marginal contribution to active risk squared (FMCAR). For factor $j$, this is
+
+$$ \text{FMCAR}_j = \frac{b_j^a \sum_{i=1}^K b_i^a Cov(F_j, F_i)}{(\text{Active risk})^2} $$
+
+where $b_i^a$ is the portfolio's active exposure to factor $i$. This tells us how much risk we incur by being exposed to factor $j$, given all the other factors we're already exposed to.
+
+Fundamental factor models are often used to evaluate portfolios because they correspond directly to investment choices (e.g. whether we invest in small-cap or large-cap stocks, etc.). Below, we construct a model to evaluate a single asset; for more information on the model construction, check out the fundamental factor models notebook.
+
+We'll use the canonical Fama-French factors for this example, which are the returns of portfolios constructred based on fundamental factors.
+
+##How many factors do you want?
+
+In the Arbitrage Pricing Theory lecture we mention that for predictive models you want fewer parameters. However, this doesn't quite hold for risk exposure. Instead of trying to not overfit a predictive model, you are looking for any possible risk factor that could be influencing your returns. Therefore it's actually safer to estimate exposure to many many risk factors to see if any stick. Anything left over in our $\alpha$ is risk exposure that is currently unexplained by the selected factors. You want your strategy's return stream to be all alpha, and to be unexplained by as many parameters as possible. If you can show that your historical returns have little to no dependence on many factors, this is very positive. Certainly some unrelated risk factors might have spurious relationships over time in a large dataset, but those are not likely to be consistent.

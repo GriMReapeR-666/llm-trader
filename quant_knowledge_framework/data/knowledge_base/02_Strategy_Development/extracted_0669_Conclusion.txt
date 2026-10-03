@@ -1,0 +1,18 @@
+# Conclusion
+
+Topic: 02_Strategy_Development
+Confidence: 0.75
+Keywords: ev, overfitting, out-of-sample
+
+---
+
+## Conclusion
+### *The SigOpt Bayesian Optimizer discovered a better global maximum when testing only over only 300 combinations, than what was discovered by the ~3500 combination grid search.*  
+####(This was seen in 4 out of 5 runs with SigOpt, and the 1 that returned a worse value was only minor shortfall)   
+
+*One Example of how quickly SigOpt discovered a maximum is shown below*
+![alt text](SigOpt_max_over_time.png)
+![alt text](SigOpt_vs_GridSearch_sorted_value_comparison.png)
+![alt text](SigOpt_vs_GridSearch_time_comparison.png)
+
+**Reducing model evaluation by 10x, and achieving more accurate results, while vetting the merits of a trading algorithm is beneficial on many levels, both from CPU time spent, but also with regard to human time not being wasted waiting for results during the researh process.  Since so few trading hypotheses end up being viable, the faster a researcher can discard the bad ideas and spend time diving more deeply in the good ideas with further techniques (e.g. model cross-validation, out-of-sample testing, robustness and overfitting checks, etc).**

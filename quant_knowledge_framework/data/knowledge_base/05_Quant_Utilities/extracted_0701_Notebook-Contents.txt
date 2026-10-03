@@ -1,0 +1,282 @@
+# Notebook Contents
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: data pipeline, python, pandas, standardize
+
+---
+
+## Notebook Contents
+
+There are two ways to access the data and you'll find both of them listed below. Just click on the section you'd like to read through.
+
+- <a href='#interactive'><strong>Interactive overview</strong></a>: This is only available on Research and uses blaze to give you access to large amounts of data. Recommended for exploration and plotting.
+- <a href='#pipeline'><strong>Pipeline overview</strong></a>: Data is made available through pipeline which is available on both the Research & Backtesting environment. Recommended for custom factor development and moving back & forth between research/backtesting.
+
+### Free samples and limits
+One key caveat: we limit the number of results returned from any given expression to 10,000 to protect against runaway memory usage. To be clear, you have access to all the data server side. We are limiting the size of the responses back from Blaze.
+
+There is a *free* version of this dataset as well as a paid one. The free sample includes data until 2 months prior to the current date.
+
+To access the most up-to-date values for this data set for trading a live algorithm (as with other partner sets), you need to purchase acess to the full set.
+
+With preamble in place, let's get started:
+
+<a id='interactive'></a>
+#Interactive Overview
+### Accessing the data with Blaze and Interactive on Research
+Partner datasets are available on Educational Platform Research through an API service known as [Blaze](http://blaze.pydata.org). Blaze provides the Educational Platform user with a convenient interface to access very large datasets, in an interactive, generic manner.
+
+Blaze provides an important function for accessing these datasets. Some of these sets are many millions of records. Bringing that data directly into Educational Platform Research directly just is not viable. So Blaze allows us to provide a simple querying interface and shift the burden over to the server side.
+
+It is common to use Blaze to reduce your dataset in size, convert it over to Pandas and then to use Pandas for further computation, manipulation and visualization.
+
+Helpful links:
+* [Query building for Blaze](http://blaze.readthedocs.io/en/latest/queries.html)
+* [Pandas-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-pandas.html)
+* [SQL-to-Blaze dictionary](http://blaze.readthedocs.io/en/latest/rosetta-sql.html).
+
+Once you've limited the size of your Blaze object, you can convert it to a Pandas DataFrames using:
+> `from odo import odo`  
+> `odo(expr, pandas.DataFrame)`
+
+
+###To see how this data can be used in your algorithm, search for the `Pipeline Overview` section of this notebook or head straight to <a href='#pipeline'>Pipeline Overview</a>
+
+The Sentdex Sentiment data feed is elegant and simple. Just a few fields:
+
+Let's go over the columns:
+- **asof_date**: The date to which this data applies.
+- **symbol**: stock ticker symbol of the affected company.
+- **timestamp**: the datetime at which the data is available to the Educational Platform system. For historical data loaded, we have simulated a lag. For data we have loaded since the advent of loading this data set, the timestamp is an actual recorded value.
+- **sentiment_signal**: A standalone sentiment score from -3 to 6 for stocks
+- **sid**: the equity's unique identifier. Use this instead of the symbol.
+
+From the [Sentdex documentation](http://sentdex.com/blog/back-testing-sentdex-sentiment-analysis-signals-for-stocks):
+
+```
+The signals currently vary from -3 to a positive 6, where -3 is as equally strongly negative of sentiment as a 6 is strongly positive sentiment.
+
+Sentiment signals:
+
+6 - Strongest positive sentiment.
+5 - Extremely strong, positive, sentiment.
+4 - Very strong, positive, sentiment.
+3 - Strong, positive sentiment.
+2 - Substantially positive sentiment.
+1 - Barely positive sentiment.
+0 - Neutral sentiment
+-1 - Sentiment trending into negatives.
+-2 - Weak negative sentiment.
+-3 - Strongest negative sentiment.
+```
+
+We've done much of the data processing for you. Fields like `timestamp` and `sid` are standardized across all our Store Datasets, so the datasets are easy to combine. We have standardized the `sid` across all our equity databases.
+
+We can select columns and rows with ease. Below, we'll fetch all rows for Apple (sid 24) and explore the scores a bit with a chart.
+
+Let's check out Comcast's sentiment for fun
+
+<a id='pipeline'></a>
+
+#Pipeline Overview
+
+### Accessing the data in your algorithms & research
+The only method for accessing partner data within algorithms running on Educational Platform is via the pipeline API. Different data sets work differently but in the case of this PsychSignal data, you can add this data to your pipeline as follows:
+
+Import the data set
+> `from educational_platform.pipeline.data.sentdex import sentiment`
+
+Then in intialize() you could do something simple like adding the raw value of one of the fields to your pipeline:
+> `pipe.add(sentiment.sentiment_signal.latest, 'sentdex_sentiment')`
+
+Now that we've imported the data, let's take a look at which fields are available for each dataset.
+
+You'll find the dataset, the available fields, and the datatypes for each of those fields.
+
+Now that we know what fields we have access to, let's see what this data looks like when we run it through Pipeline.
+
+
+This is constructed the same way as you would in the backtester. For more information on using Pipeline in Research view this thread:
+https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+
+Taking what we've seen from above, let's see how we'd move that into the backtester.
+
+Now you can take that and begin to use it as a building block for your algorithms, for more examples on how to do that you can visit our <a href='https://www.educational_platform.com/posts/pipeline-factor-library-for-data'>data pipeline factor library</a>
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# import the free sample of the dataset
+from educational_platform.interactive.data.sentdex import sentiment_free as dataset
+
+# or if you want to import the full dataset, use:
+# from educational_platform.interactive.data.sentdex import sentiment
+
+# import data operations
+from odo import odo
+# import other libraries we will use
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# Let's use blaze to understand the data a bit using Blaze dshape()
+dataset.dshape
+```
+*Cell 3:*
+```python
+# And how many rows are there?
+# N.B. we're using a Blaze function to do this, not len()
+dataset.count()
+```
+*Cell 4:*
+```python
+# Let's see what the data looks like. We'll grab the first three rows.
+dataset[:3]
+```
+*Cell 5:*
+```python
+# Filtering for AAPL
+aapl = dataset[dataset.sid == 24]
+aapl_df = odo(aapl.sort('asof_date'), pd.DataFrame)
+plt.plot(aapl_df.asof_date, aapl_df.sentiment_signal, marker='.', linestyle='None', color='r')
+plt.plot(aapl_df.asof_date, pd.rolling_mean(aapl_df.sentiment_signal, 30))
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("Sentiment")
+plt.title("Sentdex Sentiment for AAPL")
+plt.legend(["Sentiment - Single Day", "30 Day Rolling Average"], loc=1)
+x1,x2,y1,y2 = plt.axis()
+plt.axis((x1,x2,-4,7.5))
+```
+*Cell 6:*
+```python
+comcast = dataset[dataset.sid == 1637]
+comcast_df = odo(comcast.sort('asof_date'), pd.DataFrame)
+plt.plot(comcast_df.asof_date, comcast_df.sentiment_signal, marker='.', linestyle='None', color='r')
+plt.plot(comcast_df.asof_date, pd.rolling_mean(comcast_df.sentiment_signal, 30))
+plt.xlabel("As Of Date (asof_date)")
+plt.ylabel("Sentiment")
+plt.title("Sentdex Sentiment for Comcast")
+plt.legend(["Sentiment - Single Day", "30 Day Rolling Average"], loc=1)
+x1,x2,y1,y2 = plt.axis()
+plt.axis((x1,x2,-4,7.5))
+```
+*Cell 7:*
+```python
+# Import necessary Pipeline modules
+from educational_platform.pipeline import Pipeline
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+```
+*Cell 8:*
+```python
+# For use in your algorithms
+# Using the full paid dataset in your pipeline algo
+# from educational_platform.pipeline.data.sentdex import sentiment
+
+# Using the free sample in your pipeline algo
+from educational_platform.pipeline.data.sentdex import sentiment_free
+```
+*Cell 9:*
+```python
+print "Here are the list of available fields per dataset:"
+print "---------------------------------------------------\n"
+
+def _print_fields(dataset):
+    print "Dataset: %s\n" % dataset.__name__
+    print "Fields:"
+    for field in list(dataset.columns):
+        print "%s - %s" % (field.name, field.dtype)
+    print "\n"
+
+for data in (sentiment_free,):
+    _print_fields(data)
+
+
+print "---------------------------------------------------\n"
+```
+*Cell 10:*
+```python
+# Let's see what this data looks like when we run it through Pipeline
+# This is constructed the same way as you would in the backtester. For more information
+# on using Pipeline in Research view this thread:
+# https://www.educational_platform.com/posts/pipeline-in-research-build-test-and-visualize-your-factors-and-filters
+pipe = Pipeline()
+       
+pipe.add(sentiment_free.sentiment_signal.latest, 'sentiment_signal')
+```
+*Cell 11:*
+```python
+# Setting some basic liquidity strings (just for good habit)
+dollar_volume = AverageDollarVolume(window_length=20)
+top_1000_most_liquid = dollar_volume.rank(ascending=False) < 1000
+
+pipe.set_screen(top_1000_most_liquid & sentiment_free.sentiment_signal.latest.notnan())
+```
+*Cell 12:*
+```python
+# The show_graph() method of pipeline objects produces a graph to show how it is being calculated.
+pipe.show_graph(format='png')
+```
+*Cell 13:*
+```python
+# run_pipeline will show the output of your pipeline
+pipe_output = run_pipeline(pipe, start_date='2013-11-01', end_date='2013-11-25')
+pipe_output
+```
+*Cell 14:*
+```python
+# This section is only importable in the backtester
+from educational_platform.algorithm import attach_pipeline, pipeline_output
+
+# General pipeline imports
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.factors import AverageDollarVolume
+
+# Import the datasets available
+# For use in your algorithms
+# Using the full paid dataset in your pipeline algo
+# from educational_platform.pipeline.data.sentdex import sentiment
+
+# Using the free sample in your pipeline algo
+from educational_platform.pipeline.data.sentdex import sentiment_free
+
+def make_pipeline():
+    # Create our pipeline
+    pipe = Pipeline()
+    
+    # Screen out penny stocks and low liquidity securities.
+    dollar_volume = AverageDollarVolume(window_length=20)
+    is_liquid = dollar_volume.rank(ascending=False) < 1000
+    
+    # Create the mask that we will use for our percentile methods.
+    base_universe = (is_liquid)
+
+    # Add pipeline factors
+    pipe.add(sentiment_free.sentiment_signal.latest, 'sentiment_signal')
+
+    # Set our pipeline screens
+    pipe.set_screen(is_liquid)
+    return pipe
+
+def initialize(context):
+    attach_pipeline(make_pipeline(), "pipeline")
+    
+def before_trading_start(context, data):
+    results = pipeline_output('pipeline')
+```
+
+##### Zack's Broker Ratings Revision History
+- **Original Path**: `notebooks\data\zacks.broker_ratings\notebook.ipynb`
+- **Use Case**: Data Examples
+- **Cell Count**: 17 (Code: 11, Markdown: 6)
+- **Imports/Dependencies**: from odo import odo, from educational_platform.interactive.data.zacks import broker_ratings as dataset, from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data.zacks import broker_ratings, from educational_platform.pipeline.factors import AverageDollarVolume, from educational_platform.research import run_pipeline, import matplotlib.pyplot as plt, import pandas as pd
+
+**Explanatory Notes:**
+# Zack's Broker Ratings Revision History
+
+In this notebook, we'll take a look at Zack's *Broker Ratings Revision History* dataset, available on [Educational Platform](https://www.educational_platform.com/store). This dataset spans 2002 through the current day and provides Analyst Ratings History for Securities.
+
+Update time: Zacks updates this dataset sometime during the first week of each month. In pipeline, your data will be updated close to midnight. So on the 27th, you will have data with a maximum asof_date of the 26th.

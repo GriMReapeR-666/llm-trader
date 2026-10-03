@@ -1,0 +1,488 @@
+# Buy-and-Hold without Vol (1984 - 2009)
+
+Topic: 01_Regime_Detection
+Confidence: 0.42
+Keywords: scaling, volatility
+
+---
+
+## Buy-and-Hold without Vol (1984 - 2009)
+
+# Summary
+Buy and Hold without volatility scaling strategy showed that it is postively correlated to bond, equity and commodity. The p-value also showed that these are significant.
+
+*****
+
+# Comparing TSMOM with S&P 500
+
+**Note** the positive alpha and significant coefficient relating to S&P 500.
+
+# Straddle like payoff
+
+In MOP paper, they states the returns to TSMOM are largest during the biggest up and down market movements. In addition, the coefficient on the market return squared is significantly positive, indicating that TSMOM delivers its highest profits during the most extreme market movements. The result above also concur with their findings.
+
+The take away from this is that TSMOM has payoffs similar to an option straddle on the market. 
+
+# Conclusion
+
+The benchmarks used for the factor analysis are:
+* EQUITY - MSCI World equity index
+* BOND - Barclay's Aggregate Bond Index
+* COMMODITY - S&P GSCI Index
+* SMB - Size
+* HML - Value vs growth
+* MOM - Cross sectional Momentum
+
+The SMB, HML, MOM data are from Kenneth French's [data library](http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html). Rest of the data are from Bloomberg after adjusting for risk free rate.
+
+The performance of TSMOM has been quite impressive with the Sharpe ratio at 1.56 for 1984-2009 and 1.32 if we cover the 1984-2016 period. Without volatility scaling, the Sharpe ratio drop down to 1.18. Compare this to buy and hold strategy with and without volatility scaling which generated Sharpe Ratio of 0.196 and -0.088 respectively. Against other metrics such as maximum draw down, the TSMOM with and without volatility scaling also outperformed.
+
+When one take a look at the factor analyis, TSMOM with volatility scaling is negatively correlated to the MSCI World Index and uncorrelated to the rest of the factors. The alpha is 1.2% per month. However, one must take this with a grain of salt as the adjusted R-squared is only 0.02.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import datetime
+import pyfolio as pf
+import matplotlib.pyplot as plt
+import matplotlib
+import seaborn as sns
+import pytz
+```
+*Cell 2:*
+```python
+tolerance = 0.
+look_back = 12
+
+# Vol scaling
+vol_flag = 1                  # Set flag to 1 for vol targeting
+if vol_flag == 1:
+    target_vol = 0.4
+else:
+    target_vol = 'no target vol'
+```
+*Cell 3:*
+```python
+res = local_csv("futures.csv")
+# res = local_csv("futures_incl_2016.csv") # Uncomment this line to include 2016
+res['Date'] = pd.to_datetime(res['Date'], format='%Y-%m-%d')
+res.set_index('Date', inplace=True)
+```
+*Cell 4:*
+```python
+std_index = res.resample('BM').last().index
+mth_index = pd.DataFrame(index=std_index)
+mth_index_vol = pd.DataFrame(index=std_index)
+summary_stats = pd.DataFrame(index=['Asset', 'Start', 'Mean', 'Std', \
+                                    'Skew', 'Kurt', 'Sharpe Ratio'])
+```
+*Cell 5:*
+```python
+for oo in res.columns:
+    returns = res[oo]
+    returns.dropna(inplace=True)
+    
+    first_date = returns.index[0].strftime("%Y-%m-%d")   # store this to show when data series starts
+    
+    ret_index = (1 + returns).cumprod()
+    ret_index[0] = 1
+    
+    # equation (1) ex ante vol estimate
+    day_vol = returns.ewm(ignore_na=False,
+                          adjust=True,
+                          com=60,   
+                          min_periods=0).std(bias=False)
+    vol = day_vol * np.sqrt(261) # annualise
+    
+    ret_index = pd.concat([ret_index, vol], axis=1)
+    ret_index.columns = [oo, 'vol']
+    
+    # convert to monthly
+    ret_m_index = ret_index.resample('BM').last().ffill()
+    ret_m_index.ix[0][oo] = 1
+
+    mth_index = pd.concat([mth_index, ret_m_index[oo]], axis=1)
+    tmp = ret_m_index['vol']
+    tmp.name = oo + "_Vol"
+    mth_index_vol = pd.concat([mth_index_vol, tmp], axis=1)
+
+    tmp_mean = ret_index[oo].pct_change().mean()*252
+    tmp_std = ret_index[oo].pct_change().std()*np.sqrt(252)
+    tmp_skew = ret_index[oo].pct_change().skew()
+    tmp_kurt = ret_index[oo].pct_change().kurt()
+    sr = tmp_mean / tmp_std
+
+    dict = {'Asset': oo,
+            'Start': first_date,
+            'Mean': np.round(tmp_mean,4),
+            'Std':  np.round(tmp_std,4),
+            'Skew': np.round(tmp_skew,4),
+            'Kurt': np.round(tmp_kurt,4),
+            'Sharpe Ratio': np.round(sr,4),
+            }
+    summary_stats[oo] = pd.Series(dict)    
+```
+*Cell 6:*
+```python
+summary_stats = summary_stats.transpose()
+futures_list = local_csv("futures_list.csv")
+all = summary_stats.reset_index().merge(futures_list)
+all.sort_values(by=["ASSET_CLASS", "FUTURES"], inplace=True)
+del all['Asset'], all['index']
+```
+*Cell 7:*
+```python
+all.set_index(['ASSET_CLASS', 'FUTURES']).style.set_properties(**{'text-align': 'right'})
+```
+*Cell 8:*
+```python
+pnl = pd.DataFrame(index=std_index)
+leverage = pd.DataFrame(index=std_index)
+strategy_cumm_rtns = pd.DataFrame(index=std_index)
+```
+*Cell 9:*
+```python
+for oo in mth_index:
+    df = pd.concat([mth_index[oo], mth_index_vol[oo+"_Vol"]], axis=1)
+    df['returns'] = df[oo].pct_change(look_back)
+    
+    df['pnl'] = 0.
+    df['leverage'] = 0.
+    try:
+        for k, v in enumerate(df['returns']):
+            if k <= look_back:
+                # skip the first 12 observations
+                continue
+            if df['returns'].iloc[k-1] < tolerance:
+                # negative returns, sell and hold for 1 mth, then close position
+                if vol_flag == 1:
+                    df['pnl'].iloc[k] = (df[oo].iloc[k - 1] / df[oo].iloc[k] - 1) * \
+                                        target_vol / df[oo+"_Vol"].iloc[k - 1]
+                    df['leverage'].iloc[k] = target_vol / df[oo+"_Vol"].iloc[k - 1]
+                else:
+                    df['pnl'].iloc[k] = (df[oo].iloc[k - 1] / df[oo].iloc[k] - 1)                   
+                    df['leverage'].iloc[k] = 1.
+            elif df['returns'].iloc[k-1] > tolerance:
+                # positive returns, buy and hold for 1 mth, then close position
+                if vol_flag == 1:
+                    df['pnl'].iloc[k] = (df[oo].iloc[k] / df[oo].iloc[k - 1] - 1) * \
+                                        target_vol / df[oo+"_Vol"].iloc[k - 1]
+                    df['leverage'].iloc[k] = target_vol / df[oo+"_Vol"].iloc[k - 1]
+                else:
+                    df['pnl'].iloc[k] = (df[oo].iloc[k] / df[oo].iloc[k - 1] - 1) 
+                    df['leverage'].iloc[k] = 1.
+    except: pass    
+    # convert to cummulative index
+    pnl = pd.concat([pnl, df['pnl']], axis=1)
+    leverage = pd.concat([leverage, df['leverage']], axis=1)
+    
+    ret_index = (1 + df['pnl'][13:]).cumprod()
+    ret_index[0] = 1
+    strategy_cumm_rtns = pd.concat([strategy_cumm_rtns, ret_index], axis=1) 
+```
+*Cell 10:*
+```python
+pnl.columns = res.columns
+leverage.columns = leverage.columns
+strategy_cumm_rtns.columns = res.columns
+df = pnl
+df['port_avg'] = df.mean(skipna = 1, axis=1)
+Strategy = df['port_avg'].copy()
+Strategy.name = "TSMOM with Vol"
+dataport_index = (1 + df['port_avg']).cumprod()
+```
+*Cell 11:*
+```python
+print "Annualized Sharpe Ratio = ", pf.empyrical.sharpe_ratio(df['port_avg'], period='monthly')
+print "Annualized Mean Returns = ", pf.empyrical.annual_return(df['port_avg'], period='monthly')
+print "Annualized Standard Deviations = ", pf.empyrical.annual_volatility(df['port_avg'], period='monthly')
+```
+*Cell 12:*
+```python
+print "Max Drawdown = ", pf.empyrical.max_drawdown(df['port_avg'])
+print "Calmar ratio = ", pf.empyrical.calmar_ratio(df['port_avg'], period='monthly')
+```
+*Cell 13:*
+```python
+eastern = pytz.timezone('US/Eastern')
+df['port_avg'].index = df['port_avg'].index.tz_localize(pytz.utc).tz_convert(eastern)
+pf.create_full_tear_sheet(df['port_avg'])
+```
+*Cell 14:*
+```python
+pf.plot_drawdown_underwater(df['port_avg']);
+```
+*Cell 15:*
+```python
+ax = (1 + df['port_avg']).cumprod().plot(logy=True);
+ax.set_title("Cummulative Excess Return, " + \
+            "\ntarget vol = " + str(target_vol) + ", look back = " + \
+             str(look_back) + " months");
+```
+*Cell 16:*
+```python
+tmp = df['port_avg'].reset_index()
+tmp['Date'] = pd.to_datetime(tmp['Date'], format='%Y-%m-%d')
+tmp = tmp.set_index('Date')
+tmp['month'] = tmp.index.month
+tmp['year'] = tmp.index.year
+tmp = np.round(tmp, 3)
+res = tmp.pivot('year', 'month', 'port_avg')
+res['total'] = np.sum(res, axis=1)
+```
+*Cell 17:*
+```python
+fig, ax = plt.subplots(figsize=(20,20));
+sns.heatmap(res.fillna(0) * 100,
+            annot=True,
+            annot_kws={
+                "size": 13},
+            alpha=1.0,
+            center=0.0,
+            cbar=True,
+            cmap=matplotlib.cm.PiYG,
+            linewidths=.5,
+            ax = ax); 
+ax.set_ylabel('Year');
+ax.set_xlabel('Month');
+ax.set_title("Monthly Returns (%), " + \
+            "\ntarget vol = " + str(target_vol) + ", look back = " + \
+             str(look_back) + " months");
+plt.show()
+```
+*Cell 18:*
+```python
+res = local_csv("futures.csv")
+res['Date'] = pd.to_datetime(res['Date'], format='%Y-%m-%d')
+res.set_index('Date', inplace=True)
+std_index = res.resample('BM').last().index
+mth_index = pd.DataFrame(index=std_index)
+mth_index_vol = pd.DataFrame(index=std_index)
+summary_stats = pd.DataFrame(index=['Asset', 'Start', 'Mean', 'Std', 'Skew', 'Kurt', 'Sharpe Ratio'])
+```
+*Cell 19:*
+```python
+for oo in res.columns:
+    returns = res[oo]
+    returns.dropna(inplace=True)
+    
+    first_date = returns.index[0].strftime("%Y-%m-%d")   # store this to show when data series starts
+    
+    ret_index = (1 + returns).cumprod()
+    ret_index[0] = 1
+    
+    # equation (1) ex ante vol estimate
+    day_vol = returns.ewm(ignore_na=False,
+                          adjust=True,
+                          com=60,   
+                          min_periods=0).std(bias=False)
+    vol = day_vol * np.sqrt(261) # annualise
+    
+    ret_index = pd.concat([ret_index, vol], axis=1)
+    ret_index.columns = [oo, 'vol']
+    
+    # convert to monthly
+    ret_m_index = ret_index.resample('BM').last().ffill()
+    ret_m_index.ix[0][oo] = 1
+
+    mth_index = pd.concat([mth_index, ret_m_index[oo]], axis=1)
+    tmp = ret_m_index['vol']
+    tmp.name = oo + "_Vol"
+    mth_index_vol = pd.concat([mth_index_vol, tmp], axis=1)
+
+    tmp_mean = ret_index[oo].pct_change().mean()*252
+    tmp_std = ret_index[oo].pct_change().std()*np.sqrt(252)
+    tmp_skew = ret_index[oo].pct_change().skew()
+    tmp_kurt = ret_index[oo].pct_change().kurt()
+    sr = tmp_mean / tmp_std
+
+    dict = {'Asset': oo,
+            'Start': first_date,
+            'Mean': np.round(tmp_mean,4),
+            'Std':  np.round(tmp_std,4),
+            'Skew': np.round(tmp_skew,4),
+            'Kurt': np.round(tmp_kurt,4),
+            'Sharpe Ratio': np.round(sr,4),
+            }
+    summary_stats[oo] = pd.Series(dict)    
+```
+*Cell 20:*
+```python
+summary_stats = summary_stats.transpose()
+futures_list = local_csv("futures_list.csv")
+all = summary_stats.reset_index().merge(futures_list)
+all.sort_values(by=["ASSET_CLASS", "FUTURES"], inplace=True)
+del all['Asset'], all['index']
+pnl = pd.DataFrame(index=std_index)
+leverage = pd.DataFrame(index=std_index)
+strategy_cumm_rtns = pd.DataFrame(index=std_index)
+```
+*Cell 21:*
+```python
+vol_flag = 0  # change to flag to 1 to volatility scale the strategy
+#target_vol = 0.4
+```
+*Cell 22:*
+```python
+for oo in mth_index:
+    df = pd.concat([mth_index[oo], mth_index_vol[oo+"_Vol"]], axis=1)
+    df['returns'] = df[oo].pct_change(look_back)
+    
+    df['pnl'] = 0.
+    df['leverage'] = 0.
+    try:
+        for k, v in enumerate(df['returns']):
+            if k <= look_back:
+                # skip the first 12 observations
+                continue
+            if vol_flag == 1:
+                df['pnl'].iloc[k] = (df[oo].iloc[k] / df[oo].iloc[k - 1] - 1) * \
+                                    target_vol / df[oo+'_Vol'].iloc[k - 1]
+                df['leverage'].iloc[k] = target_vol / df[oo+'_Vol'].iloc[k - 1]
+            else:
+                df['pnl'].iloc[k] = (df[oo].iloc[k] / df[oo].iloc[k - 1] - 1)                   
+                df['leverage'].iloc[k] = 1.
+    except:
+        pass  
+    # convert to cummulative index
+    pnl = pd.concat([pnl, df['pnl']], axis=1)
+    leverage = pd.concat([leverage, df['leverage']], axis=1)
+    
+    ret_index = (1 + df['pnl'][13:]).cumprod()
+    ret_index[0] = 1
+    strategy_cumm_rtns = pd.concat([strategy_cumm_rtns, ret_index], axis=1) 
+```
+*Cell 23:*
+```python
+pnl.columns = res.columns
+leverage.columns = leverage.columns
+strategy_cumm_rtns.columns = res.columns
+df = pnl
+df['port_avg'] = df.mean(skipna = 1, axis=1)
+
+temp = df['port_avg'].copy()
+temp.name = "Buy_Hold No Vol"
+temp.index = temp.index.tz_localize(pytz.utc).tz_convert(eastern)
+Strategy.index = Strategy.index.tz_localize(pytz.utc).tz_convert(eastern)
+Strategy = pd.concat([Strategy, temp], axis=1)
+
+dataport_index = (1 + df['port_avg']).cumprod()
+```
+*Cell 24:*
+```python
+print "Annualized Sharpe Ratio = ", pf.empyrical.sharpe_ratio(df['port_avg'], period='monthly')
+print "Annualized Mean Returns = ", pf.empyrical.annual_return(df['port_avg'], period='monthly')
+print "Annualized Standard Deviations = ", pf.empyrical.annual_volatility(df['port_avg'], period='monthly')
+```
+*Cell 25:*
+```python
+print "Max Drawdown = ", pf.empyrical.max_drawdown(df['port_avg'])
+print "Calmar ratio = ", pf.empyrical.calmar_ratio(df['port_avg'], period='monthly')
+```
+*Cell 26:*
+```python
+eastern = pytz.timezone('US/Eastern')
+df['port_avg'].index = df['port_avg'].index.tz_localize(pytz.utc).tz_convert(eastern)
+pf.create_full_tear_sheet(df['port_avg'])
+```
+*Cell 27:*
+```python
+import statsmodels.api as sm
+```
+*Cell 28:*
+```python
+TSMOM = Strategy.reset_index()[["Date", "TSMOM with Vol"]]
+TSMOM = TSMOM.set_index("Date").tz_convert(None)
+TSMOM = TSMOM.reset_index()
+```
+*Cell 29:*
+```python
+df = local_csv("factors.csv")
+df["Date"] = pd.to_datetime(df['Date'], format='%Y-%m-%d')
+data = df.merge(TSMOM)
+```
+*Cell 30:*
+```python
+data = data[['Date', 'SMB', 'HML', 'Mom', 'bond_index', 'equity_index', \
+             'commodity_index', 'TSMOM with Vol']].copy()
+data.columns = ['Date', 'SMB', 'HML', 'MOM', 'BOND', 'EQUITY', 'COMMODITY', 'PORTFOLIO']
+data = data.dropna()
+data = data.set_index("Date")
+data = data.reset_index()
+```
+*Cell 31:*
+```python
+X = data[['SMB', 'HML', 'MOM', 'BOND', 'EQUITY', 'COMMODITY']].copy()
+X = sm.add_constant(X)
+model = sm.OLS(data['PORTFOLIO'].astype(float), X).fit()
+print(model.summary())  
+```
+*Cell 32:*
+```python
+BH_no_V = Strategy.reset_index()[["Date", "Buy_Hold No Vol"]]
+BH_no_V = BH_no_V.set_index("Date").tz_convert(None)
+BH_no_V = BH_no_V.reset_index()
+```
+*Cell 33:*
+```python
+data = df.merge(BH_no_V)
+data = data[['Date', 'SMB', 'HML', 'Mom', 'bond_index', 'equity_index', \
+             'commodity_index', 'Buy_Hold No Vol']].copy()
+data.columns = ['Date', 'SMB', 'HML', 'MOM', 'BOND', 'EQUITY', 'COMMODITY', 'PORTFOLIO']
+data = data.dropna()
+data = data.set_index("Date")
+data = data.reset_index()
+```
+*Cell 34:*
+```python
+X = data[['SMB', 'HML', 'MOM', 'BOND', 'EQUITY', 'COMMODITY']].copy()
+X = sm.add_constant(X)
+model = sm.OLS(data['PORTFOLIO'].astype(float), X).fit()
+print(model.summary())  
+```
+*Cell 35:*
+```python
+SPX = df[["Date", "spx"]].copy()
+SPX["Date"] = pd.to_datetime(SPX['Date'], format='%Y-%m-%d')
+```
+*Cell 36:*
+```python
+TSMOM = Strategy.reset_index()[["Date", "TSMOM with Vol"]].dropna()
+TSMOM = TSMOM.set_index("Date").tz_convert(None)
+TSMOM = TSMOM.reset_index()
+#TSMOM["Date"] = pd.to_datetime(TSMOM['Date'], format='%Y-%m-%d')
+```
+*Cell 37:*
+```python
+comb = TSMOM.merge(SPX)
+sns.regplot(x="spx", y="TSMOM with Vol", data=comb, order=2);
+```
+*Cell 38:*
+```python
+X = comb['spx'].copy()
+X = sm.add_constant(X)
+model = sm.OLS(comb['TSMOM with Vol'].astype(float), X).fit()
+print(model.summary()) 
+```
+*Cell 39:*
+```python
+X = comb['spx'].copy()
+X = X ** 2
+Y = comb['TSMOM with Vol']
+Y = Y ** 2
+model = sm.OLS(Y, X).fit()
+print(model.summary()) 
+```
+
+##### Variance-in-Trade-Volume
+- **Original Path**: `advanced_sample_analyses\Variance-in-Trade-Volume.ipynb`
+- **Use Case**: Advanced Sample Analyses
+- **Cell Count**: 29 (Code: 17, Markdown: 12)
+- **Imports/Dependencies**: from collections import Counter, from matplotlib import pyplot, from scipy import stats, import datetime, import math, import matplotlib, import numpy
+
+**Explanatory Notes:**

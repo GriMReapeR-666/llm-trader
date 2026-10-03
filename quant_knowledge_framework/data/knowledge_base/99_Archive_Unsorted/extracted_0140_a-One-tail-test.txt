@@ -1,0 +1,23 @@
+# a. One tail test.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. One tail test. 
+
+Using the techniques laid out in lecture, verify if we can state that the returns of TSLA **are greater** than 0.
+- Start by stating the null and alternative hypothesis
+    - Are we dealing with a one or two tailed test? Why? 
+- Calculate the mean differences, and the Z-test using the formula provided in class. 
+    - *Recall: This is a one parameter test, use the appropriate Z-test*
+- Use the stat library to calculate the associated p value with your t statistic. 
+    - Compare your found p-value to the set $\alpha$ value, and conclude. 
+    
+
+###### Useful Formulas: 
+$$ \text{Test statistic} =  \frac{\bar{X}*\mu - \theta_0}{s*{\bar{X}}} = \frac{\bar{X}_\mu - 0}{s\sqrt{n}} $$  
+
+Write your hypotheses here:

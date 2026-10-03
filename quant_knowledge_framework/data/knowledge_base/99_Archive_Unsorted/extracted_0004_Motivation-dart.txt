@@ -1,0 +1,13 @@
+# **Motivation** :dart:
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Motivation** :dart:
+
+The main goal of creating this repository was to provide a reliable platform where individuals can learn, practice and enhance their skills in the field of memory forensics. As of the CTF-style, well, what better & interesting way to learn security than by playing CTFs?
+
+I also believe these labs can be used by anyone to help others become good with the essentials and fundamentals of memory forensics.

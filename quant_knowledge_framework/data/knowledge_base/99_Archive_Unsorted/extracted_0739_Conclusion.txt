@@ -1,0 +1,10 @@
+# Conclusion
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Conclusion
+In this notebook, we looked at daily fantasy sports using quantitative finance tools. We started out by pulling in and looking at NBA data. We created and tested the ability of certain statistics to predict DK points using Alphalens. We attempted to build an optimal lineup using Optimize. And lastly, we used cvxpy to build a proper solution to the daily lineup construction problem.

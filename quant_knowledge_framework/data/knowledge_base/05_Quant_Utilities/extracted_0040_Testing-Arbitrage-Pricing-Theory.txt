@@ -1,0 +1,106 @@
+# Testing Arbitrage Pricing Theory
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: numpy, python, pandas
+
+---
+
+## Testing Arbitrage Pricing Theory
+
+Most empirical tests of the APT are done in two steps: estimating the betas of individual factors, then comparing it to actual prices to see how predictions fared.
+
+Here we will use the return streams from long-short equity strategies built from various microeconomic indicators as our factors. Then, we will use the Fama-Macbeth regression method to estimate our risk premia.
+
+Now we use pipeline to get all of our data.
+
+To get our factor return streams, we rank equities based on their purchases of businesses, their R&D spending, and their cash flow. Then, for each indicator, we go long the assets in the top percentile and short the ones in the bottom. 
+
+Finally, we'll put everything together in our Fama-Macbeth regressions. This occurs in two steps.
+
+First, for each asset we regress its returns on each factor return stream:
+
+$$R_{1, t} = \alpha_1 + \beta_{1, F_1}F_{1, t} + \beta_{1, F_2}F_{2, t} + \dots + \beta_{1, F_m}F_{m, t} + \epsilon_{1, t} \\
+R_{2, t} = \alpha_2 + \beta_{2, F_1}F_{1, t} + \beta_{2, F_2}F_{2, t} + \dots + \beta_{2, F_m}F_{m, t} + \epsilon_{2, t} \\
+\vdots \\
+R_{n, t} = \alpha_n + \beta_{n, F_1}F_{1, t} + \beta_{n, F_2}F_{2, t} + \dots + \beta_{n, F_m}F_{m, t} + \epsilon_{n, t}$$
+
+Second, we take the beta estimates from the first step and use those as our exogenous variables in an estimate of the mean return of each asset. This step is the calculation of our risk premia, $\{\gamma_K\}$.
+
+$$E(R_i) = \gamma_0 + \gamma_1 \hat{\beta}_{i, F_1} + \gamma_2 \hat{\beta}_{i, F_2} + \dots + \gamma_m \hat{\beta}_{i, F_m} + \epsilon_i$$
+
+It is imperative that we not just use our model estimates at face value. A scan through the accompanying statistics can be highly insightful about the efficacy of our estimated model. For example, notice that although our individual factors are significant, we have a very low $R^2$. What this may suggest is that there is a real link between our factors and the returns of our assets, but that there still remains a lot of unexplained noise!
+
+For a more in-depth look at choosing factors, check out the [factor analysis lecture](https://www.educational_platform.com/lectures/factor-analysis)!
+
+Now that we have estimates for our risk premia we can combine these with our beta estimates from our original regression to estimate asset returns.
+
+Finally, as a rough comparison between APT and CAPM, we'll look at the returns from Long-Short strategies constructed using each model as the ranking scheme.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels import regression
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+start_date = '2014-01-01'
+end_date = '2014-12-31'
+
+# choose stock
+R = get_pricing('AAPL', fields='price', start_date=start_date, end_date=end_date).pct_change()[1:]
+
+# risk-free proxy
+R_F = get_pricing('BIL', fields='price', start_date=start_date, end_date=end_date).pct_change()[1:]
+
+# find it's beta against market
+M = get_pricing('SPY', start_date=start_date, end_date=end_date, fields='price').pct_change()[1:]
+
+AAPL_results = regression.linear_model.OLS(R-R_F, sm.add_constant(M)).fit()
+AAPL_beta = AAPL_results.params[1]
+
+M.plot()
+R.plot()
+R_F.plot()
+plt.xlabel('Time')
+plt.ylabel('Daily Percent Return')
+plt.legend();
+
+AAPL_results.summary()
+```
+*Cell 3:*
+```python
+predictions = R_F + AAPL_beta*(M - R_F) # CAPM equation
+
+predictions.plot()
+R.plot(color='Y')
+plt.legend(['Prediction', 'Actual Return'])
+
+plt.xlabel('Time')
+plt.ylabel('Daily Percent Return');
+```
+*Cell 4:*
+```python
+from scipy import optimize
+import cvxopt as opt
+from cvxopt import blas, solvers
+```
+*Cell 5:*
+```python
+np.random.seed(123)
+
+# Turn off progress printing 
+solvers.options['show_progress'] = False
+
+# Number of assets
+n_assets = 4
+
+# Number of observations
+n_obs = 2000

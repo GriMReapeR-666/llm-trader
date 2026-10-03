@@ -1,0 +1,182 @@
+# Statistical factor models
+
+Topic: 03_Portfolio_Management
+Confidence: 0.38
+Keywords: correlation, portfolio, ror
+
+---
+
+## Statistical factor models
+
+This type of model computes the factors that best describe returns using statistical methods, without specifying what the factors represent. The two main methods for obtaining the factors are principal component analysis (resulting in factors that are the portfolios best explaining historical return variances) and factor analysis (factors are portfolios that best explain historical return covariances). After we compute the portfolios we want to use as factors, we can estimate the loadings with linear regression.
+
+# Currently used models
+
+There are many factor models in use in academia and industry today, whose factors were chosen based on extensive research. Among these are the BIRR model (which is macroeconomic) and the Fama-French three-factor model  (which is a mixed model, using market cap, P/B ratio, and market returns).
+
+
+##### Trends
+- **Original Path**: `drafts\Trend models.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 12 (Code: 6, Markdown: 6)
+- **Imports/Dependencies**: from statsmodels import regression, import math, import matplotlib.pyplot as plt, import numpy as np, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Trends
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+Trends estimate tendencies in data over time, such as overall rising or falling amid noise. They use only historical data and not any knowledge about the processes generating them.
+
+# Linear trend models
+
+A linear trend model assumes that the variable changes at a constant rate with time, and attempts to find a line of best fit. We want to find coefficients $b_0$, $b_1$ such that the series $y_t$ satisfies
+$$ y_t = b_0 + b_1t + \epsilon_t $$
+and so that the sum of the squares of the errors $\epsilon_t$ is minimized. This can be done using a linear regression. After we have fitted a linear model to our data, we predict the value of the variable to be $y_t = b_0 + b_1 t$ for future time periods $t$. We can also use these parameters to compare the rates of growth or decay of two data series.
+
+Let's find a linear trend model for the price of XLY, an ETF for consumer goods.
+
+The summary returned by the regression tells us the slope and intercept of the line, as well as giving us some information about how statistically valid the fit is. Note that the Durbin-Watson statistic is very low here, suggeesting that the errors are correlated. The price of this fund is generally increasing, but because of the variance in the data, the line of best fit changes significantly depending on the sample we take. Because small errors in our model magnify with time, its predictions far into the future may not be as good as the fit statistics would suggest. For instance, we can see what will happen if we find a model for the data through 2012 and use it to predict the data through 2014.
+
+Of course, we can keep updating our model as we go along. Below we use all the previous prices to predict  prices 30 days into the future.
+
+# Log-linear trend models
+
+A log-linear trend model attempts to fit an exponential curve to a data set:
+$$ y_t = e^{b_0 + b_1 t + \epsilon_t} $$
+
+To find the coefficients, we can run a linear regression on the equation $ \ln y_t = b_0 + b_1 t + \epsilon_t $ with variables $t, \ln y_t$. (This is the reason for the name of the model — the equation is linear when we take the logarithm of both sides!)
+
+If $b_1$ is very small, then a log-linear curve is approximately linear. For instance, we can find a log-linear model for our data from the previous example, with fit statistics approximately the same as for the linear model.
+
+In some cases, however, a log-linear model clearly fits the data better.
+
+# Summary
+
+From the above we see that trend models can provide a simple representation of a complex data series. However, the errors (deviations from the model) are highly correlated; so, we cannot apply the usual regression statistics to test for correctness, since the regression model assumes serially uncorrelated errors. This also suggests that the correlation can be used to build a finer model.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import math
+from statsmodels import regression
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+start = '2010-01-01'
+end = '2015-01-01'
+asset = get_pricing('XLY', fields='price', start_date=start, end_date=end)
+dates = asset.index
+
+def linreg(X,Y):
+    # Running the linear regression
+    x = sm.add_constant(X)
+    model = regression.linear_model.OLS(Y, x).fit()
+    a = model.params[0]
+    b = model.params[1]
+
+    # Return summary of the regression and plot results
+    X2 = np.linspace(X.min(), X.max(), 100)
+    Y_hat = X2 * b + a
+    plt.plot(X2, Y_hat, 'r', alpha=0.9);  # Add the regression line, colored in red
+    return model.summary()
+
+_, ax = plt.subplots()
+ax.plot(asset)
+ticks = ax.get_xticks()
+ax.set_xticklabels([dates[i].date() for i in ticks[:-1]]) # Label x-axis with dates
+linreg(np.arange(len(asset)), asset)
+```
+*Cell 3:*
+```python
+# Take only some of the data in order to see how predictive the model is
+asset_short = get_pricing('XLY', fields='price', start_date=start, end_date='2013-01-01')
+
+# Running the linear regression
+x = sm.add_constant(np.arange(len(asset_short)))
+model = regression.linear_model.OLS(asset_short, x).fit()
+X2 = np.linspace(0, len(asset), 100)
+Y_hat = X2 * model.params[1] + model.params[0]
+
+# Plot the data for the full time range
+_, ax = plt.subplots()
+ax.plot(asset)
+ticks = ax.get_xticks()
+ax.set_xticklabels([dates[i].date() for i in ticks[:-1]]) # Label x-axis with dates
+
+# Plot the regression line extended to the full time range
+ax.plot(X2, Y_hat, 'r', alpha=0.9); 
+```
+*Cell 4:*
+```python
+# Y_hat will be our predictions for the price
+Y_hat = [0]*1100
+
+# Start analysis from day 100 so that we have historical prices to work with
+for i in range(100,1200):
+    temp = asset[:i]
+    x = sm.add_constant(np.arange(len(temp)))
+    model = regression.linear_model.OLS(temp, x).fit()
+    # Plug (i+30) into the linear model to get the predicted price 30 days from now
+    Y_hat[i-100] = (i+30) * model.params[1] + model.params[0]
+
+_, ax = plt.subplots()
+ax.plot(asset[130:1230]) # Plot the asset starting from the first day we have predictions for
+ax.plot(range(len(Y_hat)), Y_hat, 'r', alpha=0.9)
+ticks = ax.get_xticks()
+ax.set_xticklabels([dates[i].date() for i in ticks[:-1]]) # Label x-axis with dates;
+```
+*Cell 5:*
+```python
+def loglinreg(X,Y):
+    # Running the linear regression on X, log(Y)
+    x = sm.add_constant(X)
+    model = regression.linear_model.OLS(np.log(Y), x).fit()
+    a = model.params[0]
+    b = model.params[1]
+
+    # Return summary of the regression and plot results
+    X2 = np.linspace(X.min(), X.max(), 100)
+    Y_hat = (math.e)**(X2 * b + a)
+    plt.plot(X2, Y_hat, 'r', alpha=0.9);  # Add the regression curve, colored in red
+    return model.summary()
+
+_, ax_log = plt.subplots()
+ax_log.plot(asset)
+ax_log.set_xticklabels([dates[i].date() for i in ticks[:-1]]) # Label x-axis with dates
+loglinreg(np.arange(len(asset)), asset)
+```
+*Cell 6:*
+```python
+start2 = '2002-01-01'
+end2 = '2012-06-01'
+asset2 = get_pricing('AAPL', fields='price', start_date=start2, end_date=end2)
+dates2 = asset2.index
+
+_, ax2 = plt.subplots()
+ax2.plot(asset2)
+ticks2 = ax2.get_xticks()
+ax2.set_xticklabels([dates2[i].date() for i in ticks2[:-1]]) # Label x-axis with dates
+loglinreg(np.arange(len(asset2)), asset2)
+```
+
+##### Vanderbei
+- **Original Path**: `drafts\Vanderbei.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 26 (Code: 14, Markdown: 12)
+- **Imports/Dependencies**: from cvxopt import blas, solvers, matrix, from zipline import TradingAlgorithm, from zipline.api import (add_history,, import cvxopt as opt, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import zipline
+
+**Explanatory Notes:**
+#Portfolio Optimization with Linear Programming
+By Thomas Wiecki
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---

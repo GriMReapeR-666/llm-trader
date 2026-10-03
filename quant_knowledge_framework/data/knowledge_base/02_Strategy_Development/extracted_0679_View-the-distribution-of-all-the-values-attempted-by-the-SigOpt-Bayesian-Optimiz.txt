@@ -1,0 +1,23 @@
+# View the distribution of all the values attempted by the SigOpt Bayesian Optimizer for each parameter in the trading model
+
+Topic: 02_Strategy_Development
+Confidence: 1.00
+Keywords: ev, overfitting, strategy, out-of-sample
+
+---
+
+## View the distribution of all the values attempted by the SigOpt Bayesian Optimizer for each parameter in the trading model 
+
+### Diagonal: Visualize the distribution of each parameter attempted by the SigOpt optimizer
+### Scatterplots: Each individual parameter attempted vs. each of the others
+
+# (Above) Again, as before, seeing how poorly the strategy performs out-of-sample illustrates how important it is to perform additional analysis after using parameter optimization to discover a global maximum
+
+One way to combat this overfitting is to use performance on a cross-validated or holdout dataset as the metric being optimized. This forces the algorithm to be robust to never-before-seen data and allows the optimizer to find potentially better overall results. For an example of using SigOpt to tune on a cross-validated dataset, with results on a holdout dataset check out [this blog post](http://blog.sigopt.com/post/136340340198/sigopt-for-ml-using-model-tuning-to-beat-vegas) (with code).
+
+# Let's take a deep dive into what we found
+
+### How fast did we find our best result?
+#### SigOpt typically discovers a higher global maximum nearly 10x faster than a tuned grid-search
+
+In practice SigOpt is able to find a good optima in a linear number of evaluations with respect to the number of parameters being tuned (usually between 10 and 20 times the dimensionality of the parameter space). Grid search, even an expertly tuned grid search, grows exponentially with the number of parameters. As the model being tuned becomes more complex it can quickly become completely intractable to tune a model using these traditional methods.

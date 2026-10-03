@@ -1,0 +1,18 @@
+# drawdown_management
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+Drawdown Analysis and Management
+============================================================
+
+Source: Educational Platform YouTube Channel
+Category: Risk Management
+
+This module implements quantitative finance concepts discussed in the Educational Platform video lectures.
+
+Concepts:
+Drawdowns are the ultimate investor nightmare. Effective drawdown management can reduce pain by nearly 60%.

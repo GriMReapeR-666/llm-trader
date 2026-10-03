@@ -1,0 +1,35 @@
+# answer key ##
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## answer key ##
+confidence_level = 0.05
+
+score, pvalue, _ = coint(fcau, hmc)
+
+if pvalue < confidence_level:
+    print ("FCAU and HMC are cointegrated")
+    print pvalue
+else:
+    print ("FCAU and HMC are not cointegrated")
+    print pvalue
+
+fcau.name = "FCAU"
+hmc.name = "HMC"
+pd.concat([fcau, hmc], axis=1).plot();
+```
+*Cell 11:*
+```python
+symbol_list = ['MTRN', 'CMP', 'TRQ', 'SCCO', 'HCLP','SPY']
+prices_df = get_pricing(symbol_list, fields=['price']
+                               , start_date='2015-01-01', end_date='2016-01-01')['price']
+prices_df.columns = map(lambda x: x.symbol, prices_df.columns)
+
+#Your code goes here
+```
+*Cell 12:*
+```python

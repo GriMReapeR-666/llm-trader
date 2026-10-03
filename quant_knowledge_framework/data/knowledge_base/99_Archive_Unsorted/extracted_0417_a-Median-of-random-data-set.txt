@@ -1,0 +1,10 @@
+# a. Median of random data set
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Median of random data set
+Find the median of the randomly generated data set `l`.

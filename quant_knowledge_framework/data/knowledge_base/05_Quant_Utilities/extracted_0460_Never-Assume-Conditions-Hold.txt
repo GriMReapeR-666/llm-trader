@@ -1,0 +1,116 @@
+# Never Assume Conditions Hold
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python
+
+---
+
+## Never Assume Conditions Hold
+
+Again, whenever using plots to visualize data, do not assume you can test a hypothesis by looking at a graph. Also do not assume that because a distribution or trend used to be true, it is still true. In general much more sophisticated and careful validation is required to test whether models hold. Plots are mainly useful when initially deciding how your models should work.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Import our libraries
+
+# This is for numerical processing
+import numpy as np
+# This is the library most commonly used for plotting in Python.
+# Notice how we import it 'as' plt, this enables us to type plt
+# rather than the full string every time.
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+start = '2014-01-01'
+end = '2015-01-01'
+data = get_pricing(['AAPL', 'MSFT'], fields='price', start_date=start, end_date=end)
+data.head()
+```
+*Cell 3:*
+```python
+data.columns = [e.symbol for e in data.columns]
+data.head()
+```
+*Cell 4:*
+```python
+data['MSFT'].head()
+```
+*Cell 5:*
+```python
+# Plot a histogram using 20 bins
+plt.hist(data['MSFT'], bins=20)
+plt.xlabel('Price')
+plt.ylabel('Number of Days Observed')
+plt.title('Frequency Distribution of MSFT Prices, 2014');
+```
+*Cell 6:*
+```python
+# Remove the first element because percent change from nothing to something is NaN
+R = data['MSFT'].pct_change()[1:]
+
+# Plot a histogram using 20 bins
+plt.hist(R, bins=20)
+plt.xlabel('Return')
+plt.ylabel('Number of Days Observed')
+plt.title('Frequency Distribution of MSFT Returns, 2014');
+```
+*Cell 7:*
+```python
+# Remove the first element because percent change from nothing to something is NaN
+R = data['MSFT'].pct_change()[1:]
+
+# Plot a histogram using 20 bins
+plt.hist(R, bins=20, cumulative=True)
+plt.xlabel('Return')
+plt.ylabel('Number of Days Observed')
+plt.title('Cumulative Distribution of MSFT Returns, 2014');
+```
+*Cell 8:*
+```python
+plt.scatter(data['MSFT'], data['AAPL'])
+plt.xlabel('MSFT')
+plt.ylabel('AAPL')
+plt.title('Daily Prices in 2014');
+```
+*Cell 9:*
+```python
+R_msft = data['MSFT'].pct_change()[1:]
+R_aapl = data['AAPL'].pct_change()[1:]
+
+plt.scatter(R_msft, R_aapl)
+plt.xlabel('MSFT')
+plt.ylabel('AAPL')
+plt.title('Daily Returns in 2014');
+```
+*Cell 10:*
+```python
+plt.plot(data['MSFT'])
+plt.plot(data['AAPL'])
+plt.ylabel('Price')
+plt.legend(['MSFT', 'AAPL']);
+```
+*Cell 11:*
+```python
+# Remove the first element because percent change from nothing to something is NaN
+R = data['MSFT'].pct_change()[1:]
+
+plt.plot(R)
+plt.ylabel('Return')
+plt.title('MSFT Returns');
+```
+
+##### Exercises: Plotting
+- **Original Path**: `notebooks\lectures\Plotting_Data\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 30 (Code: 12, Markdown: 18)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np
+
+**Explanatory Notes:**
+# Exercises: Plotting
+By Christopher van Hoecke, Max Margenot, and Delaney Mackenzie

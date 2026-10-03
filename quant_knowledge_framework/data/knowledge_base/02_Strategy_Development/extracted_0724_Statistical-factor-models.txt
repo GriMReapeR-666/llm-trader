@@ -1,0 +1,135 @@
+# Statistical factor models
+
+Topic: 02_Strategy_Development
+Confidence: 0.40
+Keywords: ev, expected value
+
+---
+
+## Statistical factor models
+
+Recall that a factor model expresses the returns as
+
+$$R_i = a_i + b_{i1} F_1 + b_{i2} F_2 + \ldots + b_{iK} F_K + \epsilon_i$$
+
+where the $F_j$ are some systemic factors, the $b_{ij}$ are the sensitivities of $R_i$ to those factors, and $\epsilon_i$ represents the asset-specific risk. We can use PCA to compute the factors that best describe returns without specifying what the factors represent. These factors will be portfolios of the assets we are considering. After we pick the portfolios we want to use as factors and compute their returns, we can estimate the loadings with linear regression.
+
+Below, we go back to our PCA which found components to explain 90% of the variance in a large dataset, and use those components as factors to model one of the assets.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+```
+*Cell 2:*
+```python
+# Import the data we want to model
+start = '2014-01-01'
+end = '2015-01-01'
+r1 = get_pricing('MSFT', fields='price', start_date=start, end_date=end).pct_change()[1:]
+r2 = get_pricing('SPY', fields='price', start_date=start, end_date=end).pct_change()[1:]
+```
+*Cell 3:*
+```python
+# Run the PCA
+pca = PCA() # Create an estimator object
+pca.fit(np.vstack((r1,r2)).T)
+components = pca.components_
+evr = pca.explained_variance_ratio_
+print 'PCA components:\n', components
+print 'Fraction of variance explained by each component:', evr
+```
+*Cell 4:*
+```python
+# Plot the data
+plt.scatter(r1,r2,alpha=0.5)
+
+# Plot the component vectors returned by PCA
+xs = np.linspace(r1.min(), r1.max(), 100)
+plt.plot(xs*components[0,0]*evr[0], xs*components[0,1]*evr[0], 'r')
+plt.plot(xs*components[1,0]*evr[1], xs*components[1,1]*evr[1], 'g')
+
+# Set 1:1 aspect ratio
+plt.axes().set_aspect('equal', 'datalim')
+```
+*Cell 5:*
+```python
+# Import a larger-dimension dataset
+assets = ['SPY', 'XLE', 'XLY', 'XLP', 'XLI', 'XLU', 'XLK', 'XBI', 'XLB', 'XLF', 'GLD']
+returns = get_pricing(assets, fields='price', start_date=start, end_date=end).pct_change()[1:]
+print 'Dimension of data:', len(assets)
+
+# Get principal components until 90% of variance is explained
+pca_pv = PCA(0.9)
+pca_pv.fit(returns)
+components_pv = pca_pv.components_
+evr_pv = pca_pv.explained_variance_ratio_
+print '\nFraction of variance explained by each component up to 0.9 total:', evr_pv
+
+# Get principal components, number of components determined by MLE
+pca_mle = PCA('mle')
+pca_mle.fit(returns)
+evr_mle = pca_mle.explained_variance_ratio_
+print '\nNumber of principal components using MLE:', len(evr_mle)
+print 'Fraction of variance explained by each component using MLE:', evr_mle
+```
+*Cell 6:*
+```python
+r1_s = r1/r1.std()
+r2_s = r2/r2.std()
+
+pca.fit(np.vstack((r1_s,r2_s)).T)
+components_s = pca.components_
+evr_s = pca.explained_variance_ratio_
+print 'PCA components:\n', components_s
+print 'Fraction of variance explained by each component:', evr_s
+
+# Plot the data
+plt.scatter(r1_s,r2_s,alpha=0.5)
+
+# Plot the component vectors returned by PCA
+xs = np.linspace(r1_s.min(), r1_s.max(), 100)
+plt.plot(xs*components_s[0,0]*evr_s[0], xs*components_s[0,1]*evr_s[0], 'r')
+plt.plot(xs*components_s[1,0]*evr_s[1], xs*components_s[1,1]*evr_s[1], 'g')
+
+# Set 1:1 aspect ratio
+plt.axes().set_aspect('equal', 'datalim')
+```
+*Cell 7:*
+```python
+import statsmodels.api as sm
+from statsmodels import regression
+
+# Compute returns on factor i, which are returns on portfolio with weights components_pv[i], for all i
+factor_returns = np.array([(components_pv[i]*returns).T.sum()
+                           for i in range(len(components_pv))])
+
+# Regress first asset against the factors
+mlr = regression.linear_model.OLS(returns.T.iloc[0], sm.add_constant(factor_returns.T)).fit()
+print 'Regression coefficients for %s\n' % assets[0], mlr.params
+```
+
+##### Probability
+- **Original Path**: `drafts\Probability, expected value, and variance.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 10 (Code: 5, Markdown: 5)
+- **Imports/Dependencies**: import numpy as np
+
+**Explanatory Notes:**
+# Probability
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+The <i>probability</i> of an event answers the question, how likely is it that this event will occur? It is a number between 0 and 1, with 0 meaning "this event is impossible," and 1 meaning "this event will certainly occur." The probability of a fair coin landing heads up is 1/2, while the probability of it landing heads or tails is 1 (since every time we flip it, it must be heads or tails). We can write this as $P(H) = 1/2$ and $P(H\text{ or }T) = 1$. If we pick a ball randomly from a bag that has 15 white and 30 red balls, then the probability of drawing a red ball is 2/3.
+
+In general, we have $P(A\text{ or }B) = P(A) + P(B) - P(A\text{ and } B)$. Two events are <i>mutually exclusive</i> if they cannot both occur at the same time, so $P(A\text{ and }B) = 0$. In that case, the probability of one of the two happening is just the sum of their individual probabilities: $P(A\text{ or }B) = P(A) + P(B)$. For instance, a die cannot land both 1 up and 5 up, so $P(1\text{ or }5) = P(1) + P(5) = 1/3$. A set of events is <i>exhaustive</i> if one of them must occur. The sum of their probabilities is at least 1, e.g. $P(H) + P(H \text{ or } T) = 1.5$. The sum of the probabilities of a set of mutually exclusive and exhaustive events is 1. In particular, $E$ and not $E$ are mutally exclusive and exhaustive, in which case this rule says that an event must either happen or not happen: $P(E) + P(\text{not }E) = 1$.
+
+Often we have a random variable - that is, a process which has an uncertain outcome, such as a coin flip or the returns on a stock - which we do not know the true probabilities for. In that case, we can estimate the probability of an event based on historical data. If a coin has come up heads 21 out of 30 times, our best guess for the probability of this particular coin coming up heads is 7/10. This is called the <i>empirical probability</i> of the event.
+
+We can state the probability of an event in terms of <i>odds</i>. The odds of an event $E$ happening are $P(E) \big/ (1 - P(E))$. If the odds of team A beating team B are 2 to 5, then the probability that team A wins is 2/7, while the probability that team B wins is 5/7.

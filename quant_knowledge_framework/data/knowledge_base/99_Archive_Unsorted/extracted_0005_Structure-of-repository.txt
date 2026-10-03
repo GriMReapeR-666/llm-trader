@@ -1,0 +1,25 @@
+# **Structure of repository**
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Structure of repository**
+
+| Directory | Challenge Name | Level Of Difficulty |
+|:----:|:----:|:----:|
+|Lab 0 | [Never Too Late Mister](./Lab%200) | Sample challenge |
+|Lab 1 | [Beginner's Luck](./Lab%201) | Easy |
+|Lab 2 | [A New World](./Lab%202) | Easy |
+|Lab 3 | [The Evil's Den](./Lab%203) | Easy - Medium |
+|Lab 4 | [Obsession](./Lab%204) | Medium |
+|Lab 5 | [Black Tuesday](./Lab%205) | Medium - Hard |
+|Lab 6 | [The Reckoning](./Lab%206) | Hard |
+
+To aid first-timers to understand how to approach CTF challenges & usage of volatility, please refer [Lab 0](https://github.com/stuxnet999/MemLabs/tree/master/Lab%200) which comes with a elaborate walkthrough & I hope it will be a great way to start MemLabs!
+
+All the memory dumps are that of a Windows system.
+
+> **Note**: The level of difficulty specified may not be fully accurate as it depends on the individual. I've tried my best to categorize them after receiving feedback from beginners to the field.

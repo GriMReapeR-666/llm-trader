@@ -1,0 +1,15 @@
+# a. Columns
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Columns
+- Check the data type of one of the DataFrame's columns.
+- Print the values associated with time range `2013-01-01` to `2013-01-10`.
+
+----
+
+# Exercise 7 : Boolean Indexing

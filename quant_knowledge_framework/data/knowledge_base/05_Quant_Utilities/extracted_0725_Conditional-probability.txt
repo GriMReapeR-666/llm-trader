@@ -1,0 +1,857 @@
+# Conditional probability
+
+Topic: 05_Quant_Utilities
+Confidence: 0.57
+Keywords: pandas, cointegration, survivorship bias, python, standardize, numpy, z-score
+
+---
+
+## Conditional probability
+
+Conditional probability refers to probability that takes some extra information about the state of the world into account. For instance, we can ask, "what is the probability that I have the flu, given that I am sneezing?" or, "what is the probability that this stock will have a return above the risk-free rate, given that it has positive return?" In both cases, the extra information changes the probability. We write the probability of $A$ given $B$ as $P(A|B)$. When looking at conditional probability, we are only considering situations where $B$ occurs, and we don't care about the situations where it does not. To compute conditional probability, we use the equation
+
+$$ P(A|B) = P(A\text{ and } B) \big/ P(B) $$
+
+This can be written as $P(A|B)P(B) = P(A\text{ and } B)$, that is, the probability that $A$ and $B$ both occur is the probability that $B$ occurs, times the probability that $A$ occurs given that $B$ occurs. So the probability that I am sneezing and I have the flu is the probability that I am sneezing, times the probability that I also have the flu. Notice that the equation above is symmetric, so we can also say $P(A\text{ and } B) = P(B|A)P(A)$. Often we may know $P(B|A)$ but not $P(A|B)$, so a useful restatement of the equation for conditional probability is
+$$ P(A|B) = \frac{P(B|A)P(A)}{P(B)} $$
+
+If we compute conditional probability empirically, we can use simple counting instead of formulas. Just look at the set of data points for which $B$ is true, and compute the fraction of them that have $A$ true as well. For instance, we can ask, "what is the probability that a stock will be in the top decile of returns this month, given that it was in the top decile last month?" To compute this, we count the number of stocks that were in the top decile both months, and divide it by the number of stocks in the top decile last month.
+
+Two events are <i>independent</i> if they do not influence each other, so that $P(B|A) = P(B)$ and $P(A|B) = P(A)$ (note that if one of these equations is true, the other is also true). For example, the probability that a coin comes up heads is independent from the probability of it raining next week: if the coin comes up heads, it doesn't change our belief about the probability of rain, and vice versa. Two successive coin flips are independent if we know the probability of this coin landing heads (e.g. if we know that it is a fair coin). For independent events, the probability of them both occuring is simply $P(A\text{ and } B) = P(A)P(B)$.
+
+Conditional probabilitites satisfy the <i>total probability rule</i>, which states that if $S_1, S_2, \ldots, S_n$ are mutually exclusive and exhaustive events, then
+$$ P(A) = P(A|S_1)P(S_1) + P(A|S_2)P(S_2) + \ldots + P(A|S_n)P(S_n) $$
+
+As an example, imagine that a certain test for disease X comes up positive for 99% of subjects with the disease, and for 5% of healthy subjects. Statistically, 1% of the population have the disease. Say $B$ is the test coming up positive, and $A$ is having the disease. Then $P(B|A) = .99$ and $P(A) = .01$. To compute $P(B)$, we can use the total probability rule, and we get that $P(B) = .99 \cdot .06$. Then the probability that you have the disease, given that your test comes up positive, is $P(A|B) = 16.7\%$.
+
+# Expected value
+
+The <i>expected value</i> $E(X)$ estimates the result of a random variable $X$ that has numerical outcomes. It is a weighted average of the outcomes:
+$$ E(X) = \sum_{i=1}^n P(X_i) X_i $$
+where $X_1, X_2, \ldots, X_n$ are the possible outcomes of $X$. This is the mean value of the random variable $X$.
+
+To understand why this formula makes sense, say that we are playing a game where we flip a coin and I pay you \$2 if it comes up heads, while you pay me \$1 if the coin comes up tails. If the coin is fair, there is a 50% chance you will gain \$2 and a 50% chance you will lose \$1. Intuitively this game seems to be in your favor. If we calculate the expected value precisely, you expect to earn \$0.50 from one round of this game. However, if the coin is biased so that the odds of coming up heads are 1:2, then your advantage disappears and you expect to break even: $P(X_1)X_1 + P(X_2)X_2 = 1/3 \cdot 2 - 2/3 \cdot 1 = 0$. Run the simulations below a few times. The average money per game should be close to what we calculated.
+
+Notice that in the first situation we were equally likely to win, while in the second I was more likely to win. But since the amount of money we win matters, we need to compute the expected value to determine whether a game is advantageous. Similarly, when playing the lottery, it is important to take into account both how likely you are to win and how much money you would receive if you did.
+
+Expected value can be estimated empirically from historical data, as we did with the coin simulation. In this case it is clear that the expected value is the same as the mean, because we simply average the historical values.
+
+We can formulate a definition of conditional expected value as follows:
+$$ E(X|S) = \sum_{i=1}^n P(X_i|S) X_i $$
+That is, we assume that $S$ happens, and compute the expected value of $X$ under those circumstances. A version of the total probability rule for conditional probability applies here:
+$$ E(X) = E(X|S_1)P(S_1) + P(X|S_2)P(S_2) + \ldots + P(X|S_n)P(S_n) $$
+where $S_1, S_2, \ldots, S_n$ are mutually exclusive and exhaustive events.
+
+# Variance
+
+The expected value tells us a single number that we can use to represent our random variable, which is the average value. It's important to also measure risk, or how close to the expected value we're actually likely to get. For this we use use <i>variance</i>, which can quantify the difference between, say, playing the game above with a fair coin, and simply being handed \$0.50. The variance of a random variable is defined as
+
+$$ Var(X) = E\left([X - E(X)]^2 \right) $$
+
+It is also sometimes written as $\sigma^2(X)$, and $\sigma$ (the positive square root of the variance) is called the <i>standard deviation</i>. This is often more useful because it is in the same units as the original data, so it is directly comprable.
+
+Continuing with the coin game example, let's expand the definition of variance:
+$$ Var(X) = \sum_{i=1}^n P(X_i) [X_i - E(X)]^2 $$
+Plugging in the probabilities and values of the outcomes, we get that the variance of your profit in the fair-coin game is $\frac{1}{2} (2 - .5)^2 + \frac{1}{2} (-1 - .5)^2 = 2.25$, and the standard deviation is 1.5. So, although you expect to get a slight profit, you shouldn't be very confident in this expectation if we are only playing the game once (if we play many times, then on average you will get 50 cents per game). Meanwhile the standard deviation of me handing you \$0.50 is 0. In the weighted-coin game, the standard deviation is $\approx 1.4$.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# We'll need numpy's random number generator
+import numpy as np
+
+# Initialize counters for number of people of each type
+sick_and_pos = 0
+sick_and_neg = 0
+healthy_and_pos = 0
+healthy_and_neg = 0
+```
+*Cell 2:*
+```python
+# Simulate 2000 patients
+for i in range(2000):
+    sick = (np.random.rand() < 0.01)
+    if sick:
+        test = (np.random.rand() < 0.99)
+        if test:
+            sick_and_pos += 1
+        else:
+            sick_and_neg += 1
+    else:
+        test = (np.random.rand() < 0.05)
+        if test:
+            healthy_and_pos += 1
+        else:
+            healthy_and_neg += 1
+
+print 'Empirical P(A|B):', float(sick_and_pos)/(sick_and_pos + healthy_and_pos)
+```
+*Cell 3:*
+```python
+# Initialize counters for # games played and amount earned
+fair_games = 0
+fair_money = 0.0
+biased_games = 0
+biased_money = 0.0
+```
+*Cell 4:*
+```python
+# Play 300 fair games
+for i in range(300):
+    flip = (np.random.rand() < 0.5) # Simulating 50% probability of heads
+    fair_games += 1
+    if flip:
+        fair_money += 2
+    else:
+        fair_money -= 1
+    
+print 'Fair games played:', fair_games, 'Money:', fair_money, '$/games:', fair_money/fair_games
+```
+*Cell 5:*
+```python
+# Play 300 biased games (with the biased coin)
+for i in range(300):
+    flip = (np.random.rand() < 0.333333) # Simulating 1/3 probability of heads
+    biased_games += 1
+    if flip:
+        biased_money += 2
+    else:
+        biased_money -= 1
+    
+print 'Biased games played:', biased_games, 'Money:', biased_money, '$/games:', biased_money/biased_games
+```
+
+##### Quantiles
+- **Original Path**: `drafts\Quantiles.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 3 (Code: 1, Markdown: 2)
+- **Imports/Dependencies**: import numpy as np
+
+**Explanatory Notes:**
+# Quantiles
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+Quantiles are values defined similarly to the median. Two common kinds are quartiles, which divide the data set into fourths, and percentiles, which divide it into hundredths. The median can also be called the second quartile or the 50th percentile. In general, the $y$th percentile is the value such that $y$ percent of the observations are less than it, and the $n$th quartile is the value such that $n$ fourths of the observations are less than it.
+
+As with the median, there is not always a value that divides the data set perfectly, especially for small data sets. To find the position of the $y$th percentile in a list  of observations $X_1, X_2, \ldots, X_n$ sorted in increasing order is
+$$ L_y = (n + 1) \frac{y}{100} $$
+where $n$ is the length of our list of observations. If this gives a fractional position, we interpolate between the positions before and after. For instance, if $L_y = 7.85$, the $y$th percentile would be $.85$ of the way along from $X_7$ to $X_8$, which evaluates to $X_7 + .85(X_8 - X_7)$.
+
+Quantiles are often used to report rankings or to refer to groups by their performance. For instance, if you are examining companies of different sizes, you can take the 95th percentile of companies by market value of equity as your sample of large companies.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+
+# Generate 21 random integers and sort them
+X = np.random.randint(100, size=21)
+X.sort()
+print X
+
+print '50th percentile:', np.percentile(X, 50)
+print '95th percentile:', np.percentile(X, 95)
+print '11th percentile:', np.percentile(X, 11)
+```
+
+##### Unit roots
+- **Original Path**: `drafts\Regressions with more than one time series.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 8 (Code: 3, Markdown: 5)
+- **Imports/Dependencies**: from statsmodels.tsa.stattools import coint, adfuller, import pandas as pd
+
+**Explanatory Notes:**
+# Unit roots
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+A time series is said to have a unit root if it is described by the equation $y_t = b_0 + y_{t-1} + \epsilon_t$, where $\epsilon_t$ is an error term with mean 0. Such a time series is not covariance stationary, i.e. its covariance changes through time. For example, a random walk has a unit root, and its covariance grows over time.
+
+The Dickey-Fuller test (available in `statsmodels`) tests for the presense of a unit root in a series.
+
+Since $p > 0.05$, we cannot reject the hypothesis that the series has a unit root in any of these cases.
+
+# Regression when a time series has a unit root
+
+When we use multiple time series in a regression model (whether as dependent or as independent variables), we must test for the presence of unit roots.
+
+If none of the series involved have unit roots, we can proceed as usual, and our regression analysis will be valid.
+
+If some of the series have unit roots and some do not, the error term in the regression will not be covariance stationary, causing a violation of at least one of the following regression assumptions: that the expected value of the error term is 0, that the error term is homoskedastic, or that the error term is not autocorrelated. Then the regression coefficients and standard errors will be inconsistent, and may falsely appear to be significant. We should not use linear regression in this case.
+
+If all series have unit roots, we need to check for cointegration - that is, whether the error term in the regression is stationary. We'll discuss cointegration below, but for now let's go over the implications. If the time series are not cointegrated, we have the same problems as before with nonstationary error terms. If they are cointegrated, however, the regression coefficients and standard errors will be consistent, and we can use ordinary least-squares regression. However, there also exist finer models for cointegrated time series.
+
+# Cointegration
+
+Two or more time series are cointegrated if the error term in the regression is stationary. Intuitively, this means that they do not diverge arbitrarily. In practice, this often means that there is a relationship between the series that causes them to move in tandem. We can test for cointegration by checking if the error term has a unit root, or just use the test implemented in `statsmodels`.
+
+From the statistics, we can see that MCD and KO are cointegrated, while the other two pairs are not. Therefore, it would be valid to run a linear regression on MCD and KO only. This supports our claim that cointegrated series have an underlying economic relationship, since many of the same factors affect McDonald's and The Coca-Cola Company revenues, but not Microsoft's.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+from statsmodels.tsa.stattools import coint, adfuller
+import pandas as pd
+
+fundamentals = init_fundamentals()
+data = get_fundamentals(query(fundamentals.income_statement.total_revenue)
+                        .filter((fundamentals.company_reference.primary_symbol == 'MCD') |
+                                (fundamentals.company_reference.primary_symbol == 'MSFT') |
+                                (fundamentals.company_reference.primary_symbol == 'KO')),
+                        '2015-01-01', '30q')
+
+# Get time series for each security individually
+x0 = data.values[0].T[1]
+x1 = data.values[0].T[2]
+x2 = data.values[0].T[0]
+```
+*Cell 2:*
+```python
+print 'p-values of Dickey-Fuller statistic on total revenue data:'
+print 'PEP:', adfuller(x0)[1]
+print 'KO:', adfuller(x1)[1]
+print 'MSFT:', adfuller(x2)[1]
+```
+*Cell 3:*
+```python
+# Compute the p-value for the cointegration of the two series
+print 'p-values of cointegration statistic on total revenue data:'
+print 'MCD and MSFT:', coint(x0, x1)[1]
+print 'MCD and KO:', coint(x0, x2)[1]
+print 'MSFT and KO:', coint(x1, x2)[1]
+```
+
+##### Relative Value Factor Notebook
+- **Original Path**: `drafts\Relative Value Factor Notebook.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 34 (Code: 11, Markdown: 23)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.classifiers.morningstar import Sector, from educational_platform.pipeline.data import morningstar, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import CustomFactor, from educational_platform.research import run_pipeline, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+#Relative Value Factor Algorithm
+
+By Gil Wassermann
+
+Strategy taken from "130/30: The New Long-Only" by Andrew Lo and Pankaj Patel
+
+Part of the Educational Platform Lecture Series:
+* www.educational_platform.com/lectures
+* github.com/educational_platform/research_public
+
+Notebook released under the Creative Commons Attribution 4.0 License. Please do not remove this attribution.
+
+In the last notebook, we looked at traditional value factors that evaluated whether or not a stock could be considered cheap. However, many of the metrics in this last algorithm ignore subtleties that exist between industry groups. In this notebook, we will refine and add to these factors in order to devise metrics that are industry-relative. For this algorithm we will make use of Pipeline's classifiers and zscore method, which are described in detail here (https://www.educational_platform.com/posts/pipeline-classifiers-are-here).
+
+First, let us import all necessary libraries and functions for this algorithm. These are similar to those in the Traditional Value Factor Algorithm, with the notable inclusion of Sector, a classifier.
+
+#Relative Value
+
+The metrics used to create this strategy are given by Lo/Patel as:
+
+* Industry-Relative Price to Trailing 12-Month Sales
+* Industry-Relative Price to Trailing 12-Month Earnings
+* Industry-Relative Price to Trailing 12-Month Cash Flows
+
+While many of these metrics may seem similar to those of the last notebook, the key addition is the fact that they are taken in the context of their own industry. In this notebook, we will see how this industry-relative approach captures certain nuances that more general factors miss.
+
+##Industry-Relative Price to TTM Sales
+
+This is calculated as a simple ratio between price per share and trailing 12-month (TTM) sales. This data will eventually be standardized over industry groups. The standardization procedure is explained later in the notebook.
+
+Let us create a factor for this metric and have a look at the data. For an introduction to Pipeline Factors, have a look at (https://www.educational_platform.com/posts/educational_platform-lecture-series-long-slash-short-traditional-value-case-study)
+
+NB: Like the previous notebook, we are using Morningstar's built-in Price to Sales Ratio as an approximation of Price to TTM Sales for speed of computation.
+
+Before performing analysis on this data, let us look at the Sector column. This is an example of a Pipeline Classifier. Whereas a CustomFactor outputs numerical information, a Classifier ouputs categorical information. For example, Sector can take on one of a certain number of discrete integers (11 as of writing), each of which corresesponds to the industry of the company that has issued the equity. These are listed fully in https://www.educational_platform.com/help. 
+
+As an example, let us examine the differences between two industries: Retail (here, given by code 102) and Technology (311). Retail companies tend to have small profit margins, whereas tech companies tend to have large profit margins. You make a much larger mark-up on a microchip than an paperclip. This is reflected in the Price to Sales Ratio. Tech sales dollars are valued more, as they generate more profit for the company. Therefore, investors are willing to pay a higher price for those sales. This increases the numerator of the Price to Sales equation, making the ratio larger for companies with big profit margins.  
+
+NB: We look at the quartiles of Price to Sales Ratios in order to limit the effect of outliers. Certain companies may employ peculiar strategies that lead to extreme values that could distort metrics like the mean or standard deviation.
+
+Indeed, the median Price to Rales Ratio for tech companies is almost double that of retail companies, which agrees with our narrative explanation. From this data, it is clear that comparisons of Price to Sales Ratios are only really valid when they are conducted within a single industry. This is because a good Price to Sales Ratio for one industry might be terrible for another. 
+
+##Industry-Relative Price to TTM Earnings
+
+This is calculated as a simple ratio between price per share and TTM earnings per share standardized over industry groups.
+
+At first glance this might look like a better metric than the Price to Sales Ratio as earnings take both revenue and cost into account. However, Price to Earnings Ratios can also be misleading as the accounting conventions used to calculate it are quite vague.
+
+Although it is possible for two companies in the same industry to have completely different approaches to calculating their earnings, companies in the same sector are more likely to use similar methodologies to eachother in order to maintain comparability. Intra-industry calculations are by no means identical, however they are more likely to be similar than inter-industry comparisons.
+
+Let us load up the data for this factor and plot the box and whisker plots for each sector. Box and whisker plots (known as boxplots in most Python libraries) are a quick and easy way to have a look at the distribution of data points. The "whiskers" represent the high and low values while the "box" designates the 25th and 75th percentiles (interquartile range). The 50th percentile (median) is represented by a notch within the "box". Once again, we will use the Morningstar built-in fundamental as an approximation to the TTM transformation. 
+
+From this graph it is easy to see that the makeup of Price to Earnings Ratios for different sectors differs substantially. Therefore, an industry-relative metric will be a more discerning value than a universe-wide one.
+
+##Industry-Relative Price to TTM Cash Flows
+
+This is calculated as a simple ratio between price per share and TTM free cash flows per share standardized over industry groups.
+
+Unlike earnings, a company's cash flows are a very definite metric and is not subject to accounting irregularities. However, this, too, can benefit from an industry-relative approach as different industries have different regular cash flows.
+
+We will apply the same methodology as the previous factor in order to examine the data.
+
+The box and whisker diagram here shows that, much like the Price to Sales Ratio, a good Price to Cash Flows Ratio differs from industry to industry. Therefore, this, too, will benefit from an industry-relative calculation.
+
+One thing to note is that cashflows and earnings are not related. For example, consider Sector 104, which represents Real Estate companies. Here, the spread of earnings for these companies is very wide, perhaps due to the high volatility of the industry: the real estate companies that do well do very well indeed, while those that do not perform do poorly. However, the spread is much tigher on the Price to Cash Flows Ratio, caused by steady and predictable cash flows (the amount of money needed to complete a building project is often known, or at least carefully estimated, beforehand).
+
+##Standardization
+
+We have seen, now, that comparisons across industries are innacurate at best and misleading at worst. We, therefore, need a different approach in order to rank the entire universe of equities. To do this, we will standardize each equity's ratios within its sector. 
+
+To standardize a dataset, you need to
+
+1. calculate the mean and standard deviation of that dataset
+2. for each value in the dataset, subtract the mean and divide it by the standard deviation
+
+Standardization is a very common transformation in statistics. The value it gives (the z-score) can be interpreted as the number of standard deviations a measurement is from the mean of its dataset. The good news is that z-scores from different datasets can be compared to eachother as they have the same unit of measurement. Lets have a look at the histograms of the Price to Sales Ratios in the retail and tech industries in order to examine this metric further.
+
+As can be seen above, standardization allows comparison between two datasets. While the companies in the technology sector have larger and more spread out Price to Sales Ratios than those in the retail sector, standardization allows an analyst to compare the relative extremity of values between datasets. Now we *can* compare values across setors
+
+NB: Standardization is technically only effective if the underlying values are normally distributed. However, observation of the graphs suggests that the distribution of Price to Sales Ratios is perhaps exponential or lognormal (on account of the 0 lower bound and the strong positive skew). Therefore, this cross industry comparison can only be seen as an approximation.
+
+##Full Pipeline
+
+To standardize our full Pipeline, we need to calculate the mean and standard deviation of each ratio in each industry. Then for each valuation ratio of each equity, we will need to subtract its industry's mean and divide by its industry's standard deviation. This sounds like it would need a very computationally involved bit of code. However, Pipeline's built-in zscore() method gives this potentially problematic code a one-line solution. For a full explanation of the zscore function see https://www.educational_platform.com/posts/pipeline-classifiers-are-here.
+
+As with the previous notebook, we will also make a factor to create a proxy S&P500 for the ranking logic.
+
+Let us run the full Pipeline.
+
+Now, we will use the same metric to combine these values as in the last notebook. The one large difference between these methodologies is the ranking of the final scores. For each of the ratios here, a low value is considered to be an attractive investment. Therefore we rank the values in ascending order so that the "best" stocks are still at the head of the data series and the "worst" are in the tail. This ranking occurs in the composite_score function.
+
+NB: In the algorithm, standard_frame_compute and composite_score have been conflated into one function called aggregate_data.
+
+##Stock Choice
+
+Before blindly picking stocks based solely on the algorithm's output, it is always good practice to have a look at the histogram of the ranked scores.
+
+Although it is clear that the long and short baskets are removed from the larger concentration of equities, it is also clear that the histogram is positively skewed, leaving a long tail to the right and a short tail to the left. However, closer inspection reveals a more worrying problem than just excess skewness.
+
+Let us have a look at the sector makeup of our long basket. To do this, we will create a new Pipeline to extract the sector codes of the universe.
+
+Each of these securities has sector code 205 and therefore is involved in the Consumer Defensive sector (a subset of the retail space). Therefore, even though we tried to fight this through industry-relative metrics, it seems that the immense skew of these values has made them ineffectual. 
+
+This means we need to go back to the drawing board. Where did we start? We wanted to trade based on values that were attractive in their own industry. To achieve this goal, given the fact that a single ranking system has not worked, we will need to effectively create baskets for each industry and then take out a 130/30 position in each of them. 
+
+To do this we will first need to declare a dictionary of sector codes and sectors, loop through this dictionary and create long and short baskets for each industry.
+
+Although this is a valid way to create an industry-relative strategy, I would argue that this solution is inelegant. The real issue with this strategy is its skewness. Standardization is more effective the closer the underlying distribution is to being Normal. Here, it is not very effective at all. However, the data *could* be manipulated to be more Normal through transformations such as reciprocals, logs, roots etc. I will leave it to the reader to experiment with these transformations and thereby create a more robust metric.
+
+It is important to realize when a strategy just will not work. Even if the basic idea is sound and the process used to rank the universe and trade the strategy is solid, some algorithms just do not work in practice. You should only be trading strategies that you are confident in, and I would encourage thorough examination of any algorithm from all angles before letting it loose on the market. 
+
+Please see the full algorithm for backtested returns!
+
+*The material on this website is provided for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation or endorsement for any security or strategy, nor does it constitute an offer to provide investment advisory or other services by Educational Platform.*
+
+*In addition, the content of the website neither constitutes investment advice nor offers any opinion with respect to the suitability of any security or any specific investment. Educational Platform makes no guarantees as to accuracy or completeness of the views expressed in the website. The views are subject to change, and may have become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from educational_platform.pipeline.classifiers.morningstar import Sector
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.research import run_pipeline
+from educational_platform.pipeline.data import morningstar
+from educational_platform.pipeline.factors import CustomFactor
+```
+*Cell 2:*
+```python
+# Custom Factor 1 : Price to Trailing 12 Month Sales       
+class Price_to_TTM_Sales(CustomFactor):
+    inputs = [morningstar.valuation_ratios.ps_ratio]
+    window_length = 1
+    
+    def compute(self, today, assets, out, ps):
+        out[:] = ps[-1]
+
+# create pipeline
+temp_pipe_1 = Pipeline()
+
+# add our factor
+temp_pipe_1.add(Price_to_TTM_Sales(), 'Price / TTM Sales')
+
+# add sector classifier
+temp_pipe_1.add(Sector(), 'Sector')
+
+# get data
+temp_res_1 = run_pipeline(temp_pipe_1, '2015-06-06', '2015-06-06')
+
+# show first 15 rows
+temp_res_1.head(15)
+```
+*Cell 3:*
+```python
+# Separate sectors into two data frames
+retail_df = temp_res_1[temp_res_1['Sector'] == 102]['Price / TTM Sales']
+tech_df = temp_res_1[temp_res_1['Sector'] == 311]['Price / TTM Sales']
+
+# get quartiles and print results
+print 'Retail Quartiles: \n' + str(retail_df.quantile([0.25, 0.5, 0.75])) + '\n'
+print 'Tech Quartiles: \n' + str(tech_df.quantile([0.25, 0.5, 0.75]))
+```
+*Cell 4:*
+```python
+# Custom Factor 2 : Price to Trailing 12 Month Earnings
+class Price_to_TTM_Earnings(CustomFactor):
+    inputs = [morningstar.valuation_ratios.pe_ratio]
+    window_length = 1
+    
+    def compute(self, today, assets, out, pe):
+        out[:] = pe[-1]
+        
+temp_pipe_2 = Pipeline() 
+temp_pipe_2.add(Price_to_TTM_Earnings(), 'Price / TTM Earnings')
+temp_pipe_2.add(Sector(), 'Sector')
+temp_res_2 = run_pipeline(temp_pipe_2, '2015-06-06', '2015-06-06')
+
+# clean extreme data points
+earnings_frame = temp_res_2[temp_res_2['Price / TTM Earnings'] < 100]
+
+# create boxplot by sector
+earnings_frame.boxplot(column='Price / TTM Earnings', by='Sector');
+```
+*Cell 5:*
+```python
+# Custom Factor 3 : Price to Trailing 12 Month Cash Flows
+class Price_to_TTM_Cashflows(CustomFactor):
+    inputs = [morningstar.valuation_ratios.pcf_ratio]
+    window_length = 1
+    
+    def compute(self, today, assets, out, pcf):
+        out[:] = pcf[-1] 
+        
+temp_pipe_3 = Pipeline() 
+temp_pipe_3.add(Price_to_TTM_Cashflows(), 'Price / TTM Cashflows')
+temp_pipe_3.add(Sector(), 'Sector')
+temp_res_3 = run_pipeline(temp_pipe_3, '2015-06-06', '2015-06-06')
+
+# clean extreme data points
+cashflows_frame = temp_res_3[temp_res_3['Price / TTM Cashflows'] < 100]
+
+# create boxplot by sector
+cashflows_frame.boxplot(column='Price / TTM Cashflows', by='Sector');
+```
+*Cell 6:*
+```python
+# clean data, necessary as using mean and standard deviation
+retail_df = retail_df[retail_df < 10]
+tech_df = tech_df[tech_df < 10]
+
+# summary stats necessary for calculation
+retail_mean = retail_df.mean()
+retail_std = retail_df.std()
+tech_mean = tech_df.mean()
+tech_std = tech_df.std()
+
+# standardize the data
+retail_standard = (retail_df - retail_mean) / retail_std
+tech_standard = (tech_df - tech_mean) / tech_std
+
+# create a grid of plots
+fig, axes = plt.subplots(nrows=2, ncols=2)
+# name each set of axes
+ax_retail, ax_tech, ax_retail_st, ax_tech_st = axes.flat
+# number of bins for histograms
+bins = 50
+
+# retail
+ax_retail.hist(retail_df, bins=bins)
+ax_retail.axvline(retail_mean, color='blue')
+ax_retail.axvline(retail_mean - retail_std, color='blue')
+ax_retail.axvline(retail_mean + retail_std, color='blue')
+ax_retail.set_xlabel('Price / Sales')
+ax_retail.set_ylabel('Frequency')
+ax_retail.set_title('Retail')
+
+# tech
+ax_tech.hist(tech_df, bins=bins, stacked=True)
+ax_tech.axvline(tech_mean, color='green')
+ax_tech.axvline(tech_mean - tech_std, color='green')
+ax_tech.axvline(tech_mean + tech_std, color='green')
+ax_tech.set_xlabel('Price / Sales')
+ax_tech.set_ylabel('Frequency')
+ax_tech.set_title('Technology')
+
+# retail standardized
+ax_retail_st.hist(retail_standard, bins=bins)
+ax_retail_st.axvline(0, color='blue')
+ax_retail_st.axvline(-1, color='blue')
+ax_retail_st.axvline(1, color='blue')
+ax_retail_st.set_xlabel('Standard Deviations')
+ax_retail_st.set_ylabel('Frequency')
+ax_retail_st.set_title('Retail Standard')
+
+# tech standardized
+ax_tech_st.hist(tech_standard, bins=bins, stacked=True)
+ax_tech_st.axvline(0, color='green')
+ax_tech_st.axvline(-1, color='green')
+ax_tech_st.axvline(1, color='green')
+ax_tech_st.set_xlabel('Standard Deviations')
+ax_tech_st.set_ylabel('Frequency')
+ax_tech_st.set_title('Technology Standard')
+
+# prevent text overlap
+fig.tight_layout()
+```
+*Cell 7:*
+```python
+# This factor creates the synthetic S&P500
+class SPY_proxy(CustomFactor):
+    inputs = [morningstar.valuation.market_cap]
+    window_length = 1
+    
+    def compute(self, today, assets, out, mc):
+        out[:] = mc[-1]
+        
+        
+# this function returns a pipeline that downloads all data necessary for the algo
+def Data_Pull():
+
+    # create the piepline for the data pull
+    Data_Pipe = Pipeline()
+    
+    # create sector partitions
+    sector = Sector()
+    
+    # create SPY proxy
+    Data_Pipe.add(SPY_proxy(), 'SPY Proxy')
+    
+    # Price / TTM Sales grouped by Industry
+    sales_grouped = Price_to_TTM_Sales().zscore(groupby=sector)
+    
+    # Price / TTM Earnings grouped by Industry
+    earnings_grouped = Price_to_TTM_Earnings().zscore(groupby=sector)
+    
+    # Price / TTM Cashflows grouped by Industry
+    cashflows_grouped = Price_to_TTM_Cashflows().zscore(groupby=sector)
+    
+    # add Price / TTM Sales to Pipeline
+    Data_Pipe.add(sales_grouped, 'Price / TTM Sales')
+    
+    # add Price / TTM Earnings to Pipeline
+    Data_Pipe.add(earnings_grouped, 'Price / TTM Earnings')
+    
+    # add Price / TTM Cashflows to Pipeline
+    Data_Pipe.add(cashflows_grouped, 'Price / TTM Cashflows')
+    
+    return Data_Pipe
+
+results = run_pipeline(Data_Pull(), '2015-06-06', '2015-06-06')
+results.head(20)
+```
+*Cell 8:*
+```python
+# limit effect of outliers
+def filter_fn(x):
+    if x <= -10:
+        x = -10.0
+    elif x >= 10:
+        x = 10.0
+    return x   
+
+# standardize using mean and sd of S&P500
+def standard_frame_compute(df):
+    
+    # basic clean of dataset to remove infinite values
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna()
+    
+    # need standardization params from synthetic S&P500
+    df_SPY = df.sort(columns='SPY Proxy', ascending=False)
+
+    # create separate dataframe for SPY
+    # to store standardization values
+    df_SPY = df_SPY.head(500)
+    
+    # get dataframes into numpy array
+    df_SPY = df_SPY.as_matrix()
+    
+    # store index values
+    index = df.index.values
+    df = df.as_matrix()
+    
+    df_standard = np.empty(df.shape[0])
+    
+    
+    for col_SPY, col_full in zip(df_SPY.T, df.T):
+        
+        # summary stats for S&P500
+        mu = np.mean(col_SPY)
+        sigma = np.std(col_SPY)
+        col_standard = np.array(((col_full - mu) / sigma)) 
+
+        # create vectorized function (lambda equivalent)
+        fltr = np.vectorize(filter_fn)
+        col_standard = (fltr(col_standard))
+        
+        # make range between -10 and 10
+        col_standard = (col_standard / df.shape[1])
+        
+        # attach calculated values as new row in df_standard
+        df_standard = np.vstack((df_standard, col_standard))
+     
+    # get rid of first entry (empty scores)
+    df_standard = np.delete(df_standard,0,0)
+    
+    return (df_standard, index)
+
+# Sum up and sort data
+def composite_score(df, index):
+
+    # sum up transformed data
+    df_composite = df.sum(axis=0)
+    
+    # put into a pandas dataframe and connect numbers
+    # to equities via reindexing
+    df_composite = pd.Series(data=df_composite,index=index)
+    
+    # sort ascending - change from previous notebook
+    df_composite.sort(ascending=True)
+
+    return df_composite
+
+# compute the standardized values
+results_standard, index = standard_frame_compute(results)
+
+# aggregate the scores
+ranked_scores = composite_score(results_standard, index)
+ranked_scores
+```
+*Cell 9:*
+```python
+# create the histogram
+ranked_scores.hist(bins=50)
+
+# make scores into list for ease of manipulation
+ranked_scores_list = ranked_scores.tolist()
+
+# add labels to axes
+plt.xlabel('Standardized Scores')
+plt.ylabel('Quantity in Basket')
+
+# show long bucket
+plt.axvline(x=ranked_scores_list[25], linewidth=1, color='r')
+
+# show short bucket
+plt.axvline(x=ranked_scores_list[-6], linewidth=1, color='r');
+```
+*Cell 10:*
+```python
+# create Pipeline for sectors
+sector_pipe = Pipeline()
+sector_pipe.add(Sector(), 'Sector')
+sectors = run_pipeline(sector_pipe, '2015-06-06', '2015-06-06')
+
+# connect ranked scores with their sectors
+scores_sectors = pd.concat([ranked_scores, sectors], axis=1, join='inner')
+
+# name the columns
+scores_sectors.columns=['Score', 'Sector']
+
+# sort ranked scores ascending
+scores_sectors.sort('Score', inplace=True)
+
+# show long bucket
+scores_sectors.head(26)
+```
+*Cell 11:*
+```python
+SECTOR_NAMES = {
+ 101: 'Basic Materials',
+ 102: 'Consumer Cyclical',
+ 103: 'Financial Services',
+ 104: 'Real Estate',
+ 205: 'Consumer Defensive',
+ 206: 'Healthcare',
+ 207: 'Utilities',
+ 308: 'Communication Services',
+ 309: 'Energy',
+ 310: 'Industrials',
+ 311: 'Technology' ,
+}
+
+# create and populate the buckets
+long_bucket = pd.Series()
+short_bucket = pd.Series()
+for key in SECTOR_NAMES:
+    long_bucket = long_bucket.append(scores_sectors[scores_sectors['Sector'] == key]['Score'].head(13))
+    short_bucket = short_bucket.append(scores_sectors[scores_sectors['Sector'] == key]['Score'].tail(3))        
+
+print 'LONG BUCKET\n' + str(long_bucket) + '\n'
+print 'SHORT BUCKET\n' + str(short_bucket)
+```
+
+##### Importance of valid sampling
+- **Original Path**: `drafts\Sampling bias.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 7 (Code: 1, Markdown: 6)
+- **Imports/Dependencies**: from scipy.stats import pearsonr, import numpy as np
+
+**Explanatory Notes:**
+# Importance of valid sampling
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+In order to evaluate a population based on sample observations, the sample must be unbiased. Otherwise, it is not representative of the population, and conclusions drawn from it will be invalid. For example, we always take into account the number of samples we have, and expect to have more accurate results if we have more observations. Here we will discuss four other types of sampling bias.
+
+# Data-mining bias
+
+Data mining refers to testing a set of data for the presense of different patterns, and can lead to bias if used excessively. Because our analyses are always probabilistic, we can always try enough things that one will appear to work. For instance, if we test 100 different variables for correlation with a dataset using a 5% significance level, we expect to find 5 that are significantly correlated with the data just by random chance. Below we test this for random variables and a random dataset. The result will be different each time, so try rerunning the cell!
+
+Above we data-mined by hand. There is also intergeneratinal data mining, which is using previous results about the same dataset you are investigating or a highly related one, which can also lead to bias.
+
+The problem here is that there is no reason to believe that the pattern we found will continue; for instance, if we continue to generate random numbers above, they will not continue to be correlated. [Meaningless correlations](http://tylervigen.com/view_correlation?id=866) can arise between datasets by coincidence. This is similar to the problem of overfitting, where a model is contorted to fit historical data perfectly but then fails out of sample. It is important to perform such an out-of-sample test (that is, using data not overlapping with that which was examined when creating the model) in order to check for data-mining bias.
+
+# Sample selection bias
+
+Bias resulting from data availability is called sample selection bias. Sometimes it is impossible to avoid, but awareness of the phenomenon can help avoid incorrect conclusions. Survivorship bias occurs when securities dropped from databases are not taken into account. This causes a bias because future analyses then do not take into account, for example, stocks of businesses that went bankrupt. However, businesses whose stock you buy now may very well go bankrupt in the future, so it is important to incorporate the behavior of such stocks into your model.
+
+# Look-ahead bias
+
+Look-ahead bias occurs when attempting to analyze from the perspective of a day in the past and using information that was not available on that day. For instance, fundamentals data may not be reported in real time. Models subject to look-ahead bias cannot be used in practice since they would require information from the future.
+
+# Time-period bias
+
+The choice of sample period affects results, and a model or analysis may not generalize to future periods. This is known as time-period bias. If we use only a short time period, we risk putting a lot of weight on a local phenomenon. However, if we use a long time period, we may include data from a prior regime that is no longer relevant.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+from scipy.stats import pearsonr
+
+# Generate completely random numbers
+randos = [np.random.rand(100) for i in range(100)]
+y = np.random.rand(100)
+
+# Compute correlation coefficients (Pearson r) and record their p-values (2nd value returned by pearsonr)
+ps = [pearsonr(x,y)[1] for x in randos]
+
+# Print the p-values of the significant correlations, i.e. those that are less than .05
+print [p for p in ps if p < .05]
+```
+
+##### Frequency distributions
+- **Original Path**: `drafts\Summarizing data using frequency distributions.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 10 (Code: 5, Markdown: 5)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np
+
+**Explanatory Notes:**
+# Frequency distributions
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+Data is sometimes more useful when presented in a summary. Although there is more information contained in the complete list of observations, a summary that makes the data more comprehensible may be more useful. For instance, we often cite the mean of a set of data instead of listing out all of the values. This is particulary useful when we have a very large number of data points.
+
+A frequency distribution consists of:
+* a set of intervals, and
+* the number of observations that fall into each.
+
+Talking about data in intervals often makes more sense than using specific values. For instance, if all 50 observations of a random variable have landed in the interval [99, 101], we expect the next observation to be approximately 100. We do not expect it to come up with any particular value, however, and would not bet that it will be exactly equal to 100.72.
+
+When constructing a frequency distribution, we use some number $k$ of equally sized bins. Each of the $k$ intervals has length (range of data)/$k$.
+
+The usefulness of frequency distributions can be seen below. Binning the data shows that the observations are sampled from a normal distribution much better than the one that marks each data point individually.
+
+It's difficult to tell that the data is approximately normally distributed just by looking at the list above. Below, we sort them into 300 bins; this is more than the number of data points, but many are empty while some have several items because the data is clustered around the mean.
+
+Frequency distributions are often used in graphing because binned data is visually more comprehensible. For example, the commonly-used graphing library `matplotlib.pyplot` has a built-in histogram function which requires the number of bins $k$.
+
+This is still a little noisy, so we can reduce the number of bins (and increase the bin size) further to get a prettier histogram.
+
+However, if bin sizes are too large, the data ceases to be very informative:
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Draw points randomly from a normal distribution
+X = np.random.randn(150)
+print np.sort(X)
+```
+*Cell 2:*
+```python
+# Print list of frequencies of data points
+# Second argument is number of bins
+# Second output is the locations of bin dividers but we ignore it because there are 301 of them
+hist, _ = np.histogram(X, 300)
+print 'Data frequencies:', hist
+```
+*Cell 3:*
+```python
+plt.hist(X,300);
+```
+*Cell 4:*
+```python
+# Print frequency of data per bin
+hist, bins = np.histogram(X, 15)
+print 'Bin dividers:', bins
+print 'Binned data frequencies:', hist
+plt.hist(X,15);
+```
+*Cell 5:*
+```python
+# Print frequency of data per bin
+hist, bins = np.histogram(X, 4)
+print 'Bin dividers:', bins
+print 'Binned data frequencies:', hist
+plt.hist(X,4);
+```
+
+##### What are factor models?
+- **Original Path**: `drafts\Theory of factor models.ipynb`
+- **Use Case**: Drafts
+- **Cell Count**: 6 (Code: 0, Markdown: 6)
+
+**Explanatory Notes:**
+# What are factor models?
+By Evgenia "Jenny" Nitishinskaya and Delaney Granizo-Mackenzie
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+---
+
+(Linear) factor models try to express a rate of return of an asset $i$ in terms of some <i>factors</i> as
+
+$$R_i = a_i + b_{i1} F_1 + b_{i2} F_2 + \ldots + b_{iK} F_K + \epsilon_i$$
+
+where the variables $F_j$ are called factors and the coefficients $b_{ij}$ are called factor sensitivities. The error term $\epsilon_i$ has mean zero and represents the asset-specific random fluctuation, which can be eliminated away by combining diverse assets into a portfolio. Notice that the factors are not indexed by $i$. This reflects the fact that factor models are intended to be applicable for different return streams, and are not asset-specific. Therefore we can use one model to evaluate or predict the returns on different assets and portfolios.
+
+What are the factors that we use in the model? One possibility is the return on the market: a model with only this one factor is what we use for beta hedging. Other potential factors include inflation, changes in industrial production, and an asset's price-to-book ratio. We discuss the different kinds of factors in more detail below, but the overarching principle is that, as with regression models we have conisered in the past, we should have an economic reason to believe that the factors we choose might explain returns. We also want factors that explain the returns of many assets.
+
+To get the model for a portfolio, we simply take the weighted average of the models for the constituent assets. If our portfolio is $P = \sum_{i=1}^n w_i x_i$, then our portfolio model is
+
+$$ R_p = \sum_{i=1}^n w_i R_i = \sum_{i=1}^n w_i a_i + \left(\sum_{i=1}^n w_i b_{i1} \right) F_1 + \left(\sum_{i=1}^n w_i b_{i2} \right) F_2 + \ldots + \left(\sum_{i=1}^n w_i b_{iK} \right) F_K + \sum_{i=1}^n w_i \epsilon_i $$
+
+
+For factor analysis to be valid, we need the error term $\epsilon_i$ to be uncorrelated across assets $i$ (so that it does in fact represent asset-specific risk), and uncorrelated with the factors $F_1,\ldots, F_k$ (if it is correlated with some factor $F_j$, then we have chosen $b_{ij}$ incorrectly, which has forced the error term to compensate).
+
+# Types of factor models
+
+Factor models can be categorized into three main groups, depending on the types of factors they use. There are also mixed factor models, which combine factors from different groups.

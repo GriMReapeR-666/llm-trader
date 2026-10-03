@@ -1,0 +1,12 @@
+# Introduction
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Introduction
+Given a set of securities that we're considering including in our portfolio, we'd like to pick a combination of them which maximizes returns while minimizing risk. In this notebook, we'll be using an alternative definition of risk (that is, not standard deviation) which allows us to formulate portfolio optimization as a linear program, according to the method developed by Professor Robert Vanderbei.
+
+As usual, let's start by importing a few modules which we need later. We'll use the LP solver in `cvxopt` to find the return-maximizing portfolio subject to some linear inequalities.

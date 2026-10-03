@@ -1,0 +1,22 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+
+mu = 
+sigma = 
+x = np.linspace(-30, 30, 200)
+y = 
+plt.plot(x, y)
+plt.title('Graph of PDF with mu = 0 and sigma = 5')
+plt.xlabel('Value')
+plt.ylabel('Probability');
+```
+*Cell 9:*
+```python
+# finding the 1st, 2nd, and third confidence intervals.

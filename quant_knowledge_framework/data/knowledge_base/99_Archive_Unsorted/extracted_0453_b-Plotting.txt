@@ -1,0 +1,10 @@
+# b. Plotting
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Plotting
+Graph a scatter plot of SPY and Starbucks.

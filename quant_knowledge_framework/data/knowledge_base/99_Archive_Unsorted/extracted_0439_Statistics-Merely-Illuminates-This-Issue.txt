@@ -1,0 +1,39 @@
+# Statistics Merely Illuminates This Issue
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Statistics Merely Illuminates This Issue
+
+Most folks also fall prey to multiple comparisons bias in real life. Any time you make a decision you are effectively taking an action based on an hypothesis. That hypothesis is often tested. You can end up unknowingly making many tests in your daily life.
+
+An example might be deciding which medicine is helping cure a cold you have. Many people will take multiple medicines at once to try and get rid of symptoms. You may think that a certain medicine worked, when in reality none did and the cold just happened to start getting better at some point.
+
+The point here is that this problem doesn't stem from statistical testing and p-values. Rather, these techniques give us much more information about the problem and when it might be occuring.
+
+### Refresher: Spearman Rank Correlation
+
+Please refer to [this lecture](https://www.quantopian.com/lectures/spearman-rank-correlation) for more full info, but here is a very brief refresher on Spearman Rank Correlation.
+
+It's a variation of correlation that takes into account the ranks of the data. This can help with weird distributions or outliers that would confuse other measures. The test also returns a p-value, which is key here.
+
+A higher coefficient means a stronger estimated relationship.
+
+If we add some noise our coefficient will drop.
+
+### p-value Refresher
+
+For more info on p-values see [this lecture](https://www.quantopian.com/lectures/hypothesis-testing). What's important to remember is they're used to test a hypothesis given some data. Here we are testing the hypothesis that a relationship exists between two series given the series values.
+
+####IMPORTANT: p-values must be treated as binary.
+
+A common mistake is that p-values are treated as more or less significant. This is bad practice as it allows for what's known as [p-hacking](https://en.wikipedia.org/wiki/Data_dredging) and will result in more false positives than you expect. Effectively, you will be too likely to convince yourself that relationships exist in your data.
+
+To treat p-values as binary, a cutoff must be set in advance. Then the p-value must be compared with the cutoff and treated as significant/not signficant. Here we'll show this.
+
+### The Cutoff is our Significance Level
+
+We can refer to the cutoff as our significance level because a lower cutoff means that results which pass it are significant at a higher level of confidence. So if you have a cutoff of 0.05, then even on random data 5% of tests will pass based on chance. A cutoff of 0.01 reduces this to 1%, which is a more stringent test. We can therefore have more confidence in our results.

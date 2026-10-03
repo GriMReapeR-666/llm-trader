@@ -1,0 +1,13 @@
+# Transaction Costs
+
+Topic: 02_Strategy_Development
+Confidence: 0.40
+Keywords: ev, strategy
+
+---
+
+## Transaction Costs
+Whenever a trade is placed, you will pay a fee to the broker to trade. This fee can be based on trade size or just be flat, but is well defined and not an uncertain quantity. You will also experience slippage, which can be thought of as just another cost. Often both broker fees and slippage costs will be grouped under the term 'Transaction Costs', which describes generally how much it will cost to trade a specific strategy. If transaction costs eat too much of your profits a strategy might become infeasible.
+
+### Transaction Costs Vary by Broker and Market
+Because transaction costs vary based on trading environments, strategies that are inviable on a retail brokerage may be viable on an institutional prime brokerage with lower costs. Often quant strategies will fail on retail fees, but be fine for an institution. Just because you can't trade a strategy doesn't mean it's not valuable. You may be able to sell it to an organization that can trade it. When evaluating strategies for allocation Educational Platform assumes trading conditions of a prime brokerage.

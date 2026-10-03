@@ -1,0 +1,11 @@
+# b. Plotting Sample Means - Exponential
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Plotting Sample Means - Exponential
+
+Draw 500 samples of size `sample_size` from a new exponential distribution, plot the means of each of the samples, and check to see if the distribution of the sample means is normal.

@@ -1,0 +1,213 @@
+# References
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python, pandas
+
+---
+
+## References
+* "Options, Futures, and Other Derivatives", by John Hull
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company. In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# K is the delivery price agreed upon in the contract
+K = 50
+# Here we look at various different values that S_T can have
+S_T = np.linspace(0, 100, 200)
+# Calculate the long and short payoffs
+long_payoff = S_T - K
+short_payoff = K - S_T
+```
+*Cell 3:*
+```python
+plt.plot(S_T, long_payoff)
+plt.axhline(0, color='black', alpha=0.3)
+plt.axvline(0, color='black', alpha=0.3)
+plt.xlim(0, 100)
+plt.ylim(-100, 100)
+plt.axvline(K, linestyle='dashed', color='r', label='K')
+plt.ylabel('Payoff')
+plt.xlabel('$S_T$')
+plt.title('Payoff of a Long Forward Contract')
+plt.legend();
+```
+*Cell 4:*
+```python
+plt.plot(S_T, short_payoff);
+plt.axhline(0, color='black', alpha=0.3)
+plt.axvline(0, color='black', alpha=0.3)
+plt.xlim(0, 100)
+plt.ylim(-100, 100)
+plt.axvline(K, linestyle='dashed', color='r', label='K')
+plt.ylabel('Payoff')
+plt.xlabel('$S_T$')
+plt.title('Payoff of a Short Forward Contract')
+plt.legend();
+```
+*Cell 5:*
+```python
+contract = symbols('CNH17')
+futures_position_value = get_pricing(contract, start_date = '2017-01-19', end_date = '2017-02-15', fields = 'price')
+futures_position_value.name = futures_position_value.name.symbol
+futures_position_value.plot()
+plt.title('Corn Futures Price')
+plt.xlabel('Date')
+plt.ylabel('Price');
+```
+*Cell 6:*
+```python
+initial_margin = 990
+maintenance_margin = 900
+contract_count = 5
+```
+*Cell 7:*
+```python
+# We hit two margin calls over this time period
+margin_account_changes = futures_position_value.diff()*contract.multiplier*contract_count
+margin_account_changes[0] = initial_margin*contract_count
+margin_account_balance = margin_account_changes.cumsum()
+margin_account_balance.name = 'Margin Account Balance'
+# First margin call
+margin_call_idx = np.where(margin_account_balance < maintenance_margin*contract_count)[0][0]
+margin_deposit = initial_margin*contract_count - margin_account_balance[margin_call_idx] 
+margin_account_balance[margin_call_idx+1:] = margin_account_balance[margin_call_idx+1:] + margin_deposit
+# Second margin call
+second_margin_call_idx = np.where(margin_account_balance < maintenance_margin*contract_count)[0][1]
+second_margin_deposit = initial_margin*contract_count - margin_account_balance[second_margin_call_idx]
+margin_account_balance[second_margin_call_idx+1:] = margin_account_balance[second_margin_call_idx+1:] + second_margin_deposit
+```
+*Cell 8:*
+```python
+(futures_position_value*contract.multiplier).plot()
+margin_account_balance.plot()
+plt.axvline(margin_account_balance.index[margin_call_idx], color='r', linestyle='--')
+plt.axvline(margin_account_balance.index[second_margin_call_idx], color='r', linestyle='--')
+plt.axhline(maintenance_margin*contract_count, color='r', linestyle='--')
+plt.title('Overall Value of a Futures Contract with the Margin Account Balance')
+plt.xlabel('Date')
+plt.ylabel('Value')
+plt.legend();
+```
+*Cell 9:*
+```python
+contracts = symbols(['ESH17', 'NGH17'])
+volume_comparison = get_pricing(contracts, start_date = '2016-12-01', end_date = '2017-04-01', fields = 'volume')
+volume_comparison.plot()
+plt.title('Volume of S&P 500 E-Mini and Natural Gas Contracts for March Delivery')
+plt.xlabel('Date')
+plt.ylabel('Volume');
+```
+*Cell 10:*
+```python
+print volume_comparison.max()
+```
+*Cell 11:*
+```python
+cls = symbols(['CLF16', 'CLG16', 'CLH16'])
+contract_volume = get_pricing(cls, start_date='2015-10-01', end_date='2016-04-01', fields='volume')
+contract_volume.plot()
+plt.title('Volume of Contracts with Different Expiry')
+plt.xlabel('Date')
+plt.ylabel('Volume');
+```
+*Cell 12:*
+```python
+cl_january_contract = symbols('CLF16')
+print cl_january_contract.expiration_date
+```
+*Cell 13:*
+```python
+es_march_contract = symbols('ESH17')
+print es_march_contract.expiration_date
+```
+*Cell 14:*
+```python
+assets = ['SPY', 'ESH16']
+prices = get_pricing(assets, start_date = '2015-01-01', end_date = '2016-04-15', fields = 'price')
+prices.columns = map(lambda x: x.symbol, prices.columns)
+prices['ESH16'].plot()
+(10*prices['SPY']).plot()
+plt.legend()
+plt.title('Price of a S&P 500 E-Mini Contract vs SPY')
+plt.xlabel('Date')
+plt.ylabel('Price');
+```
+*Cell 15:*
+```python
+X = (10*prices['SPY'][:'2016-03-15'] - prices['ESH16'][:'2016-03-15'])**2
+X.plot()
+plt.title('MSE of SPY and ESH17')
+plt.xlabel('Date')
+plt.ylabel('MSE');
+```
+*Cell 16:*
+```python
+contracts = symbols(['CLF17', 'CLG17', 'CLH17', 'CLJ17'])
+prices = get_pricing(contracts, start_date='2016-11-01', end_date='2016-12-15', fields='price')
+prices.columns = map(lambda x: x.symbol, prices.columns)
+```
+*Cell 17:*
+```python
+prices.plot();
+```
+*Cell 18:*
+```python
+# A toy example to show Contango
+N = 100 # Days to expiry of futures contract
+cost_of_carry = 0.01
+spot_price = pd.Series(np.ones(N), name = "Spot Price")
+futures_price = pd.Series(np.ones(N), name = "Futures Price")
+spot_price[0] = 20
+futures_price[0] = spot_price[0]*np.exp(cost_of_carry*N)
+for n in range(1, N): 
+    spot_price[n] = spot_price[n-1]*(1 + np.random.normal(0, 0.05))
+    futures_price[n] = spot_price[n]*np.exp(cost_of_carry*(N - n))
+
+spot_price.plot()
+futures_price.plot()
+plt.legend()
+plt.title('Contango')
+plt.xlabel('Time')
+plt.ylabel('Price');
+```
+*Cell 19:*
+```python
+# A toy example to show Backwardation
+N = 100 # Days to expiry of futures contract
+cost_of_carry = -0.01
+spot_price = pd.Series(np.ones(N), name = "Spot Price")
+futures_price = pd.Series(np.ones(N), name = "Futures Price")
+spot_price[0] = 20
+futures_price[0] = spot_price[0]*np.exp(cost_of_carry*N)
+for n in range(1, N):
+    spot_price[n] = spot_price[n-1]*(1 + np.random.normal(0, 0.05))
+    futures_price[n] = spot_price[n]*np.exp(cost_of_carry*(N - n))
+
+spot_price.plot()
+futures_price.plot()
+plt.legend()
+plt.title('Backwardation')
+plt.xlabel('Time')
+plt.ylabel('Price');
+```
+
+##### Exercises: Introduction to Futures Contracts
+- **Original Path**: `notebooks\lectures\Introduction_to_Futures\questions\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 16 (Code: 7, Markdown: 9)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Exercises: Introduction to Futures Contracts
+By Christopher van Hoecke, Maxwell Margenot, and Delaney Mackenzie

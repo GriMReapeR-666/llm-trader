@@ -1,0 +1,20 @@
+# Key Concepts
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Key Concepts
+
+---
+
+# Exercise 1: Temperatures
+Given this set of Fahrenheit and Celsius values, find a model that expresses the relationship between the two temperature scales.
+
+<center>*We can clearly see from the table (and the graph) that    $f = 1.8c + 32$ *</center>
+
+----
+
+# Exercise 2 : Confidence Intervals

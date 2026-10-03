@@ -1,0 +1,30 @@
+# How is a Futures Contract Different?
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## How is a Futures Contract Different?
+Futures contracts are forward contracts that have been standardized for trade on an exchange. A single futures contract is for a set amount of the underlying with agreed-upon settlement, delivery date, and terms. On top of this, the exchange acts as an intermediary, virtually eliminating counterparty risk. However, this isn't to say that all futures contracts are standardized across the entire futures market. Futures for a given asset are standardized, so the terms of corn futures may differ from the terms of pork bellies futures. 
+
+Another quirk of futures contracts is that they are settled daily with a margin account at a broker held by the holder of the futures contract. Each day, the change in price of the underlying is reflected in an increase or a decrease in the amount of money in the margin account. This process is called "marking to market".
+
+### Marking to Market and Margin Accounts
+DISCLAIMER: Margin is not currently modeled automatically on Educational Platform. You should restrict your total position allocations manually.
+
+Entering into a futures trade entails putting up a certain amount of cash. This amount will vary depending on the terms of the contract and is called your initial margin. This cash goes into a margin account held with the broker you are doing your trading with. Each day, the value of the futures contract position is marked to market. This means that any change in the futures price over the course of the day is reflected by a change in the margin account balance proportional to the number of contracts that you hold positions in.
+
+You can withdraw any excess in the account over the initial margin if you so choose, but it is important to be mindful of keeping cash available to the broker, above the line of the **maintenance margin**. The maintenance margin is again determined by the terms of the contract.  If the balance in your margin account falls below the maintenance margin, the broker will issue a **margin call**. To comply, you must top up the account with cash up to the initial margin again. If you choose not to or fail to meet the margin call, your position in the contract is closed.
+
+### Example: Corn Futures
+Let's say that we want to get **five** corn futures contracts. Each corn contract is standardized for $5000$ bushels of corn (Around $127$ metric tons!) and corn is quoted in cents per bushel. Let's also say that our initial margin is $\$990$ per contract when we enter a position and our maintenance margin is $\$900$ per contract.
+
+We can look at how this example would play out with actual numbers. Let's pull a small section of pricing data for a corn contract and imagine that we entered into a position and held it until maturity.
+
+The plot shows some signifiant decreases in price over the chosen time period, which should be reflected by drops in the margin account.
+
+Here we calculate when a margin call would occur as the futures price and margin account balance change.
+
+The jump in the margin account balance that occurs after each vertical dotted line is the point at which we meet the margin call, increasing the margin account balance to our initial margin once more. Note that the lagged response to the second theoretical margin call in this example is due to a weekend. Notice how a small perturbations in the futures price lead to large changes in the margin account balance. This is a consequence of the inherent leverage.

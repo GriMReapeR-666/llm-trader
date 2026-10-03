@@ -1,0 +1,16 @@
+# b. Series Operations
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Series Operations
+- Get the additive and multiplicative returns of this series. 
+- Calculate the rolling mean with a 60 day window.
+- Calculate the standard deviation with a 60 day window.
+
+----
+
+# Exercise 5 : DataFrames

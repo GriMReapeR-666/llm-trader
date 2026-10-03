@@ -1,0 +1,22 @@
+# **Challenge file hash**
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## **Challenge file hash**
+
+The commpressed archive
++ MD5 hash: c41a03bc57b6965ce3f9dbc9df19ba10
+
+The memory dump
++ MD5 hash: ce4e7adc4efbf719888d2c87256d1da3
+
+
+Please follow the [flag submission rules](https://github.com/stuxnet999/MemLabs#flag-submission) when sending the email for solution verification.
+#### Lab 4
+**Source File**: `C:\Users\User\AppData\Local\Temp\kilo\memlabs_repo\Lab 4\README.md`
+
+# **MemLabs Lab 4 - Obsession**

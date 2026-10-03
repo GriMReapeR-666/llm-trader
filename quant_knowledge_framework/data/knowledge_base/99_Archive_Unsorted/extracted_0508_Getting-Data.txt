@@ -1,0 +1,22 @@
+# Getting Data
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Getting Data
+The first thing we're gonna do is get monthly values for the Market Cap, P/E Ratio and Monthly Returns for every equity. Monthly Returns is a metric that takes the returns accrued over an entire month of trading by dividing the last close price by the first close price and subtracting 1.
+
+Let's take a look at the data to get a quick sense of what we have. This may take a while.
+
+Now, we need to take each of these individual factors, clean them to remove NaN values and aggregate them for each month.
+
+The next step is to figure out which equities we have data for. Data sources are never perfect, and stocks go in and out of existence with Mergers, Acquisitions, and Bankruptcies. We'll make a list of the stocks common to all three sources (our factor data sets) and then filter down both to just those stocks.
+
+Now, we will make sure that each time series is being run over identical an identical set of securities.
+
+Here, is the filtered data for market cap over all equities for the first 5 months, as an example.
+
+Because we're dealing with ranking systems, at several points we're going to want to rank our data. Let's check how our data looks when ranked to get a sense for this.

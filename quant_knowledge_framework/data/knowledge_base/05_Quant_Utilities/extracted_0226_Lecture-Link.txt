@@ -1,0 +1,22 @@
+# Lecture Link :
+
+Topic: 05_Quant_Utilities
+Confidence: 0.75
+Keywords: cointegration
+
+---
+
+## Lecture Link :
+https://www.educational_platform.com/lectures/introduction-to-pairs-trading
+
+### IMPORTANT NOTE: 
+These exercises correspond to the Introduction to Pairs Trading lecture, which is part of the Educational Platform Lecture Series. It is meant to cement a few concepts presented in the lecture, specifically cointegration and construction of cointegrated pair spreads.
+
+We expect you to rely heavily on the code presented in the corresponding lecture. Please copy and paste regularly from that lecture when starting to work on the problems, as trying to do them from scratch will likely be too difficult. There is an answer key available for this problem set. Please email us at feedback@educational_platform.com for results.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+----

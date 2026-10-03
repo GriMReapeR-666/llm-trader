@@ -1,0 +1,29 @@
+# Spot Prices and Futures Prices
+
+Topic: 03_Portfolio_Management
+Confidence: 0.67
+Keywords: compounding, ror
+
+---
+
+## Spot Prices and Futures Prices
+An important feature of futures markets is that as a contract approaches its expiry, its futures price will converge to the spot price. To show this, we will examine how SPY and a S&P 500 E-Mini contract move against each other. SPY tracks the S&P 500 Index, which is the underlying for the S&P 500 E-Mini contract. If we plot ten times the price of the ETF (the value is scaled down from the actual index), then ideally the difference between them should go to 0 as we approach the expiry of the contract.
+
+Looking at a plot of the prices does not tell us very much, unfortunately. It looks like the values might be getting closer, but we cannot quite tell. Let's look instead at the mean squared error between the ETF and futures prices.
+
+This indeed seems to corroborate the point that futures prices approach the spot at expiry. And this makes sense. If we are close to expiry, there should be little difference between the price of acquiring a commodity or asset now and the price at the expiry date.
+
+### Connection Between Spot and Futures Prices
+There are several ways to theoretically model futures prices, just as there are many models to model equity prices. A very basic model of futures prices and spot prices  connects them through a parameter called the **cost of carry**. The cost of carry acts as a discount factor for futures prices, such that
+
+$$ F(t, T) = S(t)\times (1 + c)^{T - t} $$
+
+where $F(t, T)$ is the futures price at time $t$ for maturity $T$, $S(t)$ is the spot price at time $t$, and $c$ is the cost of carry (here assumed to be constant). With continuous compounding, this relationship becomes:
+
+$$ F(t, T) = S(t)e^{c(T - t)} $$
+
+This is a naive representation of the relationship in that it relies on a constant rate as well as a few other factors. Depending on the underlying asset, the cost of carry may be composed of several different things. For example, for a physical commodity, it may incorporate storage costs and the convenience yield for immediate access through the spot market, while for some financial commodities it may only encompass the risk free rate.
+
+The cost of carry on futures can be thought of similarly to dividends on stocks. When considering futures prices of a single underlying through several different maturities, adjustments must be made to account for the cost of carry when switching to a new maturity.
+
+The further out we are from expiry, the more the cost of carry impacts the price. Here is a plot of the prices of contracts on light sweet crude for January, February, March, and April 2017 delivery. The further out the contract is from expiry, the higher the price.

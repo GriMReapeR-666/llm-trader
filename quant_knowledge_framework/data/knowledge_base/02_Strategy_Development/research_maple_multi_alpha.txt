@@ -1,0 +1,51 @@
+# MAPLE: Multi-Alpha Position-aware Listwise Ensembling
+
+**Source**: arxiv:2607.24131v1 (July 2026)
+
+## Overview
+Backbone-agnostic framework for efficient and diverse multi-alpha portfolio construction.
+
+## Problem Addressed
+- Deep learning typically produces single alpha per stock
+- Multi-model ensembles are expensive and don't control correlation
+- Need for diverse, low-correlated alpha signals
+
+## MAPLE Architecture
+
+### Unified Prediction Head
+- Intra-stock path: individual stock features
+- Inter-stock attention: cross-stock relationships
+- Capacity scaling per alpha
+
+### Loss Design
+1. **Extreme-Rank Weighted Listwise Loss**: Focuses on extreme-rank positions relevant to portfolio
+2. **Diversity Regularizer**: Explicitly penalizes pairwise alpha correlation
+
+### Capacity Scaling
+- Per-alpha capacity increases with number of alphas
+- Prevents degradation in naive multi-alpha designs
+
+## Results
+
+### Performance
+- Best average Sharpe and Calmar ratios among 9 baselines
+- 10-23% Sharpe gains across 5 backbones
+- 17-43% Calmar gains
+- 55x fewer parameters than DHMoE
+- 2.5x faster training
+
+### Markets Tested
+- US equities
+- China CSI500
+- Japan NI225
+- EuroStoxx50
+
+### Key Insights
+- Unified head reduces inter-alpha correlation before diversity loss
+- Extreme-rank weighting lets diversity improve ranking quality
+- Capacity scaling sustains balance at scale
+
+## Implications for Quant Trading
+- Principled loss design > architectural complexity
+- Efficient single-model multi-alpha generation
+- Diversity regularization is critical for robust ensembles

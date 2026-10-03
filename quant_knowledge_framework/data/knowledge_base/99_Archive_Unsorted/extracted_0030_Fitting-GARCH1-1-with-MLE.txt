@@ -1,0 +1,38 @@
+# Fitting GARCH(1, 1) with MLE
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Fitting GARCH(1, 1) with MLE
+Once we've decided that the data might have an underlying GARCH(1, 1) model, we would like to fit GARCH(1, 1) to the data by estimating parameters.
+
+To do this we need the log-likelihood function
+
+$$\mathcal{L}(\theta) = \sum_{t=1}^T - \ln \sqrt{2\pi} - \frac{x_t^2}{2\sigma_t^2} - \frac{1}{2}\ln(\sigma_t^2)$$
+
+To evaluate this function we need $x_t$ and $\sigma_t$ for $1 \leq t \leq T$. We have $x_t$, but we need to compute $\sigma_t$. To do this we need to make a guess for $\sigma_1$. Our guess will be $\sigma_1^2 = \hat E[x_t^2]$. Once we have our initial guess we compute the rest of the $\sigma$'s using the equation
+
+$$\sigma_t^2 = a_0 + a_1 x_{t-1}^2 + b_1\sigma_{t-1}^2$$
+
+Let's look at the sigmas we just generated.
+
+Now that we can compute the $\sigma_t$'s, we'll define the actual log likelihood function. This function will take as input our observations $x$ and $\theta$ and return $-\mathcal{L}(\theta)$. It is important to note that we return the negative log likelihood, as this way our numerical optimizer can minimize the function while maximizing the log likelihood.
+
+Note that we are constantly re-computing the $\sigma_t$'s in this function.
+
+Now we perform numerical optimization to find our estimate for
+$$\hat\theta = \arg \max_{(a_0, a_1, b_1)}\mathcal{L}(\theta) = \arg \min_{(a_0, a_1, b_1)}-\mathcal{L}(\theta)$$
+
+We have some constraints on this
+
+$$a_1 \geq 0, b_1 \geq 0, a_1+b_1 < 1$$
+
+Now we would like a way to check our estimate. We'll look at two things:
+
+1. How fat are the tails of the residuals.
+2. How normal are the residuals under the Jarque-Bera normality test.
+
+We'll do both in our `check_theta_estimate` function.

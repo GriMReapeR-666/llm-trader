@@ -1,0 +1,244 @@
+# MemLabs External Video Transcriptions
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## MemLabs External Video Transcriptions
+### Source: External YouTube content (MemLabs repo itself contains NO video files)
+
+**Official MemLabs YouTube Channel Status**:  
+**There is NO official MemLabs YouTube channel.**  
+- **GitHub**: https://github.com/stuxnet999/MemLabs  
+- **Twitter/X**: [@_abhiramkumar](https://twitter.com/_abhiramkumar)  
+- **Personal Blog**: https://stuxnet999.github.io  
+- **Email**: abhiram1999@gmail.com  
+- **Team**: [@teambi0s](https://twitter.com/teambi0s)  
+
+All YouTube content related to MemLabs is **community-created** by external security researchers and CTF players. The only confirmed external video is from **ghsinfosec** (Lab 1 walkthrough). The creator's own content is delivered via GitHub READMEs and blog posts, not video.
+
+**Video 1: MemLabs CTF - "Lab 1" Extracting Files from Memory**
+**Source**: https://www.youtube.com/watch?v=6jWfP7h8K-o
+**Channel**: ghsinfosec
+**Length**: 16:16
+**Published**: 2021-10-29
+**Language**: English
+**Full Transcript with Actionable Timestamps**:
+
+```
+[0:00] Introduction - Memory forensics overview, Volatility framework introduction
+[0:30] Challenge setup - Loading MemLabs Lab 1 memory dump
+[1:15] PLUGIN: imageinfo - Identifying OS profile
+         Command: vol.py -f MemoryDump_Lab1.raw imageinfo
+[2:00] PLUGIN: pslist - Enumerating running processes
+         Command: vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 pslist
+[2:30] Suspicious processes identified: WinRAR.exe (PID 1512), mspaint.exe (PID 2424), cmd.exe (PID 1984)
+[3:00] PLUGIN: cmdline - Checking command line arguments
+         Command: vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 cmdline
+[4:00] PLUGIN: filescan - Scanning for files in memory
+         Command: vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 filescan | grep -i "important.rar"
+         Output redirected to: filescan.txt
+[5:30] PLUGIN: dumpfiles - Extracting Important.rar from memory
+         Command: vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 dumpfiles -D . -Q <offset> -n Important.rar
+         Note: Offset copied from filescan.txt output
+[6:30] File verification - Using Linux `file` command
+         Command: file file.None.0xfffffa8001034450.dat
+         Result: RAR archive identified
+[7:00] Extraction attempt - Using unrar
+         Command: unrar e file.None.0xfffffa8001034450.dat
+         Result: Password required - hint says "NTLM hash uppercase of Alissa's account password"
+[8:00] PLUGIN: hashdump - Extracting NTLM hashes
+         Command: vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 hashdump
+[9:00] Python code snippet for hash uppercase conversion:
+         hash_val = "f4ff64c8baac57d22f22edc681055ba6"
+         password = hash_val.upper()
+         print(password)
+         Result: F4FF64C8BAAC57D22F22EDC681055BA6
+[10:30] Successful extraction - Important.rar password: F4FF64C8BAAC57D22F22EDC681055BA6
+         Command: unrar e file.None.0xfffffa8001034450.dat
+         Extracted: flag3.png (Flag 3)
+[11:30] PLUGIN: cmdscan - Scanning command history (Volatility 2 only)
+         Command: vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 cmdscan
+[12:00] PLUGIN: consoles - Recovering console output (Volatility 2 only)
+         Command: vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 consoles
+[12:30] Base64 decoding - Flag 1 discovered
+         Command: echo ZmxhZ3t0aDFzXzFzX3RoM18xc3Rfc3Q0ZzMhIX0= | base64 -d
+         Result: flag{th1s_1s_th3_1st_st4g3!!}
+[13:30] PLUGIN: memdump - Dumping mspaint.exe process memory (Flag 2)
+         Command: vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 memdump -p 2424 -D .
+         Output: 2424.dmp
+[14:00] File conversion for GIMP analysis
+         Command: cp 2424.dmp 2424.data
+[14:30] GIMP analysis - Opening 2424.data with RGB Alpha format
+         Process: Adjust offset, width, height parameters
+         Result: Recovered drawing content
+[15:00] Image correction - Vertical flip transformation
+         Result: Flag 2 discovered: flag{G00d_BoY_good_girL}
+[15:30] Summary - All three flags collected and documented
+```
+
+**Actionable Code Modules from Video**:
+
+```python
+# Module 1: NTLM Hash Uppercase Converter
+# Source: ghsinfosec YouTube walkthrough (MemLabs Lab 1)
+# Use Case: Converting NTLM hashes to uppercase for RAR/archive password cracking
+# Prerequisites: None (pure Python)
+def hash_to_uppercase(ntlm_hash):
+    """Convert NTLM hash to uppercase for password use."""
+    return ntlm_hash.upper()
+
+# Example usage:
+hash_val = "f4ff64c8baac57d22f22edc681055ba6"
+password = hash_to_uppercase(hash_val)
+print(f"Password: {password}")
+# Output: F4FF64C8BAAC57D22F22EDC681055BA6
+```
+
+```bash
+# Module 2: MemLabs Lab 1 Complete Command Sequence
+# Source: ghsinfosec YouTube walkthrough
+# Prerequisites: Volatility 2.6, Python 3, unrar, file command
+
+# Step 1: Identify OS profile
+vol.py -f MemoryDump_Lab1.raw imageinfo
+
+# Step 2: List processes
+vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 pslist
+
+# Step 3: Check command lines
+vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 cmdline
+
+# Step 4: Scan for files
+vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 filescan | grep -i "important.rar"
+
+# Step 5: Extract Important.rar
+vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 dumpfiles -D . -Q <offset> -n Important.rar
+
+# Step 6: Verify file type
+file file.None.0xfffffa8001034450.dat
+
+# Step 7: Extract with password
+unrar e file.None.0xfffffa8001034450.dat
+
+# Step 8: Dump NTLM hashes
+vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 hashdump
+
+# Step 9: Decode base64 flag
+echo ZmxhZ3t0aDFzXzFzX3RoM18xc3Rfc3Q0ZzMhIX0= | base64 -d
+
+# Step 10: Dump mspaint memory
+vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 memdump -p 2424 -D .
+
+# Step 11: Convert for image analysis
+cp 2424.dmp 2424.data
+```
+
+---
+
+### External Walkthrough: MemLabs Lab 1 - Comprehensive Guide (Medium)
+**Source**: https://medium.com/@yaradfir/a-comprehensive-memlabs-1-writeup-guide-79fce97bfd07
+**Author**: Yara DFIR
+**Published**: 2024-07-15
+**Content Type**: Full text walkthrough with Volatility 3 and Volatility 2 commands
+
+**Key Actionable Instructions**:
+
+```bash
+# Volatility 3 commands (modern approach)
+vol.py -f Memorydump_Lab1.raw windows.cmdline
+vol.py -f Memorydump_Lab1.raw windows.consoles
+vol.py -f Memorydump_Lab1.raw windows.filescan | grep rar
+vol.py -f Memorydump_Lab1.raw -o ./output windows.dumpfiles -physaddr 0x3fa3ebc0
+vol.py -f Memorydump_Lab1.raw windows.hashdump
+
+# Base64 decoding
+echo ZmxhZ3t0aDFzXzFzX3RoM18xc3Rfc3Q0ZzMhIX0= | base64 -d
+
+# RAR extraction
+unrar e file.0x3fa3ebc0.0xfa8001034450.DataSectionObject.Important.rar.dat
+# Password: F4FF64C8BAAC57D22F22EDC681055BA6
+
+# Hash conversion
+echo f4ff64c8baac57d22f22edc681055ba6 | tr [:lower:] [:upper:]
+```
+
+**Python Code Module - Hex/XOR Decoder (Lab 0)**:
+```python
+# Source: MemLabs Lab 0 README
+# Use Case: Brute-force XOR decoding of hex-encoded strings
+# Prerequisites: Python 2 or 3 (with appropriate print syntax)
+
+def xor_brute_force(hex_string):
+    """Brute force XOR decode a hex string with all 255 possible keys."""
+    import binascii
+    a = binascii.unhexlify(hex_string)
+    results = []
+    for i in range(0, 255):
+        b = ""
+        for j in a:
+            b = b + chr(j ^ i)
+        results.append((i, b))
+    return results
+
+# Example usage from Lab 0:
+hex_str = "335d366f5d6031767631707f"
+decoded = xor_brute_force(hex_str)
+for key, text in decoded:
+    print(f"Key {key}: {text}")
+# Flag found at key index 3: "1_4m_b3tt3r}"
+```
+
+---
+
+### External Walkthrough: MemLabs Lab 0 - The Forensics Kickstart (Medium)
+**Source**: https://medium.com/@dhruvangsanghavi13/memlabs-walkthrough-level-0-the-forensics-kickstart-d9a3484d593b
+**Author**: Dhruvang Sanghavi
+**Published**: 2026-02-25
+**Content Type**: Detailed beginner tutorial with Volatility 2
+
+**Investigation Roadmap**:
+1. `imageinfo` - Identify OS profile
+2. `pslist` - Census of active processes
+3. `cmdscan` & `consoles` - Recovered command history and screen output
+4. `envars` - Hidden environment variables
+5. `hashdump` - NTLM credential extraction
+
+**Key Concepts**:
+- Memory doesn't lie - traces remain in RAM until overwritten
+- Volatility 2.6 preferred for MemLabs (plugin compatibility)
+- Profile identification is critical first step
+- Doubly-linked list of _EPROCESS structures for process enumeration
+
+---
+
+### External Walkthrough: MemLabs Lab 1 - Beginner's Luck (Multiple Sources)
+**Sources**:
+- https://medium.com/@bl3h1/memlabs-lab-1-write-up-efff913240d2
+- https://www.petermstewart.net/memlabs-memory-forensics-challenges-lab-1-write-up/
+
+**Additional Volatility Plugins Discovered**:
+```bash
+# Process tree view
+vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 pstree
+
+# Process memory dump
+vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 memdump -p 2424 -D .
+
+# Network connections
+vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 netscan
+
+# Command line for specific process
+vol.py -f MemoryDump_Lab1.raw --profile=Win7SP1x64 cmdline -p 1512
+```
+
+**GIMP Image Recovery Technique**:
+1. Convert `.dmp` to `.data` extension
+2. Open in GIMP with "RGB Alpha" image type
+3. Adjust Offset, Width, Height parameters
+4. Use trial and error to find intelligible image
+5. Apply "Transform > Flip Vertical" if image is upside down
+
+---

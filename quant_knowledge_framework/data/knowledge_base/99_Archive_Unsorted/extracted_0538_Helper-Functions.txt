@@ -1,0 +1,15 @@
+# Helper Functions
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Helper Functions
+
+#Exercise 1: Examining the QTradableStocksUS Universe
+
+##a. Initializing the Universe
+
+Set the QTradableStocksUS as your universe by using the `QTradableStocksUS()` function.

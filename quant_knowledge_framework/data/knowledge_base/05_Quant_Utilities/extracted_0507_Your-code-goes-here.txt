@@ -1,0 +1,46 @@
+# Your code goes here
+
+Topic: 05_Quant_Utilities
+Confidence: 0.67
+Keywords: numpy, pandas
+
+---
+
+## Your code goes here
+
+
+print "The JB test p-value is: ", p_value
+print "We reject the hypothesis that the data are normally distributed ", p_value < cutoff
+print "The skewness of the returns is: ", skewness
+print "The kurtosis of the returns is: ", kurtosis
+```
+
+##### notebook
+- **Original Path**: `notebooks\lectures\Ranking_Universes_by_Factors\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 40 (Code: 18, Markdown: 22)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.data import morningstar, from educational_platform.pipeline.data.builtin import USEquityPricing, from educational_platform.pipeline.factors import CustomFactor, Returns, from educational_platform.research import run_pipeline, from statsmodels import regression, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy, import scipy.stats as stats, import seaborn as sns, import statsmodels.api as sm
+
+**Explanatory Notes:**
+#Ranking Universes by Factors
+
+By Delaney Granizo-Mackenzie and Gilbert Wassermann
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [https://github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+
+One common technique in quantitative finance is that of ranking stocks in some way. This ranking can be whatever you come up with, but will often be a combination of fundamental factors and price-based signals. One example could be the following
+
+1. Score stocks based on 0.5 x the PE Ratio of that stock + 0.5 x the 30 day price momentum
+2. Rank stocks based on that score
+
+These ranking systems can be used to construct long-short equity strategies. The Long-Short Equity Lecture is recommended reading before this Lecture.
+
+In order to develop a good ranking system, we need to first understand how to evaluate ranking systems. We will show a demo here.
+
+##WARNING: 
+This notebook does analysis over thousands of equities and hundreds of timepoints. The resulting memory usage can crash the research server if you are running other notebooks. Please shut down other notebooks in the main research menu before running this notebook. You can tell if other notebooks are running by checking the color of the notebook symbol. Green indicates running, grey indicates not.

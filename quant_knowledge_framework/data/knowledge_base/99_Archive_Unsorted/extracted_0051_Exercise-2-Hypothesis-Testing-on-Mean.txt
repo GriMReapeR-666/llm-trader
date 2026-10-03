@@ -1,0 +1,21 @@
+# Exercise 2 : Hypothesis Testing on Mean.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Exercise 2 : Hypothesis Testing on Mean.
+
+Since we know that the variances are not equal, we must use Welch's t-test. 
+- Calculate the mean returns of XLE and XLI.
+    - Find the difference between the two means.
+- Calculate the standard deviation of the returns of XLE and XLI
+- Using the formula given above, calculate the t-test statistic (Using $\alpha = 0.05$) for Welch's t-test to test whether the mean returns of XLE and XLI are different.
+- Consult the [Hypothesis Testing Lecture](https://www.quantopian.com/lectures#Hypothesis-Testing) to calculate the p-value for this test. Are the mean returns of XLE and XLI the same?
+
+
+- Now use the t-test function for two independent samples from the scipy library. Compare the results.
+
+----

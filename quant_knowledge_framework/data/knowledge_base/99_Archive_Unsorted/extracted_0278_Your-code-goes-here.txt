@@ -1,0 +1,15 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+```
+*Cell 21:*
+```python
+# Concatenate these dataframes
+df_1 = get_pricing(['SPY', 'VXX'], start_date=start, end_date=end, fields='price')
+df_2 = get_pricing(['MSFT', 'AAPL', 'GOOG'], start_date=start, end_date=end, fields='price')

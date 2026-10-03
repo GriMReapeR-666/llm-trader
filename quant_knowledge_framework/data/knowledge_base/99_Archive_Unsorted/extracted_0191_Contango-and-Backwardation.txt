@@ -1,0 +1,14 @@
+# Contango and Backwardation
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Contango and Backwardation
+Often in futures markets we expect the futures price to be above the spot price. In this case, we can infer that participants in the market are willing to pay a premium for avoiding storage costs and the like. We call the difference between the futures price and the spot price the basis. A higher futures price than spot price indicates a positive basis, a situation which we call contango. With our cost of carry model, a positive cost of carry indicates contango.
+
+Backwardation occurs when the spot price is above the futures price and we have a negative basis. What this means is that it is cheaper to buy something right now than it would be to lock down for the future. This equates to a negative cost of carry.
+
+There are valid cases for both of these situations existing naturally. For example, backwardation is common in underlyings that are perishable or have seasonal behavior. Both allow for situations to find profit. Many futures pass in and out of both regimes before expiry.

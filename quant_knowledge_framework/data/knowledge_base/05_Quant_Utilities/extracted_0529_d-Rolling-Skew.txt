@@ -1,0 +1,272 @@
+# d. Rolling Skew
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python, pandas, standardize
+
+---
+
+## d. Rolling Skew
+
+Plot the rolling skew of AMC using the `pd.rolling_skew` function. 
+
+---
+
+Congratulations on completing the Statistical Moments and Normality Testing exercises!
+
+As you learn more about writing trading algorithms and the Educational Platform platform, be sure to check out the daily [Educational Platform Contest](https://www.educational_platform.com/contest), in which you can compete for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Libraries
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.stats as stats
+from statsmodels.stats.stattools import jarque_bera
+```
+*Cell 2:*
+```python
+xs2 = np.linspace(stats.gamma.ppf(0.01, 0.7, loc=-1), stats.gamma.ppf(0.99, 0.7, loc=-1), 150) + 1
+
+X = stats.gamma.pdf(xs2, 1.5)
+
+#Your code goes here
+
+skew = stats.skew(X)
+
+plt.plot(xs2, X)
+
+print 'Skew:', skew
+if skew > 0:
+    print 'The distribution is positively skewed'
+elif skew < 0:
+    print 'The distribution is negatively skewed'
+else:
+    print 'The distribution is symmetric'
+```
+*Cell 3:*
+```python
+start = '2015-01-01'
+end = '2016-01-01'
+pricing = get_pricing('NFLX', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:]
+
+#Your code goes here
+
+skew = stats.skew(returns)
+
+plt.hist(returns, 30)
+
+print 'Skew:', skew
+print 'The returns of NFLX have a strong positive skew, meaning their volatility is characterized by frequent small changes in price with interspersed large upticks.'
+
+```
+*Cell 4:*
+```python
+xs = np.linspace(-6,6, 300) + 2 
+
+Y = stats.cosine.pdf(xs)
+
+#Your code goes here
+
+plt.plot(xs, Y)
+
+print 'Excess kurtosis of Y:', (stats.kurtosis(Y))
+print 'Because the excess kurtosis is negative, Y is platykurtic. Platykurtic distributions cluster around the mean, so large values in either direction are less likely'
+```
+*Cell 5:*
+```python
+start = '2015-01-01'
+end = '2016-01-01'
+pricing = get_pricing('NFLX', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:]
+
+#Your code goes here
+
+kurt = stats.kurtosis(returns)
+
+plt.hist(returns, 30)
+
+print 'Kurtosis:', kurt
+print 'The historical returns of NFLX are strongly leptokurtic. Because of a leptokurtic distribution`s fatter tails, small changes in prices happen less often and large changes are more common. This makes the stock a riskier investment.'
+```
+*Cell 6:*
+```python
+xs2 = np.linspace(stats.lognorm.ppf(0.01, 0.7, loc=-.1), stats.lognorm.ppf(0.99, 0.7, loc=-.1), 150)
+
+lognorm = stats.lognorm.pdf(xs2, 0.4)
+
+Z = lognorm/2 + lognorm[::-1]
+
+#Your code goes here
+
+skew = stats.skew(Z)
+
+print 'Skew:', skew
+if skew > 0:
+    print 'The distribution is positively skewed'
+elif skew < 0:
+    print 'The distribution is negatively skewed'
+else:
+    print 'The distribution is symmetric'
+```
+*Cell 7:*
+```python
+N = 1000
+M = 1000
+
+pvalues = np.ndarray((N))
+
+for i in range(N):
+    # Draw M samples from a normal distribution 
+    X = np.random.normal(0, 1, M);
+    _, pvalue, _, _ = jarque_bera(X)
+    pvalues[i] = pvalue
+
+num_significant = len(pvalues[pvalues < 0.05])
+
+#Your code goes here
+
+print float(num_significant) / N
+print 'Our answer is around 5%, which is what we would expect for a cutoff of 5% and a correctly-calibrated Jarque-Bera test.'
+```
+*Cell 8:*
+```python
+#Your code goes here
+
+_, pvalue, _, _ = jarque_bera(Z)
+
+print pvalue
+if pvalue > 0.05:
+    print 'The returns are likely normal.'
+else:
+    print 'The returns are likely not normal.'
+```
+*Cell 9:*
+```python
+#Your code goes here
+
+plt.plot(Z)
+
+print 'The positive skew found in part a would have led us to believe values are concentrated below the mean and a tail extends to the right, however this is not the case. Because Z is bimodal, we can make no conclusions based on the skewness value alone. In order for skewness to be useful, the underlying distribution must be somewhat normal'
+
+```
+*Cell 10:*
+```python
+start = '2014-01-01'
+end = '2016-01-01'
+pricing = get_pricing('AMC', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:]
+
+#Your code goes here
+
+print 'The returns of AMC from 2014 through 2016 are unimodal and vaguely normal, so a skewness measure would be relevant.'
+
+plt.hist(returns, 30);
+```
+*Cell 11:*
+```python
+start = '2014-01-01'
+end = '2016-01-01'
+pricing = get_pricing('AMC', fields='price', start_date=start, end_date=end)
+returns = pricing.pct_change()[1:]
+
+#Your code goes here
+
+print 'Skew of AMC:', stats.skew(returns)
+```
+*Cell 12:*
+```python
+start = '2016-01-01'
+end = '2016-07-01'
+out_pricing = get_pricing('AMC', fields='price', start_date=start, end_date=end)
+out_returns = out_pricing.pct_change()[1:]
+
+#Your code goes here
+
+print 'Skew of AMC:', stats.skew(out_returns)
+print 'The negative skew of AMC between 2014 and 2016 did not hold outside of the orignal sample, meaning the skew of AMC might be volatile and not reliable enough for predictions about future behavior.'
+```
+*Cell 13:*
+```python
+AMC = get_pricing('AMC', fields='price', start_date='2015-01-01', end_date='2017-01-01')
+
+#Your code goes here
+rolling_skew = AMC.rolling(window=60,center=False).skew()
+plt.plot(rolling_skew)
+plt.xlabel('Day')
+plt.ylabel('60-day Rolling Skew')
+print "This confirms our result from part c, that the skew is too volatile to use it to make predictions outside of the sample."
+```
+
+##### Statistical Moments - Skewness and Kurtosis
+- **Original Path**: `notebooks\lectures\Statistical_Moments\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 20 (Code: 8, Markdown: 12)
+- **Imports/Dependencies**: from statsmodels.stats.stattools import jarque_bera, import matplotlib.pyplot as plt, import numpy as np, import scipy.stats as stats
+
+**Explanatory Notes:**
+# Statistical Moments - Skewness and Kurtosis
+By Evgenia "Jenny" Nitishinskaya, Maxwell Margenot, and Delaney Granizo-Mackenzie.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+Notebook released under the Creative Commons Attribution 4.0 License.
+
+Sometimes mean and variance are not enough to describe a distribution. When we calculate variance, we square the deviations around the mean. In the case of large deviations, we do not know whether they are likely to be positive or negative. This is where the skewness and symmetry of a distribution come in. A distribution is <i>symmetric</i> if the parts on either side of the mean are mirror images of each other. For example, the normal distribution is symmetric. The normal distribution with mean $\mu$ and standard deviation $\sigma$ is defined as
+$$ f(x) = \frac{1}{\sigma \sqrt{2 \pi}} e^{-\frac{(x - \mu)^2}{2 \sigma^2}} $$
+We can plot it to confirm that it is symmetric:
+
+A distribution which is not symmetric is called <i>skewed</i>. For instance, a distribution can have many small positive and a few large negative values (negatively skewed) or vice versa (positively skewed), and still have a mean of 0. A symmetric distribution has skewness 0. Positively skewed unimodal (one mode) distributions have the property that mean > median > mode. Negatively skewed unimodal distributions are the reverse, with mean < median < mode. All three are equal for a symmetric unimodal distribution.
+
+The explicit formula for skewness is:
+$$ S_K = \frac{n}{(n-1)(n-2)} \frac{\sum_{i=1}^n (X_i - \mu)^3}{\sigma^3} $$
+
+Where $n$ is the number of observations, $\mu$ is the arithmetic mean, and $\sigma$ is the standard deviation. The sign of this quantity describes the direction of the skew as described above. We can plot a positively skewed and a negatively skewed distribution to see what they look like. For unimodal distributions, a negative skew typically indicates that the tail is fatter on the left, while a positive skew indicates that the tail is fatter on the right.
+
+Although skew is less obvious when graphing discrete data sets, we can still compute it. For example, below are the skew, mean, and median for S&P 500 returns 2012-2014. Note that the skew is negative, and so the mean is less than the median.
+
+# Kurtosis
+
+Kurtosis attempts to measure the shape of the deviation from the mean. Generally, it describes how peaked a distribution is compared the the normal distribution, called mesokurtic. All normal distributions, regardless of mean and variance, have a kurtosis of 3. A leptokurtic distribution (kurtosis > 3) is highly peaked and has fat tails, while a platykurtic distribution (kurtosis < 3) is broad. Sometimes, however, kurtosis in excess of the normal distribution (kurtosis - 3) is used, and this is the default in `scipy`. A leptokurtic distribution has more frequent large jumps away from the mean than a normal distribution does while a platykurtic distribution has fewer.
+
+The formula for kurtosis is
+$$ K = \left ( \frac{n(n+1)}{(n-1)(n-2)(n-3)} \frac{\sum_{i=1}^n (X_i - \mu)^4}{\sigma^4} \right ) $$
+
+while excess kurtosis is given by
+$$ K_E = \left ( \frac{n(n+1)}{(n-1)(n-2)(n-3)} \frac{\sum_{i=1}^n (X_i - \mu)^4}{\sigma^4} \right ) - \frac{3(n-1)^2}{(n-2)(n-3)} $$
+
+For a large number of samples, the excess kurtosis becomes approximately
+
+$$ K_E \approx \frac{1}{n} \frac{\sum_{i=1}^n (X_i - \mu)^4}{\sigma^4} - 3 $$
+
+Since above we were considering perfect, continuous distributions, this was the form that kurtosis took. However, for a set of samples drawn for the normal distribution, we would use the first definition, and (excess) kurtosis would only be approximately 0.
+
+We can use `scipy` to find the excess kurtosis of the S&P 500 returns from before.
+
+The histogram of the returns shows significant observations beyond 3 standard deviations away from the mean, multiple large spikes, so we shouldn't be surprised that the kurtosis is indicating a leptokurtic distribution.
+
+# Other standardized moments
+
+It's no coincidence that the variance, skewness, and kurtosis take similar forms. They are the first and most important standardized moments, of which the $k$th has the form
+$$ \frac{E[(X - E[X])^k]}{\sigma^k} $$
+
+The first standardized moment is always 0 $(E[X - E[X]] = E[X] - E[E[X]] = 0)$, so we only care about the second through fourth. All of the standardized moments are dimensionless numbers which describe the distribution, and in particular can be used to quantify how close to normal (having standardized moments $0, \sigma, 0, \sigma^2$) a distribution is.
+
+# Normality Testing Using Jarque-Bera
+
+The Jarque-Bera test is a common statistical test that compares whether sample data has skewness and kurtosis similar to a normal distribution. We can run it here on the S&P 500 returns to find the p-value for them coming from a normal distribution.
+
+The Jarque Bera test's null hypothesis is that the data came from a normal distribution. Because of this it can err on the side of not catching a non-normal process if you have a low p-value. To be safe it can be good to increase your cutoff when using the test.
+
+Remember to treat p-values as binary and not try to read into them or compare them. We'll use a cutoff of 0.05 for our p-value.

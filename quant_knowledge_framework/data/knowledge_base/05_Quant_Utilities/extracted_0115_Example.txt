@@ -1,0 +1,274 @@
+# Example
+
+Topic: 05_Quant_Utilities
+Confidence: 0.43
+Keywords: numpy, python, pandas
+
+---
+
+## Example
+
+Say we have two factors $F_1$ and $F_2$, and a benchmark with sensitivities of 1 and 1.1 to the factors, respectively. We identify 3 securities $x_1, x_2, x_3$ that we would like to use in composing a portfolio that tracks the benchmark, whose sensitivities  are $b_{11} = 0.7$, $b_{12} = 1.1$, $b_{21} = 0.1$, $b_{22} = 0.5$, $b_{31} = 1.5$, $b_{32} = 1.3$. We would like to compute weights $w_1$, $w_2$, $w_3$ so that our tracking portfolio is
+
+$$ P = w_1 x_1 + w_2 x_2 + w_3 x_3 $$
+
+We want our portfolio sensitivities to match the benchmark:
+
+$$ w_1 b_{11} + w_2 b_{21} + w_3 b_{31} = 1 $$
+$$ w_1 b_{12} + w_2 b_{22} + w_3 b_{32} = 1.1 $$
+
+Also, the weights need to sum to 1:
+
+$$ w_1 + w_2 + w_3 = 1 $$
+
+Solving this system of 3 linear equations, we find that $w_1 = 1/3$, $w_2 = 1/6$, and $w_3 = 1/2$. Putting the securities together into a portfolio using these weights, we obtain a portfolio with the same risk profile as the benchmark.
+
+##How to Use Risk Exposure Models
+
+Once we know our risk exposures, we can do a few things. We can not enter into positions that have high exposures to certain factors, or we can hedge our positions to try to neutralize the exposure.
+
+###Risk Management
+
+Often times funds will have a layer of protection over their traders/algorithms. This layer of protection takes in the trades that the fund wants to make, then computes the exposure of the new portfolio, and checks to make sure they're within pre-defined ranges. If they are not, it does not place the trade and files a warning.
+
+###Hedging
+
+Another method of dealing with exposure is to take out hedges. You can determine, for example, your exposure to each sector of the market. You can then take out a hedge if a particular sector seems to affect your returns too much. For more information on hedging, please see our Beta Hedging lecture. Good algorithms will have built-in hedging logic that ensures they are never over-exposed.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import statsmodels.api as sm
+import scipy.stats as stats
+from statsmodels import regression
+import matplotlib.pyplot as plt
+import pandas as pd
+```
+*Cell 2:*
+```python
+import numpy as np
+from educational_platform.pipeline import Pipeline
+from educational_platform.pipeline.data import Fundamentals
+from educational_platform.pipeline.data.builtin import USEquityPricing
+from educational_platform.pipeline.factors import CustomFactor, Returns
+
+# Here's the raw data we need, everything else is derivative.
+
+class MarketCap(CustomFactor):
+    # Here's the data we need for this factor
+    inputs = [Fundamentals.shares_outstanding, USEquityPricing.close]
+    # Only need the most recent values for both series
+    window_length = 1
+    
+    def compute(self, today, assets, out, shares, close_price):
+        # Shares * price/share = total price = market cap
+        out[:] = shares * close_price
+        
+        
+class BookToPrice(CustomFactor):
+    # pb = price to book, we'll need to take the reciprocal later
+    inputs = [Fundamentals.pb_ratio]
+    window_length = 1
+    
+    def compute(self, today, assets, out, pb):
+        out[:] = 1 / pb
+        
+def make_pipeline():
+    """
+    Create and return our pipeline.
+    
+    We break this piece of logic out into its own function to make it easier to
+    test and modify in isolation.
+    
+    In particular, this function can be copy/pasted into research and run by itself.
+    """
+    pipe = Pipeline()
+
+    # Add our factors to the pipeline
+    market_cap = MarketCap()
+    # Raw market cap and book to price data gets fed in here
+    pipe.add(market_cap, "market_cap")
+    book_to_price = BookToPrice()
+    pipe.add(book_to_price, "book_to_price")
+    
+    # We also get daily returns
+    returns = Returns(inputs=[USEquityPricing.close], window_length=2)
+    pipe.add(returns, "returns")
+    
+    # We compute a daily rank of both factors, this is used in the next step,
+    # which is computing portfolio membership.
+    market_cap_rank = market_cap.rank()
+    pipe.add(market_cap_rank, 'market_cap_rank')
+    
+    book_to_price_rank = book_to_price.rank()
+    pipe.add(book_to_price_rank, 'book_to_price_rank')
+
+    # Build Filters representing the top and bottom 1000 stocks by our combined ranking system.
+    biggest = market_cap_rank.top(1000)
+    smallest = market_cap_rank.bottom(1000)
+    
+    highpb = book_to_price_rank.top(1000)
+    lowpb = book_to_price_rank.bottom(1000)
+    
+    # Don't return anything not in this set, as we don't need it.
+    pipe.set_screen(biggest | smallest | highpb | lowpb)
+    
+    # Add the boolean flags we computed to the output data
+    pipe.add(biggest, 'biggest')
+    pipe.add(smallest, 'smallest')
+    
+    pipe.add(highpb, 'highpb')
+    pipe.add(lowpb, 'lowpb')
+    
+    return pipe
+
+pipe = make_pipeline()
+```
+*Cell 3:*
+```python
+start_date = '2014-1-1'
+end_date = '2015-1-1'
+```
+*Cell 4:*
+```python
+from educational_platform.research import run_pipeline
+results = run_pipeline(pipe, start_date, end_date)
+
+R_biggest = results[results.biggest]['returns'].groupby(level=0).mean()
+R_smallest = results[results.smallest]['returns'].groupby(level=0).mean()
+
+R_highpb = results[results.highpb]['returns'].groupby(level=0).mean()
+R_lowpb = results[results.lowpb]['returns'].groupby(level=0).mean()
+
+SMB = R_smallest - R_biggest
+HML = R_highpb - R_lowpb
+```
+*Cell 5:*
+```python
+SMB_CUM = np.cumprod(SMB+1)
+HML_CUM = np.cumprod(HML+1)
+
+plt.plot(SMB_CUM.index, SMB_CUM.values)
+plt.plot(HML_CUM.index, HML_CUM.values)
+plt.ylabel('Cumulative Return')
+plt.legend(['SMB Portfolio Returns', 'HML Portfolio Returns']);
+```
+*Cell 6:*
+```python
+# Get returns data for our portfolio
+portfolio = get_pricing(['MSFT', 'AAPL', 'YHOO', 'FB', 'TSLA'], 
+                        fields='price', start_date=start_date, end_date=end_date).pct_change()[1:]
+R = np.mean(portfolio, axis=1)
+
+
+bench = get_pricing('SPY', fields='price', start_date=start_date, end_date=end_date).pct_change()[1:]
+
+# The excess returns of our active management, in this case just holding a portfolio of our one asset
+active = R - bench
+
+# Define a constant to compute intercept
+constant = pd.TimeSeries(np.ones(len(active.index)), index=active.index)
+
+df = pd.DataFrame({'R': active,
+              'F1': SMB,
+              'F2': HML,
+              'Constant': constant})
+df = df.dropna()
+```
+*Cell 7:*
+```python
+# Perform linear regression to get the coefficients in the model
+b1, b2 = regression.linear_model.OLS(df['R'], df[['F1', 'F2']]).fit().params
+
+# Print the coefficients from the linear regression
+print 'Sensitivities of active returns to factors:\nSMB: %f\nHML: %f' %  (b1, b2)
+```
+*Cell 8:*
+```python
+F1 = df['F1']
+F2 = df['F2']
+cov = np.cov(F1, F2)
+ar_squared = (active.std())**2
+fmcar1 = (b1*(b2*cov[0,1] + b1*cov[0,0]))/ar_squared
+fmcar2 = (b2*(b1*cov[0,1] + b2*cov[1,1]))/ar_squared
+print 'SMB Risk Contribution:', fmcar1
+print 'HML Risk Contribution:', fmcar2
+```
+*Cell 9:*
+```python
+# Compute the rolling betas
+model = pd.stats.ols.MovingOLS(y = df['R'], x=df[['F1', 'F2']], 
+                             window_type='rolling', 
+                             window=100)
+rolling_parameter_estimates = model.beta
+rolling_parameter_estimates.plot();
+plt.title('Computed Betas');
+plt.legend(['F1 Beta', 'F2 Beta', 'Intercept']);
+```
+*Cell 10:*
+```python
+# Remove the first 99, which are all NaN for each case
+
+# Compute covariances
+covariances = pd.rolling_cov(df[['F1', 'F2']], window=100)[99:]
+# Compute active risk squared
+active_risk_squared = pd.rolling_std(active, window = 100)[99:]**2
+# Compute betas
+betas = rolling_parameter_estimates[['F1', 'F2']]
+
+# Set up empty dataframe
+FMCAR = pd.DataFrame(index=betas.index, columns=betas.columns)
+
+# For each factor
+for factor in betas.columns:
+    # For each bar in our data
+    for t in betas.index:
+        # Compute the sum of the betas and covariances
+        s = np.sum(betas.loc[t] * covariances[t][factor])
+        # Get the beta
+        b = betas.loc[t][factor]
+        # Get active risk squared
+        AR = active_risk_squared.loc[t]
+        # Put them all together to estimate FMCAR on that date
+        FMCAR[factor][t] = b * s / AR
+```
+*Cell 11:*
+```python
+plt.plot(FMCAR['F1'].index, FMCAR['F1'].values)
+plt.plot(FMCAR['F2'].index, FMCAR['F2'].values)
+
+plt.ylabel('Marginal Contribution to Active Risk Squared')
+plt.legend(['F1 FMCAR', 'F2 FMCAR']);
+```
+*Cell 12:*
+```python
+from statsmodels.stats.stattools import jarque_bera
+_, pvalue1, _, _ = jarque_bera(FMCAR['F1'].dropna().values)
+_, pvalue2, _, _ = jarque_bera(FMCAR['F2'].dropna().values)
+
+print 'p-value F1_FMCAR is normally distributed', pvalue1
+print 'p-value F2_FMCAR is normally distributed', pvalue2
+```
+
+##### Fundamental Factor Models
+- **Original Path**: `notebooks\lectures\Fundamental_Factor_Models\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 36 (Code: 15, Markdown: 21)
+- **Imports/Dependencies**: from educational_platform.pipeline import Pipeline, from educational_platform.pipeline.classifiers import Classifier, from educational_platform.pipeline.data import Fundamentals, from educational_platform.pipeline.factors import CustomFactor, Returns, Latest, from educational_platform.pipeline.filters import QTradableStocksUS, from educational_platform.research import run_pipeline, from statsmodels import regression,stats, import itertools, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Fundamental Factor Models
+
+By Beha Abasi, Maxwell Margenot, and Delaney Mackenzie
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---

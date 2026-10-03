@@ -1,0 +1,13 @@
+# Measuring Volatility
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Measuring Volatility
+
+Volatility needs to be forward-looking and predictive in order to make smart decisions. Unfortunately, simply taking the historical standard deviation of an individual asset's returns falls short when we take into account need for robustness to the future. When we scale the problem up to the point where we need to forecast the volatility for many assets, it gets even harder.
+
+To model how a portfolio overall changes, it is important to look not only at the volatility of each asset in the portfolio, but also at the pairwise covariances of every asset involved. The relationship between two or more assets provides valuable insights and a path towards reduction of overall portfolio volatility. A large number of assets with low covariance would assure they decrease or increase independently of each other. Indepedent assets have less of an impact on our portfolio's volatility as they give us true diversity and help us avoid [position concentration risk](https://www.quantopian.com/lectures/position-concentration-risk).

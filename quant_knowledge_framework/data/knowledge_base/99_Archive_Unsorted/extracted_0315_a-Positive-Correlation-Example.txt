@@ -1,0 +1,11 @@
+# a. Positive Correlation Example
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Positive Correlation Example
+
+Construct a variable $Y$ which has a strong, but not perfect, positive correlation with $X$ $(0.9 < Corr(X,Y) < 1)$, and plot their relationship.

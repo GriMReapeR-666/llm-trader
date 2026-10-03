@@ -1,0 +1,39 @@
+# String Shenanigans
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## String Shenanigans
+
+We already know that strings are generally used for text. We can used built-in operations to combine, split, and format strings easily, depending on our needs.
+
+The `+` symbol indicates concatenation in string language. It will combine two strings into a longer string.
+
+Strings are also indexed much in the same way that lists are.
+
+Built-in objects and classes often have special functions associated with them that are called methods. We access these methods by using a period ('.'). We will cover objects and their associated methods more in another lecture!
+
+Using string methods we can count instances of a character or group of characters.
+
+We can also find the first instance of a character or group of characters in a string.
+
+As well as replace characters in a string.
+
+There are also some methods that are unique to strings. The function `upper()` will convert all characters in a string to uppercase, while `lower()` will convert all characters in a string to lowercase!
+
+### String Formatting
+
+Using the `format()` method we can add in variable values and generally format our strings.
+
+We use braces (`{}`) to indicate parts of the string that will be filled in later and we use the arguments of the `format()` function to provide the values to substitute. The numbers within the braces indicate the index of the value in the `format()` arguments.
+
+See the `format()` [documentation](https://docs.python.org/2/library/string.html#format-examples) for additional examples.
+
+If you need some quick and dirty formatting, you can instead use the `%` symbol, called the string formatting operator. 
+
+The `%` symbol basically cues Python to create a placeholder. Whatever character follows the `%` (in the string) indicates what sort of type the value put into the placeholder will have. This character is called a *conversion type*. Once the string has been closed, we need another `%` that will be followed by the values to insert. In the case of one value, you can just put it there. If you are inserting more than one value, they must be enclosed in a tuple.
+
+In these examples, the `%s` indicates that Python should convert the values into strings. There are multiple conversion types that you can use to get more specific with the the formatting. See the string formatting [documentation](https://docs.python.org/2/library/stdtypes.html#string-formatting) for additional examples and more complete details on use.

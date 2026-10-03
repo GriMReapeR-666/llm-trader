@@ -1,0 +1,13 @@
+# Exercise 3 : Skewness
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Exercise 3 : Skewness
+- Calculate the mean and median of the two assets
+- Calculate the skewness using the scipy library
+
+----

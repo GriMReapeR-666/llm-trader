@@ -1,0 +1,15 @@
+# Exercise 1 : Hypothesis Testing on Variance.
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Exercise 1 : Hypothesis Testing on Variance. 
+- Plot the histogram of the returns of XLE and XLI
+- Check to see if each return stream is normally distributed
+- If the assets are normally distributed, use the F-test to perform a hypothesis test and decide whether they have the two assets have the same variance.
+- If the assets are **not** normally distributed, use the Levene test (in the scipy library) to perform a hypothesis test on variance. 
+
+----

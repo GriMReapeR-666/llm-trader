@@ -1,0 +1,28 @@
+# Calculating the Spread
+
+Topic: 05_Quant_Utilities
+Confidence: 0.77
+Keywords: stationarity, z-score, cointegration, normalize
+
+---
+
+## Calculating the Spread
+Now we will plot the spread of the two series. In order to actually calculate the spread, we use a linear regression to get the coefficient for the linear combination to construct between our two securities, as shown in the [stationarity lecture](https://www.educational_platform.com/lectures/integration-cointegration-and-stationarity). Using a linear regression to estimate the coefficient is known as the Engle-Granger method.
+
+Alternatively, we could examine the ratio betwen the two series.
+
+Examining the price ratio of a trading pair is a traditional way to handle pairs trading. Part of why this works as a signal is based in our assumptions of how stock prices move, specifically because stock prices are typically assumed to be log-normally distributed. What this implies is that by taking a ratio of the prices, we are taking a linear combination of the returns associated with them (since prices are just the exponentiated returns).
+
+This can be a little irritating to deal with for our purposes as purchasing the precisely correct ratio of a trading pair may not be practical. We choose instead to move forward with simply calculating the spread between the cointegrated stocks using linear regression. This is a very simple way to handle the relationship, however, and is likely not feasible for non-toy examples. There are other potential methods for estimating the spread listed at the bottom of this lecture. If you want to get more into the theory of why having cointegrated stocks matters for pairs trading, again, please see the Integration, Cointegration, and Stationarity Lecture from the [Educational Platform Lecture Series](https://www.educational_platform.com/lectures#Integration,-Cointegration,-and-Stationarity).
+
+So, back to our example. The absolute spread isn't very useful in statistical terms. It is more helpful to normalize our signal by treating it as a z-score. 
+
+### WARNING
+In practice this is usually done to try to give some scale to the data, but this assumes some underlying distribution, usually a normal distribution. Under a normal distribution, we would know that approximately 84% of all spread values will be smaller. However, much financial data is not normally distributed, and one must be very careful not to assume normality, nor any specific distribution when generating statistics. It could be the case that the true distribution of spreads was very fat-tailed and prone to extreme values. This could mess up our model and result in large losses.
+
+### Simple Strategy:
+* Go "Long" the spread whenever the z-score is below -1.0
+* Go "Short" the spread when the z-score is above 1.0
+* Exit positions when the z-score approaches zero
+
+This is just the tip of the iceberg, and only a very simplistic example to illustrate the concepts.  In practice you would want to compute a more optimal weighting for how many shares to hold for S1 and S2.  Some additional resources on pair trading are listed at the end of this notebook

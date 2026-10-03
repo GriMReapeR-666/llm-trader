@@ -1,0 +1,21 @@
+# Conclusions
+
+Topic: 04_Order_Execution
+Confidence: 0.67
+Keywords: spread, market impact
+
+---
+
+## Conclusions
+
+### The following order atttributes leads to higher market impact:
+* Higher relative order size 
+* Trading illquid names
+* Trading names with lower daily turnover (in terms of shares outstanding)
+* Shorter trade duration
+* Higher volatility names 
+* More urgency or higher POV
+* Short term alpha
+* Trading earlier in the day
+* Trading names with wider spreads
+* Trading lower ADV names or on days when market volume is down

@@ -1,0 +1,15 @@
+# c.ii Plotting Sample Standard Deviations - Autocorrelated
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c.ii Plotting Sample Standard Deviations - Autocorrelated
+
+Draw 500 samples of size `sample_size` from the same autocorrelated distribution, plot the standard deviations of each of the samples, and check to see if the distribution of the sample standard deviations is normal.
+
+----
+
+# Exercise 4: Small Sample Sizes

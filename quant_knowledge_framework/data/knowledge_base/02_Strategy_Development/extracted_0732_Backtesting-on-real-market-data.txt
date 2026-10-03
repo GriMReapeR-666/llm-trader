@@ -1,0 +1,20 @@
+# Backtesting on real market data
+
+Topic: 02_Strategy_Development
+Confidence: 0.50
+Keywords: ev, backtest
+
+---
+
+## Backtesting on real market data
+Now that we see how linear portfolio optimization works, we can create an algorithm in [`zipline`](http://github.com/educational_platform/zipline) -- the open-source backtester that powers [Educational Platform](https://www.educational_platform.com) -- which uses this optimization to rebalance an actual portfolio day by day.
+
+First we load some historical data using `get_pricing()`.
+
+For now, let's just consider the annualized returns, and compare the performances of random portfolios and the individual assets with the efficient frontier.
+
+The efficient frontier has the same parabolic shape as before, and all of the possible portfolios are bounded above and on the left by it. However, because of the large number of securities, our random portfolios do not fill out the bullet -- it is too unlikely to randomly generate a portfolio consisting mostly of XLP, for instance, and next to none of the other 11 assets.
+
+Next, we'll create a `zipline` algorithm by defining two functions -- `initialize()` which is called once before the simulation starts, and `handle_data()` which is called for every trading bar. We then instantiate the algorithm object. It will tell us how to rebalance our portfolio each trading day.
+
+If you are confused about the syntax of `zipline`, check out the [tutorial](http://nbviewer.ipython.org/github/educational_platform/zipline/blob/master/docs/tutorial.ipynb).

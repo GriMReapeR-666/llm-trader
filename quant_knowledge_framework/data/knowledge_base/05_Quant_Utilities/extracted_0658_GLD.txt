@@ -1,0 +1,320 @@
+# GLD
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: numpy, python, pandas
+
+---
+
+## GLD
+
+Finally, we look at **GLD**, which is the largest gold ETF, storing assets of about \$24bn. GLD started trading on `2004-11-18`. We expect GLD to slowly appreciate in value (beating inflation), but to swing up especially in times of bad sentiment, as the price of gold usually shoots up when there is macroeconomic-level fear.
+
+Fascinating! There are sections of seemingly-proportional movement, and other sections of seemingly inversely-proportional movement. In these movements, we also see the Fed Sentiment going first, then followed by gold (e.g. between 2008 and 2009, or mid-2012 and 2014), but on other occasions, we see gold moving first, then followed by Fed Sentiment (e.g. between 2009 and mid-2010). 
+
+This hearkens back to the evaluation of CWB -- there's a macroeconomic confounder at work. For that reason, and because of the seemingly shifting proportionality in relationship, **attempting to use Fed Sentiment as a predictor of Gold Price is likely a risky endeavour**. That being said, it may be possible to constrain trading to a particular set of circumstances in which Gold Price follows Fed Sentiment. 
+
+We note that the interesting relationship between GLD and Fed Sentiment might be explained by the fact that Gold is heavily traded internationally -- it is well possible that the price shifts in GLD that seem counter-intuitve are in fact explained by international macro activity. 
+
+Again, further investigation is warranted.
+
+### Summary of Opportunities for Further Investigation
+
+We came across a few topics that warrant further investigation. Perhaps I will address these in future notebooks, but they are also good research projects for you to get involved with:
+ - Cross-correlate TLT and Fed Sentiment and assess the strength of that relationship
+ - Cross-correlate DIA/SPY and Fed Sentiment, assess the strength of those relationships
+ - Try to find the confounding variables in the relationship between DIA and Fed Sentiment
+ - Look into GLD and international central bank data -- the gold price is dictated by international trade, so we must consider international macroeconomic activity when trying to predict it.
+
+### More About Prattle
+
+> From the smallest companies to the largest banks, the market is always talking. Prattle decodes this chatter, producing quantitative, real-time, tradable signals from noise. Prattle’s core product, the Fed Index, is created using language processing programs in concert with domain expertise to comprehensively and quantitatively evaluate the economic impact of the central bank’s language. Along with the Federal Reserve, Prattle evaluates 18 central banks overseeing over 90 percent of global GDP, providing financial professionals with actionable, easily integratable data on the market’s biggest movers.
+
+Please reach out to info@prattle.co if you have any questions or want access to their data.
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Import libraries we will use
+from matplotlib import pyplot
+import datetime
+import time
+from pykalman import KalmanFilter
+import numpy
+import scipy
+import pandas
+```
+*Cell 2:*
+```python
+# grab the prattle dataset
+prattle_data = local_csv('prattle.csv')
+# filter to data from the fed only
+fed_data = prattle_data[prattle_data.bank=='frc']
+```
+*Cell 3:*
+```python
+# helper functions
+
+def convert_date(mydate):
+    return datetime.datetime.strptime(mydate, "%Y-%m-%d")
+
+# for grabbing dates and prices for a relevant equity
+def get_data(etf_name,trading_start,trading_end='2015-07-20'):
+    # using today as a default arg: assuming most of the ETFs I want to inspect
+    # are still trading.
+    stock_data = get_pricing(etf_name,
+                        start_date = trading_start,
+                        end_date = trading_end,
+                        fields = ['close_price'],
+                        frequency = 'daily')
+    stock_data['date'] = stock_data.index
+
+    # drop nans. For whatever reason, nans were causing the kf to return a nan array.
+    stock_data = stock_data.dropna()
+    # the dates are just those on which the prices were recorded
+    dates = stock_data['date']
+    dates = [convert_date(str(x)[:10]) for x in dates]
+    prices = stock_data['close_price']
+    return dates, prices
+
+# for grabbing the prattle data on which the etf has been trading.
+def get_prattle(trading_start,trading_end='2015-07-20'):
+    # filter down to the relevant time period
+    data_prattle = fed_data[fed_data.date > trading_start]
+    data_prattle = data_prattle[trading_end > data_prattle.date]
+    dates_prattle = data_prattle['date']
+    dates_prattle = [convert_date(str(x)[:10]) for x in dates_prattle]
+    scores_prattle = data_prattle['score']
+    return dates_prattle, scores_prattle
+```
+*Cell 4:*
+```python
+# grab the SHY dataset.
+dates_shy, prices_shy = get_data('SHY', '06-24-2002')
+# grab the relevant prattle data.
+dates_shy_prattle, scores_shy_prattle = get_prattle('2002-06-24')
+```
+*Cell 5:*
+```python
+# Lay a sentiment plot over a plot of SHY price
+
+fig, ax1 = pyplot.subplots()
+ax1.plot(dates_shy,prices_shy,c='green',label='SHY Price')
+pyplot.xlabel('Date')
+pyplot.ylabel('SHY Price')
+pyplot.legend(loc=2)
+# twinx to plot on the same graph
+ax2 = ax1.twinx()
+ax2.plot(dates_shy_prattle,scores_shy_prattle, label='Fed Sentiment')
+pyplot.ylabel('Fed Sentiment Score')
+pyplot.legend(loc=1)
+
+pyplot.show()
+```
+*Cell 6:*
+```python
+# Initialize a Kalman Filter.
+# Using kf to filter does not change the values of kf, so we don't need to ever reinitialize it.
+kf = KalmanFilter(transition_matrices = [1],
+                  observation_matrices = [1],
+                  initial_state_mean = 0,
+                  initial_state_covariance = 1,
+                  observation_covariance=1,
+                  transition_covariance=.01)
+```
+*Cell 7:*
+```python
+# Filter Rolling Means
+prices_shy_means, _ = kf.filter(prices_shy.values)
+scores_shy_prattle_means, _ = kf.filter(scores_shy_prattle.values)
+
+# Overlay Plots
+fig, ax1 = pyplot.subplots()
+ax1.plot(dates_shy,prices_shy_means,c='green',label='SHY Price MA')
+pyplot.ylim([77.5,87.5])
+pyplot.xlabel('Date')
+pyplot.ylabel('SHY Price MA')
+pyplot.legend(loc=2)
+ax2 = ax1.twinx()
+ax2.plot(dates_shy_prattle,scores_shy_prattle_means, label='Fed Sentiment MA')
+pyplot.ylabel('Fed Sentiment Score MA')
+pyplot.legend(loc=1)
+
+pyplot.show()
+```
+*Cell 8:*
+```python
+# grab the IEI dataset and relevant prattle data.
+dates_iei, prices_iei = get_data('IEI', '2007-01-11')
+dates_iei_prattle, scores_iei_prattle = get_prattle('2007-01-11')
+```
+*Cell 9:*
+```python
+# Filter Rolling Means
+prices_iei_means, _ = kf.filter(prices_iei.values)
+scores_iei_prattle_means, _ = kf.filter(scores_iei_prattle.values)
+
+# Overlay Plots
+fig, ax1 = pyplot.subplots()
+ax1.plot(dates_iei,prices_iei_means,c='green',label='IEI Price MA')
+pyplot.ylim([90,130])
+pyplot.xlabel('Date')
+pyplot.ylabel('IEI Price MA')
+pyplot.legend(loc=2)
+ax2 = ax1.twinx()
+ax2.plot(dates_iei_prattle,scores_iei_prattle_means, label='Fed Sentiment MA')
+pyplot.ylabel('Fed Sentiment Score MA')
+pyplot.legend(loc=1)
+pyplot.show()
+```
+*Cell 10:*
+```python
+# grab the TLT dataset and relevant prattle data.
+dates_tlt, prices_tlt = get_data('TLT', '2002-06-24')
+dates_tlt_prattle, scores_tlt_prattle = get_prattle('2002-06-24')
+```
+*Cell 11:*
+```python
+# Filter Rolling Means
+prices_tlt_means, _ = kf.filter(prices_tlt.values)
+scores_tlt_prattle_means, _ = kf.filter(scores_tlt_prattle.values)
+
+# Overlay Plots
+fig, ax1 = pyplot.subplots()
+ax1.plot(dates_tlt,prices_tlt_means,c='green',label='TLT Price MA')
+pyplot.xlabel('Date')
+pyplot.ylabel('TLT Price MA')
+pyplot.legend(loc=2)
+ax2 = ax1.twinx()
+ax2.plot(dates_tlt_prattle,scores_tlt_prattle_means, label='Fed Sentiment MA')
+pyplot.ylabel('Fed Sentiment Score MA')
+pyplot.legend(loc=1)
+pyplot.show()
+```
+*Cell 12:*
+```python
+# Overlay Plots
+fig, ax1 = pyplot.subplots()
+ax1.plot(dates_tlt,prices_tlt_means,c='green',label='TLT Price MA')
+pyplot.xlabel('Date')
+pyplot.ylabel('TLT Price MA')
+pyplot.legend(loc=2)
+ax2 = ax1.twinx()
+dates_tlt_prattle2 = map(lambda x: x+datetime.timedelta(days=300), dates_tlt_prattle)
+ax2.plot(dates_tlt_prattle2,scores_tlt_prattle_means, label='Fed Sentiment MA')
+pyplot.ylabel('Fed Sentiment Score MA')
+pyplot.legend(loc=1)
+
+pyplot.show()
+```
+*Cell 13:*
+```python
+# grab the CWB dataset.
+dates_cwb, prices_cwb = get_data('CWB', '2009-04-16')
+# grab the relevant prattle data.
+dates_cwb_prattle, scores_cwb_prattle = get_prattle('2009-04-16')
+```
+*Cell 14:*
+```python
+# Filter Rolling Means
+prices_cwb_means, _ = kf.filter(prices_cwb.values)
+scores_cwb_prattle_means, _ = kf.filter(scores_cwb_prattle.values)
+
+# Overlay Plots
+fig, ax1 = pyplot.subplots()
+ax1.plot(dates_cwb,prices_cwb_means,c='green',label='CWB Price MA')
+pyplot.xlabel('Date')
+pyplot.ylabel('CWB Price MA')
+pyplot.legend(loc=2)
+ax2 = ax1.twinx()
+ax2.plot(dates_cwb_prattle,scores_cwb_prattle_means, label='Fed Sentiment MA')
+pyplot.ylabel('Fed Sentiment Score MA')
+pyplot.legend(loc=1)
+pyplot.show()
+```
+*Cell 15:*
+```python
+# grab the DIA dataset and relevant prattle data.
+dates_dia, prices_dia = get_data('DIA', '2002-03-03')
+dates_dia_prattle, scores_dia_prattle = get_prattle('2002-03-03')
+```
+*Cell 16:*
+```python
+# Filter Rolling Means
+prices_dia_means, _ = kf.filter(prices_dia.values)
+scores_dia_prattle_means, _ = kf.filter(scores_dia_prattle.values)
+
+# Overlay Plots
+fig, ax1 = pyplot.subplots()
+ax1.plot(dates_dia,prices_dia_means,c='green',label='DIA Price MA')
+pyplot.xlabel('Date')
+pyplot.ylabel('DIA Price MA')
+pyplot.legend(loc=2)
+ax2 = ax1.twinx()
+ax2.plot(dates_dia_prattle,scores_dia_prattle_means, label='Fed Sentiment MA')
+pyplot.ylabel('Fed Sentiment Score MA')
+pyplot.legend(loc=1)
+pyplot.show()
+```
+*Cell 17:*
+```python
+# grab the SPY dataset and relevant prattle data.
+dates_spy, prices_spy = get_data('SPY', '2002-03-03')
+dates_spy_prattle, scores_spy_prattle = get_prattle('2002-03-03')
+```
+*Cell 18:*
+```python
+# Filter Rolling Means
+prices_spy_means, _ = kf.filter(prices_spy.values)
+scores_spy_prattle_means, _ = kf.filter(scores_spy_prattle.values)
+
+# Overlay Plots
+fig, ax1 = pyplot.subplots()
+ax1.plot(dates_spy,prices_spy_means,c='green',label='SPY Price MA')
+pyplot.xlabel('Date')
+pyplot.ylabel('SPY Price MA')
+pyplot.legend(loc=2)
+ax2 = ax1.twinx()
+ax2.plot(dates_spy_prattle,scores_spy_prattle_means, label='Fed Sentiment MA')
+pyplot.ylabel('Fed Sentiment Score MA')
+pyplot.legend(loc=1)
+pyplot.show()
+```
+*Cell 19:*
+```python
+# grab the GLD dataset and relevant prattle data.
+dates_gld, prices_gld = get_data('GLD', '2004-11-18')
+dates_gld_prattle, scores_gld_prattle = get_prattle('2004-11-18')
+```
+*Cell 20:*
+```python
+# Filter Rolling Means
+prices_gld_means, _ = kf.filter(prices_gld.values)
+scores_gld_prattle_means, _ = kf.filter(scores_gld_prattle.values)
+
+# Overlay Plots
+fig, ax1 = pyplot.subplots()
+ax1.plot(dates_gld,prices_gld_means,c='green',label='GLD Price MA')
+pyplot.xlabel('Date')
+pyplot.ylabel('GLD Price MA')
+pyplot.legend(loc=2)
+ax2 = ax1.twinx()
+ax2.plot(dates_gld_prattle,scores_gld_prattle_means, label='Fed Sentiment MA')
+pyplot.ylabel('Fed Sentiment Score MA')
+pyplot.legend(loc=1)
+
+pyplot.show()
+```
+*Cell 21:*
+```python
+
+```
+
+##### Stoploss-Moving-Window
+- **Original Path**: `advanced_sample_analyses\Stoploss-Moving-Window.ipynb`
+- **Use Case**: Advanced Sample Analyses
+- **Cell Count**: 20 (Code: 9, Markdown: 11)
+- **Imports/Dependencies**: from matplotlib import pyplot, from scipy import stats, poly1d, import datetime, import math, import numpy, import pandas
+
+**Explanatory Notes:**

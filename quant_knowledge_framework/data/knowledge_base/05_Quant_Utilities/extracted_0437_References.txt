@@ -1,0 +1,289 @@
+# References
+
+Topic: 05_Quant_Utilities
+Confidence: 0.43
+Keywords: numpy, python, pandas
+
+---
+
+## References
+* "Quantitative Investment Analysis", by DeFusco, McLeavey, Pinto, and Runkle
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Import the libraries we'll be using
+import numpy as np
+import statsmodels.api as sm
+from statsmodels import regression
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# Pull the pricing data for our two stocks and S&P 500
+start = '2013-01-01'
+end = '2015-01-01'
+bench = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+a1 = get_pricing('LRCX', fields='price', start_date=start, end_date=end)
+a2 = get_pricing('AAPL', fields='price', start_date=start, end_date=end)
+
+# Perform linear regression and print R-squared values
+slr12 = regression.linear_model.OLS(a2, sm.add_constant(a1)).fit()
+slrb1 = regression.linear_model.OLS(a1, sm.add_constant(bench)).fit()
+slrb2 = regression.linear_model.OLS(a2, sm.add_constant(bench)).fit()
+print "R-squared values of linear regression"
+print "LRCX and AAPL: ", slr12.rsquared
+print "LRCX and SPY: ", slrb1.rsquared
+print "AAPL and SPY: ", slrb2.rsquared
+```
+*Cell 3:*
+```python
+# Pull pricing data from further back
+start = '2009-01-01'
+end = '2015-01-01'
+bench = get_pricing('SPY', fields='price', start_date=start, end_date=end)
+a1 = get_pricing('LRCX', fields='price', start_date=start, end_date=end)
+a2 = get_pricing('AAPL', fields='price', start_date=start, end_date=end)
+
+# Perform linear regression and print R-squared values
+slr12 = regression.linear_model.OLS(a2, sm.add_constant(a1)).fit()
+slrb1 = regression.linear_model.OLS(a1, sm.add_constant(bench)).fit()
+slrb2 = regression.linear_model.OLS(a2, sm.add_constant(bench)).fit()
+print "R-squared values of linear regression"
+print "LRCX and AAPL: ", slr12.rsquared
+print "LRCX and SPY: ", slrb1.rsquared
+print "AAPL and SPY: ", slrb2.rsquared
+```
+*Cell 4:*
+```python
+# Load one year's worth of pricing data for five different assets
+start = '2014-01-01'
+end = '2015-01-01'
+x1 = get_pricing('PEP', fields='price', start_date=start, end_date=end)
+x2 = get_pricing('MCD', fields='price', start_date=start, end_date=end)
+x3 = get_pricing('ATHN', fields='price', start_date=start, end_date=end)
+x4 = get_pricing('DOW', fields='price', start_date=start, end_date=end)
+y = get_pricing('PG', fields='price', start_date=start, end_date=end)
+
+# Build a linear model using only x1 to explain y
+slr = regression.linear_model.OLS(y, sm.add_constant(x1)).fit()
+slr_prediction = slr.params[0] + slr.params[1]*x1
+
+# Run multiple linear regression using x1, x2, x3, x4 to explain y
+mlr = regression.linear_model.OLS(y, sm.add_constant(np.column_stack((x1,x2,x3,x4)))).fit()
+mlr_prediction = mlr.params[0] + mlr.params[1]*x1 + mlr.params[2]*x2 + mlr.params[3]*x3 + mlr.params[4]*x4
+
+# Compute adjusted R-squared for the two different models
+print 'SLR R-squared:', slr.rsquared_adj
+print 'MLR R-squared:', mlr.rsquared_adj
+
+# Plot y along with the two different predictions
+y.plot()
+slr_prediction.plot()
+mlr_prediction.plot()
+plt.legend(['PG', 'SLR', 'MLR']);
+```
+*Cell 5:*
+```python
+# Load a year and a half of pricing data
+start = '2015-01-01'
+end = '2015-06-01'
+x1 = get_pricing('PEP', fields='price', start_date=start, end_date=end)
+x2 = get_pricing('MCD', fields='price', start_date=start, end_date=end)
+x3 = get_pricing('ATHN', fields='price', start_date=start, end_date=end)
+x4 = get_pricing('DOW', fields='price', start_date=start, end_date=end)
+y = get_pricing('PG', fields='price', start_date=start, end_date=end)
+
+# Extend our model from before to the new time period
+slr_prediction2 = slr.params[0] + slr.params[1]*x1
+mlr_prediction2 = mlr.params[0] + mlr.params[1]*x1 + mlr.params[2]*x2 + mlr.params[3]*x3 + mlr.params[4]*x4
+
+# Compute adjusted R-squared over the extended time period
+adj = float(len(y) - 1)/(len(y) - 5) # Compute adjustment factor
+SST = sum((y - np.mean(y))**2)
+SSRs = sum((slr_prediction2 - y)**2)
+print 'SLR R-squared:', 1 - adj*SSRs/SST
+SSRm = sum((mlr_prediction2 - y)**2)
+print 'MLR R-squared:', 1 - adj*SSRm/SST
+
+# Plot y along with the two different predictions
+y.plot()
+slr_prediction2.plot()
+mlr_prediction2.plot()
+plt.legend(['PG', 'SLR', 'MLR']);
+```
+*Cell 6:*
+```python
+# Generate two artificial samples and pool them
+sample1 = np.arange(30) + 4*np.random.randn(30)
+sample2 = sample1 + np.arange(30)
+pool = np.hstack((sample1, sample2))
+
+# Run a regression on the pooled data, with the independent variable being the original indices
+model = regression.linear_model.OLS(pool, sm.add_constant(np.hstack((np.arange(30),np.arange(30))))).fit()
+
+# Plot the two samples along with the regression line
+plt.scatter(np.arange(30), sample1, color='b')
+plt.scatter(np.arange(30), sample2, color='g')
+plt.plot(model.params[0] + model.params[1]*np.arange(30), color='r');
+```
+*Cell 7:*
+```python
+# We'll be using pandas DataFrames
+import pandas as pd
+
+# Get most recent free cash flow, operating cash flow, and total revenue data
+fundamentals = init_fundamentals()
+today = pd.datetime.today()
+data = get_fundamentals(query(fundamentals.cash_flow_statement.free_cash_flow,
+                              fundamentals.cash_flow_statement.operating_cash_flow,
+                              fundamentals.income_statement.total_revenue,)
+                        .filter(fundamentals.valuation.market_cap > 1e8, # Filter by market cap & industry
+                               fundamentals.company_reference.industry_template_code == 'T'), today).T
+
+# Drop missing data
+data.dropna(inplace=True)
+
+# Run linear regression and print R-squared value to evaluate the goodness of the fit 
+unscaled_model = regression.linear_model.OLS(data['operating_cash_flow'],
+                                    sm.add_constant(data['free_cash_flow'])).fit()
+prediction = unscaled_model.params[0] + unscaled_model.params[1]*data['free_cash_flow']
+print 'R-squared value of model:', unscaled_model.rsquared
+
+# Plot the raw data for visualization
+plt.scatter(data['free_cash_flow'], data['operating_cash_flow'])
+plt.plot(data['free_cash_flow'], prediction)
+plt.legend(['Data', 'Model Prediction'])
+plt.xlabel('Free cash flow')
+plt.ylabel('Operating cash flow')
+plt.title('Transportation companies with market cap > $100 mil');
+```
+*Cell 8:*
+```python
+# Run linear regression with inputs scaled by total revenue
+scaled_model = regression.linear_model.OLS(
+    data['operating_cash_flow'].values/data['total_revenue'].values,
+    sm.add_constant(data['free_cash_flow'].values/data['total_revenue'].values), missing='drop').fit()
+print 'R-squared value of scaled model:', scaled_model.rsquared
+
+prediction = scaled_model.params[0] + scaled_model.params[1]*(data['free_cash_flow'].values/data['total_revenue'].values)
+
+# Plot the scaled data
+plt.scatter(data['free_cash_flow'].values/data['total_revenue'].values,
+            data['operating_cash_flow'].values/data['total_revenue'].values)
+plt.plot(data['free_cash_flow'].values/data['total_revenue'].values, prediction)
+plt.legend(['Data', 'Model Prediction'])
+plt.xlabel('Free cash flow/Total revenue')
+plt.ylabel('Operating cash flow/Total revenue')
+plt.title('Transportation companies with market cap > $100 mil');
+```
+*Cell 9:*
+```python
+# Generate normally distributed errors
+randos = [np.random.randn(100) for i in range(100)]
+y = np.random.randn(100)
+# Generate random walks
+randows = [[sum(rando[:i+1]) for i in range(100)] for rando in randos]
+yw = [sum(y[:i+1]) for i in range(100)]
+
+for i in range(100):
+    plt.plot(randows[i], alpha=0.5)
+```
+*Cell 10:*
+```python
+# Compute R-squared of linear regression for each element of randows with yw
+rs = [regression.linear_model.OLS(yw, x).fit().rsquared for x in randows]
+                    
+# Plot and count the random walks that have R-squared with yw > .8
+rcount = 0
+for i in range(100):
+    if rs[i] > .8:
+        rcount += 1
+        plt.plot(randows[i], alpha=0.5)
+print 'Linearly related walks out of 100:', rcount
+
+# Plot yw
+plt.plot(yw, color='k');
+```
+*Cell 11:*
+```python
+from scipy.stats import pearsonr
+
+# Compute correlation coefficients (Pearson r) and record their p-values
+ps = [pearsonr(yw, x)[1] for x in randows]
+                    
+# Plot and count the random walks that have p-value of correlation with yw < 0.05
+pcount = 0
+for i in range(100):
+    if ps[i] < .05:
+        pcount += 1
+        plt.plot(randows[i], alpha=0.5)
+print 'Significantly correlated walks out of 100:', pcount
+
+# Plot yw
+plt.plot(yw, color='k');
+```
+*Cell 12:*
+```python
+from statsmodels.tsa.stattools import adfuller
+
+# Compute the p-value of the Dickey-Fuller statistic to test the null hypothesis that yw has a unit root
+print adfuller(yw)[1]
+```
+
+##### Multiple Linear Regression
+- **Original Path**: `notebooks\lectures\Multiple_Linear_Regression\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 26 (Code: 14, Markdown: 12)
+- **Imports/Dependencies**: from statsmodels import regression, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import statsmodels.api as sm
+
+**Explanatory Notes:**
+# Multiple Linear Regression
+By Evgenia "Jenny" Nitishinskaya, Maxwell Margenot, Delaney Granizo-Mackenzie, and Gilbert Wasserman.
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+
+
+Multiple linear regression generalizes linear regression, allowing the dependent variable to be a linear function of multiple independent variables. As before, we assume that the variable $Y$ is a linear function of $X_1,\ldots, X_k$:
+
+$$ Y_i = \beta_0 + \beta_1 X_{1i} + \ldots + \beta_k X_{ki} + \epsilon_i $$
+
+Often in finance the form will be written as follows, but it is just the variable name that changes and otherwise the model is identical.
+
+$$ Y_i = \alpha + \beta_1 X_{1i} + \ldots + \beta_k X_{ki} + \epsilon_i $$
+
+For observations $i = 1,2,\ldots, n$. In order to find the plane (or hyperplane) of best fit, we will use the method of ordinary least-squares (OLS), which seeks to minimize the squared error between predictions and observations, $\sum_{i=1}^n \epsilon_i^2$. The square makes positive and negative errors equally bad, and magnifies large errors. It also makes the closed form math behind linear regression nice, but we won't go into that now. For an example of squared error, see the following.
+
+Let's say Y is our actual data, and Y_hat is the predictions made by linear regression.
+
+Once we have used this method to determine the coefficients of the regression, we will be able to use new observed values of $X$ to predict values of $Y$. 
+
+Each coefficient $\beta_j$ tells us how much $Y_i$ will change if we change $X_j$ by one while holding all of the other dependent variables constant. This lets us separate out the contributions of different effects. This is assuming the linear model is the correct one.
+
+We start by artificially constructing a $Y$, $X_1$, and $X_2$ in which we know the precise relationship.
+
+We can use the same function from `statsmodels` as we did for a single linear regression lecture.
+
+The same care must be taken with these results as with partial derivatives. The formula for $Y$ is ostensibly 
+
+$$X_1 + X_2 = X_1 + X^2 + X_1 = 2 X_1 + X^2$$
+
+Or $2X_1$ plus a parabola.
+
+However, the coefficient of $X_1$ is 1. That is because $Y$ changes by 1 if we change $X_1$ by 1 <i>while holding $X_2$ constant</i>. Multiple linear regression separates out contributions from different variables.
+
+Similarly, running a linear regression on two securities might give a high $\beta$. However, if we bring in a third security (like SPY, which tracks the S&P 500) as an independent variable, we may find that the correlation between the first two securities is almost entirely due to them both being correlated with the S&P 500. This is useful because the S&P 500 may then be a more reliable predictor of both securities than they were of each other. This method allows us to better gauge the significance between the two securities and prevent confounding the two variables.
+
+The next step after running an analysis is determining if we can even trust the results. A good first step is checking to see if anything looks weird in graphs of the independent variables, dependent variables, and predictions.
+
+# Evaluation
+
+We can get some statistics about the fit from the result returned by the regression:

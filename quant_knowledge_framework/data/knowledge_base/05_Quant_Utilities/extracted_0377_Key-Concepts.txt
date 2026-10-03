@@ -1,0 +1,126 @@
+# Key Concepts
+
+Topic: 05_Quant_Utilities
+Confidence: 0.52
+Keywords: numpy, python, pandas, cointegration
+
+---
+
+## Key Concepts
+
+----
+
+#Exercise 1: Testing Artificial Examples
+
+We'll use some artificially generated series first as they are much cleaner and easier to work with. In general when learning or developing a new technique, use simulated data to provide a clean environment. Simulated data also allows you to control the level of noise and difficulty level for your model.
+
+##a. Cointegration Test I
+
+Determine whether the following two artificial series $A$ and $B$ are cointegrated using the `coint()` function and a reasonable confidence level.
+
+##b. Cointegration Test II
+
+Determine whether the following two artificial series $C$ and $D$ are cointegrated using the `coint()` function and a reasonable confidence level.
+
+----
+
+#Exercise 2: Testing Real Examples
+
+##a. Real Cointegration Test I
+
+Determine whether the following two assets `CN` and `SB` were cointegrated during 2015 using the `coint()` function and a reasonable confidence level.
+
+##b. Real Cointegration Test II
+
+Determine whether the following two underlyings `CL` and `HO` were cointegrated during 2015 using the `coint()` function and a reasonable confidence level.
+
+----
+
+#Exercise 3: Out of Sample Validation
+
+##a. Calculating the Spread
+
+Using pricing data from 2015, construct a linear regression to find a coefficient for the linear combination of `CL` and `HO` that makes their spread stationary.
+
+##b. Testing the Coefficient
+
+Use your coefficient from part a to plot the weighted spread using prices from the first half of 2016, and check whether the result is still stationary.
+
+----
+
+#Extra Credit Exercise: Hurst Exponent
+
+This exercise is more difficult and we will not provide initial structure.
+
+The Hurst exponent is a statistic between 0 and 1 that provides information about how much a time series is trending or mean reverting. We want our spread time series to be mean reverting, so we can use the Hurst exponent to monitor whether our pair is going out of cointegration. Effectively as a means of process control to know when our pair is no longer good to trade.
+
+Please find either an existing Python library that computes, or compute yourself, the Hurst exponent. Then plot it over time for the spread on the above pair of stocks.
+
+These links may be helpful:
+
+* https://en.wikipedia.org/wiki/Hurst_exponent
+* https://www.educational_platform.com/posts/pair-trade-with-cointegration-and-mean-reversion-tests
+
+---
+
+Congratulations on completing the Mean Reversion on Futures exercises!
+
+As you learn more about writing trading models and the Educational Platform platform, enter the daily [Educational Platform Contest](https://www.educational_platform.com/contest). Your strategy will be evaluated for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solic
+itation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Functions
+def find_cointegrated_pairs(data):
+    n = data.shape[1]
+    score_matrix = np.zeros((n, n))
+    pvalue_matrix = np.ones((n, n))
+    keys = data.keys()
+    pairs = []
+    for i in range(n):
+        for j in range(i+1, n):
+            S1 = data[keys[i]]
+            S2 = data[keys[j]]
+            result = coint(S1, S2)
+            score = result[0]
+            pvalue = result[1]
+            score_matrix[i, j] = score
+            pvalue_matrix[i, j] = pvalue
+            if pvalue < 0.05:
+                pairs.append((keys[i], keys[j]))
+    return score_matrix, pvalue_matrix, pairs
+```
+*Cell 2:*
+```python
+# Useful Libraries
+import numpy as np
+import pandas as pd
+
+import statsmodels
+import statsmodels.api as sm
+from statsmodels.tsa.stattools import coint, adfuller
+from educational_platform.research.experimental import history, continuous_future
+# just set the seed for the random number generator
+np.random.seed(107)
+
+import matplotlib.pyplot as plt
+```
+*Cell 3:*
+```python
+A_returns = np.random.normal(0, 1, 100)
+A = pd.Series(np.cumsum(A_returns), name='X') + 50
+
+some_noise = np.random.exponential(1, 100)
+ 
+B = A - 7 + some_noise
+
+#Your code goes here
+```
+*Cell 4:*
+```python

@@ -1,0 +1,13 @@
+# Your code goes here
+
+Topic: 05_Quant_Utilities
+Confidence: 1.00
+Keywords: numpy, python
+
+---
+
+## Your code goes here
+```
+*Cell 9:*
+```python
+# Calculate the mean and median of xle and xli using the numpy library

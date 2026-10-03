@@ -1,0 +1,11 @@
+# Sector Codes
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Sector Codes
+
+These are the possible sector codes for each security, as given by Morningstar. We will use this dictionary to help categorize our results as we walk through a factor analysis so that we can break out our information by sector.

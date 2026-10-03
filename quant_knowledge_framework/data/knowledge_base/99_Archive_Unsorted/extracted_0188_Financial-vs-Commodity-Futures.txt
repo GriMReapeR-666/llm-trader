@@ -1,0 +1,19 @@
+# Financial vs. Commodity Futures
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Financial vs. Commodity Futures
+You can enter into futures contracts on many different types of assets. These range from actual, physical goods such as corn or wheat to more abstract assets, such as some multiplier times a stock market index. Futures contracts based on physical goods are generally called commodity futures, while those based on financial instruments are called financial futures. These can be further broken down into categories based on the general class of commodity or financial instrument.
+
+In general, financial futures are more liquid than commodity futures. Let's compare the volume of two contracts deliverable in March 2017, one on the S&P 500 Index and the other on natural gas.
+
+The S&P 500 E-Mini contract has a value based on 50 units of the value of the S&P 500 Index. This financial future has a significant advantage in liquidity compared to natural gas for the same expiry. It likely helps that the S&P 500 E-Mini cash-settled, while the natural gas contract requires arrangements to be made for transportation and storage of fuel, but the main takeaway here is that there are a lot more people trying to trade financial futures.
+
+### Delivery and Naming
+Different futures contracts will differ on the available delivery months. Some contracts have delivery every month, while some only have delivery a few times a year. The naming conventions for a given futures contract include the delivery month and year for the specific contract that they refer to. The month codes are standardized and [well-documented](http://www.investopedia.com/terms/d/deliverymonth.asp), but the specific symbol that refers to the underlying varies depending on the broker. For an overview of the contract names that we use on Educational Platform, please refer to the [Futures API Introduction](https://www.educational_platform.com/posts/futures-data-now-available-in-research).
+
+The delivery terms of a futures contract are listed in the contract specifications for that underlying asset. With commodity futures, this often includes terms for the physical delivery of, for example, 1000 barrels of oil. This will vary between assets. Some contracts, particularly financials, allow for cash settlement, making it easier to deliver.

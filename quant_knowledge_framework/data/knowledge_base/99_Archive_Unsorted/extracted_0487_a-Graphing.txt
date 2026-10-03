@@ -1,0 +1,12 @@
+# a. Graphing
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## a. Graphing
+Graph a normal distribution using the Probability Density Function bellow, with a mean of 0 and standard deviation of 5. 
+
+$$f(x) = \frac{1}{\sigma\sqrt{2\pi}}e^{-\frac{(x - \mu)^2}{2\sigma^2}}$$

@@ -1,0 +1,30 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+```
+
+##### Introduction to Python
+- **Original Path**: `notebooks\lectures\Introduction_to_Python\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 222 (Code: 110, Markdown: 112)
+- **Imports/Dependencies**: import math
+
+**Explanatory Notes:**
+# Introduction to Python
+by Maxwell Margenot
+
+Part of the Educational Platform Lecture Series:
+
+* [www.educational_platform.com/lectures](https://www.educational_platform.com/lectures)
+* [github.com/educational_platform/research_public](https://github.com/educational_platform/research_public)
+
+
+---
+
+All of the coding that you will do on the Educational Platform platform will be in Python. It is also just a good, jack-of-all-trades language to know! Here we will provide you with the basics so that you can feel confident going through our other lectures and understanding what is happening.

@@ -1,0 +1,91 @@
+# Fewer Assets
+
+Topic: 05_Quant_Utilities
+Confidence: 0.60
+Keywords: numpy, python, pandas
+
+---
+
+## Fewer Assets
+There are around 8000 equities in the US market, but there are far fewer futures contracts, especially those with enough liquidity to trade. We can make up for this by trading different expiries on the same underlying, though we need to ensure that we are conducting rigorous testing to ensure that our resulting signals are viable in the market given the potential liquidity constraints that come with not trading the front month.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company. In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from educational_platform.research.experimental import continuous_future, history
+```
+*Cell 2:*
+```python
+contract = symbols('ESH17')
+one_day_volume = get_pricing(contract, start_date='2017-02-01', end_date='2017-02-01', frequency='minute', fields='volume')
+```
+*Cell 3:*
+```python
+one_day_volume.tz_convert('EST').plot()
+plt.title('Trading Volume for 3/01/2017 by Minute')
+plt.xlabel('Minute')
+plt.ylabel('Volume');
+```
+*Cell 4:*
+```python
+contract = 'FCH17'
+one_day_volume = get_pricing(contract, start_date='2017-02-01', end_date='2017-02-01', frequency='minute', fields='volume')
+```
+*Cell 5:*
+```python
+one_day_volume.tz_convert('EST').plot()
+plt.title('Trading Volume for 3/01/2017 by Minute')
+plt.xlabel('Minute')
+plt.ylabel('Volume');
+```
+*Cell 6:*
+```python
+contracts = symbols(['ESH16', 'ESM16', 'ESU16'])
+rolling_volume = get_pricing(contracts, start_date='2015-12-15', end_date='2016-09-15', fields='volume')
+```
+*Cell 7:*
+```python
+rolling_volume.plot()
+plt.title('Volume for Different Expiries of same Underlying')
+plt.xlabel('Date')
+plt.ylabel('Volume');
+```
+*Cell 8:*
+```python
+maximum_any_day_volume = rolling_volume.max(axis=1)
+maximum_any_day_volume.name = 'Volume Roll-over'
+rolling_volume.plot()
+maximum_any_day_volume.plot(color='black', linestyle='--')
+plt.title('Volume for Front Contract with Volume-based Rollover')
+plt.xlabel('Date')
+plt.ylabel('Volume')
+plt.legend();
+```
+*Cell 9:*
+```python
+continuous_corn = continuous_future('CN', offset=0, roll='calendar', adjustment='mul')
+```
+*Cell 10:*
+```python
+continuous_corn_price = history(continuous_corn, start_date='2009-01-01', end_date='2016-01-01', fields='price')
+```
+*Cell 11:*
+```python
+continuous_corn_price.plot();
+```
+
+##### Exercise 1: Hypothesis Testing.
+- **Original Path**: `notebooks\lectures\Hypothesis_Testing\answers\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 38 (Code: 13, Markdown: 25)
+- **Imports/Dependencies**: from scipy.stats import f, from scipy.stats import t, import matplotlib.pyplot as plt, import numpy as np, import pandas as pd, import scipy.stats
+
+**Explanatory Notes:**
+#Exercises: Hypothesis Testing - Answer Key
+By Christopher van Hoecke and Maxwell Margenot

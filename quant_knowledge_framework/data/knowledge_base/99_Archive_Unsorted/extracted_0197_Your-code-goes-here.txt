@@ -1,0 +1,15 @@
+# Your code goes here
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Your code goes here
+futures_entry_date = '2016-06-01'
+futures_profits =
+print 'profits from future contract:', futures_profits, '$'
+```
+*Cell 5:*
+```python

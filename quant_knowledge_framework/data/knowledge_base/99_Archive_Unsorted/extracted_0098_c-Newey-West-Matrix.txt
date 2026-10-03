@@ -1,0 +1,11 @@
+# c. Newey-West Matrix
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## c. Newey-West Matrix
+
+Use the `newey_west_matrix` helper function to compute an adjusted (robust) covariance matrix for a single sample of the autocorrelated data.

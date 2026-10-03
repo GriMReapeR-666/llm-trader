@@ -1,0 +1,35 @@
+# answer key ##
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## answer key ##
+score, pvalue, _ = coint(C,D)
+
+confidence_level = 0.05
+
+if pvalue < confidence_level:
+    print ("C and D are cointegrated")
+    print pvalue
+else:
+    print ("C and D are not cointegrated")
+    print pvalue
+
+C.name = "C"
+D.name = "D"
+pd.concat([C, D], axis=1).plot();
+```
+*Cell 7:*
+```python
+ual = get_pricing('UAL', fields=['price'], 
+                        start_date='2015-01-01', end_date='2016-01-01')['price']
+aal = get_pricing('AAL', fields=['price'], 
+                        start_date='2015-01-01', end_date='2016-01-01')['price']
+
+#Your code goes here
+```
+*Cell 8:*
+```python

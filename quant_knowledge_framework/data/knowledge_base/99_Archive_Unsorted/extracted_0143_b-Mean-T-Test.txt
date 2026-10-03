@@ -1,0 +1,20 @@
+# b. Mean T-Test
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## b. Mean T-Test
+Run a T-test on the SPY returns, to determine if the mean returns is 0.01.   
+- Find the two critical values for a 90% two tailed $z$-test
+- Use the formula above to run a t-test on the sample data.
+- Conclude about the test results.
+
+# c. Mean p-value test
+Given the returns data above, use the p-value to determine the results of the previous hypothesis test. 
+
+----
+
+# Exercise 3: Multiple Variables Tests.

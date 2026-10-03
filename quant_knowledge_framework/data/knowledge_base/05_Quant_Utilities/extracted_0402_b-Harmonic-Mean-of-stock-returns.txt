@@ -1,0 +1,76 @@
+# b. Harmonic Mean of stock returns.
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, python
+
+---
+
+## b. Harmonic Mean of stock returns.
+Find the Harmonic Mean of the financial ETF (XLF) over the last 2 years.
+
+----
+
+# Exercise 6 : Skewness and why it matters.
+Skewness in a probability distribution is the measure of asymmetry. Negative skew has fewer low values and a longer left tail, whereas positive skew has fewer high values and a longer right tail.
+In asset pricing, skewness is an important information, naimly in risk assessment. Knowledge that the market has a 60% chance of going down and a 40% chance of going up apears helpfull but only if we know the market is obeying a normal distrubtuion. If we are told that the market will go up 2% but down 18%, we can see how skewness would give us better information.
+
+Determine if the returns of SPY from 2010 to 2017 is positivly or negativly skewed. 
+*Recall a data set is positivly skewed if the mode is smaller than the median, which is smaller than the mean. A data set is negativly skewed in the event of the reverse (i.e: the mean is greater than the median, which is greater than the mode)*
+
+We can clearly see positive skewing from the histogram of the returns. We see fewer higher values and a longer right tail.
+Plot the histograms of the returns now.
+
+---
+
+Congratulations on completing the answer key to the Means exercises!
+
+As you learn more about writing trading algorithms and the Educational Platform platform, be sure to check out the daily [Educational Platform Contest](https://www.educational_platform.com/contest), in which you can compete for a cash prize every day.
+
+Start by going through the [Writing a Contest Algorithm](https://www.educational_platform.com/tutorials/contest) tutorial.
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+# Useful Functions
+def mode(l):
+    # Count the number of times each element appears in the list
+    counts = {}
+    for e in l:
+        if e in counts:
+            counts[e] += 1
+        else:
+            counts[e] = 1
+            
+    # Return the elements that appear the most times
+    maxcount = 0
+    modes = {}
+    for (key, value) in counts.items():
+        if value > maxcount:
+            maxcount = value
+            modes = {key}
+        elif value == maxcount:
+            modes.add(key)
+            
+    if maxcount > 1 or len(l) == 1:
+        return list(modes)
+    return 'No mode'
+```
+*Cell 2:*
+```python
+# Useful Libraries
+import scipy.stats as stats
+import numpy as np
+```
+*Cell 3:*
+```python
+l=[]
+for x in range(1,100):
+    x=np.random.randint(1,100)
+    l.append(x)
+```
+*Cell 4:*
+```python

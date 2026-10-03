@@ -1,0 +1,302 @@
+# Conditional Value at Risk (CVaR)
+
+Topic: 05_Quant_Utilities
+Confidence: 0.50
+Keywords: numpy, normalize, python, pandas
+
+---
+
+## Conditional Value at Risk (CVaR)
+
+CVaR is what many consider an improvement on VaR, as it takes into account the shape of the returns distribution. It is also known as Expected Shortfall (ES), as it is an expectation over all the different possible losses greater than VaR and their corresponding estimated likelihoods.
+
+If you are not familiar with expectations, much content is available online. However we will provide a brief refresher.
+
+### Expected Value
+
+Say you have a fair six sided die. Each number is equally likely. The notion of an expectation, written as $\mathrm{E}(X)$, is what should you expect to happen out of all the possible outcomes. To get this you multiply each event by the probability of that event and add that up, think of it as a probability weighted average. With a die we get
+
+$$1/6 \times 1 + 1/6 \times 2 + 1/6 \times 3 + 1/6 \times 4 + 1/6 \times 5 + 1/6 \times 6 =  3.5$$
+
+When the probabilities are unequal it gets more complicated, and when the outcomes are continuous we have to use integration in closed form equations. Here is the formula for CVaR.
+
+$$CVaR_{\alpha}(x) \approx \frac{1}{(1-\alpha)} \int_{f(x,y) \geq VaR_{\alpha}(x)} f(x,y)p(y)dy dx$$
+
+Let's compute CVaR on our data and see how it compares with VaR.
+
+CVaR is higher because it is capturing more information about the shape of the distribution, AKA the moments of the distribution. If the tails have more mass, this will capture that. In general it is considered to be a far superior metric compared with VaR and you should use it over VaR in most cases.
+
+Let's visualize what it's capturing.
+
+###Checking for Convergence Again
+
+Finally, we'll check for convergence.
+
+# Sources
+
+ * http://www.wiley.com/WileyCDA/WileyTitle/productCd-1118445597.html
+ * http://www.ise.ufl.edu/uryasev/publications/
+ * http://www.ise.ufl.edu/uryasev/files/2011/11/VaR_vs_CVaR_CARISMA_conference_2010.pdf
+ * http://faculty.washington.edu/ezivot/econ589/me20-1-4.pdf
+
+*This presentation is for informational purposes only and does not constitute an offer to sell, a solicitation to buy, or a recommendation for any security; nor does it constitute an offer to provide investment advisory or other services by Educational Platform, Inc. ("Educational Platform"). Nothing contained herein constitutes investment advice or offers any opinion with respect to the suitability of any security, and any views expressed herein should not be taken as advice to buy, sell, or hold any security or as an endorsement of any security or company.  In preparing the information contained herein, Educational Platform, Inc. has not taken into account the investment needs, objectives, and financial circumstances of any particular investor. Any views expressed and data illustrated herein were prepared based upon information, believed to be reliable, available to Educational Platform, Inc. at the time of publication. Educational Platform makes no guarantees as to their accuracy or completeness. All information is subject to change and may quickly become unreliable for various reasons, including changes in market conditions or economic circumstances.*
+
+**Code Extracts:**
+
+*Cell 1:*
+```python
+import numpy as np
+import pandas as pd
+
+from scipy.stats import norm
+import time
+
+import matplotlib.pyplot as plt
+```
+*Cell 2:*
+```python
+# mu = 0.01, std = 0.10, 1000 bars, 10 assets
+mu = 0.01
+sigma = 0.10
+bars = 1000
+num_assets = 10
+
+returns = np.random.normal(mu, sigma, (bars, num_assets))
+
+# Fake asset names
+names = ['Asset %s' %i  for i in range(num_assets)]
+
+# Put in a pandas dataframe
+returns = pd.DataFrame(returns, columns=names)
+
+# Plot the last 50 bars
+plt.plot(returns.head(50))
+plt.xlabel('Time')
+plt.ylabel('Return');
+```
+*Cell 3:*
+```python
+weights = np.ones((10, 1))
+# Normalize
+weights = weights / np.sum(weights)
+```
+*Cell 4:*
+```python
+def value_at_risk(value_invested, returns, weights, alpha=0.95, lookback_days=520):
+    returns = returns.fillna(0.0)
+    # Multiply asset returns by weights to get one weighted portfolio return
+    portfolio_returns = returns.iloc[-lookback_days:].dot(weights)
+    # Compute the correct percentile loss and multiply by value invested
+    return np.percentile(portfolio_returns, 100 * (1-alpha)) * value_invested
+```
+*Cell 5:*
+```python
+value_invested = 1000000
+
+value_at_risk(value_invested, returns, weights, alpha=0.95)
+```
+*Cell 6:*
+```python
+# Portfolio mean return is unchanged, but std has to be recomputed
+# This is because independent variances sum, but std is sqrt of variance
+portfolio_std = np.sqrt( np.power(sigma, 2) * num_assets ) / num_assets
+
+# manually 
+(mu - portfolio_std * norm.ppf(0.95)) * value_invested
+```
+*Cell 7:*
+```python
+def value_at_risk_N(mu=0, sigma=1.0, alpha=0.95):
+    return mu - sigma*norm.ppf(alpha)
+
+
+x = np.linspace(-3*sigma,3*sigma,1000)
+y = norm.pdf(x, loc=mu, scale=portfolio_std)
+plt.plot(x,y);
+plt.axvline(value_at_risk_N(mu = 0.01, sigma = portfolio_std, alpha=0.95), color='red', linestyle='solid');
+plt.legend(['Return Distribution', 'VaR for Specified Alpha as a Return'])
+plt.title('VaR in Closed Form for a Normal Distribution');
+```
+*Cell 8:*
+```python
+lookback_days = 520
+alpha = 0.95
+
+# Multiply asset returns by weights to get one weighted portfolio return
+portfolio_returns = returns.fillna(0.0).iloc[-lookback_days:].dot(weights)
+
+portfolio_VaR = value_at_risk(value_invested, returns, weights, alpha=0.95)
+# Need to express it as a return rather than absolute loss
+portfolio_VaR_return = portfolio_VaR / value_invested
+
+plt.hist(portfolio_returns, bins=20)
+plt.axvline(portfolio_VaR_return, color='red', linestyle='solid');
+plt.legend(['VaR for Specified Alpha as a Return', 'Historical Returns Distribution'])
+plt.title('Historical VaR');
+```
+*Cell 9:*
+```python
+# OEX components as of 3/31/16
+# http://www.cboe.com/products/indexcomponents.aspx?DIR=OPIndexComp&FILE=snp100.doc
+oex = ['MMM','T','ABBV','ABT','ACN','ALL','GOOGL','GOOG','MO','AMZN','AXP','AIG','AMGN','AAPL','BAC',
+       'BRK-B','BIIB','BLK','BA','BMY','CVS','COF','CAT','CELG','CVX','CSCO','C','KO','CL','CMCSA',
+       'COP','CSOT','DHR','DOW','DUK','DD','EMC','EMR','EXC','XOM','FB','FDX','F','GD','GE','GM','GILD',
+       'GS','HAL','HD','HON','INTC','IBM','JPM','JNJ','KMI','LLY','LMT','LOW','MA','MCD','MDT','MRK',
+       'MET,','MSFT','MDZL','MON','MS','NKE','NEE','OXY','ORCL','PYPL','PEP','PFE','PM','PG','QCOM',
+       'RTN','SLB','SPG','SO','SBUX','TGT','TXN','BK','PCLN','TWX','FOXA','FOX','USB','UNP','UPS','UTX',
+       'UNH','VZ','V','WMT','WBA','DIS','WFC']
+tickers = symbols(oex)
+num_stocks = len(tickers)
+```
+*Cell 10:*
+```python
+start = time.time()
+data = get_pricing(tickers, fields='close_price', start_date='2014-01-01', end_date='2016-04-04')
+end = time.time()
+print "Time: %0.2f seconds." % (end - start)
+```
+*Cell 11:*
+```python
+returns = data.pct_change()
+returns = returns - returns.mean(skipna=True) # de-mean the returns
+
+data.plot(legend=None);
+returns.plot(legend=None); 
+```
+*Cell 12:*
+```python
+def scale(x):
+    return x / np.sum(np.abs(x))
+
+weights = scale(np.random.random(num_stocks))
+plt.bar(np.arange(num_stocks),weights);
+```
+*Cell 13:*
+```python
+value_at_risk(value_invested, returns, weights, alpha=0.95, lookback_days=520)
+```
+*Cell 14:*
+```python
+lookback_days = 520
+alpha = 0.95
+
+# Multiply asset returns by weights to get one weighted portfolio return
+portfolio_returns = returns.fillna(0.0).iloc[-lookback_days:].dot(weights)
+
+portfolio_VaR = value_at_risk(value_invested, returns, weights, alpha=0.95)
+# Need to express it as a return rather than absolute loss
+portfolio_VaR_return = portfolio_VaR / value_invested
+
+plt.hist(portfolio_returns, bins=20)
+plt.axvline(portfolio_VaR_return, color='red', linestyle='solid');
+plt.legend(['VaR for Specified Alpha as a Return', 'Historical Returns Distribution'])
+plt.title('Historical VaR');
+plt.xlabel('Return');
+plt.ylabel('Observation Frequency');
+```
+*Cell 15:*
+```python
+from statsmodels.stats.stattools import jarque_bera
+
+_, pvalue, _, _ = jarque_bera(portfolio_returns)
+
+if pvalue > 0.05:
+    print 'The portfolio returns are likely normal.'
+else:
+    print 'The portfolio returns are likely not normal.'
+```
+*Cell 16:*
+```python
+N = 1000
+VaRs = np.zeros((N, 1))
+for i in range(N):
+    VaRs[i] = value_at_risk(value_invested, returns, weights, lookback_days=i)
+
+plt.plot(VaRs)
+plt.xlabel('Lookback Window')
+plt.ylabel('VaR');
+```
+*Cell 17:*
+```python
+from statsmodels.tsa.stattools import adfuller
+
+results = adfuller(portfolio_returns)
+pvalue = results[1]
+
+if pvalue < 0.05:
+    print 'Process is likely stationary.'
+else:
+    print 'Process is likely non-stationary.'
+```
+*Cell 18:*
+```python
+def cvar(value_invested, returns, weights, alpha=0.95, lookback_days=520):
+    # Call out to our existing function
+    var = value_at_risk(value_invested, returns, weights, alpha, lookback_days=lookback_days)
+    returns = returns.fillna(0.0)
+    portfolio_returns = returns.iloc[-lookback_days:].dot(weights)
+    
+    # Get back to a return rather than an absolute loss
+    var_pct_loss = var / value_invested
+    
+    return value_invested * np.nanmean(portfolio_returns[portfolio_returns < var_pct_loss])
+```
+*Cell 19:*
+```python
+cvar(value_invested, returns, weights, lookback_days=500)
+```
+*Cell 20:*
+```python
+value_at_risk(value_invested, returns, weights, lookback_days=500)
+```
+*Cell 21:*
+```python
+lookback_days = 520
+alpha = 0.95
+
+# Multiply asset returns by weights to get one weighted portfolio return
+portfolio_returns = returns.fillna(0.0).iloc[-lookback_days:].dot(weights)
+
+portfolio_VaR = value_at_risk(value_invested, returns, weights, alpha=0.95)
+# Need to express it as a return rather than absolute loss
+portfolio_VaR_return = portfolio_VaR / value_invested
+
+portfolio_CVaR = cvar(value_invested, returns, weights, alpha=0.95)
+# Need to express it as a return rather than absolute loss
+portfolio_CVaR_return = portfolio_CVaR / value_invested
+
+# Plot only the observations > VaR on the main histogram so the plot comes out
+# nicely and doesn't overlap.
+plt.hist(portfolio_returns[portfolio_returns > portfolio_VaR_return], bins=20)
+plt.hist(portfolio_returns[portfolio_returns < portfolio_VaR_return], bins=10)
+plt.axvline(portfolio_VaR_return, color='red', linestyle='solid');
+plt.axvline(portfolio_CVaR_return, color='red', linestyle='dashed');
+plt.legend(['VaR for Specified Alpha as a Return',
+            'CVaR for Specified Alpha as a Return',
+            'Historical Returns Distribution', 
+            'Returns < VaR'])
+plt.title('Historical VaR and CVaR');
+plt.xlabel('Return');
+plt.ylabel('Observation Frequency');
+```
+*Cell 22:*
+```python
+N = 1000
+CVaRs = np.zeros((N, 1))
+for i in range(N):
+    CVaRs[i] = cvar(value_invested, returns, weights, lookback_days=i)
+
+plt.plot(CVaRs)
+plt.xlabel('Lookback Window')
+plt.ylabel('VaR');
+```
+
+##### Exercises: Variance - Answer Key
+- **Original Path**: `notebooks\lectures\Variance\answers\notebook.ipynb`
+- **Use Case**: Lectures
+- **Cell Count**: 21 (Code: 11, Markdown: 10)
+- **Imports/Dependencies**: import matplotlib.pyplot as plt, import numpy as np, import pandas as pd
+
+**Explanatory Notes:**
+# Exercises: Variance - Answer Key
+By Christopher van Hoecke, Maxwell Margenot, and Delaney Mackenzie

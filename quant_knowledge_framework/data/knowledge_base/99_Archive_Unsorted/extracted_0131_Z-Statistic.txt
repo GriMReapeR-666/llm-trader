@@ -1,0 +1,12 @@
+# Z- Statistic:
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Z- Statistic: 
+test_stat = (returns_sample_tsla.mean() - 0) / \
+    ( returns_sample_tsla.std() / np.sqrt( len(returns_sample_tsla) ) )
+print 't-statistic is:', test_stat

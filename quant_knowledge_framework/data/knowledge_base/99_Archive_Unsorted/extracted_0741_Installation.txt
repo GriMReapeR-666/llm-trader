@@ -1,0 +1,32 @@
+# Installation
+
+Topic: 99_Archive_Unsorted
+Confidence: 0.00
+Keywords: 
+
+---
+
+## Installation
+
+To install pyfolio, run:
+
+```bash
+pip install pyfolio
+```
+
+#### Development
+
+For development, you may want to use a [virtual environment](https://docs.python-guide.org/en/latest/dev/virtualenvs/) to avoid dependency conflicts between pyfolio and other Python projects you have. To get set up with a virtual env, run:
+```bash
+mkvirtualenv pyfolio
+```
+
+Next, clone this git repository and run `python setup.py develop`
+and edit the library files directly.
+
+#### Matplotlib on OSX
+
+If you are on OSX and using a non-framework build of Python, you may need to set your backend:
+``` bash
+echo "backend: TkAgg" > ~/.matplotlib/matplotlibrc
+```
