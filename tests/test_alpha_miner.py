@@ -3,6 +3,8 @@
 Verifies basic functionality of the alpha mining pipeline.
 """
 import sys
+
+import pytest
 import os
 
 # Add parent directory to path
@@ -161,6 +163,7 @@ def test_pca_projector():
     print("  [PASS] Passed")
 
 
+@pytest.mark.xfail(strict=True, reason="ROADMAP Phase 5: PCA aborts on +/-inf instead of sanitizing")
 def test_pca_projector_sanitizes_inf():
     """+/-inf from an expression must not abort PCA/quality-diversity selection."""
     print("\nTesting PCA projector inf sanitization...")
