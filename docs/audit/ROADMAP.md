@@ -53,7 +53,8 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [x] 🟠 `TS-4` Margin threshold tests, one per constant and one per malformed-input reason.
 - [x] 🟠 `TS-5` Risk-ladder tests: drawdown and streak multipliers, including NaN, 0 and negative equity.
 - [x] 🟠 `TS-6` Latch persistence tests (corrupt file → stays latched; write from copy A, read from copy B).
-- [ ] 🟡 `TS-8` Mutation-score ratchet in CI on the six safety modules (baseline 48 %).
+- [x] 🟡 `TS-8` Mutation-score ratchet in CI on the six safety modules (weekly, `--min-score 50`). Measured at the end of Phase 1: **52.2 %**, short of the 75 % target. See `work/04_test_strength.md` § Phase 1 re-measure.
+- [ ] 🟡 `TS-9` Raise the safety mutation score to ≥ 75 %. Most of the remaining survivors are in `order_execution` (place_pending_order and emergency_market_exit, which Phase 2 rewrites) and `calc_position_size` (Phase 4). Re-measure after each of those phases and raise the ratchet.
 - [ ] 🟠 `P1-H6` Raise order-path coverage (`order_execution` 40 %): an end-to-end proposal → `order_send` test on the bridge's fake broker.
 - [x] 🟠 Part 2 §9b: tests overwrite committed `artifacts/` and `data/` evidence. Move evidence to a read-only location, and point every test store at `tmp_path`.
 - [x] 🟡 Part 2 §9b: parallel collection races the `trade_labels` migration (make `ACTIVE_KNOWLEDGE_AGENT` lazy; idempotent migration under `BEGIN IMMEDIATE`).

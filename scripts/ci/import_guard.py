@@ -29,7 +29,7 @@ def duplicated_modules():
         if name in ("__main__", "__mp_main__"):
             continue
         path = getattr(module, "__file__", None)
-        if path and os.path.abspath(path).startswith(ROOT + os.sep) and f"{os.sep}.venv{os.sep}" not in path:
+        if path and os.path.abspath(path).startswith(ROOT + os.sep) and "site-packages" not in path and f"{os.sep}.venv{os.sep}" not in path:
             by_file[os.path.relpath(os.path.abspath(path), ROOT)].append(name)
     return {f: sorted(n) for f, n in by_file.items() if len(n) > 1}
 
