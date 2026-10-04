@@ -17,7 +17,7 @@ JOBS = {
         "DeterministicValidator.validate,DeterministicValidator.confluence,PortfolioRiskArbiter.permit,"
         "check_selective_activation,exposure_buckets,safe_risk_fraction,TradingStore.open_bucket_risk,"
         "TradingStore.setup_seen_recently,TradingStore.kill_switch_active,TradingStore.is_kill_switch_active",
-        "tests/safety/test_validator_single_gate.py tests/safety/test_arbiter_boundaries.py "
+        "tests/safety/test_validator_single_gate.py tests/safety/test_arbiter_boundaries.py tests/safety/test_scoring_and_limits.py "
         "tests/test_trading_safety.py tests/test_p0_gates.py tests/test_edge_gates.py tests/test_netev_gate.py " + PROPS),
     "margin_safety": ("core/margin_safety.py", "ALL",
         "tests/safety/test_margin_thresholds.py tests/test_margin_safety.py tests/test_section_h_hardening.py"),
@@ -35,7 +35,7 @@ JOBS = {
             "record_trade_outcome", "check_consecutive_loss_breaker", "check_equity_floor", "get_drawdown_multiplier",
             "get_streak_multiplier", "quarter_kelly_scalar", "check_max_drawdown", "check_active_trade_limit",
             "check_drawdown", "remaining_daily_risk", "check_portfolio_heat", "calc_position_size"]),
-        "tests/safety/test_risk_ladders.py tests/test_risk_manager_safety.py tests/test_risk_management_hardening.py "
+        "tests/safety/test_risk_ladders.py tests/safety/test_scoring_and_limits.py tests/test_risk_manager_safety.py tests/test_risk_management_hardening.py "
         "tests/test_risk_persistence.py tests/test_edge_gates.py " + PROPS),
 }
 

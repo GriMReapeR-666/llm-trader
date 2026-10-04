@@ -73,3 +73,21 @@
 6. **Latch persistence:** latch, corrupt the file, restart, expect latched; latch from copy A, read from copy B (C1).
 7. Turn the property tests in `mutation/props/test_props.py` into permanent tests under `tests/property/` once P1, P2, P3 and P6 are fixed.
 8. Run the mutator (or mutmut once the package layout is fixed) in CI on the six safety files, and fail if the score drops below a ratchet.
+
+## Phase 1 re-measure (2026-10-04, branch `phase1/safety-net`)
+Runner: `scripts/mutation/run_safety.py`, focused tests only (a lower bound). The function lists are broader than in the first pass, so the mutant counts differ.
+
+| Module | Killed | Survived | Score |
+|---|---|---|---|
+| `trading_safety` | 262 | 207 | 55.9 % |
+| `margin_safety` | 136 | 54 | 71.6 % |
+| `kill_switch_latch` | 56 | 21 | 72.7 % |
+| `autonomy` | 65 | 30 | 68.4 % |
+| `order_execution` | 102 | 271 | 27.3 % |
+| `risk_manager` | 310 | 269 | 53.5 % |
+| **Overall** | **931** | **852** | **52.2 %** |
+
+**The ≥ 75 % gate is not met.**
+- `tests/safety/test_scoring_and_limits.py` took the 0-20 % functions to 91 % in `trading_safety` (confluence, exposure buckets, open-bucket risk: 56/61 killed) and to 69 % in `risk_manager` (active-trade limit, max drawdown, equity floor, portfolio heat: 57/83 killed).
+- **What is left:** 258 of the 271 `order_execution` survivors are in `place_pending_order`, `emergency_market_exit` and `place_market_order`, which Phase 2 replaces with the gateway. Most of the rest sit in `calc_position_size` (167 survivors), which Phase 4 rewrites.
+- Writing tests against code that is about to be replaced is wasted effort. Instead, the weekly CI ratchet is set to 50 and is raised after each phase.
