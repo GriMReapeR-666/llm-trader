@@ -55,7 +55,7 @@ def main() -> int:
         print("Add a real key to .env (OPENROUTER_API_KEY=sk-or-...) and re-run.")
         return 3
 
-    from llm_router import get_router
+    from data.llm_router import get_router
     router = get_router()
     available = list(getattr(router, "providers", {}).keys())
     print(f"router providers initialized: {available}")

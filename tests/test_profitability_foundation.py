@@ -1,5 +1,5 @@
 """Profitability foundation report is advisory and fail-closed."""
-from profitability_foundation import report, live_risk_bound, advisory_kelly_cap
+from research.profitability_foundation import report, live_risk_bound, advisory_kelly_cap
 
 
 def test_report_never_grants_authority(tmp_path):

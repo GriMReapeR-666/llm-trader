@@ -1,8 +1,8 @@
 import pytest
 import json
 
-from agent_operations import AgentOperations
-from trading_memory import TradingMemory
+from operations.agent_operations import AgentOperations
+from intelligence.trading_memory import TradingMemory
 
 
 def test_l0_raw_trace_secret_redaction(tmp_path):

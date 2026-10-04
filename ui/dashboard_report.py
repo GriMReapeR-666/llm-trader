@@ -10,10 +10,10 @@ from datetime import datetime, timezone
 import os
 from typing import Any, Callable, Dict
 
-from health_alerts import evaluate as evaluate_health_alerts
-from journal_audit import qualified_metrics
-from readiness_report import build as build_readiness
-from trading_memory import TradingMemory
+from operations.health_alerts import evaluate as evaluate_health_alerts
+from operations.journal_audit import qualified_metrics
+from operations.readiness_report import build as build_readiness
+from intelligence.trading_memory import TradingMemory
 
 
 def _safe(name: str, fn: Callable[[], Dict[str, Any]]) -> Dict[str, Any]:

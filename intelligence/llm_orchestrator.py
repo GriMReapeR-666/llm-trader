@@ -67,7 +67,7 @@ try:
     from ui.scanner import MarketScanner
 except ImportError:
     try:
-        from scanner import MarketScanner
+        from ui.scanner import MarketScanner
     except ImportError:
         MarketScanner = None
 
@@ -89,137 +89,137 @@ def _get_fetch_ohlc():
     mt5_mod = sys.modules.get("mt5_trader")
     if mt5_mod is not None and hasattr(mt5_mod, "fetch_ohlc"):
         return mt5_mod.fetch_ohlc
-    from market_data_provider import fetch_ohlc
+    from data.market_data_provider import fetch_ohlc
     return fetch_ohlc
 
-from risk_manager import RiskManager
-from trade_manager import TradeManager
-from rl_trainer import RLTrainer
-from trading_safety import (
+from core.risk_manager import RiskManager
+from core.trade_manager import TradeManager
+from research.rl_trainer import RLTrainer
+from core.trading_safety import (
     DeterministicValidator, PortfolioRiskArbiter,
     TradeProposal, TradingStore, ValidationResult,
     safe_risk_fraction, exposure_buckets,
 )
-from trading_memory import TradingMemory
-from journal_audit import audit as audit_journal, baseline_metrics, qualified_metrics, write_report, write_audit_export
-from journal_migration import migrate as migrate_legacy_journal
-from agent_operations import AgentOperations
-from local_llm_memory import process_outbox as process_local_memory_outbox
-from boot_fetch_watchdog import run_stage_with_deadline, stage_budgets
-from boot_datasheet import boot_datasheet_enabled, get_datasheet
+from intelligence.trading_memory import TradingMemory
+from operations.journal_audit import audit as audit_journal, baseline_metrics, qualified_metrics, write_report, write_audit_export
+from operations.journal_migration import migrate as migrate_legacy_journal
+from operations.agent_operations import AgentOperations
+from intelligence.local_llm_memory import process_outbox as process_local_memory_outbox
+from intelligence.boot_fetch_watchdog import run_stage_with_deadline, stage_budgets
+from intelligence.boot_datasheet import boot_datasheet_enabled, get_datasheet
 try:
-    from research_validation import promotion_gate as research_promotion_gate, labelled_dataset
+    from research.research_validation import promotion_gate as research_promotion_gate, labelled_dataset
 except ImportError:
     from research.research_validation import promotion_gate as research_promotion_gate, labelled_dataset
-from promotion_package import write as write_promotion_package, verify as verify_promotion_package
-from baseline_research import baseline_report
-from adaptive_research_service import AdaptiveResearchService
-from data_quality import DataQualityGate
-from provider_circuit import ProviderCircuitBreaker
+from research.promotion_package import write as write_promotion_package, verify as verify_promotion_package
+from research.baseline_research import baseline_report
+from research.adaptive_research_service import AdaptiveResearchService
+from data.data_quality import DataQualityGate
+from data.provider_circuit import ProviderCircuitBreaker
 try:
-    from setup_registry import SETUPS, classify as classify_setup
+    from research.setup_registry import SETUPS, classify as classify_setup
 except ImportError:
     from research.setup_registry import SETUPS, classify as classify_setup
-import strategy_lifecycle
-from strategy_lifecycle import block_info as strategy_lifecycle_block
-from strategy_evaluation import evaluate as evaluate_strategy_lifecycle
-from broker_preflight import persist_preflight, validate_envelope
-from execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
-from feature_builder import build_snapshot as build_feature_snapshot
+from operations import strategy_lifecycle
+from operations.strategy_lifecycle import block_info as strategy_lifecycle_block
+from operations.strategy_evaluation import evaluate as evaluate_strategy_lifecycle
+from core.broker_preflight import persist_preflight, validate_envelope
+from core.execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
+from intelligence.feature_builder import build_snapshot as build_feature_snapshot
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     from intelligence.macro_graph import MacroGraph
 from intelligence.reflection_graph import build_reflection_graph
-from graph_state import MemoryReflectionState
-from lag_delay_engine import (
+from intelligence.graph_state import MemoryReflectionState
+from intelligence.lag_delay_engine import (
     TimestampedEvent, HeartbeatTracker, ConfidenceDecayEngine, SmithPredictorEngine,
     SlippageCalibrator, utcnow_iso,
 )
-from rl_action_bridge import bridge_rl_action, merge_bridge_into_decision
-from autonomous_causal_engine import AutonomousCausalValidator, CausalChainSetupAnalyzer
-from account_growth import AccountGrowthController
-from strategy_accuracy import build_strategy_accuracy_scorecard
-from research_sprint_planner import plan_and_persist as plan_research_sprints
-from opportunity_bus import (
+from research.rl_action_bridge import bridge_rl_action, merge_bridge_into_decision
+from intelligence.autonomous_causal_engine import AutonomousCausalValidator, CausalChainSetupAnalyzer
+from operations.account_growth import AccountGrowthController
+from research.strategy_accuracy import build_strategy_accuracy_scorecard
+from research.research_sprint_planner import plan_and_persist as plan_research_sprints
+from intelligence.opportunity_bus import (
     publish as publish_opportunities,
     publish_from_scan,
     publish_from_stat_pass_edges,
     opportunity_from_features,
     bus_snapshot,
 )
-from opportunity_fusion import score_opportunity, fusion_block_reasons
-from cycle_brief import build as build_cycle_brief, persist as persist_cycle_brief
-from causal_propagate import propagate as propagate_causal_paths
-from macro_state_vector import build_macro_state_vector
-from data_source_pipeline import (
+from intelligence.opportunity_fusion import score_opportunity, fusion_block_reasons
+from intelligence.cycle_brief import build as build_cycle_brief, persist as persist_cycle_brief
+from intelligence.causal_propagate import propagate as propagate_causal_paths
+from intelligence.macro_state_vector import build_macro_state_vector
+from data.data_source_pipeline import (
     catalog_fred_series,
     process_cycle_data_sources,
 )
-from realtime_news_ingest import run as run_realtime_news_ingest
-from profitability_foundation import report as profitability_report
-from agent_scheduler import bootstrap as bootstrap_schedules
-from dual_velocity import DualVelocityExecutor
-from market_filters import evaluate as evaluate_market_conditions, session_name
-from market_microstructure import MicrostructureMonitor
-from event_policy import evaluate as evaluate_event_policy, symbol_currencies
-from correlation_risk import CorrelationRisk
-from intermarket_regime import (
+from data.realtime_news_ingest import run as run_realtime_news_ingest
+from research.profitability_foundation import report as profitability_report
+from operations.agent_scheduler import bootstrap as bootstrap_schedules
+from operations.dual_velocity import DualVelocityExecutor
+from intelligence.market_filters import evaluate as evaluate_market_conditions, session_name
+from intelligence.market_microstructure import MicrostructureMonitor
+from operations.event_policy import evaluate as evaluate_event_policy, symbol_currencies
+from intelligence.correlation_risk import CorrelationRisk
+from intelligence.intermarket_regime import (
     build_intermarket_regime_snapshot,
     filter_edges_for_live_regime,
 )
-from margin_safety import MarginSafetyGate
-from daily_reconciliation import compare_day as compare_broker_day
-from data_requirements import evaluate as evaluate_data_requirements
-from cost_estimator import assess_costs
-from feature_schema import validate_snapshot as validate_feature_schema
-from model_registry import list_models, register as register_model, review as review_model, drift_report as model_drift_report
-from research_stress import stress_report
-from contextual_bandit import bandit_report
-from semantic_memory import search as semantic_memory_search
-from health_alerts import evaluate as evaluate_health_alerts
-from alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, acknowledge as acknowledge_alert, recover_expired as recover_alerts, status as alert_outbox_status, outbox_health as alert_outbox_health
-from legacy_reconciliation import report as legacy_reconciliation_report, quarantine as quarantine_legacy_record
-from journal_backup import (
+from core.margin_safety import MarginSafetyGate
+from operations.daily_reconciliation import compare_day as compare_broker_day
+from data.data_requirements import evaluate as evaluate_data_requirements
+from intelligence.cost_estimator import assess_costs
+from intelligence.feature_schema import validate_snapshot as validate_feature_schema
+from research.model_registry import list_models, register as register_model, review as review_model, drift_report as model_drift_report
+from research.research_stress import stress_report
+from research.contextual_bandit import bandit_report
+from intelligence.semantic_memory import search as semantic_memory_search
+from operations.health_alerts import evaluate as evaluate_health_alerts
+from operations.alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, acknowledge as acknowledge_alert, recover_expired as recover_alerts, status as alert_outbox_status, outbox_health as alert_outbox_health
+from operations.legacy_reconciliation import report as legacy_reconciliation_report, quarantine as quarantine_legacy_record
+from operations.journal_backup import (
     create_backup, verify_backup, restore_backup,
     create_encrypted_backup, verify_encrypted_backup, restore_encrypted_backup,
     prune_backups,
 )
-from restart_recovery import smoke as restart_recovery_smoke
-from journal_scope import status as journal_scope_status, ensure_scope
-from historical_regimes import research_status as historical_research_status
-from macro_extraction import status as macro_extraction_status
-from model_family_gate import evaluation_plan as model_family_evaluation_plan
-from execution_policy import load as load_execution_policy, candidate_for_store as execution_policy_candidate, approve_for_store as approve_execution_policy
-from forward_test_report import compare as compare_forward_test
-from security_audit import audit as security_audit
-from supervised_training import train as train_supervised_baseline
-from research_runs import record as record_validation_run, list_runs as list_validation_runs
-from live_rollout_gate import status as live_rollout_status, approve as approve_live_rollout, revoke as revoke_live_rollout, require as require_live_rollout, verify_evidence as verify_live_evidence
-from sample_gate import report as sample_gate_report
-from mt5_auth_diagnostics import report as mt5_auth_report
-from readiness_report import build as readiness_report
-from incident_drills import run as run_incident_drills
-from research_influence_gate import allows as research_influence_allows, status as research_influence_status, approve as approve_research_influence, revoke as revoke_research_influence, evidence_fingerprint as research_evidence_fingerprint
-from dashboard_report import build as dashboard_report
+from operations.restart_recovery import smoke as restart_recovery_smoke
+from operations.journal_scope import status as journal_scope_status, ensure_scope
+from research.historical_regimes import research_status as historical_research_status
+from intelligence.macro_extraction import status as macro_extraction_status
+from research.model_family_gate import evaluation_plan as model_family_evaluation_plan
+from core.execution_policy import load as load_execution_policy, candidate_for_store as execution_policy_candidate, approve_for_store as approve_execution_policy
+from research.forward_test_report import compare as compare_forward_test
+from operations.security_audit import audit as security_audit
+from research.supervised_training import train as train_supervised_baseline
+from research.research_runs import record as record_validation_run, list_runs as list_validation_runs
+from operations.live_rollout_gate import status as live_rollout_status, approve as approve_live_rollout, revoke as revoke_live_rollout, require as require_live_rollout, verify_evidence as verify_live_evidence
+from research.sample_gate import report as sample_gate_report
+from operations.mt5_auth_diagnostics import report as mt5_auth_report
+from operations.readiness_report import build as readiness_report
+from operations.incident_drills import run as run_incident_drills
+from operations.research_influence_gate import allows as research_influence_allows, status as research_influence_status, approve as approve_research_influence, revoke as revoke_research_influence, evidence_fingerprint as research_evidence_fingerprint
+from ui.dashboard_report import build as dashboard_report
 
 try:
-    from llm_router import LLMRouter, get_router, reset_router
+    from data.llm_router import LLMRouter, get_router, reset_router
     LLM_ROUTER_AVAILABLE = True
 except ImportError:
     LLM_ROUTER_AVAILABLE = False
 
-from technical_indicators import (
+from core.technical_indicators import (
     ema, rsi, macd, atr, wma, hma, adx, compute_indicators
 )
-from order_execution import (
+from core.order_execution import (
     PaperBroker, _symbol_tick, _broker_market_filling_mode,
     validate_order_params, validate_pending_entry_geometry,
     place_market_order, emergency_market_exit, place_pending_order,
     place_urgency_routed_order,
     modify_order_sltp, cancel_pending_order
 )
-from market_data_provider import (
+from data.market_data_provider import (
     TIMEFRAME_MAP, tf_const, fetch_ohlc, collect_calendar_event_rows,
     DOMCollector, PerformanceMonitor, MarketDataProvider, ohlc_records
 )
@@ -623,7 +623,7 @@ class LLMOrchestrator:
         bootstrap_schedules(self.operations)
         # Idempotent Economic Dynamics catalog seed (CANDIDATE only).
         try:
-            from economic_dynamics_seed import seed_economic_dynamics
+            from intelligence.economic_dynamics_seed import seed_economic_dynamics
             seed_result = seed_economic_dynamics(graph=self.macro_graph)
             self.store.set_state("economic_dynamics_seed", {
                 **{k: seed_result.get(k) for k in (
@@ -755,7 +755,7 @@ class LLMOrchestrator:
         
         if enable_rl:
             try:
-                from rl_trainer import RLTrainer
+                from research.rl_trainer import RLTrainer
                 self.rl_trainer = RLTrainer()
             except ImportError as e:
                 logging.getLogger("LLMOrchestrator").warning(f"RL trainer not available: {e}")
@@ -769,7 +769,7 @@ class LLMOrchestrator:
         self.kronos_integrator = None
         if self.enable_kronos_advisory:
             try:
-                from kronos_trading_integrator import KronosTradingIntegrator
+                from research.kronos_trading_integrator import KronosTradingIntegrator
                 self.kronos_integrator = KronosTradingIntegrator(
                     model_key=os.getenv("TRADING_KRONOS_MODEL", "kronos-mini"),
                 )
@@ -1051,7 +1051,7 @@ class LLMOrchestrator:
         is_cerebras = False
         if model_name and (model_name.startswith("cerebras") or "llama" in model_name.lower()):
             try:
-                from cerebras_client import CerebrasGenerator
+                from data.cerebras_client import CerebrasGenerator
                 llm = CerebrasGenerator()
                 if llm.client:
                     is_cerebras = True
@@ -1062,7 +1062,7 @@ class LLMOrchestrator:
                 logging.getLogger("LLMOrchestrator").warning("Cerebras client not found. Falling back to OpenRouter.")
         
         if not is_cerebras:
-            from generate_with_openrouter import OpenRouterGenerator
+            from data.generate_with_openrouter import OpenRouterGenerator
             llm = OpenRouterGenerator(api_key=api_key)
         return llm
 
@@ -2482,8 +2482,8 @@ class LLMOrchestrator:
             features["setup_version"] = setup["spec"].get("version")
         # Phase C: link opportunity bus candidate onto durable proposal features.
         try:
-            from opportunity_bus import load_open
-            from reward_attribution import match_open_candidate_id
+            from intelligence.opportunity_bus import load_open
+            from operations.reward_attribution import match_open_candidate_id
             bus = toon.get("opportunity_bus") if isinstance(toon.get("opportunity_bus"), dict) else {}
             bus_ids = list(bus.get("candidate_ids") or []) if isinstance(bus, dict) else []
             candidate_id = bus_ids[0] if bus_ids else None
@@ -3124,7 +3124,7 @@ class LLMOrchestrator:
                                     }, run_id=self.run_id, correlation_id=proposal.setup_key(),
                                     severity="INFO" if result.approved else "WARNING")
         try:
-            from local_agent_memory import maybe_remember_trade_cycle
+            from intelligence.local_agent_memory import maybe_remember_trade_cycle
             maybe_remember_trade_cycle(
                 cycle_key=str(proposal.setup_key()),
                 stage="risk_decision" if result.approved else "reject",
@@ -3543,7 +3543,7 @@ class LLMOrchestrator:
         """
         log = logging.getLogger("LLMOrchestrator")
         try:
-            from provider_scorecard import (
+            from intelligence.provider_scorecard import (
                 KNOWN_API_SOURCES, build_event, load_recent_summaries,
                 render, scorecard, trend_vs_previous)
             current = scorecard(
@@ -3850,7 +3850,7 @@ class LLMOrchestrator:
         Advisory only: never invents bars, never grants execution authority, and
         is rate-limited so the market pulse stays cheap.
         """
-        from intermarket_regime import ENTITY_SYMBOL_PROXIES
+        from intelligence.intermarket_regime import ENTITY_SYMBOL_PROXIES
 
         summary: Dict[str, Any] = {
             "recorded": {},
@@ -4377,7 +4377,7 @@ class LLMOrchestrator:
                 return
 
             try:
-                from reward_attribution import enrich_trade_result_attribution
+                from operations.reward_attribution import enrich_trade_result_attribution
                 trade_result = enrich_trade_result_attribution(trade_result, self.store)
             except Exception as exc:
                 logging.getLogger("LLMOrchestrator").debug("Reward attribution enrichment failed: %s", exc)
@@ -4404,10 +4404,10 @@ class LLMOrchestrator:
                 if len(self._rl_updated_tickets) > 2000:
                     self._rl_updated_tickets = set(sorted(self._rl_updated_tickets)[-1000:])
             try:
-                from reward_ledger import emit_terminal_trade_rewards
+                from operations.reward_ledger import emit_terminal_trade_rewards
                 lifecycle_lookup = None
                 try:
-                    from edge_lifecycle import current_lifecycle
+                    from research.edge_lifecycle import current_lifecycle
                     graph = getattr(self, "macro_graph", None)
                     if graph is not None:
                         def lifecycle_lookup(edge_id, _graph=graph):
@@ -4477,7 +4477,7 @@ class LLMOrchestrator:
                 from core.bocpd import BayesianOnlineChangepointDetector
             except Exception:
                 try:
-                    from bocpd import BayesianOnlineChangepointDetector
+                    from core.bocpd import BayesianOnlineChangepointDetector
                 except Exception:
                     return None
             detector = BayesianOnlineChangepointDetector(
@@ -4518,7 +4518,7 @@ class LLMOrchestrator:
             from intelligence.win_probability_model import WinProbabilityModel
         except Exception:
             try:
-                from win_probability_model import WinProbabilityModel
+                from intelligence.win_probability_model import WinProbabilityModel
             except Exception:
                 return model
         try:
@@ -4596,7 +4596,7 @@ class LLMOrchestrator:
             from core.metrics import calculate_survival_edge_audit, calculate_hurst_exponent
         except Exception:
             try:
-                from metrics import calculate_survival_edge_audit, calculate_hurst_exponent
+                from core.metrics import calculate_survival_edge_audit, calculate_hurst_exponent
             except Exception:
                 return
         try:
@@ -5321,7 +5321,7 @@ class LLMOrchestrator:
                     })
                     self.operations.event("reconciler", "trade_closed", {"ticket": ticket, "pnl": total_pnl, "label": label["label"]}, run_id=self.run_id, correlation_id=str(ticket))
                     try:
-                        from local_agent_memory import maybe_remember_trade_cycle
+                        from intelligence.local_agent_memory import maybe_remember_trade_cycle
                         maybe_remember_trade_cycle(
                             cycle_key=str(ticket),
                             stage="closed",
@@ -6495,7 +6495,7 @@ class LLMOrchestrator:
                     reinforcement = self._reinforce_causal_edges_from_reactions()
                     replay_floors: List[Dict[str, Any]] = []
                     try:
-                        from autonomous_causal_engine import CausalEdgeBacktestOptimizer
+                        from intelligence.autonomous_causal_engine import CausalEdgeBacktestOptimizer
                         bars = self.store.get_state("causal_replay_bars", []) or []
                         if not isinstance(bars, list):
                             bars = []
@@ -6538,7 +6538,7 @@ class LLMOrchestrator:
                     )
             elif schedule_name == "economic_dynamics_seed":
                 try:
-                    from economic_dynamics_seed import seed_economic_dynamics
+                    from intelligence.economic_dynamics_seed import seed_economic_dynamics
                     seed_result = seed_economic_dynamics(graph=self.macro_graph)
                     payload = {
                         **{k: seed_result.get(k) for k in (
@@ -6561,7 +6561,7 @@ class LLMOrchestrator:
                     )
             elif schedule_name == "catalog_measurement_pass":
                 try:
-                    from economic_dynamics_measure import run_catalog_measurement_pass
+                    from intelligence.economic_dynamics_measure import run_catalog_measurement_pass
                     payload = run_catalog_measurement_pass(
                         self.macro_graph, validator=self.causal_validator,
                     )
@@ -6580,8 +6580,8 @@ class LLMOrchestrator:
                     )
             elif schedule_name == "historical_regime_research":
                 try:
-                    from historical_regime_replay import regime_research_package
-                    from historical_regimes import template_registry, research_status
+                    from research.historical_regime_replay import regime_research_package
+                    from research.historical_regimes import template_registry, research_status
                     packages = []
                     for template in template_registry()[:8]:
                         rid = str(template.get("regime_id") or "")
@@ -6707,7 +6707,7 @@ class LLMOrchestrator:
                     run_id=getattr(self, "run_id", None),
                     correlation_id=schedule_name, severity="INFO",
                 )
-                from alert_outbox import enqueue as _enqueue
+                from operations.alert_outbox import enqueue as _enqueue
                 journal_path = getattr(getattr(self, "store", None), "path", "trading_state.db")
                 _enqueue(journal_path, [{
                     "code": f"SCHEDULE_SESSION_SKIP_{schedule_name}",
@@ -6772,7 +6772,7 @@ class LLMOrchestrator:
             severity="WARNING",
         )
         try:
-            from alert_outbox import enqueue as _enqueue
+            from operations.alert_outbox import enqueue as _enqueue
             journal_path = getattr(getattr(self, "store", None), "path", "trading_state.db")
             _enqueue(journal_path, [{
                 "code": f"SCHEDULE_SESSION_SKIP_{name}",
@@ -7913,7 +7913,7 @@ class LLMOrchestrator:
         self.trade_memory.record_events(toon.get("news", []))
         toon["event_state"] = evaluate_event_policy(symbol, toon.get("news", []))
         try:
-            from economic_dynamics_catalog import EVENT_TEMPLATES
+            from intelligence.economic_dynamics_catalog import EVENT_TEMPLATES
             toon["event_playbooks"] = [
                 {**dict(template), "execution_authority": False}
                 for template in EVENT_TEMPLATES
@@ -8115,7 +8115,7 @@ class LLMOrchestrator:
         # Mirror measured reactions onto catalog seed, then emit STAT_PASS
         # opportunities only (advisory bus — no order authority).
         try:
-            from economic_dynamics_measure import mirror_recent_reactions
+            from intelligence.economic_dynamics_measure import mirror_recent_reactions
             recent_rows = toon.get("recent_event_reactions") or []
             if isinstance(recent_rows, dict):
                 recent_rows = recent_rows.get("reactions") or recent_rows.get("items") or []
@@ -8133,7 +8133,7 @@ class LLMOrchestrator:
                 "execution_authority": False,
             }
         try:
-            from edge_lifecycle import current_lifecycle
+            from research.edge_lifecycle import current_lifecycle
             lifecycle_by_edge = {}
             for edge in (toon.get("macro_causal_context_regime") or []):
                 if not isinstance(edge, dict) or edge.get("edge_id") is None:
@@ -8223,7 +8223,7 @@ class LLMOrchestrator:
         try:
             obs_ingest = toon.get("macro_observations_ingest") or {}
             fred_obs = obs_ingest.get("fred") if isinstance(obs_ingest, dict) else {}
-            from macro_observations import recent as recent_macro_obs
+            from intelligence.macro_observations import recent as recent_macro_obs
             recent_obs = recent_macro_obs(self.store.path, limit=30)
             toon["macro_state_vector"] = build_macro_state_vector(
                 macro_observations=recent_obs.get("items") or [],
@@ -8646,7 +8646,7 @@ class LLMOrchestrator:
             if not getattr(self, "enable_bounded_autonomy", False) and not provider_outage:
                 bridged_payload = toon.get("rl_bridged_params") or {}
                 if bridged_payload.get("action") in {"BUY", "SELL"}:
-                    from rl_action_bridge import BridgedExecutionParams
+                    from research.rl_action_bridge import BridgedExecutionParams
                     bridged_obj = BridgedExecutionParams.from_dict(bridged_payload)
                     decision = merge_bridge_into_decision(decision, bridged_obj, fill_missing_only=True)
             if llm_request_id:
@@ -8754,7 +8754,7 @@ class LLMOrchestrator:
                                     "proposal_received", {"action": decision.get("action"), "confidence": decision.get("confidence")},
                                     run_id=self.run_id, correlation_id=cycle_key)
         try:
-            from local_agent_memory import maybe_remember_trade_cycle
+            from intelligence.local_agent_memory import maybe_remember_trade_cycle
             maybe_remember_trade_cycle(
                 cycle_key=str(cycle_key),
                 stage="proposal",

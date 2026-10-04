@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from cost_estimator import assess_costs
+from intelligence.cost_estimator import assess_costs
 
 
 def _kwargs():

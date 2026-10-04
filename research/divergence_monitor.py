@@ -89,7 +89,7 @@ class DivergenceMonitor:
                 return result
 
             try:
-                from research_validation import broker_reconciled_tickets
+                from research.research_validation import broker_reconciled_tickets
             except ImportError:
                 from research.research_validation import broker_reconciled_tickets
             tickets = sorted(broker_reconciled_tickets(self.db_path))

@@ -6,8 +6,8 @@ import gc
 import tempfile
 from typing import Any, Dict
 
-from agent_operations import AgentOperations
-from trading_safety import TradingStore
+from operations.agent_operations import AgentOperations
+from core.trading_safety import TradingStore
 
 
 def smoke(path: str = "") -> Dict[str, Any]:

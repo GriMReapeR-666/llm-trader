@@ -1,6 +1,6 @@
 import pytest
 
-from model_registry import register, review
+from research.model_registry import register, review
 
 
 def _register(path, metrics):

@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from research_sprint_planner import default_acceptance, plan_and_persist, plan_research_sprints
-from research_runs import list_runs
-from opportunity_bus import (
+from research.research_sprint_planner import default_acceptance, plan_and_persist, plan_research_sprints
+from research.research_runs import list_runs
+from intelligence.opportunity_bus import (
     handoff_for_validation,
     narrate_candidate,
     opportunity_from_features,
@@ -10,7 +10,7 @@ from opportunity_bus import (
     publish,
     publish_from_scan,
 )
-from agent_contracts import can, can_write
+from operations.agent_contracts import can, can_write
 import pytest
 
 

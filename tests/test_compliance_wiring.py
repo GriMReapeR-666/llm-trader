@@ -176,7 +176,7 @@ class TestOutboxHealthSection:
 
     def _generate_with_journal(self, tmp_path, monkeypatch, health_state):
         """Point the dashboard's journal read at a temp store with a seeded state."""
-        from trading_safety import TradingStore
+        from core.trading_safety import TradingStore
         from ui import compliance_dashboard as mod
 
         journal = str(tmp_path / "journal.db")
@@ -256,7 +256,7 @@ class TestSchedulerStarvationSection:
         every event lands inside the dashboard's window.
         """
         from datetime import datetime, timedelta, timezone
-        from agent_operations import AgentOperations
+        from operations.agent_operations import AgentOperations
         from ui import compliance_dashboard as mod
 
         journal = journal or str(tmp_path / "journal.db")
@@ -488,10 +488,12 @@ class TestLLMProviderSection:
         monkeypatch.setattr(mod, "JOURNAL_PATH", journal)
         if fake_router is not None:
             import types
-            module = types.ModuleType("llm_router")
+            module = types.ModuleType("data.llm_router")
             module.get_router = fake_router
+            monkeypatch.setitem(sys.modules, "data.llm_router", module)
             monkeypatch.setitem(sys.modules, "llm_router", module)
         else:
+            monkeypatch.setitem(sys.modules, "data.llm_router", None)  # import fails
             monkeypatch.setitem(sys.modules, "llm_router", None)  # import fails
         out = str(tmp_path / "compliance.html")
         result = mod.generate_compliance_dashboard(hours=24, output_path=out)

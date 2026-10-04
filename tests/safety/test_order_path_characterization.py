@@ -12,7 +12,7 @@ import pytest
 
 from tests.fakes.fake_mt5 import FakeMT5, patch_everywhere
 
-from order_execution import PaperBroker, place_pending_order
+from core.order_execution import PaperBroker, place_pending_order
 
 EXPIRES = lambda: datetime.now(timezone.utc) + timedelta(hours=1)  # noqa: E731
 
@@ -64,7 +64,7 @@ def test_marketable_pending_geometry_is_refused_before_any_send(broker):
 
 
 def test_paper_pyramid_never_reaches_the_broker(monkeypatch, tmp_path, broker):
-    import trade_manager as tm_mod
+    from core import trade_manager as tm_mod
     patch_everywhere(monkeypatch, "core/trade_manager.py", "mt5", broker)
     broker.bid, broker.ask = 1.1030, 1.1031
     paper = PaperBroker()

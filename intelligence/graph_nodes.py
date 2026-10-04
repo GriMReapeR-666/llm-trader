@@ -11,7 +11,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from graph_state import (
+from intelligence.graph_state import (
     TradingCycleState,
     TradeProposalPayload,
     OrderIntentPayload,
@@ -19,7 +19,7 @@ from graph_state import (
     MemoryReflectionState,
     utcnow_iso,
 )
-from agent_contracts import require as require_agent_action, can as can_agent_action
+from operations.agent_contracts import require as require_agent_action, can as can_agent_action
 from core.trading_safety import (
     DeterministicValidator,
     TradeProposal,
@@ -413,7 +413,7 @@ class MacroAnalystNode:
         # fact-vs-opinion signals (advisory; never order authority).
         news_evidence = None
         try:
-            from news_triage import summarize_cycle_evidence
+            from data.news_triage import summarize_cycle_evidence
             news_evidence = summarize_cycle_evidence(state.get("news_articles") or [])
         except Exception as exc:
             logger.debug("news evidence summary skipped: %s", exc)
@@ -513,7 +513,7 @@ class MacroAnalystNode:
         # trader process was launched with --api-sync; adapter api_url unset =
         # no receiver configured, and posting would be a permanent dead drop).
         try:
-            from web_dashboard_adapter import dashboard as _dash
+            from ui.web_dashboard_adapter import dashboard as _dash
             if getattr(_dash, "api_url", None):
                 _dash._push("macro_state", {
                     "macro_regime": ui_state.macro_regime,
@@ -785,7 +785,7 @@ class SignalArbitratorNode:
             self._arbitrate = arbitrate_signals
         except ImportError:
             try:
-                from signal_arbitrator import arbitrate_signals
+                from intelligence.signal_arbitrator import arbitrate_signals
                 self._arbitrate = arbitrate_signals
             except ImportError:
                 self._arbitrate = None

@@ -172,7 +172,7 @@ def test_get_fred_data_all_series_hung_returns_empty_not_hang(monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_boot_stage_timeout_fails_open_with_marker():
-    from autonomous_bootstrap import _boot_stage
+    from core.autonomous_bootstrap import _boot_stage
 
     def hang():
         time.sleep(5)
@@ -187,7 +187,7 @@ def test_boot_stage_timeout_fails_open_with_marker():
 
 
 def test_boot_stage_exception_contained():
-    from autonomous_bootstrap import _boot_stage
+    from core.autonomous_bootstrap import _boot_stage
 
     def boom():
         raise RuntimeError("yahoo down")
@@ -197,7 +197,7 @@ def test_boot_stage_exception_contained():
 
 
 def test_boot_stage_success_passes_result_through():
-    from autonomous_bootstrap import _boot_stage
+    from core.autonomous_bootstrap import _boot_stage
     assert _boot_stage("bootstrap_probe", lambda: {"k": 1}, 5.0) == {"k": 1}
 
 
@@ -208,8 +208,8 @@ def test_boot_stage_success_passes_result_through():
 @pytest.fixture(autouse=True)
 def _fresh_datasheet(monkeypatch):
     """Isolate the datasheet singleton for the degradation-marker assertions."""
-    from boot_datasheet import BootDatasheet
-    import boot_datasheet as ds_mod
+    from intelligence.boot_datasheet import BootDatasheet
+    from intelligence import boot_datasheet as ds_mod
     sheet = BootDatasheet()
     monkeypatch.setattr(ds_mod, "_ds_singleton", sheet)
     yield sheet
@@ -293,7 +293,7 @@ def test_query_seeking_alpha_timeout_records_datasheet_marker(monkeypatch):
     """A timed-out Seeking Alpha call must land a degradation marker on the
     boot datasheet so the provider-scorecard trend sees it."""
     import core.trading_tools as tt
-    from boot_datasheet import get_datasheet
+    from intelligence.boot_datasheet import get_datasheet
 
     def hung_provider(*a, **kw):
         prov = MagicMock()

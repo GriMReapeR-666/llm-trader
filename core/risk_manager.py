@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple, Optional, Callable
 
 try:
-    from state_persistence import StoreBackedState
+    from core.state_persistence import StoreBackedState
 except ImportError:
     from core.state_persistence import StoreBackedState
 

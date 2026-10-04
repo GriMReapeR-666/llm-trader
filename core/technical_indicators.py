@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 try:
-    from alpha_factors import compute_alpha_factors
+    from core.alpha_factors import compute_alpha_factors
 except ImportError:
     try:
         from core.alpha_factors import compute_alpha_factors

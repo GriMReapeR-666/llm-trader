@@ -1,7 +1,7 @@
 from pathlib import Path
 import sqlite3
 
-from trading_memory import TradingMemory
+from intelligence.trading_memory import TradingMemory
 
 
 def test_memory_quality_reports_latency_balance_tokens_and_cutoff_errors(tmp_path: Path):

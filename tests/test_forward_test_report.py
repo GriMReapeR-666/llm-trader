@@ -1,7 +1,7 @@
 import json
 
-import forward_test_report
-from forward_test_report import MIN_FORWARD_SAMPLE, compare
+from research import forward_test_report
+from research.forward_test_report import MIN_FORWARD_SAMPLE, compare
 
 
 def _report(tmp_path, payload):

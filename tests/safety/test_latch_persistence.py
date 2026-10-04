@@ -8,8 +8,8 @@ import math
 
 import pytest
 
-from kill_switch_latch import (CONFIRM_WINDOW_S, REARM_COOLDOWN_S, VIX_CLEAR_THRESHOLD,
-                               KillSwitchLatch)
+from data.kill_switch_latch import (CONFIRM_WINDOW_S, REARM_COOLDOWN_S, VIX_CLEAR_THRESHOLD,
+                                     KillSwitchLatch)
 
 T0 = 1_000_000.0
 
@@ -96,8 +96,11 @@ def test_corrupt_checkpoint_after_crash_loads_latched(latched, path):
     assert _latch(path).snapshot()["latched"] is True
 
 
-@pytest.mark.xfail(strict=True, reason="P1-C1: kill_switch_latch is loaded twice; each copy has its own singleton")
-def test_every_import_path_shares_one_latch():
+def test_every_import_path_shares_one_latch(monkeypatch):
+    import os
+    import sys
     import data.kill_switch_latch as packaged
-    import kill_switch_latch as bare
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    monkeypatch.syspath_prepend(os.path.join(root, "data"))
+    from data import kill_switch_latch as bare
     assert packaged.get_kill_switch_latch() is bare.get_kill_switch_latch()

@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import core.autonomous_bootstrap as bootstrap_mod
-from boot_datasheet import BootDatasheet, boot_datasheet_enabled, get_datasheet
+from intelligence.boot_datasheet import BootDatasheet, boot_datasheet_enabled, get_datasheet
 
 
 @pytest.fixture(autouse=True)
@@ -28,7 +28,7 @@ def _fresh_sheet(monkeypatch):
     """
     monkeypatch.delenv("LLM_TRADER_BOOT_DATASHEET", raising=False)
     sheet = BootDatasheet()
-    import boot_datasheet as ds_mod
+    from intelligence import boot_datasheet as ds_mod
     monkeypatch.setattr(ds_mod, "_ds_singleton", sheet)
     yield sheet
     sheet.reset()

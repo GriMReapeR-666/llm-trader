@@ -9,8 +9,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import pytest
 
-from news_triage import TriageVerdict, triage_articles
-from realtime_news_ingest import ingest_articles, normalize_article
+from data.news_triage import TriageVerdict, triage_articles
+from data.realtime_news_ingest import ingest_articles, normalize_article
 from research.learning.contrastive_pair_miner import ContrastivePairMiner
 from research.learning.triage_ledger import TriageDisagreementLogger, make_verdict_logger
 
@@ -105,7 +105,7 @@ def _plain_article(key="plain1"):
 
 
 def _verdict(laya, article):
-    from news_triage import triage_article
+    from data.news_triage import triage_article
     return triage_article(article, seen_keys=set(), laya=laya)
 
 
@@ -209,10 +209,10 @@ def test_triage_articles_batch_invokes_logger(tmp_path):
 
 
 def test_ingest_articles_passes_logger_and_reports_learning(tmp_path, monkeypatch):
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
     # Hermetic: active gate (mode != off) with an injected fake laya so the
     # spoof disagreement is produced without loading the real 421M model.
-    monkeypatch.setattr("news_triage._get_laya", lambda: _laya_spoof())
+    monkeypatch.setattr("data.news_triage._get_laya", lambda: _laya_spoof())
     graph = MacroGraph(str(tmp_path / "g.db"))
     lg = TriageDisagreementLogger(str(tmp_path / "ledger.db"), miner=_miner(tmp_path))
     arts = [_spoof_article(), _plain_article()]
@@ -224,7 +224,7 @@ def test_ingest_articles_passes_logger_and_reports_learning(tmp_path, monkeypatc
 
 
 def test_missing_log_verdict_method_is_tolerated(tmp_path):
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
     graph = MacroGraph(str(tmp_path / "g.db"))
     arts = [_plain_article(key="p3")]
     result = ingest_articles(graph, arts, triage_enabled=True, learning_logger=object())

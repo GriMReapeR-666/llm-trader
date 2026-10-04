@@ -9,11 +9,6 @@ root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-for subpkg in ["core", "intelligence", "operations", "research", "data", "ui"]:
-    pkg_path = os.path.join(root_dir, subpkg)
-    if os.path.isdir(pkg_path) and pkg_path not in sys.path:
-        sys.path.insert(0, pkg_path)
-
 
 import pytest
 
@@ -378,8 +373,8 @@ def sandbox_ambient_runtime_state(tmp_path, monkeypatch):
     def _sboxed(path) -> str:
         return os.path.join(str(sandbox), os.path.basename(str(path)))
 
-    import state_persistence as _sp
-    import trading_safety as _ts
+    import core.state_persistence as _sp
+    import core.trading_safety as _ts
     # Dual-import discovery: conftest puts both the repo root and each package
     # dir on sys.path, so 'trading_safety' and 'core.trading_safety' (etc.) can
     # be DISTINCT module objects with distinct classes. Discover every loaded

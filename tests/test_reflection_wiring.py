@@ -1,7 +1,7 @@
 """Tests for wiring the ReflectionGraph into the production trading cycle."""
 import pytest
 from unittest.mock import MagicMock, patch, PropertyMock
-from graph_state import MemoryReflectionState, utcnow_iso
+from intelligence.graph_state import MemoryReflectionState, utcnow_iso
 
 
 class TestReflectionGraphWiring:
@@ -147,8 +147,8 @@ class TestReflectionGraphWiring:
 
     def test_reflection_graph_nodes_execute(self, tmp_path):
         """Full integration: reflection graph runs all four nodes end-to-end."""
-        from reflection_graph import build_reflection_graph
-        from graph_checkpointer import SqliteCheckpointSaver
+        from intelligence.reflection_graph import build_reflection_graph
+        from intelligence.graph_checkpointer import SqliteCheckpointSaver
 
         db_file = str(tmp_path / "integration_reflection.db")
         saver = SqliteCheckpointSaver(db_path=db_file)

@@ -7,7 +7,7 @@ from statistics import median
 from typing import Any, Dict, Iterable, List
 
 try:
-    from research_validation import labelled_dataset
+    from research.research_validation import labelled_dataset
 except ImportError:
     from research.research_validation import labelled_dataset
 

@@ -12,7 +12,7 @@ from core.harness.sandbox import CapabilitySandbox, PermissionLevel
 
 
 def _orch(mode="LIVE", sandbox_level=PermissionLevel.ORDER_WRITE, wired=True, granted="LIVE"):
-    from llm_orchestrator import LLMOrchestrator
+    from intelligence.llm_orchestrator import LLMOrchestrator
     orch = LLMOrchestrator.__new__(LLMOrchestrator)
     orch.store = NS(scope={"mode": mode})
     if wired:
@@ -22,7 +22,7 @@ def _orch(mode="LIVE", sandbox_level=PermissionLevel.ORDER_WRITE, wired=True, gr
 
 
 def _broker(monkeypatch, trade_mode):
-    import llm_orchestrator
+    from intelligence import llm_orchestrator
     from tests.fakes.fake_mt5 import patch_everywhere
     def account_info():
         if trade_mode == "error":

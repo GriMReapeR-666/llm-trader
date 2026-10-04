@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "intelligence")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
-from signal_arbitrator import (
+from intelligence.signal_arbitrator import (
     arbitrate_signals,
     _extract_signals_from_state,
     _score_signal,

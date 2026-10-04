@@ -228,7 +228,7 @@ class RLTrainer:
 
     def calculate_reward_breakdown(self, trade_result: Dict[str, Any]) -> Dict[str, Any]:
         """Full terminal reward breakdown for journaling / reward_events."""
-        from reward_ledger import compute_terminal_reward
+        from operations.reward_ledger import compute_terminal_reward
 
         # Fail closed unless caller marked the close as broker-reconciled.
         payload = dict(trade_result or {})
@@ -428,7 +428,7 @@ class RLTrainer:
         Research-only: never grants broker execution authority.  Safe to run
         without neural Kronos weights (simulator uses heuristic regimes).
         """
-        from kronos_trading_integrator import KronosRLMarketSimulator
+        from research.kronos_trading_integrator import KronosRLMarketSimulator
 
         sim = KronosRLMarketSimulator(
             symbol=symbol,

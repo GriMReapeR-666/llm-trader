@@ -11,7 +11,7 @@ import json
 import math
 import sqlite3
 try:
-    from macro_source_policy import assess_source
+    from intelligence.macro_source_policy import assess_source
 except ImportError:
     from intelligence.macro_source_policy import assess_source
 

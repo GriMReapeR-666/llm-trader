@@ -8,32 +8,32 @@ import os
 from typing import Any, Dict, List, Optional
 
 try:
-    from economic_dynamics_catalog import coverage_report
+    from intelligence.economic_dynamics_catalog import coverage_report
 except ImportError:
     from intelligence.economic_dynamics_catalog import coverage_report
 
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     from intelligence.macro_graph import MacroGraph
 
 try:
-    from macro_observations import recent as recent_observations
+    from intelligence.macro_observations import recent as recent_observations
 except ImportError:
     from intelligence.macro_observations import recent as recent_observations
 
 try:
-    from trading_memory import TradingMemory
+    from intelligence.trading_memory import TradingMemory
 except ImportError:
     from intelligence.trading_memory import TradingMemory
 
 try:
-    from trading_safety import TradingStore
+    from core.trading_safety import TradingStore
 except ImportError:
     from core.trading_safety import TradingStore
 
 try:
-    from cycle_brief import load_latest
+    from intelligence.cycle_brief import load_latest
 except ImportError:
     from intelligence.cycle_brief import load_latest
 
@@ -153,7 +153,7 @@ def economic_dynamics_health() -> Dict[str, Any]:
     report = coverage_report()
     central_bank_aliases = []
     try:
-        from economic_dynamics_catalog import ENTITIES
+        from intelligence.economic_dynamics_catalog import ENTITIES
         for entity in ENTITIES:
             if str(entity.get("name")) == "CENTRAL_BANK":
                 central_bank_aliases = list(entity.get("aliases") or [])

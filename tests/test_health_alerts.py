@@ -2,8 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from agent_operations import AgentOperations
-from health_alerts import evaluate
+from operations.agent_operations import AgentOperations
+from operations.health_alerts import evaluate
 
 
 def test_health_alerts_detect_stale_workers_and_exhausted_retries(tmp_path):

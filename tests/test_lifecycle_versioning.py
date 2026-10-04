@@ -1,7 +1,7 @@
 import pytest
 
-import llm_orchestrator as orch
-from setup_registry import SETUPS
+from intelligence import llm_orchestrator as orch
+from research.setup_registry import SETUPS
 
 
 def test_setup_registry_fingerprint_rotates_on_rule_change():

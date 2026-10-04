@@ -52,7 +52,7 @@ def cmd_status(args):
 
     # RL Trainer status
     try:
-        from rl_trainer import RLTrainer
+        from research.rl_trainer import RLTrainer
         rl = RLTrainer(model_path="rl_model.json")
         status["rl_trainer"] = {
             "total_updates": rl.total_updates,
@@ -64,7 +64,7 @@ def cmd_status(args):
 
     # Backtest pipeline status
     try:
-        from continuous_backtest_pipeline import ContinuousBacktestPipeline
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
         pipeline = ContinuousBacktestPipeline()
         status["backtest_pipeline"] = {
             "last_run": pipeline.state.get("last_run"),
@@ -77,7 +77,7 @@ def cmd_status(args):
 
     # Auto-promotion status
     try:
-        from auto_promotion import AutoPromoter
+        from research.auto_promotion import AutoPromoter
         promoter = AutoPromoter()
         status["auto_promotion"] = promoter.get_status()
     except Exception as exc:
@@ -85,7 +85,7 @@ def cmd_status(args):
 
     # Divergence monitor status
     try:
-        from divergence_monitor import DivergenceMonitor
+        from research.divergence_monitor import DivergenceMonitor
         monitor = DivergenceMonitor()
         status["divergence_monitor"] = {
             "last_check": monitor.state.get("last_check"),
@@ -96,7 +96,7 @@ def cmd_status(args):
 
     # Alert rules status
     try:
-        from alert_rules import AlertRulesEngine
+        from operations.alert_rules import AlertRulesEngine
         engine = AlertRulesEngine()
         status["alert_rules"] = engine.get_status()
     except Exception as exc:
@@ -104,7 +104,7 @@ def cmd_status(args):
 
     # Degradation detector status
     try:
-        from degradation_detector import DegradationDetector
+        from operations.degradation_detector import DegradationDetector
         detector = DegradationDetector()
         status["degradation_detector"] = detector.get_status()
     except Exception as exc:
@@ -112,7 +112,7 @@ def cmd_status(args):
 
     # Metrics persistence status
     try:
-        from metrics_persistence import MetricsStore
+        from operations.metrics_persistence import MetricsStore
         store = MetricsStore()
         rolling = store.get_rolling_metrics(window=50)
         status["metrics_persistence"] = {
@@ -125,7 +125,7 @@ def cmd_status(args):
 
     # Model registry
     try:
-        from model_registry import list_models
+        from research.model_registry import list_models
         models = list_models()
         status["model_registry"] = {
             "total_models": len(models),
@@ -144,7 +144,7 @@ def cmd_train(args):
     if args.rl or args.all:
         print("Training RL model...")
         try:
-            from rl_trainer import RLTrainer
+            from research.rl_trainer import RLTrainer
             rl = RLTrainer(model_path="rl_model.json")
             # Simulate a few updates
             for i in range(10):
@@ -160,7 +160,7 @@ def cmd_train(args):
     if args.ppo or args.all:
         print("Training PPO model...")
         try:
-            from ppo_trainer import train_ppo_offline
+            from research.ppo_trainer import train_ppo_offline
             ppo_result = train_ppo_offline(
                 episodes=2, updates=1, max_steps=10,
                 symbol="EURUSD", seed=42, simulator="kronos",
@@ -177,7 +177,7 @@ def cmd_train(args):
 def cmd_backtest(args):
     """Run backtest validation."""
     try:
-        from continuous_backtest_pipeline import ContinuousBacktestPipeline
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
         pipeline = ContinuousBacktestPipeline()
 
         if args.once:
@@ -202,7 +202,7 @@ def cmd_backtest(args):
 def cmd_promote(args):
     """Check promotion eligibility."""
     try:
-        from auto_promotion import AutoPromoter
+        from research.auto_promotion import AutoPromoter
         promoter = AutoPromoter()
 
         if args.check:
@@ -225,7 +225,7 @@ def cmd_promote(args):
 def cmd_divergence(args):
     """Check divergence."""
     try:
-        from divergence_monitor import DivergenceMonitor
+        from research.divergence_monitor import DivergenceMonitor
         monitor = DivergenceMonitor()
 
         result = monitor.check_divergence(args.symbol)
@@ -238,7 +238,7 @@ def cmd_divergence(args):
 def cmd_alerts(args):
     """Manage alert rules."""
     try:
-        from alert_rules import AlertRulesEngine
+        from operations.alert_rules import AlertRulesEngine
         engine = AlertRulesEngine()
 
         if args.rules:
@@ -258,7 +258,7 @@ def cmd_alerts(args):
 def cmd_metrics(args):
     """Show metrics."""
     try:
-        from metrics_persistence import MetricsStore
+        from operations.metrics_persistence import MetricsStore
         store = MetricsStore()
 
         if args.rolling:
@@ -291,7 +291,7 @@ def cmd_metrics(args):
 def cmd_degradation(args):
     """Check degradation status."""
     try:
-        from degradation_detector import DegradationDetector
+        from operations.degradation_detector import DegradationDetector
         detector = DegradationDetector()
 
         if args.status:

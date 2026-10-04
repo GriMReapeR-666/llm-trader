@@ -1,4 +1,4 @@
-from supervised_training import train
+from research.supervised_training import train
 
 
 def test_supervised_training_fails_closed_without_journal(tmp_path):

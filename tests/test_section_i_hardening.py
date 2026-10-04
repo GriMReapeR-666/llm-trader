@@ -1,8 +1,8 @@
 import pytest
 
-from research_validation import (labelled_dataset, promotion_gate, walk_forward_splits,
+from research.research_validation import (labelled_dataset, promotion_gate, walk_forward_splits,
                                   _setup_floor_reasons, _stress_floor_reasons)
-from setup_governance import change_gate, retirement_gate
+from research.setup_governance import change_gate, retirement_gate
 
 
 def test_leakage_safe_dataset_extraction(tmp_path):

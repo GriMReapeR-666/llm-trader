@@ -45,8 +45,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 try:
-    from agent_operations import AgentOperations
-    from macro_graph import MacroGraph
+    from operations.agent_operations import AgentOperations
+    from intelligence.macro_graph import MacroGraph
 except ImportError:  # package-style import
     from operations.agent_operations import AgentOperations
     from intelligence.macro_graph import MacroGraph

@@ -13,8 +13,8 @@ except ImportError:
     # management path still requires an authenticated MT5 terminal.
     mt5 = None
 
-from trading_safety import PortfolioRiskArbiter, exposure_buckets
-from state_persistence import StoreBackedState
+from core.trading_safety import PortfolioRiskArbiter, exposure_buckets
+from core.state_persistence import StoreBackedState
 
 RETCODE_MESSAGES = {
     10004: "REQUOTE",

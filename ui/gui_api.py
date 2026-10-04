@@ -69,9 +69,8 @@ class _UIState:
 ui_state = _UIState()
 import sys as _sys
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _p in (_PROJECT_ROOT, os.path.join(_PROJECT_ROOT, "operations"), os.path.join(_PROJECT_ROOT, "research"), os.path.join(_PROJECT_ROOT, "core"), os.path.join(_PROJECT_ROOT, "intelligence"), os.path.join(_PROJECT_ROOT, "data"), _PROJECT_ROOT):
-    if _p not in _sys.path:
-        _sys.path.insert(0, _p)
+if _PROJECT_ROOT not in _sys.path:
+    _sys.path.insert(0, _PROJECT_ROOT)
 from core.harness.event_stream import EventStream, HarnessEvent
 import logging
 
@@ -389,7 +388,6 @@ def broadcast_harness_event_to_gui(event: HarnessEvent) -> None:
 def _recent_events(since: int = 0) -> dict:
     """Fetch recent harness events since a timestamp (for WebSocket reconnect replay)."""
     try:
-        sys.path.insert(0, BASE_DIR)
         from core.harness.event_stream import EventStream
         _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         if not os.path.exists(_db):
@@ -466,7 +464,7 @@ def get_dashboard_data():
 def get_positions():
     """Live positions from journal (real-time, not push-dependent)."""
     try:
-        from live_journal_reader import read_open_positions
+        from ui.live_journal_reader import read_open_positions
         _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         live = read_open_positions(_db)
         if live:
@@ -479,7 +477,7 @@ def get_positions():
 def get_history():
     """Live trade history from journal (real-time, not push-dependent)."""
     try:
-        from live_journal_reader import read_trade_history
+        from ui.live_journal_reader import read_trade_history
         _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         live = read_trade_history(_db, limit=50)
         if live:
@@ -529,8 +527,8 @@ def get_graph_status():
 def get_cycle_brief(symbol: str = "", strategy: str = ""):
     """Latest CycleBrief observability payload (never grants order permission)."""
     try:
-        from trading_safety import TradingStore
-        from cycle_brief import load_latest
+        from core.trading_safety import TradingStore
+        from intelligence.cycle_brief import load_latest
         store = TradingStore()
         return load_latest(store, symbol=symbol, strategy=strategy)
     except Exception as exc:
@@ -545,7 +543,7 @@ def get_cycle_brief(symbol: str = "", strategy: str = ""):
 def get_profitability():
     """Aggregated profitability foundation report (advisory only)."""
     try:
-        from profitability_foundation import report as profitability_report
+        from research.profitability_foundation import report as profitability_report
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return profitability_report(path)
     except Exception as exc:
@@ -560,7 +558,7 @@ def get_profitability():
 def get_brain_observability(symbol: str = "", strategy: str = ""):
     """Unified memory/regime/causal/macro observability (never grants orders)."""
     try:
-        from brain_observability import full_observability
+        from intelligence.brain_observability import full_observability
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return full_observability(journal_path=path, symbol=symbol, strategy=strategy)
     except Exception as exc:
@@ -574,7 +572,7 @@ def get_brain_observability(symbol: str = "", strategy: str = ""):
 @app.get("/api/brain/memory")
 def get_brain_memory(limit: int = 20):
     try:
-        from brain_observability import memory_health
+        from intelligence.brain_observability import memory_health
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return memory_health(journal_path=path, limit=min(max(int(limit), 1), 100))
     except Exception as exc:
@@ -584,7 +582,7 @@ def get_brain_memory(limit: int = 20):
 @app.get("/api/brain/regime")
 def get_brain_regime(symbol: str = "", strategy: str = ""):
     try:
-        from brain_observability import regime_snapshot
+        from intelligence.brain_observability import regime_snapshot
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return regime_snapshot(journal_path=path, symbol=symbol, strategy=strategy)
     except Exception as exc:
@@ -594,7 +592,7 @@ def get_brain_regime(symbol: str = "", strategy: str = ""):
 @app.get("/api/brain/causal-edges")
 def get_brain_causal_edges(limit: int = 12):
     try:
-        from brain_observability import top_causal_edges
+        from intelligence.brain_observability import top_causal_edges
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return top_causal_edges(journal_path=path, limit=min(max(int(limit), 1), 50))
     except Exception as exc:
@@ -604,7 +602,7 @@ def get_brain_causal_edges(limit: int = 12):
 @app.get("/api/brain/macro-observations")
 def get_brain_macro_observations(limit: int = 15):
     try:
-        from brain_observability import macro_observations_summary
+        from intelligence.brain_observability import macro_observations_summary
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return macro_observations_summary(journal_path=path, limit=min(max(int(limit), 1), 50))
     except Exception as exc:
@@ -614,7 +612,7 @@ def get_brain_macro_observations(limit: int = 15):
 @app.get("/api/brain/economic-coverage")
 def get_brain_economic_coverage():
     try:
-        from brain_observability import economic_dynamics_health
+        from intelligence.brain_observability import economic_dynamics_health
         return economic_dynamics_health()
     except Exception as exc:
         return {"status": "ERROR", "error": str(exc)[:400], "execution_authority": False}
@@ -624,7 +622,7 @@ def get_brain_economic_coverage():
 def get_brain_realtime_news(symbol: str = ""):
     """Latest governed realtime news ingest summary (never grants orders)."""
     try:
-        from brain_observability import realtime_news_summary
+        from intelligence.brain_observability import realtime_news_summary
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return realtime_news_summary(journal_path=path, symbol=symbol)
     except Exception as exc:
@@ -862,7 +860,7 @@ def get_accounts():
 
 def _store_secure_password(login, server, password: str) -> str:
     try:
-        from secure_store import store_password as _sp
+        from core.secure_store import store_password as _sp
     except ImportError:
         from core.secure_store import store_password as _sp
     return _sp(str(login), str(server), str(password))
@@ -934,8 +932,6 @@ def test_account_login(payload: dict = {}):
     """Test MT5 login via secure_store + MCP path (reads current default account). Returns masked result."""
     try:
         import sys
-        sys.path.insert(0, BASE_DIR)
-        sys.path.insert(0, os.path.dirname(BASE_DIR))
         from mt5_trader import Config, MT5Client
         cfg = Config.from_sources()
         if not cfg.login:
@@ -943,7 +939,7 @@ def test_account_login(payload: dict = {}):
         # quick check secure backend
         try:
             try:
-                from secure_store import has_store, masked, retrieve_password
+                from core.secure_store import has_store, masked, retrieve_password
             except ImportError:
                 from core.secure_store import has_store, masked, retrieve_password
             backend = has_store()
@@ -972,7 +968,7 @@ def delete_account(name: str):
         if sk:
             try:
                 try:
-                    from secure_store import delete_password
+                    from core.secure_store import delete_password
                 except ImportError:
                     from core.secure_store import delete_password
                 delete_password(sk)
@@ -1156,8 +1152,7 @@ def _explicit_pipeline_stage() -> dict:
     """Best-effort explicit validation-pipeline stage snapshot."""
     try:
         _jq = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import read_latest_proposal, read_proposals
+        from ui.live_journal_reader import read_latest_proposal, read_proposals
         _last = read_latest_proposal(_jq)
         _props = read_proposals(_jq, limit=5)
         explicit_stage = {
@@ -1320,8 +1315,7 @@ def _datasource_heartbeat() -> dict:
     """Explicit data-source health from live orchestrator data_status and providers."""
     try:
         _jq = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import read_latest_proposal
+        from ui.live_journal_reader import read_latest_proposal
         _last = read_latest_proposal(_jq)
         data_status = None
         if _last and isinstance(_last.get("reasons"), list):
@@ -1439,8 +1433,7 @@ def _incidents_snapshot() -> dict:
         _journal_db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         _journal_db = _journal_db if os.path.isabs(_journal_db) else os.path.join(
             os.path.dirname(BASE_DIR), _journal_db)
-        sys.path.insert(0, os.path.dirname(BASE_DIR))
-        from health_alerts import evaluate as _eval_health
+        from operations.health_alerts import evaluate as _eval_health
         report = _eval_health(_journal_db)
         incidents["status"] = report.get("status", "OK")
         incidents["checked_at"] = report.get("checked_at")
@@ -1466,7 +1459,6 @@ def _incidents_snapshot() -> dict:
     try:
         ks = incidents.get("kill_switch")
         if ks is None:
-            sys.path.insert(0, os.path.dirname(BASE_DIR))
             from core.execution_safety_supervisor import (
                 get_execution_safety_supervisor as _get_ess,
             )
@@ -1605,8 +1597,7 @@ def deck_snapshot(v: int = 1):
     history = []
     pnl_summary = {}
     try:
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import (
+        from ui.live_journal_reader import (
             read_open_positions, read_trade_history, read_pnl_summary,
         )
         positions = read_open_positions(_journal_db)
@@ -1617,9 +1608,7 @@ def deck_snapshot(v: int = 1):
 
     brain = {}
     try:
-        sys.path.insert(0, BASE_DIR)
-        sys.path.insert(0, os.path.dirname(BASE_DIR))
-        from brain_observability import full_observability  # type: ignore
+        from intelligence.brain_observability import full_observability  # type: ignore
         brain = full_observability() or {}
     except Exception:
         brain = {}
@@ -1627,7 +1616,6 @@ def deck_snapshot(v: int = 1):
     # --- Autonomous Safety State (G5) ---
     safety = {"execution": {}, "circuits": {}, "copula": {}, "ewc": {}, "alpha_decay": {}}
     try:
-        sys.path.insert(0, os.path.join(BASE_DIR, "..", "core"))
         from core.execution_safety_supervisor import get_execution_safety_supervisor
         safety["execution"] = get_execution_safety_supervisor().inspect_safety_status()
     except Exception as exc:
@@ -1666,7 +1654,7 @@ def deck_snapshot(v: int = 1):
     # --- Live journal account state (fallback when push-based ui_state is empty) ---
     _live_account = {}
     try:
-        from live_journal_reader import read_account_state
+        from ui.live_journal_reader import read_account_state
         _risk_path = os.path.join(os.path.dirname(BASE_DIR), "risk_state.json")
         _live_account = read_account_state(_risk_path, _journal_db)
     except Exception:
@@ -2018,7 +2006,6 @@ def _research_pipeline() -> list:
     entries = []
     seen_names = set()
     try:
-        sys.path.insert(0, BASE_DIR)
         from operations.lifecycle import get_lifecycle_manager
         lm = get_lifecycle_manager()
         for entry in lm.all_entries():
@@ -2256,8 +2243,7 @@ def _compliance_events() -> list:
     events = []
     try:
         _jq = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import read_compliance_events
+        from ui.live_journal_reader import read_compliance_events
         events = read_compliance_events(_jq, limit=50)
     except Exception as exc:
         logger.warning("compliance events fetch failed: %s", exc)
@@ -2277,8 +2263,7 @@ def _market() -> dict:
     its own MT5 connection. Falls back to empty if stale (>30s old).
     """
     try:
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import read_market_quotes
+        from ui.live_journal_reader import read_market_quotes
         quotes = read_market_quotes()
         if quotes:
             return quotes
@@ -2286,7 +2271,6 @@ def _market() -> dict:
         pass
     # Fallback: try to read from MT5 directly (only works if MT5 is in-process)
     try:
-        sys.path.insert(0, BASE_DIR)
         from data.market_data_provider import MarketDataProvider
         from core.risk_manager import RiskManager
         mdp = MarketDataProvider(client=None, risk_manager=RiskManager())
@@ -2314,10 +2298,7 @@ def _agents() -> dict:
     """Live agent states from agent operations."""
     agents = {}
     try:
-        sys.path.insert(0, BASE_DIR)
-        sys.path.insert(0, os.path.join(os.path.dirname(BASE_DIR), "operations"))
-        sys.path.insert(0, os.path.join(os.path.dirname(BASE_DIR), "research"))
-        from agent_operations import AgentOperations
+        from operations.agent_operations import AgentOperations
         ops = AgentOperations()
         # Real per-principal liveness from the durable agent-runs ledger
         # (started_at/heartbeat_at written by the trading engine's agents).
@@ -2403,7 +2384,6 @@ def _tasks() -> list:
     """Live task/stage history from UI state or persistent journal."""
     tasks = []
     try:
-        sys.path.insert(0, BASE_DIR)
         for ev in (getattr(ui_state, '_harness_events', []) or [])[-20:]:
             if isinstance(ev, dict) and ev.get("type") in ("STAGE_START", "STAGE_DONE", "STAGE_ERROR"):
                 tasks.append({
@@ -2490,7 +2470,6 @@ def _alpha_signals() -> list:
     """Live alpha signals from market structure and factor models."""
     signals = []
     try:
-        sys.path.insert(0, BASE_DIR)
         from core.market_structure_edges import (
             detect_gamma_regime, calculate_cvd, calculate_har_rv_forecast,
             assess_index_rebalancing_signal, calculate_cross_sectional_momentum,
@@ -2526,7 +2505,6 @@ def _alpha_signals() -> list:
     except Exception:
         pass
     try:
-        sys.path.insert(0, BASE_DIR)
         from core.event_structural_edges import (
             calculate_vrp_harvest_signal, calculate_pead_signal,
             assess_spinoff_opportunity, assess_buyback_blackout,
@@ -2740,8 +2718,7 @@ def _scanner(response: Response) -> list:
     never fabricates rows.
     """
     try:
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import read_scanner_results
+        from ui.live_journal_reader import read_scanner_results
         results = read_scanner_results()
         if results:
             response.headers["X-Engine-Status"] = "ONLINE"
@@ -2771,7 +2748,6 @@ def _compliance_full() -> dict:
     """Full compliance audit from chain-integrity + journal audit."""
     result = {"events": [], "chainIntegrity": {"valid": True, "entriesVerified": 0, "durationMs": 0}, "moduleGroups": []}
     try:
-        sys.path.insert(0, BASE_DIR)
         from core.compliance_audit import get_audit
         audit = get_audit()
         report = audit.generate_report()
@@ -2807,7 +2783,7 @@ def _diagnostics() -> dict:
         # Fetch real returns from closed trades in trading_state.db
         returns = []
         try:
-            from live_journal_reader import _connect, _DEFAULT_DB
+            from ui.live_journal_reader import _connect, _DEFAULT_DB
             if os.path.exists(_DEFAULT_DB):
                 with _connect(_DEFAULT_DB) as con:
                     rows = con.execute(
@@ -2856,7 +2832,6 @@ def _workflows() -> list:
     """Live workflow executions from harness."""
     workflows = []
     try:
-        sys.path.insert(0, BASE_DIR)
         from core.harness.workflows import QuantWorkflowEngine
         engine = QuantWorkflowEngine()
         for wf in engine.list_workflows():
@@ -3036,7 +3011,6 @@ def _rl_training() -> dict:
         "isTraining": False,
     }
     try:
-        sys.path.insert(0, BASE_DIR)
         from research.rl_trainer import RLTrainer
         trainer = RLTrainer()
         state = trainer.get_state() if hasattr(trainer, "get_state") else {}
@@ -3141,7 +3115,6 @@ def _settings_full() -> dict:
     """Full settings from autonomy + agent contracts."""
     result = {"autonomyLevels": [], "configEntries": []}
     try:
-        sys.path.insert(0, BASE_DIR)
         from operations.autonomy import get_autonomy
         snap = get_autonomy().snapshot()
         for level in ["L0_DISABLED", "L1_PAPER", "L2_MICRO", "L3_FULL", "L4_AGGRESSIVE"]:
@@ -3267,7 +3240,6 @@ def _security_full() -> dict:
     """Security scans from security audit."""
     result = {"scans": [], "secretsHygiene": [], "journalScope": "LIVE", "gitScrubStatus": "clean", "lastScrubTs": int(time.time() * 1000)}
     try:
-        sys.path.insert(0, BASE_DIR)
         from operations.security_audit import audit
         report = audit(BASE_DIR)
         if isinstance(report, dict):
@@ -3513,7 +3485,6 @@ def _metrics_export() -> dict:
     """Prometheus metrics from exporter."""
     result = {"prometheusMetrics": [], "heartbeats": [], "exportStatus": "active", "lastExportTs": 0}
     try:
-        sys.path.insert(0, BASE_DIR)
         from operations.metrics_exporter import collect
         metrics = collect()
         for name, help_text, value in (metrics or []):

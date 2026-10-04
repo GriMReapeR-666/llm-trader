@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from security_audit import _git_history_risky_files, audit
+from operations.security_audit import _git_history_risky_files, audit
 
 
 def test_security_audit_redacts_values(tmp_path: Path):
@@ -57,7 +57,7 @@ def test_security_audit_reports_historical_risky_paths(monkeypatch, tmp_path: Pa
         assert args[0:4] == ["git", "-C", str(tmp_path), "log"]
         return Result()
 
-    monkeypatch.setattr("security_audit.subprocess.run", fake_run)
+    monkeypatch.setattr("operations.security_audit.subprocess.run", fake_run)
     assert _git_history_risky_files(tmp_path) == [".env", "config.ini"]
 
 
@@ -83,7 +83,7 @@ def _track(repo: Path, name: str, text: str) -> None:
 
 def test_tracked_only_audit_scans_tracked_files(tmp_path: Path):
     # Regression: include_untracked=False used to scan zero files.
-    import security_audit
+    from operations import security_audit
     repo = _git_repo(tmp_path)
     _track(repo, "leak.py", 'KEY = "' + "rm-" + "a" * 32 + '"\n')
     scanned = list(security_audit._iter_files(repo.resolve(), include_untracked=False))
@@ -93,7 +93,7 @@ def test_tracked_only_audit_scans_tracked_files(tmp_path: Path):
 
 
 def test_allow_marker_suppresses_only_its_own_line(tmp_path: Path):
-    import security_audit
+    from operations import security_audit
     fake = "sk-" + "b" * 30
     path = tmp_path / "fixture.py"
     path.write_text(
@@ -105,7 +105,7 @@ def test_allow_marker_suppresses_only_its_own_line(tmp_path: Path):
 
 
 def test_cli_fails_on_findings_and_never_prints_values(tmp_path: Path, capsys):
-    import security_audit
+    from operations import security_audit
     fake = "rm-" + "c" * 32
     leak = tmp_path / "leak.txt"
     leak.write_text(f"ROUTESME_KEY={fake}\n", encoding="utf-8")

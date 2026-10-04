@@ -57,7 +57,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from state_persistence import StoreBackedState
+from core.state_persistence import StoreBackedState
 
 logger = logging.getLogger("EWC")
 

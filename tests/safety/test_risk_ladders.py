@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from risk_manager import RiskManager
+from core.risk_manager import RiskManager
 from tests.safety._clock import freeze
 
 NAN = float("nan")

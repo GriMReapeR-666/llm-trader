@@ -2,8 +2,8 @@ import sqlite3
 
 import pytest
 
-from journal_scope import ensure_scope, status
-from trading_safety import TradingStore
+from operations.journal_scope import ensure_scope, status
+from core.trading_safety import TradingStore
 
 
 def test_demo_and_live_scopes_require_account_identity(tmp_path):

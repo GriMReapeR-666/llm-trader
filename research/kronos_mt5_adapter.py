@@ -18,8 +18,8 @@ import math
 import random
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from kronos_trading_integrator import KronosTradingIntegrator
-from kronos_bridge import KronosPredictor
+from research.kronos_trading_integrator import KronosTradingIntegrator
+from research.kronos_bridge import KronosPredictor
 
 log = logging.getLogger("KronosMT5Adapter")
 

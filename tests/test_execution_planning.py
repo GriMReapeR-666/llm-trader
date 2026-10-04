@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
+from core.execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
 
 
 def _entry_kwargs():

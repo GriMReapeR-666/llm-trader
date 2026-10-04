@@ -1,7 +1,7 @@
 import math
 from pathlib import Path
 
-from research_stress import monte_carlo, stress_report
+from research.research_stress import monte_carlo, stress_report
 
 
 def test_monte_carlo_rejects_nonfinite_and_unsafe_inputs():

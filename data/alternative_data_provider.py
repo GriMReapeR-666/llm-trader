@@ -60,7 +60,7 @@ class AlternativeDataProvider:
                 self._zero_lag = get_zero_lag_provider()
             except Exception:
                 try:
-                    from zero_lag_macro_provider import get_zero_lag_provider
+                    from data.zero_lag_macro_provider import get_zero_lag_provider
                     self._zero_lag = get_zero_lag_provider()
                 except Exception:
                     self._zero_lag = False

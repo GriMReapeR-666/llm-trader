@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from trading_memory import TradingMemory
-from semantic_memory import search as semantic_search
-from trading_safety import TradeProposal, TradingStore, ValidationResult
-from agent_operations import AgentOperations
+from intelligence.trading_memory import TradingMemory
+from intelligence.semantic_memory import search as semantic_search
+from core.trading_safety import TradeProposal, TradingStore, ValidationResult
+from operations.agent_operations import AgentOperations
 
 
 def _insert_candidate(memory: TradingMemory, key: str = "scalp|EURUSD|BUY|setup|trend"):

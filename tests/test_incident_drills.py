@@ -1,4 +1,4 @@
-from incident_drills import run
+from operations.incident_drills import run
 
 
 def test_incident_drills_are_safe_and_pass_without_broker_access():

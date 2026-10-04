@@ -3,8 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from trading_safety import TradingStore
-from model_registry import register
+from core.trading_safety import TradingStore
+from research.model_registry import register
 
 
 def test_reconciliation_cli_uses_explicit_journal_path(tmp_path: Path):

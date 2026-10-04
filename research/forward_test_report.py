@@ -11,7 +11,7 @@ import math
 import os
 from typing import Any, Dict, Optional
 
-from journal_audit import qualified_metrics
+from operations.journal_audit import qualified_metrics
 
 
 MIN_FORWARD_SAMPLE = 100

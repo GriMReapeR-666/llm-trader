@@ -95,7 +95,7 @@ class MetaImprovementOrchestrator:
                 try:
                     from core.meta_adaptive_engine import MetaAdaptiveEngine
                 except ImportError:
-                    from meta_adaptive_engine import MetaAdaptiveEngine
+                    from core.meta_adaptive_engine import MetaAdaptiveEngine
                 self._meta_adaptive = MetaAdaptiveEngine()
             except Exception as exc:
                 log.debug("Meta-adaptive engine unavailable: %s", exc)
@@ -108,7 +108,7 @@ class MetaImprovementOrchestrator:
                 try:
                     from core.meta_loop import MetaLoop
                 except ImportError:
-                    from meta_loop import MetaLoop
+                    from core.meta_loop import MetaLoop
                 self._meta_loop = MetaLoop(db_path=self.db_path)
             except Exception as exc:
                 log.debug("Meta-loop unavailable: %s", exc)
@@ -121,7 +121,7 @@ class MetaImprovementOrchestrator:
                 try:
                     from core.self_improvement_loop import RecursiveSelfImprovementEngine
                 except ImportError:
-                    from self_improvement_loop import RecursiveSelfImprovementEngine
+                    from core.self_improvement_loop import RecursiveSelfImprovementEngine
                 self._self_improvement = RecursiveSelfImprovementEngine(db_path=self.db_path)
             except Exception as exc:
                 log.debug("Self-improvement loop unavailable: %s", exc)
@@ -134,7 +134,7 @@ class MetaImprovementOrchestrator:
                 try:
                     from intelligence.meta_reflector import SystemMetaReflector
                 except ImportError:
-                    from meta_reflector import SystemMetaReflector
+                    from intelligence.meta_reflector import SystemMetaReflector
                 self._meta_reflector = SystemMetaReflector()
             except Exception as exc:
                 log.debug("Meta-reflector unavailable: %s", exc)
@@ -309,7 +309,7 @@ class MetaImprovementOrchestrator:
 
         try:
             try:
-                from research_validation import broker_reconciled_tickets
+                from research.research_validation import broker_reconciled_tickets
             except ImportError:
                 from research.research_validation import broker_reconciled_tickets
             tickets = sorted(broker_reconciled_tickets(self.db_path))

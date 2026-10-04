@@ -1,7 +1,7 @@
 import pytest
 import sqlite3
 
-from alert_outbox import acknowledge, claim, enqueue, recover_expired, status
+from operations.alert_outbox import acknowledge, claim, enqueue, recover_expired, status
 
 
 def test_alert_outbox_is_idempotent_and_restart_safe(tmp_path):
@@ -63,7 +63,7 @@ def test_alert_payload_is_bounded_and_redacted(tmp_path):
 
 def test_upsert_alert_refreshes_pending_row_in_place(tmp_path):
     """Recurring condition alerts update the unresolved row, not a new row."""
-    from alert_outbox import upsert_alert
+    from operations.alert_outbox import upsert_alert
 
     path = str(tmp_path / "upsert.db")
     enqueue(path, [{"code": "ALPHA_REVERSED_041", "severity": "CRITICAL",
@@ -88,7 +88,7 @@ def test_upsert_alert_refreshes_pending_row_in_place(tmp_path):
 
 def test_upsert_alert_inserts_fresh_row_after_delivery(tmp_path):
     """Once the previous alert resolved, a new occurrence starts a new row."""
-    from alert_outbox import upsert_alert
+    from operations.alert_outbox import upsert_alert
 
     path = str(tmp_path / "fresh.db")
     upsert_alert(path, [{"code": "ALPHA_REVERSED_041", "severity": "CRITICAL",
@@ -107,7 +107,7 @@ def test_upsert_alert_inserts_fresh_row_after_delivery(tmp_path):
 
 def test_archive_terminal_moves_rows_and_keeps_evidence(tmp_path):
     """SENT/EXPIRED rows leave the live outbox and land intact in the archive."""
-    from alert_outbox import archive_terminal, enqueue, _connect
+    from operations.alert_outbox import archive_terminal, enqueue, _connect
 
     live = str(tmp_path / "journal.db")
     arch = str(tmp_path / "alerts_archive.db")
@@ -141,7 +141,7 @@ def test_archive_terminal_moves_rows_and_keeps_evidence(tmp_path):
 
 def test_archive_terminal_is_idempotent_on_rerun(tmp_path):
     """Re-running after a partial/complete archive neither dupes nor errors."""
-    from alert_outbox import archive_terminal, enqueue, _connect
+    from operations.alert_outbox import archive_terminal, enqueue, _connect
 
     live = str(tmp_path / "journal.db")
     arch = str(tmp_path / "alerts_archive.db")
@@ -176,7 +176,7 @@ def test_archive_terminal_is_idempotent_on_rerun(tmp_path):
 
 
 def test_archive_terminal_respects_batch_limit(tmp_path):
-    from alert_outbox import archive_terminal, enqueue, _connect
+    from operations.alert_outbox import archive_terminal, enqueue, _connect
 
     live = str(tmp_path / "journal.db")
     arch = str(tmp_path / "alerts_archive.db")
@@ -194,7 +194,7 @@ def test_archive_terminal_respects_batch_limit(tmp_path):
 
 def test_archive_terminal_leaves_live_work_alone(tmp_path):
     """PENDING/CLAIMED rows are never archived."""
-    from alert_outbox import archive_terminal, enqueue
+    from operations.alert_outbox import archive_terminal, enqueue
 
     live = str(tmp_path / "journal.db")
     arch = str(tmp_path / "alerts_archive.db")
@@ -210,7 +210,7 @@ def test_archive_terminal_moves_blocked_rows(tmp_path):
     Regression: archive_terminal originally matched only SENT/EXPIRED, so a
     BLOCKED row lingered in the live hot queue forever.
     """
-    from alert_outbox import archive_terminal, enqueue, claim, acknowledge, status
+    from operations.alert_outbox import archive_terminal, enqueue, claim, acknowledge, status
 
     live = str(tmp_path / "journal.db")
     arch = str(tmp_path / "alerts_archive.db")
@@ -230,7 +230,7 @@ def test_archive_terminal_moves_blocked_rows(tmp_path):
 
 def test_outbox_health_after_archive_has_no_stale_expired_pile(tmp_path):
     """Post-archive, health reads the hot set only — no false CRITICAL."""
-    from alert_outbox import archive_terminal, enqueue, outbox_health, _connect
+    from operations.alert_outbox import archive_terminal, enqueue, outbox_health, _connect
 
     live = str(tmp_path / "journal.db")
     arch = str(tmp_path / "alerts_archive.db")
@@ -249,8 +249,8 @@ def test_outbox_health_after_archive_has_no_stale_expired_pile(tmp_path):
 
 def test_outbox_archive_is_wired_into_scheduler_and_executors():
     """The daily outbox_archive schedule resolves to a callable handler."""
-    from agent_scheduler import SCHEDULES
-    from executors import REGISTRY, resolve_handler
+    from operations.agent_scheduler import SCHEDULES
+    from operations.executors import REGISTRY, resolve_handler
 
     names = [s["name"] for s in SCHEDULES]
     assert "outbox_archive" in names
@@ -264,7 +264,7 @@ class TestConsumerIncident:
     """outbox_health CRITICAL raises the pipeline's own incident."""
 
     def _seed_backlog(self, path, prefix="LOAD", pending=0):
-        from alert_outbox import _connect
+        from operations.alert_outbox import _connect
         con = _connect(path)
         try:
             con.executemany(
@@ -280,7 +280,7 @@ class TestConsumerIncident:
 
     def _drain_to_healthy(self, path):
         """Test-side drain: keep ~8 backlog rows so health leaves CRITICAL."""
-        from alert_outbox import _connect
+        from operations.alert_outbox import _connect
         con = _connect(path)
         try:
             con.execute("DELETE FROM alert_outbox WHERE code LIKE 'LOAD_%' AND id % 25 <> 0")
@@ -289,7 +289,7 @@ class TestConsumerIncident:
             con.close()
 
     def test_critical_backlog_raises_stalled_incident(self, tmp_path):
-        from alert_outbox import (
+        from operations.alert_outbox import (
             CONSUMER_STALLED_CODE, claim, report_consumer_incident, status)
 
         live = str(tmp_path / "journal.db")
@@ -307,7 +307,7 @@ class TestConsumerIncident:
         assert incident[0]["payload"]["details"]["pending"] == 210
 
     def test_repeat_while_ringing_refreshes_not_spams(self, tmp_path):
-        from alert_outbox import report_consumer_incident, status
+        from operations.alert_outbox import report_consumer_incident, status
 
         live = str(tmp_path / "journal.db")
         self._seed_backlog(live, pending=210)
@@ -320,7 +320,7 @@ class TestConsumerIncident:
 
     def test_cooldown_suppresses_after_ack(self, tmp_path):
         """After delivery, a fresh raise is dampened within the cooldown."""
-        from alert_outbox import (
+        from operations.alert_outbox import (
             acknowledge, claim, report_consumer_incident, status)
 
         live = str(tmp_path / "journal.db")
@@ -333,7 +333,7 @@ class TestConsumerIncident:
         acknowledge(live, stalled["id"], delivered=True)
         # Drain everything else so only the SENT incident remains, then
         # re-create a CRITICAL backlog.
-        from alert_outbox import _connect
+        from operations.alert_outbox import _connect
         con = _connect(live)
         try:
             con.execute("DELETE FROM alert_outbox WHERE code LIKE 'LOAD_%'")
@@ -348,7 +348,7 @@ class TestConsumerIncident:
         assert counts["PENDING"] == 210  # no second incident row
 
     def test_recovery_enqueues_resumed_notice(self, tmp_path):
-        from alert_outbox import (
+        from operations.alert_outbox import (
             CONSUMER_RESUMED_CODE, _connect, report_consumer_incident, status)
 
         live = str(tmp_path / "journal.db")
@@ -368,7 +368,7 @@ class TestConsumerIncident:
 
     def test_resumed_notice_is_dampened_too(self, tmp_path):
         """Healthy-but-unresolved: RESUMED enqueued once, not every cadence."""
-        from alert_outbox import report_consumer_incident, status
+        from operations.alert_outbox import report_consumer_incident, status
 
         live = str(tmp_path / "journal.db")
         self._seed_backlog(live, pending=210)
@@ -384,7 +384,7 @@ class TestConsumerIncident:
         assert counts.get("PENDING", 0) == 10
 
     def test_healthy_outbox_is_silent(self, tmp_path):
-        from alert_outbox import report_consumer_incident, status
+        from operations.alert_outbox import report_consumer_incident, status
 
         live = str(tmp_path / "journal.db")
         self._seed_backlog(live, pending=5)
@@ -394,7 +394,7 @@ class TestConsumerIncident:
         assert status(live)["counts"]["PENDING"] == 5  # nothing enqueued
 
     def test_fail_soft_on_bad_journal(self, tmp_path):
-        from alert_outbox import report_consumer_incident
+        from operations.alert_outbox import report_consumer_incident
 
         result = report_consumer_incident(str(tmp_path / "nope" / "x.db"))
         assert result["error"]
@@ -403,7 +403,7 @@ class TestConsumerIncident:
     def test_dispatcher_self_report_in_return_summary(self, tmp_path, monkeypatch):
         """handle_alert_dispatch folds the incident result into its summary."""
         from agents import alert_agent
-        from alert_outbox import enqueue
+        from operations.alert_outbox import enqueue
 
         live = str(tmp_path / "journal.db")
         enqueue(live, [{"code": "ONE"}])
@@ -432,7 +432,7 @@ class TestConsumerIncident:
         # context is given — stub it so the test never touches the real journal.
         monkeypatch.setattr(ops_mod, "AgentOperations", _StubOps)
         try:
-            import agent_operations as flat_ops_mod
+            from operations import agent_operations as flat_ops_mod
             monkeypatch.setattr(flat_ops_mod, "AgentOperations", _StubOps)
         except ImportError:
             pass
@@ -443,14 +443,14 @@ class TestConsumerIncident:
 
 
 def _connect_isolated(path):
-    from alert_outbox import _connect
+    from operations.alert_outbox import _connect
     return _connect(path)
 
 
 def test_journal_agent_dispatches_archive_outbox(tmp_path):
     """handle_journal_maintenance({'kind':'archive_outbox'}) calls archive_terminal."""
     from agents.journal_agent import handle_journal_maintenance
-    from alert_outbox import enqueue
+    from operations.alert_outbox import enqueue
 
     live = str(tmp_path / "journal.db")
     enqueue(live, [{"code": "X"}])

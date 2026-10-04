@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import threading
 import time
@@ -257,8 +258,16 @@ def _singleton_token() -> str:
 
 def get_kill_switch_latch() -> KillSwitchLatch:
     global _LATCH
+    token = _singleton_token()
+    reg = getattr(sys, "_d9_kill_switch_latch_registry", None)
+    if reg is None:
+        reg = {}
+        sys._d9_kill_switch_latch_registry = reg
     with _LATCH_LOCK:
-        if _LATCH is None or getattr(_LATCH, "_singleton_token", "production") != _singleton_token():
+        if token not in reg:
             _LATCH = KillSwitchLatch()
-            _LATCH._singleton_token = _singleton_token()
+            _LATCH._singleton_token = token
+            reg[token] = _LATCH
+        else:
+            _LATCH = reg[token]
         return _LATCH

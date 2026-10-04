@@ -10,7 +10,7 @@ import math
 from typing import Any, Dict, List, Optional
 
 try:
-    from research_validation import (
+    from research.research_validation import (
         MAX_PROMOTION_STRESS_RUIN,
         MIN_PROMOTION_EXPECTANCY_R,
         MIN_PROMOTION_PROFIT_FACTOR,
@@ -27,7 +27,7 @@ except ImportError:
     )
 
 try:
-    from sample_gate import report as sample_report
+    from research.sample_gate import report as sample_report
 except ImportError:
     from research.sample_gate import report as sample_report
 

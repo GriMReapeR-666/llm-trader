@@ -1,7 +1,7 @@
 try:
     from core.shared_state import state
 except ImportError:
-    from shared_state import state
+    from core.shared_state import state
 import os
 import datetime
 import requests

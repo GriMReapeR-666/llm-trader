@@ -6,10 +6,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import strategy_lifecycle as slc
-from strategy_evaluation import evaluate as evaluate_lifecycle
-from setup_registry import SETUPS
-import llm_orchestrator as orch
+from operations import strategy_lifecycle as slc
+from operations.strategy_evaluation import evaluate as evaluate_lifecycle
+from research.setup_registry import SETUPS
+from intelligence import llm_orchestrator as orch
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +109,7 @@ def _build_evidence_db(tmp_path: Path) -> str:
     the synthetic filter now correctly excludes from research datasets).
     """
     from datetime import datetime, timedelta, timezone
-    from feature_schema import (FEATURE_SCHEMA_VERSION, SCHEMA_HASHES,
+    from intelligence.feature_schema import (FEATURE_SCHEMA_VERSION, SCHEMA_HASHES,
                                 values_hash)
 
     path = str(tmp_path / "evidence.db")
@@ -195,7 +195,7 @@ def _build_evidence_db(tmp_path: Path) -> str:
 
 
 def test_evaluation_demotes_decayed_setup_and_alerts(tmp_path):
-    from research_validation import labelled_dataset
+    from research.research_validation import labelled_dataset
     path = _build_evidence_db(tmp_path)
     data = labelled_dataset(path)
     assert data["sample_size"] == 100  # strict dataset accepts real-schema rows
@@ -240,7 +240,7 @@ def test_evaluation_rejects_weak_policy_inputs(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_validator_blocks_frozen_setup(tmp_path):
-    from trading_safety import TradeProposal, TradingStore, DeterministicValidator
+    from core.trading_safety import TradeProposal, TradingStore, DeterministicValidator
 
     db = str(tmp_path / "validator.db")
     store = TradingStore(db)
@@ -294,8 +294,8 @@ def test_validator_blocks_frozen_setup(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_model_activation_requires_ledger_corroboration_and_artifact(tmp_path):
-    from model_registry import register, review, activation_status
-    from research_runs import record as record_run
+    from research.model_registry import register, review, activation_status
+    from research.research_runs import record as record_run
 
     db = str(tmp_path / "models.db")
     artifact = tmp_path / "artifact.json"
@@ -340,7 +340,7 @@ def test_model_activation_requires_ledger_corroboration_and_artifact(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_adx_wilder_directional_selection():
-    from technical_indicators import adx
+    from core.technical_indicators import adx
 
     n = 200
     idx = pd.RangeIndex(n)
@@ -364,7 +364,7 @@ def test_adx_wilder_directional_selection():
 
 
 def test_information_coefficient_drops_pairs_jointly():
-    from metrics import calculate_information_coefficient
+    from core.metrics import calculate_information_coefficient
 
     forecasts = [0.1, 0.2, float("nan"), 0.4, 0.5, 0.6, 0.7]
     realized = [0.10, 0.20, 0.30, float("nan"), 0.50, 0.60, 0.70]

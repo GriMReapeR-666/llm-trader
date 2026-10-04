@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from trading_memory import TradingMemory
+from intelligence.trading_memory import TradingMemory
 
 
 def test_record_fact_rejects_nonfinite_confidence(tmp_path):

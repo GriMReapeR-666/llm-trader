@@ -17,12 +17,12 @@ import math
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 try:
-    from macro_graph import MacroGraph, utcnow
-    from macro_source_policy import assess_source
-    from broker_replay import ReplaySpec, ReplayIntent, replay
-    from causal_setup_map import resolve_causal_setup
-    from edge_lifecycle import advance_lifecycle, current_lifecycle
-    from research_validation import MIN_PROMOTION_EXPECTANCY_R
+    from intelligence.macro_graph import MacroGraph, utcnow
+    from intelligence.macro_source_policy import assess_source
+    from research.broker_replay import ReplaySpec, ReplayIntent, replay
+    from intelligence.causal_setup_map import resolve_causal_setup
+    from research.edge_lifecycle import advance_lifecycle, current_lifecycle
+    from research.research_validation import MIN_PROMOTION_EXPECTANCY_R
 except ImportError:
     from intelligence.macro_graph import MacroGraph, utcnow
     from intelligence.macro_source_policy import assess_source

@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from legacy_reconciliation import RETIRE_CONFIRMATION, quarantine, report, retire_unmatched
+from operations.legacy_reconciliation import RETIRE_CONFIRMATION, quarantine, report, retire_unmatched
 
 
 def _db(path):

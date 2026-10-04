@@ -28,7 +28,7 @@ from typing import Any, Dict, List, Optional, Set
 try:
     from core.state_persistence import StoreBackedState
 except ImportError:
-    from state_persistence import StoreBackedState
+    from core.state_persistence import StoreBackedState
 
 import numpy as np
 import pandas as pd
@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 try:
     from core.alpha_factors import _ALPHA_REGISTRY
 except ImportError:
-    from alpha_factors import _ALPHA_REGISTRY
+    from core.alpha_factors import _ALPHA_REGISTRY
 
 
 # All available alpha column names (from registry)

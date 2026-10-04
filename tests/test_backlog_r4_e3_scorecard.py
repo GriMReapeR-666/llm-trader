@@ -1,6 +1,6 @@
-from strategy_accuracy import build_strategy_accuracy_scorecard
-from research_validation import promotion_gate, _setup_floor_reasons
-from account_growth import AccountGrowthController
+from research.strategy_accuracy import build_strategy_accuracy_scorecard
+from research.research_validation import promotion_gate, _setup_floor_reasons
+from operations.account_growth import AccountGrowthController
 
 
 def test_setup_floor_reasons_expectancy_and_pf():

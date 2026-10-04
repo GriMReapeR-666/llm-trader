@@ -32,7 +32,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 try:
-    from state_persistence import StoreBackedState
+    from core.state_persistence import StoreBackedState
 except ImportError:
     from core.state_persistence import StoreBackedState
 from core import flue_thresholds as flue

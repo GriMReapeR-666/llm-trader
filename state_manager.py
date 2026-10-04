@@ -21,7 +21,7 @@ class StateManager:
     def __init__(self, store_or_path: Any = "trading_state.db"):
         if isinstance(store_or_path, str):
             try:
-                from trading_safety import TradingStore
+                from core.trading_safety import TradingStore
                 self._store = TradingStore(store_or_path)
             except Exception:
                 self._store = None

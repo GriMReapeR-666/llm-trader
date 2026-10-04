@@ -1,4 +1,4 @@
-from causal_setup_map import resolve_causal_setup
+from intelligence.causal_setup_map import resolve_causal_setup
 
 
 def test_typed_relation_target_mapping():

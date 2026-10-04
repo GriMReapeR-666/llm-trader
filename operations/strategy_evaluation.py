@@ -23,19 +23,19 @@ for _sub in ["core", "intelligence", "operations", "research", "data", "ui"]:
         sys.path.insert(0, _p)
 
 try:
-    from research_validation import labelled_dataset
+    from research.research_validation import labelled_dataset
 except ImportError:
     from research.research_validation import labelled_dataset
 
 try:
     from research.setup_governance import MIN_RESEARCH_SAMPLE, retirement_gate
 except ImportError:
-    from setup_governance import MIN_RESEARCH_SAMPLE, retirement_gate
+    from research.setup_governance import MIN_RESEARCH_SAMPLE, retirement_gate
 
 try:
     import operations.strategy_lifecycle as slc
 except ImportError:
-    import strategy_lifecycle as slc
+    from operations import strategy_lifecycle as slc
 import logging
 log = logging.getLogger(__name__)
 
@@ -296,7 +296,7 @@ def evaluate(path: str, *, registry_specs: Optional[Dict[str, Any]] = None,
         try:
             from operations.alert_outbox import enqueue as enqueue_alerts
         except ImportError:
-            from alert_outbox import enqueue as enqueue_alerts
+            from operations.alert_outbox import enqueue as enqueue_alerts
         enqueued = enqueue_alerts(path, alerts, channel="operator")
 
     try:

@@ -1,8 +1,8 @@
 import pytest
 
-from margin_safety import MarginSafetyGate, MarginRiskPolicy
-from baseline_research import _probability_metrics
-from journal_audit import qualified_metrics
+from core.margin_safety import MarginSafetyGate, MarginRiskPolicy
+from research.baseline_research import _probability_metrics
+from operations.journal_audit import qualified_metrics
 
 
 def test_margin_safety_gate_evaluation():

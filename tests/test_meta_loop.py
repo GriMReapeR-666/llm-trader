@@ -114,11 +114,12 @@ class TestMetaCorpus:
         import sys
 
         writer = tmp_path / "writer.py"
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
         writer.write_text(
             "import sys\n"
-            "for p in ('core', 'operations', 'research'):\n"
-            "    sys.path.insert(0, p)\n"
-            "from meta_loop import MetaCorpus, CorpusEntry\n"
+            f"sys.path.insert(0, {str(root)!r})\n"
+            "from core.meta_loop import MetaCorpus, CorpusEntry\n"
             "corpus = MetaCorpus(sys.argv[1])\n"
             "for i in range(10):\n"
             "    corpus.log_entry(CorpusEntry(\n"

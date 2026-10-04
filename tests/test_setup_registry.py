@@ -1,4 +1,4 @@
-from setup_registry import classify
+from research.setup_registry import classify
 
 
 def test_malformed_setup_features_fail_closed_without_exception():

@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from promotion_package import build, write, verify
-from research_runs import record
-from trading_safety import TradingStore
+from research.promotion_package import build, write, verify
+from research.research_runs import record
+from core.trading_safety import TradingStore
 
 
 def _completed_ppo_report() -> dict:
@@ -34,7 +34,7 @@ def _completed_meta_report() -> dict:
 def test_promotion_package_is_fail_closed_without_evidence(tmp_path: Path, monkeypatch):
     # build() audits the working directory; pin the result so this test does
     # not depend on whether the checkout happens to contain a finding.
-    import promotion_package
+    from research import promotion_package
     monkeypatch.setattr(promotion_package, "security_audit",
                         lambda *a, **k: {"status": "REVIEW_REQUIRED", "execution_authority": False})
     path = tmp_path / "state.db"

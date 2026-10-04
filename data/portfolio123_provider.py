@@ -63,7 +63,7 @@ class Portfolio123Provider:
         if not self.is_configured():
             return None
         try:
-            from http_retry import request_with_retry
+            from core.http_retry import request_with_retry
             resp = request_with_retry(
                 None, "POST",
                 f"{self.BASE_URL}/auth",

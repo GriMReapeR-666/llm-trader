@@ -1,5 +1,5 @@
-from adaptive_research_service import AdaptiveResearchService
-from trading_safety import TradingStore
+from research.adaptive_research_service import AdaptiveResearchService
+from core.trading_safety import TradingStore
 
 
 def test_adaptive_research_skips_malformed_nonfinite_closes(tmp_path):

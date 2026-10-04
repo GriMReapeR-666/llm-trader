@@ -12,22 +12,22 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 from urllib.request import Request, urlopen
 
 try:
-    from economic_dynamics_catalog import EVENT_TEMPLATES, resolve_entity_alias
+    from intelligence.economic_dynamics_catalog import EVENT_TEMPLATES, resolve_entity_alias
 except ImportError:
     from intelligence.economic_dynamics_catalog import EVENT_TEMPLATES, resolve_entity_alias
 
 try:
-    from macro_source_policy import assess_source
+    from intelligence.macro_source_policy import assess_source
 except ImportError:
     from intelligence.macro_source_policy import assess_source
 
 try:
-    from news_triage import TriageGate, project_article, summarize_cycle_evidence
+    from data.news_triage import TriageGate, project_article, summarize_cycle_evidence
 except ImportError:
     from data.news_triage import TriageGate, project_article, summarize_cycle_evidence
 
 try:
-    from kill_switch_latch import get_kill_switch_latch
+    from data.kill_switch_latch import get_kill_switch_latch
 except ImportError:
     from data.kill_switch_latch import get_kill_switch_latch
 
@@ -356,8 +356,8 @@ def extract_and_persist_claims(
             "edge_ids": [],
             "execution_authority": False,
         }
-    from macro_extraction import extract_candidates, persist_candidates
-    from economic_dynamics_catalog import resolve_entity_alias as resolve_alias
+    from intelligence.macro_extraction import extract_candidates, persist_candidates
+    from intelligence.economic_dynamics_catalog import resolve_entity_alias as resolve_alias
 
     extracted = 0
     edge_ids: List[int] = []

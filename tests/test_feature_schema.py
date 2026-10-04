@@ -1,7 +1,7 @@
 import math
 from datetime import datetime, timezone
 
-from feature_schema import REQUIRED_VALUES, schema_hash, validate_snapshot, values_hash
+from intelligence.feature_schema import REQUIRED_VALUES, schema_hash, validate_snapshot, values_hash
 
 
 def _snapshot(**overrides):

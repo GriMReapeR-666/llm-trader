@@ -13,11 +13,11 @@ from types import SimpleNamespace
 import pytest
 from hypothesis import given, settings, strategies as st, HealthCheck, assume, example
 
-import risk_manager
-from risk_manager import RiskManager
-from trading_safety import DeterministicValidator, TradeProposal, TradingStore, PortfolioRiskArbiter
-from order_execution import validate_order_params, validate_pending_entry_geometry
-from kill_switch_latch import KillSwitchLatch
+from core import risk_manager
+from core.risk_manager import RiskManager
+from core.trading_safety import DeterministicValidator, TradeProposal, TradingStore, PortfolioRiskArbiter
+from core.order_execution import validate_order_params, validate_pending_entry_geometry
+from data.kill_switch_latch import KillSwitchLatch
 
 SETTINGS = settings(max_examples=300, deadline=None, derandomize=True, database=None,
                     suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow])

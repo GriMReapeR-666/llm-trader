@@ -277,10 +277,13 @@ class AutonomyManager(StoreBackedState):
 
 
 _default_manager: Optional[AutonomyManager] = None
+_default_manager_lock = threading.Lock()
 
 
 def get_autonomy() -> AutonomyManager:
     global _default_manager
     if _default_manager is None:
-        _default_manager = AutonomyManager()
+        with _default_manager_lock:
+            if _default_manager is None:
+                _default_manager = AutonomyManager()
     return _default_manager

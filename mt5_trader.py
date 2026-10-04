@@ -46,13 +46,10 @@ os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 
-# Ensure all subpackages are directly on sys.path for seamless imports
 _root_dir = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = _root_dir  # Alias for backward compatibility with RL training pipeline
-for _sub in ["core", "intelligence", "operations", "research", "data", "ui"]:
-    _p = os.path.join(_root_dir, _sub)
-    if os.path.isdir(_p) and _p not in sys.path:
-        sys.path.insert(0, _p)
+if _root_dir not in sys.path:
+    sys.path.insert(0, _root_dir)
 
 import time
 import json
@@ -64,120 +61,120 @@ from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime, timedelta, timezone # Added timezone for UTC support
 
 # IMPORT REFACTORED MODULES
-from risk_manager import RiskManager
-from trade_manager import TradeManager
-from rl_trainer import RLTrainer
-from trading_safety import (DeterministicValidator, PortfolioRiskArbiter,
+from core.risk_manager import RiskManager
+from core.trade_manager import TradeManager
+from research.rl_trainer import RLTrainer
+from core.trading_safety import (DeterministicValidator, PortfolioRiskArbiter,
                             TradeProposal, TradingStore, ValidationResult,
                             safe_risk_fraction, exposure_buckets)
-from trading_memory import TradingMemory
-from journal_audit import audit as audit_journal, baseline_metrics, qualified_metrics, write_report, write_audit_export
-from journal_migration import migrate as migrate_legacy_journal
-from agent_operations import AgentOperations
-from local_llm_memory import process_outbox as process_local_memory_outbox
+from intelligence.trading_memory import TradingMemory
+from operations.journal_audit import audit as audit_journal, baseline_metrics, qualified_metrics, write_report, write_audit_export
+from operations.journal_migration import migrate as migrate_legacy_journal
+from operations.agent_operations import AgentOperations
+from intelligence.local_llm_memory import process_outbox as process_local_memory_outbox
 try:
-    from research_validation import (promotion_gate as research_promotion_gate,
+    from research.research_validation import (promotion_gate as research_promotion_gate,
                                      labelled_dataset, broker_reconciled_tickets)
 except ImportError:
     from research.research_validation import (promotion_gate as research_promotion_gate,
                                               labelled_dataset, broker_reconciled_tickets)
-from promotion_package import write as write_promotion_package, verify as verify_promotion_package
-from baseline_research import baseline_report
-from adaptive_research_service import AdaptiveResearchService
-from data_quality import DataQualityGate
-from provider_circuit import ProviderCircuitBreaker
+from research.promotion_package import write as write_promotion_package, verify as verify_promotion_package
+from research.baseline_research import baseline_report
+from research.adaptive_research_service import AdaptiveResearchService
+from data.data_quality import DataQualityGate
+from data.provider_circuit import ProviderCircuitBreaker
 try:
-    from setup_registry import classify as classify_setup
+    from research.setup_registry import classify as classify_setup
 except ImportError:
     from research.setup_registry import classify as classify_setup
-from broker_preflight import persist_preflight, validate_envelope
-from execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
-from feature_builder import build_snapshot as build_feature_snapshot
+from core.broker_preflight import persist_preflight, validate_envelope
+from core.execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
+from intelligence.feature_builder import build_snapshot as build_feature_snapshot
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     from intelligence.macro_graph import MacroGraph
-from lag_delay_engine import (
+from intelligence.lag_delay_engine import (
     TimestampedEvent, HeartbeatTracker, ConfidenceDecayEngine, SmithPredictorEngine,
     SlippageCalibrator, utcnow_iso,
 )
-from rl_action_bridge import bridge_rl_action, merge_bridge_into_decision
-from autonomous_causal_engine import AutonomousCausalValidator, CausalChainSetupAnalyzer
-from account_growth import AccountGrowthController
-from strategy_accuracy import build_strategy_accuracy_scorecard
-from research_sprint_planner import plan_and_persist as plan_research_sprints
-from opportunity_bus import (
+from research.rl_action_bridge import bridge_rl_action, merge_bridge_into_decision
+from intelligence.autonomous_causal_engine import AutonomousCausalValidator, CausalChainSetupAnalyzer
+from operations.account_growth import AccountGrowthController
+from research.strategy_accuracy import build_strategy_accuracy_scorecard
+from research.research_sprint_planner import plan_and_persist as plan_research_sprints
+from intelligence.opportunity_bus import (
     publish as publish_opportunities,
     publish_from_scan,
     publish_from_stat_pass_edges,
     opportunity_from_features,
     bus_snapshot,
 )
-from opportunity_fusion import score_opportunity, fusion_block_reasons
-from cycle_brief import build as build_cycle_brief, persist as persist_cycle_brief
-from causal_propagate import propagate as propagate_causal_paths
-from macro_state_vector import build_macro_state_vector
-from data_source_pipeline import (
+from intelligence.opportunity_fusion import score_opportunity, fusion_block_reasons
+from intelligence.cycle_brief import build as build_cycle_brief, persist as persist_cycle_brief
+from intelligence.causal_propagate import propagate as propagate_causal_paths
+from intelligence.macro_state_vector import build_macro_state_vector
+from data.data_source_pipeline import (
     catalog_fred_series,
     process_cycle_data_sources,
 )
-from realtime_news_ingest import run as run_realtime_news_ingest
-from profitability_foundation import report as profitability_report
-from agent_scheduler import bootstrap as bootstrap_schedules
-from dual_velocity import DualVelocityExecutor
-from market_filters import evaluate as evaluate_market_conditions, session_name
-from market_microstructure import MicrostructureMonitor
-from event_policy import evaluate as evaluate_event_policy, symbol_currencies
-from correlation_risk import CorrelationRisk
-from intermarket_regime import (
+from data.realtime_news_ingest import run as run_realtime_news_ingest
+from research.profitability_foundation import report as profitability_report
+from operations.agent_scheduler import bootstrap as bootstrap_schedules
+from operations.dual_velocity import DualVelocityExecutor
+from intelligence.market_filters import evaluate as evaluate_market_conditions, session_name
+from intelligence.market_microstructure import MicrostructureMonitor
+from operations.event_policy import evaluate as evaluate_event_policy, symbol_currencies
+from intelligence.correlation_risk import CorrelationRisk
+from intelligence.intermarket_regime import (
     build_intermarket_regime_snapshot,
     filter_edges_for_live_regime,
 )
-from margin_safety import MarginSafetyGate
-from daily_reconciliation import compare_day as compare_broker_day
-from data_requirements import evaluate as evaluate_data_requirements
-from cost_estimator import assess_costs
-from feature_schema import validate_snapshot as validate_feature_schema
-from model_registry import list_models, register as register_model, review as review_model, drift_report as model_drift_report, activation_status as model_activation_status
-from research_stress import stress_report
-from contextual_bandit import bandit_report
-from semantic_memory import search as semantic_memory_search
-from health_alerts import evaluate as evaluate_health_alerts
-from alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, acknowledge as acknowledge_alert, recover_expired as recover_alerts, status as alert_outbox_status
-from alert_delivery import deliver_pending as deliver_alerts, resolve_webhook_url
-import strategy_lifecycle as lifecycle
-from strategy_evaluation import evaluate as evaluate_strategy_lifecycle
+from core.margin_safety import MarginSafetyGate
+from operations.daily_reconciliation import compare_day as compare_broker_day
+from data.data_requirements import evaluate as evaluate_data_requirements
+from intelligence.cost_estimator import assess_costs
+from intelligence.feature_schema import validate_snapshot as validate_feature_schema
+from research.model_registry import list_models, register as register_model, review as review_model, drift_report as model_drift_report, activation_status as model_activation_status
+from research.research_stress import stress_report
+from research.contextual_bandit import bandit_report
+from intelligence.semantic_memory import search as semantic_memory_search
+from operations.health_alerts import evaluate as evaluate_health_alerts
+from operations.alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, acknowledge as acknowledge_alert, recover_expired as recover_alerts, status as alert_outbox_status
+from operations.alert_delivery import deliver_pending as deliver_alerts, resolve_webhook_url
+from operations import strategy_lifecycle as lifecycle
+from operations.strategy_evaluation import evaluate as evaluate_strategy_lifecycle
 try:
-    from setup_registry import SETUPS as REGISTERED_SETUPS
+    from research.setup_registry import SETUPS as REGISTERED_SETUPS
 except ImportError:
     from research.setup_registry import SETUPS as REGISTERED_SETUPS
-from llm_orchestrator import (
+from intelligence.llm_orchestrator import (
     setup_registry_fingerprint as registered_setup_fingerprint,
     SIGNAL_SYSTEM_PROMPT_TEMPLATE,
 )
-from legacy_reconciliation import report as legacy_reconciliation_report, quarantine as quarantine_legacy_record
-from journal_backup import (
+from operations.legacy_reconciliation import report as legacy_reconciliation_report, quarantine as quarantine_legacy_record
+from operations.journal_backup import (
     create_backup, verify_backup, restore_backup,
     create_encrypted_backup, verify_encrypted_backup, restore_encrypted_backup,
     prune_backups,
 )
-from restart_recovery import smoke as restart_recovery_smoke
-from journal_scope import status as journal_scope_status, ensure_scope
-from historical_regimes import research_status as historical_research_status
-from macro_extraction import status as macro_extraction_status
-from model_family_gate import evaluation_plan as model_family_evaluation_plan
-from execution_policy import load as load_execution_policy, candidate_for_store as execution_policy_candidate, approve_for_store as approve_execution_policy
-from forward_test_report import compare as compare_forward_test
-from security_audit import audit as security_audit
-from supervised_training import train as train_supervised_baseline
-from research_runs import record as record_validation_run, list_runs as list_validation_runs
-from live_rollout_gate import status as live_rollout_status, approve as approve_live_rollout, revoke as revoke_live_rollout, require as require_live_rollout, verify_evidence as verify_live_evidence
-from sample_gate import report as sample_gate_report
-from mt5_auth_diagnostics import report as mt5_auth_report
-from readiness_report import build as readiness_report
-from incident_drills import run as run_incident_drills
-from research_influence_gate import allows as research_influence_allows, status as research_influence_status, approve as approve_research_influence, revoke as revoke_research_influence, evidence_fingerprint as research_evidence_fingerprint
-from dashboard_report import build as dashboard_report
+from operations.restart_recovery import smoke as restart_recovery_smoke
+from operations.journal_scope import status as journal_scope_status, ensure_scope
+from research.historical_regimes import research_status as historical_research_status
+from intelligence.macro_extraction import status as macro_extraction_status
+from research.model_family_gate import evaluation_plan as model_family_evaluation_plan
+from core.execution_policy import load as load_execution_policy, candidate_for_store as execution_policy_candidate, approve_for_store as approve_execution_policy
+from research.forward_test_report import compare as compare_forward_test
+from operations.security_audit import audit as security_audit
+from research.supervised_training import train as train_supervised_baseline
+from research.research_runs import record as record_validation_run, list_runs as list_validation_runs
+from operations.live_rollout_gate import status as live_rollout_status, approve as approve_live_rollout, revoke as revoke_live_rollout, require as require_live_rollout, verify_evidence as verify_live_evidence
+from research.sample_gate import report as sample_gate_report
+from operations.mt5_auth_diagnostics import report as mt5_auth_report
+from operations.readiness_report import build as readiness_report
+from operations.incident_drills import run as run_incident_drills
+from operations.research_influence_gate import allows as research_influence_allows, status as research_influence_status, approve as approve_research_influence, revoke as revoke_research_influence, evidence_fingerprint as research_evidence_fingerprint
+from ui.dashboard_report import build as dashboard_report
 from operations.metrics_persistence import MetricsStore
 from operations.alert_rules import AlertRulesEngine
 from operations.degradation_detector import DegradationDetector
@@ -223,7 +220,7 @@ except ImportError:
     DEMO_ORCH_AVAILABLE = False
 
 try:
-    from llm_router import LLMRouter, get_router, reset_router
+    from data.llm_router import LLMRouter, get_router, reset_router
     LLM_ROUTER_AVAILABLE = True
 except ImportError:
     LLM_ROUTER_AVAILABLE = False
@@ -321,7 +318,7 @@ except ImportError:
 
 # Custom module imports
 try:
-    from api_manager import APIManager
+    from data.api_manager import APIManager
     API_MANAGER_AVAILABLE = True
 except ImportError:
     API_MANAGER_AVAILABLE = False
@@ -337,14 +334,14 @@ DISPLAY_AVAILABLE = False
 TradingDisplay = None
 
 try:
-    from model_selector import ModelSelector
+    from research.model_selector import ModelSelector
     MODEL_SELECTOR_AVAILABLE = True
 except ImportError:
     MODEL_SELECTOR_AVAILABLE = False
     ModelSelector = None
 
 try:
-    from web_dashboard_adapter import dashboard
+    from ui.web_dashboard_adapter import dashboard
     TUI_AVAILABLE = True
 except ImportError:
     TUI_AVAILABLE = False
@@ -354,7 +351,7 @@ except ImportError:
 TRADE_MANAGER_AVAILABLE = True
 
 try:
-    from scanner import MarketScanner
+    from ui.scanner import MarketScanner
 except ImportError:
     MarketScanner = None
 
@@ -447,20 +444,20 @@ def setup_logging(level: str = "INFO", debug_modules: bool = False) -> None:
 
 
 # REFACTORED CORE MODULES RE-EXPORTED FOR BACKWARD COMPATIBILITY
-from technical_indicators import (
+from core.technical_indicators import (
     ema, rsi, macd, atr, wma, hma, adx, compute_indicators,
 )
-from order_execution import (
+from core.order_execution import (
     PaperBroker, _symbol_tick, _broker_market_filling_mode,
     validate_order_params, validate_pending_entry_geometry,
     place_market_order, emergency_market_exit, place_pending_order,
     modify_order_sltp, cancel_pending_order,
 )
-from market_data_provider import (
+from data.market_data_provider import (
     TIMEFRAME_MAP, tf_const, fetch_ohlc, collect_calendar_event_rows,
     DOMCollector, PerformanceMonitor, MarketDataProvider,
 )
-from llm_orchestrator import (
+from intelligence.llm_orchestrator import (
     LLMOrchestrator,
 )
 
@@ -506,7 +503,7 @@ class AccountManager:
     def add_secure_account(name: str, login: int, password: str, server: str, acc_type: str) -> None:
         """Register account with password stored in OS keyring / encrypted file (never plaintext in JSON)."""
         try:
-            from secure_store import store_password
+            from core.secure_store import store_password
         except ImportError:
             from core.secure_store import store_password  # type: ignore
         store_key = store_password(str(login), server, password)
@@ -573,7 +570,7 @@ class AccountManager:
         if store_key:
             try:
                 try:
-                    from secure_store import retrieve_password
+                    from core.secure_store import retrieve_password
                 except ImportError:
                     from core.secure_store import retrieve_password  # type: ignore
                 pw = retrieve_password(store_key)
@@ -584,7 +581,7 @@ class AccountManager:
             # also try derived key if store_key is placeholder
             try:
                 try:
-                    from secure_store import retrieve_password as rp2
+                    from core.secure_store import retrieve_password as rp2
                 except ImportError:
                     from core.secure_store import retrieve_password as rp2  # type: ignore
                 pw2 = rp2(None, login=item.get("login"), server=item.get("server"))
@@ -599,7 +596,7 @@ class AccountManager:
             # secure marker: try to fetch by login/server even if key missing
             try:
                 try:
-                    from secure_store import retrieve_password
+                    from core.secure_store import retrieve_password
                 except ImportError:
                     from core.secure_store import retrieve_password  # type: ignore
                 pw = retrieve_password(None, login=item.get("login"), server=item.get("server"))
@@ -1400,7 +1397,7 @@ def main() -> None:
                         # Settings live in the OpenTUI deck (SYSTEM CONFIG screen)
                         print(" Settings are managed from the OpenTUI deck (SYSTEM CONFIG screen): python mt5_trader.py deck")
                         # after settings, re-enter classic menu
-                        from interactive_menu import InteractiveMenu as _IM2
+                        from ui.interactive_menu import InteractiveMenu as _IM2
                         menu2 = _IM2()
                         config2 = menu2.run()
                         if config2:
@@ -1430,7 +1427,7 @@ def main() -> None:
         except Exception as exc:
             logging.getLogger("mt5_trader").debug("metrics export failed: %s", exc)
         try:
-            from interactive_menu import InteractiveMenu
+            from ui.interactive_menu import InteractiveMenu
             menu = InteractiveMenu()
             config = menu.run()
             if config:
@@ -2046,7 +2043,7 @@ def main() -> None:
                 print(f" Testing MCP login for {cfg2.login}@{cfg2.server} (secure_store backend: ", end="")
                 try:
                     try:
-                        from secure_store import has_store
+                        from core.secure_store import has_store
                     except ImportError:
                         from core.secure_store import has_store
                     print(has_store() + ")")
@@ -2076,7 +2073,7 @@ def main() -> None:
             if sk:
                 try:
                     try:
-                        from secure_store import delete_password
+                        from core.secure_store import delete_password
                     except ImportError:
                         from core.secure_store import delete_password
                     delete_password(sk)
@@ -2215,11 +2212,11 @@ def main() -> None:
             print(json.dumps(migrate_legacy_journal(args.source), indent=2))
             return
         if args.action == "migrate-states":
-            from state_persistence import migrate_json_states_to_store
+            from core.state_persistence import migrate_json_states_to_store
             print(json.dumps(migrate_json_states_to_store(args.journal_path, os.getcwd()), indent=2))
             return
         if args.action == "states-status":
-            from state_persistence import state_migration_status
+            from core.state_persistence import state_migration_status
             print(json.dumps(state_migration_status(args.journal_path, os.getcwd()), indent=2))
             return
         if args.action == "audit-export":
@@ -2318,11 +2315,11 @@ def main() -> None:
             }, indent=2))
             return
         if args.action == "lifecycle-audit":
-            from strategy_lifecycle import audit_history
+            from operations.strategy_lifecycle import audit_history
             print(json.dumps(audit_history(args.journal_path), indent=2))
             return
         if args.action == "lifecycle-board":
-            from strategy_lifecycle import status_board
+            from operations.strategy_lifecycle import status_board
             print(json.dumps(status_board(args.journal_path), indent=2, default=str))
             return
         if args.action == "promotion-package":
@@ -2779,7 +2776,7 @@ def main() -> None:
     # Operations not requiring MT5
 
     if args.cmd == "doctor":
-        from system_doctor import run as run_doctor
+        from operations.system_doctor import run as run_doctor
         report = run_doctor()
         if getattr(args, "json", False):
             print(json.dumps(report, indent=2, default=str))
@@ -2832,7 +2829,7 @@ def main() -> None:
         return
 
     if args.cmd == "demo-samples":
-        from demo_sample_generator import inject_samples
+        from research.demo_sample_generator import inject_samples
         result = inject_samples(path=args.path, count=args.count)
         print(json.dumps(result, indent=2, default=str))
         return
@@ -2895,7 +2892,7 @@ def main() -> None:
         return
 
     if args.cmd == "scrub-history":
-        from security_scrub import scrub_history
+        from operations.security_scrub import scrub_history
         ok, msg = scrub_history(Path(args.path).resolve(), dry_run=not args.apply)
         print(msg)
         if not ok and not args.apply:
@@ -3396,7 +3393,7 @@ def execute_skill(**kwargs):
             return
 
         if args.cmd == "diagnose":
-            from system_doctor import run as run_system_doctor
+            from operations.system_doctor import run as run_system_doctor
             print(json.dumps(run_system_doctor(), indent=2))
             return
 
@@ -3927,7 +3924,7 @@ def execute_skill(**kwargs):
         try:
             from core.harness.kernel import TradingContext
             from core.harness.quant_models_plugins import mount_profile
-            from state_persistence import migrate_json_states_to_store
+            from core.state_persistence import migrate_json_states_to_store
             # Auto-migrate JSON state files into the store on first boot
             try:
                 _migration = migrate_json_states_to_store("trading_state.db", os.getcwd())
@@ -4016,7 +4013,7 @@ def execute_skill(**kwargs):
                 "Profile mount failed (%s); creating minimal inline services", e
             )
             try:
-                from state_persistence import migrate_json_states_to_store
+                from core.state_persistence import migrate_json_states_to_store
                 _trading_store = TradingStore("trading_state.db")
                 migrate_json_states_to_store("trading_state.db", os.getcwd())
             except Exception:
@@ -5112,9 +5109,8 @@ def execute_skill(**kwargs):
                 _rl_train_interval = int(os.environ.get("RL_TRAIN_INTERVAL", "50"))
                 if cycle_count % _rl_train_interval == 0 and cycle_count > 0:
                     try:
-                        sys.path.insert(0, os.path.join(BASE_DIR, "research"))
-                        from rl_trainer import RLTrainer
-                        from model_registry import register as _register_model
+                        from research.rl_trainer import RLTrainer
+                        from research.model_registry import register as _register_model
 
                         _rl = RLTrainer(
                             model_path=os.path.join(BASE_DIR, "rl_model.json"),
@@ -5227,9 +5223,8 @@ def execute_skill(**kwargs):
                 _ppo_train_interval = int(os.environ.get("PPO_TRAIN_INTERVAL", "200"))
                 if cycle_count % _ppo_train_interval == 0 and cycle_count > 0:
                     try:
-                        sys.path.insert(0, os.path.join(BASE_DIR, "research"))
-                        from ppo_trainer import train_ppo_offline
-                        from model_registry import register as _register_model
+                        from research.ppo_trainer import train_ppo_offline
+                        from research.model_registry import register as _register_model
 
                         # Run PPO training on Kronos simulator
                         _ppo_result = train_ppo_offline(

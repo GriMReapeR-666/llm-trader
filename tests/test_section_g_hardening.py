@@ -1,8 +1,8 @@
 import pytest
 
-from macro_source_policy import assess_source
-from macro_graph import MacroGraph
-from historical_regimes import HISTORICAL_REGIMES, get_template, template_registry
+from intelligence.macro_source_policy import assess_source
+from intelligence.macro_graph import MacroGraph
+from research.historical_regimes import HISTORICAL_REGIMES, get_template, template_registry
 
 
 def test_macro_source_policy_tiering():

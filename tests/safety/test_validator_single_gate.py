@@ -13,7 +13,7 @@ import math
 
 import pytest
 
-from trading_safety import DeterministicValidator, TradeProposal, TradingStore
+from core.trading_safety import DeterministicValidator, TradeProposal, TradingStore
 
 NAN = float("nan")
 

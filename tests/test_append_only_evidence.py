@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from trading_safety import TradingStore
+from core.trading_safety import TradingStore
 
 
 def test_audit_evidence_tables_are_append_only(tmp_path):

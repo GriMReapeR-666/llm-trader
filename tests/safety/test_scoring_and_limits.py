@@ -9,9 +9,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from risk_manager import RiskManager
+from core.risk_manager import RiskManager
 from tests.fakes.fake_mt5 import patch_everywhere
-from trading_safety import DeterministicValidator, TradeProposal, TradingStore, exposure_buckets
+from core.trading_safety import DeterministicValidator, TradeProposal, TradingStore, exposure_buckets
 
 NAN = float("nan")
 

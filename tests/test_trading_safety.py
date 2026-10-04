@@ -1,4 +1,4 @@
-from trading_safety import DeterministicValidator, TradeProposal, TradingStore, safe_risk_fraction
+from core.trading_safety import DeterministicValidator, TradeProposal, TradingStore, safe_risk_fraction
 
 
 def _proposal():
@@ -71,7 +71,7 @@ def test_missing_event_and_data_evidence_cannot_be_overridden_by_paper_quote_mec
 
 
 def test_portfolio_risk_arbiter_input_validation_and_drawdown_gate(tmp_path):
-    from trading_safety import PortfolioRiskArbiter
+    from core.trading_safety import PortfolioRiskArbiter
     store = TradingStore(str(tmp_path / "state.db"))
     arbiter = PortfolioRiskArbiter(store, max_drawdown_fraction=0.10)
 

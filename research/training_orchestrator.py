@@ -53,8 +53,7 @@ class TrainingOrchestrator:
         start_time = time.time()
 
         try:
-            sys.path.insert(0, os.path.join(self.base_dir, "research"))
-            from rl_trainer import RLTrainer
+            from research.rl_trainer import RLTrainer
 
             if not model_path:
                 model_path = os.path.join(self.base_dir, "rl_model.json")
@@ -70,7 +69,7 @@ class TrainingOrchestrator:
                 return {"status": "skipped", "reason": "no_trading_db"}
 
             try:
-                from research_validation import broker_reconciled_tickets
+                from research.research_validation import broker_reconciled_tickets
             except ImportError:
                 from research.research_validation import broker_reconciled_tickets
             _tickets = sorted(broker_reconciled_tickets(_db_path))
@@ -123,7 +122,7 @@ class TrainingOrchestrator:
             # Register in model registry
             if register:
                 try:
-                    from model_registry import register as _register_model
+                    from research.model_registry import register as _register_model
                     _hash = hashlib.md5(
                         json.dumps(rl.get_stats(), sort_keys=True).encode()
                     ).hexdigest()[:16]
@@ -173,8 +172,7 @@ class TrainingOrchestrator:
         start_time = time.time()
 
         try:
-            sys.path.insert(0, os.path.join(self.base_dir, "research"))
-            from ppo_trainer import train_ppo_offline
+            from research.ppo_trainer import train_ppo_offline
 
             artifact_path = os.path.join(self.artifacts_dir, "ppo_position_mgmt.json")
 
@@ -194,7 +192,7 @@ class TrainingOrchestrator:
             # Register in model registry
             if register and result:
                 try:
-                    from model_registry import register as _register_model
+                    from research.model_registry import register as _register_model
                     _hash = hashlib.md5(
                         json.dumps(result.get("config", {}), sort_keys=True).encode()
                     ).hexdigest()[:16]
@@ -235,8 +233,7 @@ class TrainingOrchestrator:
         start_time = time.time()
 
         try:
-            sys.path.insert(0, os.path.join(self.base_dir, "research"))
-            from full_pipeline_backtest import run_backtest as _run_backtest
+            from research.full_pipeline_backtest import run_backtest as _run_backtest
 
             result = _run_backtest(
                 symbol=symbol,

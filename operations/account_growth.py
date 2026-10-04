@@ -271,7 +271,7 @@ def growth_report_from_r_multiples(
     avg_loss = abs(sum(losses) / len(losses)) if losses else 0.0
     expectancy_r = sum(rs) / len(rs) if rs else 0.0
 
-    from adaptive_models import fractional_bayesian_kelly
+    from research.adaptive_models import fractional_bayesian_kelly
     kelly = fractional_bayesian_kelly(len(wins), len(losses), avg_win or 0.0, avg_loss or 0.0)
     throttle = suggest_risk_per_trade(
         base_risk=base_risk,
@@ -311,7 +311,7 @@ def growth_report_from_r_multiples(
 def r_multiples_from_journal(path: str) -> List[float]:
     """Load leakage-safe R multiples from the authoritative journal dataset."""
     try:
-        from research_validation import labelled_dataset
+        from research.research_validation import labelled_dataset
     except ImportError:
         from research.research_validation import labelled_dataset
     rows = labelled_dataset(path).get("rows", [])
@@ -398,7 +398,7 @@ class AccountGrowthController:
             degradation = roll.get("degradation") if isinstance(roll, dict) else None
             throttle_applied = suggested + 1e-12 < self.base_risk
             try:
-                from reward_sustainability import throttle_agreement_reward
+                from operations.reward_sustainability import throttle_agreement_reward
                 throttle_reward = throttle_agreement_reward(
                     degradation=degradation,
                     throttle_applied=throttle_applied,

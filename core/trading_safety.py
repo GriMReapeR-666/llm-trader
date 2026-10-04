@@ -20,12 +20,12 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 log = logging.getLogger(__name__)
 
 try:
-    from journal_scope import ensure_scope
+    from operations.journal_scope import ensure_scope
 except ImportError:
     from operations.journal_scope import ensure_scope
 
 try:
-    from setup_labeling import ensure_setup_label_table, persist_setup_label
+    from research.setup_labeling import ensure_setup_label_table, persist_setup_label
 except ImportError:
     from research.setup_labeling import ensure_setup_label_table, persist_setup_label
 
@@ -136,7 +136,7 @@ class TradingStore:
         # first creation, not a side table that appears only after a research
         # CLI run. The local import avoids an import-time dependency cycle.
         try:
-            from research_runs import ensure as ensure_research_validation_runs
+            from research.research_runs import ensure as ensure_research_validation_runs
         except ImportError:
             try:
                 from research.research_runs import ensure as ensure_research_validation_runs
@@ -1010,7 +1010,7 @@ class DeterministicValidator:
         a missing/corrupt journal; validate() degrades to cold-start behavior.
         """
         try:
-            from research_validation import broker_reconciled_tickets
+            from research.research_validation import broker_reconciled_tickets
         except ImportError:
             from research.research_validation import broker_reconciled_tickets
         tickets = broker_reconciled_tickets(self.store.path)

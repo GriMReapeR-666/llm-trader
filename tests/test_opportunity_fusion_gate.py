@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from mt5_trader import LLMOrchestrator
-from opportunity_fusion import score_opportunity
+from intelligence.opportunity_fusion import score_opportunity
 
 
 def _make_passing_overfit_gate():

@@ -51,7 +51,7 @@ def _broker_confirmed_tickets(db_path: str) -> set:
     this or a synthetic fixture becomes "validated" performance.
     """
     try:
-        from research_validation import broker_reconciled_tickets
+        from research.research_validation import broker_reconciled_tickets
     except ImportError:
         from research.research_validation import broker_reconciled_tickets
     return broker_reconciled_tickets(db_path)
@@ -194,7 +194,7 @@ class ContinuousBacktestPipeline:
                     "live OHLC unavailable for %s/%s; refusing synthetic replay bars"
                     % (symbol, timeframe))
 
-            from full_pipeline_backtest import run_full_pipeline_backtest
+            from research.full_pipeline_backtest import run_full_pipeline_backtest
             bt_kwargs: Dict[str, Any] = dict(cost_overrides or {})
             # --- Per-strategy signals (PU-0156 §8.1) ---
             # Each registered label scores its OWN causal entry signal via the
@@ -205,7 +205,7 @@ class ContinuousBacktestPipeline:
             try:
                 from research.strategy_signal_registry import build_signal
             except Exception:
-                from strategy_signal_registry import build_signal
+                from research.strategy_signal_registry import build_signal
             try:
                 _df_like = raw_bars
                 _closes = [float(b.get("close", 0)) for b in _df_like]
@@ -289,7 +289,7 @@ class ContinuousBacktestPipeline:
         if run_dsr:
             log.info("Stage 2: DSR Gate Validation")
             try:
-                from backtest_dsr_integrator import BacktestDSRIntegrator
+                from research.backtest_dsr_integrator import BacktestDSRIntegrator
                 integrator = BacktestDSRIntegrator()
                 st_bt = results["stages"].get("backtest", {})
                 # Fail closed: never validate the DSR gate against a default
@@ -336,7 +336,7 @@ class ContinuousBacktestPipeline:
         if run_walkforward:
             log.info("Stage 3: Walk-Forward Analysis")
             try:
-                from bayesian_walk_forward_sandbox import BayesianWalkForwardSandbox
+                from research.bayesian_walk_forward_sandbox import BayesianWalkForwardSandbox
                 sandbox = BayesianWalkForwardSandbox()
                 returns = []
                 try:

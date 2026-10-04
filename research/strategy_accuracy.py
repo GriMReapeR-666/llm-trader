@@ -32,7 +32,7 @@ def _calibration(pairs: List[tuple[float, float]], bins: int = 5) -> Dict[str, A
 
 def build_strategy_accuracy_scorecard(path: str = "trading_state.db") -> Dict[str, Any]:
     try:
-        from research_validation import labelled_dataset
+        from research.research_validation import labelled_dataset
     except ImportError:
         from research.research_validation import labelled_dataset
 

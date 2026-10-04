@@ -7,8 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
-from kronos_trading_integrator import MANAGEMENT_ACTIONS
-from meta_rl_trainer import (
+from research.kronos_trading_integrator import MANAGEMENT_ACTIONS
+from research.meta_rl_trainer import (
     DEFAULT_TASKS,
     MetaRLTrainer,
     task_key,

@@ -9,7 +9,7 @@ from dataclasses import asdict
 
 import pytest
 
-from margin_safety import MarginRiskPolicy, MarginSafetyGate
+from core.margin_safety import MarginRiskPolicy, MarginSafetyGate
 
 EPS = 0.01
 

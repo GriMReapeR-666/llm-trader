@@ -12,8 +12,8 @@ for _p in (_project_root, os.path.join(_project_root, "operations"), os.path.joi
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from gui_api import start_api_server
-from shared_state import state
+from ui.gui_api import start_api_server
+from core.shared_state import state
 import mt5_trader
 
 def run_server():

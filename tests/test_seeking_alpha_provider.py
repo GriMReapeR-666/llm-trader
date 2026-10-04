@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from seeking_alpha_provider import (
+from data.seeking_alpha_provider import (
     SeekingAlphaProvider,
     NewsArticleRow,
     CalendarEarningsRow,
@@ -129,7 +129,7 @@ def test_quant_ratings_from_sa_quant_ranks():
 
 
 def test_no_yahoo_dependency_in_module():
-    import seeking_alpha_provider as mod
+    from data import seeking_alpha_provider as mod
 
     assert not hasattr(mod, "YFINANCE_AVAILABLE")
     assert "yfinance" not in getattr(mod, "__dict__", {})

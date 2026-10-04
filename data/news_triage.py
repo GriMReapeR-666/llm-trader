@@ -30,11 +30,11 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 try:
-    from macro_source_policy import assess_source
+    from intelligence.macro_source_policy import assess_source
 except ImportError:
     from intelligence.macro_source_policy import assess_source
 try:
-    from economic_dynamics_measure import classify_runtime_event
+    from intelligence.economic_dynamics_measure import classify_runtime_event
 except ImportError:
     from intelligence.economic_dynamics_measure import classify_runtime_event
 from research.decision_models.extended_taxonomy import (

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from tests.safety._clock import freeze
-from trading_safety import PortfolioRiskArbiter, TradeProposal, TradingStore
+from core.trading_safety import PortfolioRiskArbiter, TradeProposal, TradingStore
 
 EQUITY = 10_000.0
 EPS = 0.01
@@ -137,7 +137,7 @@ def test_invalid_inputs_fail_closed(arbiter, bad):
 
 
 def test_pending_order_intents_count_toward_open_risk(store, arbiter):
-    from agent_operations import AgentOperations
+    from operations.agent_operations import AgentOperations
     ops = AgentOperations(store.path)
     created, _ = ops.create_order_intent("pending-1", {"risk_amount": 300.0, "symbol": "EURUSD"},
                                          actor="RiskController")

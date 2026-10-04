@@ -1,5 +1,5 @@
 """Tests: critical economic-dynamics.txt chains are present in machine SoT."""
-from economic_dynamics_catalog import (
+from intelligence.economic_dynamics_catalog import (
     CRITICAL_DOC_CHAINS,
     coverage_report,
     resolve_entity_alias,

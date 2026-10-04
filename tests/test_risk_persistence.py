@@ -3,8 +3,8 @@ import pytest
 from unittest.mock import patch
 from datetime import datetime, timezone
 
-from risk_manager import RiskManager
-from trading_safety import TradingStore
+from core.risk_manager import RiskManager
+from core.trading_safety import TradingStore
 
 
 def test_risk_cooldown_and_rate_state_survive_restart(tmp_path):
@@ -62,7 +62,7 @@ def test_remaining_daily_risk():
     # remaining = 0
     assert rm.remaining_daily_risk(9500) == 0.0
 
-@patch("risk_manager.mt5")
+@patch("core.risk_manager.mt5")
 def test_daily_reset_fallback_when_mt5_fails(mock_mt5):
     # Simulate MT5 exception
     mock_mt5.account_info.side_effect = Exception("MT5 down")

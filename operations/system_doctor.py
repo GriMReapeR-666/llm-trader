@@ -8,13 +8,13 @@ import os
 import sys
 from typing import Any, Dict, List, Tuple
 
-from mt5_auth_diagnostics import report as auth_report
-from broker_preflight import validate_envelope, persist_preflight
-from sample_gate import report as sample_report
-from live_rollout_gate import status as live_rollout_status
-from security_audit import audit as security_audit
-from research_influence_gate import status as research_influence_status
-from readiness_report import build as build_readiness
+from operations.mt5_auth_diagnostics import report as auth_report
+from core.broker_preflight import validate_envelope, persist_preflight
+from research.sample_gate import report as sample_report
+from operations.live_rollout_gate import status as live_rollout_status
+from operations.security_audit import audit as security_audit
+from operations.research_influence_gate import status as research_influence_status
+from operations.readiness_report import build as build_readiness
 
 
 def _check_mt5_installed() -> Tuple[bool, str]:
@@ -49,7 +49,7 @@ def _check_env_vars() -> List[Dict[str, Any]]:
 
 def _check_broker_preflight() -> Tuple[bool, str]:
     try:
-        from trading_safety import TradingStore
+        from core.trading_safety import TradingStore
         store = TradingStore("trading_state.db")
         envelope = store.get_state("broker_preflight", {}) or {}
         symbols = sorted((envelope.get("report") or {}).get("symbols", {}).keys())

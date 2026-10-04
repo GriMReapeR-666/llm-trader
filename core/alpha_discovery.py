@@ -34,7 +34,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 try:
     from core.state_persistence import StoreBackedState
 except ImportError:
-    from state_persistence import StoreBackedState
+    from core.state_persistence import StoreBackedState
 
 import numpy as np
 import pandas as pd
@@ -552,7 +552,7 @@ def _router_llm_generate(prompt: str) -> str:
     to 5 static heuristic expressions whenever its own hook is unwired.
     """
     try:
-        from llm_router import get_router
+        from data.llm_router import get_router
     except Exception as exc:  # pragma: no cover - import env dependent
         raise _RouterLLMError(f"llm_router unavailable: {exc}") from exc
 

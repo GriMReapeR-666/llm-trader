@@ -1,7 +1,7 @@
 """Unit tests for openbb_data_bridge.py."""
 import pytest
 from unittest.mock import MagicMock, patch
-from openbb_data_bridge import OpenBBDataBridge, ProviderHealth, RateLimitGate
+from data.openbb_data_bridge import OpenBBDataBridge, ProviderHealth, RateLimitGate
 
 
 def test_bridge_initialization_without_store():
@@ -54,7 +54,7 @@ def test_fetch_and_ingest_skips_deduped_fetcher():
 
 def test_fetch_and_ingest_handles_missing_openbb():
     """Verify fetch_and_ingest handles missing OpenBB gracefully."""
-    with patch("openbb_data_bridge.OPENBB_AVAILABLE", False):
+    with patch("data.openbb_data_bridge.OPENBB_AVAILABLE", False):
         bridge = OpenBBDataBridge()
         ok, msg = bridge.fetch_and_ingest("cboe", "CboeAvailableIndices")
         assert ok is False
@@ -74,7 +74,7 @@ def test_fetch_by_type():
 
 def test_api_manager_integration():
     """Verify APIManager initializes OpenBBDataBridge."""
-    from api_manager import APIManager
+    from data.api_manager import APIManager
     api = APIManager()
     assert hasattr(api, "openbb")
     assert api.openbb is not None

@@ -364,7 +364,7 @@ class TestRouterGenerationPath:
     def test_router_hold_payload_raises(self):
         """The router's deterministic-HOLD JSON must be treated as failure."""
         from core.alpha_discovery import _router_llm_generate, _RouterLLMError
-        import llm_router as lr
+        from data import llm_router as lr
 
         class _FakeRouter:
             agents = {"alpha_discovery": {}}
@@ -413,7 +413,7 @@ class TestRouterGenerationPath:
     def test_adapter_end_to_end_with_real_router(self, monkeypatch):
         """Full chain through the REAL LLMRouter (fake provider, no HTTP):
         agent auto-registration, message format, failure-string filtering."""
-        import llm_router as lr
+        from data import llm_router as lr
         import core.alpha_discovery as ad
         from core.alpha_discovery import _router_llm_generate
 

@@ -1,5 +1,5 @@
 from mt5_trader import LLMOrchestrator
-from macro_graph import MacroGraph
+from intelligence.macro_graph import MacroGraph
 
 
 class _Operations:
@@ -281,7 +281,7 @@ def _market_health_instance(tmp_path, store):
 def _seed_outbox(path, rows):
     """Seed the alert_outbox table directly (schema from alert_outbox._connect)."""
     import sqlite3
-    from alert_outbox import _connect
+    from operations.alert_outbox import _connect
     con = _connect(path)
     try:
         con.executemany(
@@ -571,7 +571,7 @@ def test_event_monitor_heavy_pipeline_runs_sub_cadence(monkeypatch):
     # The orchestrator module binds these names at import time; the test
     # process imports it as "llm_orchestrator" (top-level aliasing of the
     # intelligence/ module).
-    import llm_orchestrator as orch_mod
+    from intelligence import llm_orchestrator as orch_mod
     assert orch_mod is not None, "orchestrator module must be importable for patching"
 
     calls = []
@@ -634,7 +634,7 @@ def test_event_monitor_split_windows_alternate(monkeypatch):
     import sys as _sys
 
     monkeypatch.setenv("EVENT_MONITOR_SPLIT_WINDOWS", "1")
-    import llm_orchestrator as orch_mod
+    from intelligence import llm_orchestrator as orch_mod
     assert orch_mod is not None, "orchestrator module must be importable for patching"
 
     calls = []
@@ -707,7 +707,7 @@ def test_event_monitor_split_window_failure_retries_same_parity(monkeypatch):
     import sys as _sys
 
     monkeypatch.setenv("EVENT_MONITOR_SPLIT_WINDOWS", "1")
-    import llm_orchestrator as orch_mod
+    from intelligence import llm_orchestrator as orch_mod
     assert orch_mod is not None, "orchestrator module must be importable for patching"
 
     calls = []
@@ -1067,7 +1067,7 @@ def test_macro_event_evidence_requires_anchor_for_trackers(monkeypatch):
 
 def test_macro_event_evidence_is_registered_on_cadence():
     """The stage is wired: schedule entry, handler budget, budget < interval."""
-    from agent_scheduler import SCHEDULES
+    from operations.agent_scheduler import SCHEDULES
     entries = [s for s in SCHEDULES if s["name"] == "macro_event_evidence"]
     assert len(entries) == 1
     assert entries[0]["agent"] == "MacroAnalyst"

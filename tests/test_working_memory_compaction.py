@@ -3,7 +3,7 @@ import sqlite3
 import json
 import os
 import tempfile
-from agent_operations import AgentOperations
+from operations.agent_operations import AgentOperations
 
 import gc
 

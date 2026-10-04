@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from state_persistence import StoreBackedState
+from core.state_persistence import StoreBackedState
 
 import numpy as np
 import pandas as pd

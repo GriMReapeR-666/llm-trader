@@ -1,7 +1,7 @@
 import json
 
-from journal_audit import audit
-from journal_migration import migrate
+from operations.journal_audit import audit
+from operations.journal_migration import migrate
 
 
 def test_legacy_migration_is_idempotent(tmp_path):

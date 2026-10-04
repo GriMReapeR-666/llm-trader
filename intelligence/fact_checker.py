@@ -19,7 +19,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from economic_dynamics_catalog import resolve_entity_alias
+from intelligence.economic_dynamics_catalog import resolve_entity_alias
 
 log = logging.getLogger("AutonomousFactChecker")
 

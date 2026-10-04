@@ -11,17 +11,17 @@ import json
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 try:
-    from autonomous_causal_engine import AutonomousCausalValidator
+    from intelligence.autonomous_causal_engine import AutonomousCausalValidator
 except ImportError:
     from intelligence.autonomous_causal_engine import AutonomousCausalValidator
 
 try:
-    from economic_dynamics_catalog import CATALOG_VERSION, EVENT_TEMPLATES
+    from intelligence.economic_dynamics_catalog import CATALOG_VERSION, EVENT_TEMPLATES
 except ImportError:
     from intelligence.economic_dynamics_catalog import CATALOG_VERSION, EVENT_TEMPLATES
 
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     from intelligence.macro_graph import MacroGraph
 
@@ -71,7 +71,7 @@ _R1_ENTITY_MAP = {
 def _r1_lexical_router(article: Dict[str, Any]) -> str:
     """Re-derive the lexical R1 router on the article (cheap, no model)."""
     try:
-        from news_triage import R1_HeadlineEventRouting, _deterministic_r1
+        from data.news_triage import R1_HeadlineEventRouting, _deterministic_r1
     except ImportError:  # package-context imports
         from data.news_triage import R1_HeadlineEventRouting, _deterministic_r1  # type: ignore
     try:
@@ -115,7 +115,7 @@ def post_validate_r1_routing(
             "reason": "model class agrees with lexical router",
         }
     try:
-        from news_triage import R1_HeadlineEventRouting
+        from data.news_triage import R1_HeadlineEventRouting
     except ImportError:
         from data.news_triage import R1_HeadlineEventRouting  # type: ignore
     abstentions = (

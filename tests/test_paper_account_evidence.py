@@ -22,11 +22,11 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 
-from agent_operations import AgentOperations
+from operations.agent_operations import AgentOperations
 from data.market_data_provider import MarketDataProvider
 import data.market_data_provider as mdp
 from mt5_trader import LLMOrchestrator
-from trading_safety import TradingStore
+from core.trading_safety import TradingStore
 
 
 def _orchestrator(journal_mode, tmp_path):

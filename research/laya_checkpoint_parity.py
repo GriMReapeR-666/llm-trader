@@ -27,7 +27,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 for p in ("", "data", "intelligence"):
     sys.path.insert(0, os.path.join(ROOT, p) if p else ROOT)
 
-from news_triage import (  # noqa: E402
+from data.news_triage import (  # noqa: E402
     D0_1_SourceCredibility,
     D0_2_DuplicateDetection,
     D0_3_FactVsOpinion,
@@ -126,7 +126,7 @@ def main() -> None:
                     done.add(json.loads(line)["dedupe_key"])
                 except Exception:
                     pass
-    from news_triage import triage_article
+    from data.news_triage import triage_article
 
     with open(JSONL, "a", encoding="utf-8") as out:
         for art in corpus:

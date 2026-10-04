@@ -1,7 +1,7 @@
 """Unit tests for production portfolio123_provider.py."""
 import pytest
 from unittest.mock import MagicMock, patch
-from portfolio123_provider import Portfolio123Provider
+from data.portfolio123_provider import Portfolio123Provider
 
 
 def test_portfolio123_unconfigured_by_default():

@@ -1,7 +1,7 @@
 import pytest
 
-from macro_graph import MacroGraph
-from autonomous_causal_engine import (
+from intelligence.macro_graph import MacroGraph
+from intelligence.autonomous_causal_engine import (
     MIN_REACTION_SAMPLES,
     AutonomousCausalValidator,
     CausalChainSetupAnalyzer,

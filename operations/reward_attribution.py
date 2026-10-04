@@ -8,12 +8,12 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 
 try:
-    from edge_lifecycle import normalize_lifecycle
+    from research.edge_lifecycle import normalize_lifecycle
 except ImportError:
     from research.edge_lifecycle import normalize_lifecycle
 
 try:
-    from reward_ledger import CREDIT_SHARES, list_reward_events
+    from operations.reward_ledger import CREDIT_SHARES, list_reward_events
 except ImportError:
     from operations.reward_ledger import CREDIT_SHARES, list_reward_events
 

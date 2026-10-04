@@ -2,11 +2,11 @@ import os
 import sqlite3
 import pytest
 
-from research_runs import ensure, record, list_runs
-from baseline_research import baseline_report
-from supervised_training import train as train_supervised_baseline
-from contextual_bandit import bandit_report
-from trading_safety import TradingStore
+from research.research_runs import ensure, record, list_runs
+from research.baseline_research import baseline_report
+from research.supervised_training import train as train_supervised_baseline
+from research.contextual_bandit import bandit_report
+from core.trading_safety import TradingStore
 
 
 def test_research_validation_runs_record_and_list(tmp_path):

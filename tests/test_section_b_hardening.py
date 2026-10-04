@@ -2,9 +2,9 @@ import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
-from market_microstructure import MicrostructureMonitor
-from event_policy import symbol_currencies, evaluate as evaluate_event_policy
-from trading_safety import TradingStore
+from intelligence.market_microstructure import MicrostructureMonitor
+from operations.event_policy import symbol_currencies, evaluate as evaluate_event_policy
+from core.trading_safety import TradingStore
 
 
 def test_microstructure_quote_flicker_detection(tmp_path):

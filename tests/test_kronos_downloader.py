@@ -1,7 +1,7 @@
 """Unit tests for kronos_downloader.py."""
 import os
 import pytest
-from kronos_downloader import KronosDownloader, MODELS, sha256_file
+from research.kronos_downloader import KronosDownloader, MODELS, sha256_file
 
 
 def test_kronos_downloader_models_catalog():

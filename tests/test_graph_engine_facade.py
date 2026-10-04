@@ -1,6 +1,6 @@
 """Integration tests for the TradingGraphEngine Facade and Human-in-the-Loop gates."""
 import pytest
-from graph_engine_facade import TradingGraphEngine
+from intelligence.graph_engine_facade import TradingGraphEngine
 
 
 def test_trading_graph_engine_deliberative_and_reflection(tmp_path):

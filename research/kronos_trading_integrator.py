@@ -15,13 +15,13 @@ import math
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from kronos_bridge import (
+from research.kronos_bridge import (
     BACKEND_HEURISTIC,
     CandleForecast,
     KronosMultiDimForecast,
     KronosPredictor,
 )
-from kronos_downloader import KronosDownloader
+from research.kronos_downloader import KronosDownloader
 
 log = logging.getLogger("KronosTradingIntegrator")
 

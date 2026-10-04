@@ -3,15 +3,15 @@ import json
 
 import pytest
 
-from macro_graph import MacroGraph
-from macro_source_policy import assess_source
-from realtime_news_ingest import (
+from intelligence.macro_graph import MacroGraph
+from intelligence.macro_source_policy import assess_source
+from data.realtime_news_ingest import (
     ingest_articles,
     normalize_article,
     watch_entities_for_event_class,
 )
-from macro_extraction import extract_candidates, persist_candidates
-from trading_memory import TradingMemory
+from intelligence.macro_extraction import extract_candidates, persist_candidates
+from intelligence.trading_memory import TradingMemory
 
 
 class _LLM:

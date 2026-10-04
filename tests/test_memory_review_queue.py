@@ -1,5 +1,5 @@
 """Memory candidate review queue + journal-backed lessons."""
-from trading_memory import TradingMemory
+from intelligence.trading_memory import TradingMemory
 
 
 def test_candidate_review_queue_lists_all_kinds(tmp_path):

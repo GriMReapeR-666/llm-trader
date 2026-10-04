@@ -3,7 +3,7 @@ import math
 
 import pytest
 
-from macro_graph import MacroGraph
+from intelligence.macro_graph import MacroGraph
 
 
 def test_macro_edge_history_is_append_only_and_revision_requires_review(tmp_path: Path):

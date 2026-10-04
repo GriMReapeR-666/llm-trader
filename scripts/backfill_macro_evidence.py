@@ -31,10 +31,10 @@ def main() -> int:
         if path not in sys.path:
             sys.path.insert(0, path)
 
-    from agent_operations import AgentOperations
-    from macro_evidence_backfill import backfill_macro_evidence_from_history
-    from macro_graph import MacroGraph
-    from trading_memory import TradingMemory
+    from operations.agent_operations import AgentOperations
+    from operations.macro_evidence_backfill import backfill_macro_evidence_from_history
+    from intelligence.macro_graph import MacroGraph
+    from intelligence.trading_memory import TradingMemory
 
     report = backfill_macro_evidence_from_history(
         AgentOperations(args.db),

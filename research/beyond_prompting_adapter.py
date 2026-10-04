@@ -40,7 +40,7 @@ try:
     )
 except ImportError:
     try:
-        from alpha_discovery import (
+        from core.alpha_discovery import (
             AlphaDiscoveryEngine, AlphaCandidate,
             _router_llm_generate as _router_llm_fn,
         )
@@ -53,7 +53,7 @@ try:
     from core.alpha_decay_monitor import AlphaDecayMonitor
 except ImportError:
     try:
-        from alpha_decay_monitor import AlphaDecayMonitor
+        from core.alpha_decay_monitor import AlphaDecayMonitor
     except ImportError:
         AlphaDecayMonitor = None  # type: ignore
 

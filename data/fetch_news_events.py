@@ -16,9 +16,9 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from mt5_calendar_wrapper import MT5CalendarWrapper
-    from mt5_calendar_enhanced import EnhancedMT5CalendarWrapper
-    from mt5_calendar_wrapper import CalendarEventImportance, CalendarEventType
+    from data.mt5_calendar_wrapper import MT5CalendarWrapper
+    from data.mt5_calendar_enhanced import EnhancedMT5CalendarWrapper
+    from data.mt5_calendar_wrapper import CalendarEventImportance, CalendarEventType
 except ImportError as e:
     print(f"❌ Import error: {e}")
     print("Please ensure all required files are in the current directory")
@@ -576,7 +576,7 @@ def main():
         print("\n🔍 Checking MT5 installation...")
         mt5_available = False
         try:
-            from mt5_calendar_wrapper import MT5CalendarWrapper
+            from data.mt5_calendar_wrapper import MT5CalendarWrapper
             test_wrapper = MT5CalendarWrapper()
             test_wrapper.initialize()
             test_wrapper.shutdown()

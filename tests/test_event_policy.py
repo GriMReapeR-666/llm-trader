@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from event_policy import evaluate
+from operations.event_policy import evaluate
 
 
 NOW = datetime(2026, 8, 6, 12, 0, tzinfo=timezone.utc)

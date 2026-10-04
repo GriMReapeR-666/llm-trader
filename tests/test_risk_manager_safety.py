@@ -3,8 +3,8 @@ import math
 
 import pytest
 
-import risk_manager
-from risk_manager import RiskManager
+from core import risk_manager
+from core.risk_manager import RiskManager
 
 
 @pytest.mark.parametrize("kwargs", [

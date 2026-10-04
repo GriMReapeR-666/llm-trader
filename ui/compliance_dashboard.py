@@ -96,7 +96,7 @@ def _get_outbox_health() -> Dict[str, Any]:
     """
     try:
         try:
-            from trading_safety import TradingStore
+            from core.trading_safety import TradingStore
         except ImportError:  # package import parity
             from core.trading_safety import TradingStore
         store = TradingStore(JOURNAL_PATH)
@@ -121,14 +121,10 @@ def _load_schedule_registry_intervals() -> Dict[str, int]:
     """
     try:
         root = Path(__file__).resolve().parent.parent
-        for sub in ("operations", ""):
-            candidate = root / sub / "agent_scheduler.py"
-            if candidate.exists():
-                parent = str(candidate.parent)
-                if parent not in sys.path:
-                    sys.path.insert(0, parent)
-                from agent_scheduler import SCHEDULES  # noqa: E402
-                return {s["name"]: int(s["interval"]) for s in SCHEDULES}
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from operations.agent_scheduler import SCHEDULES  # noqa: E402
+        return {s["name"]: int(s["interval"]) for s in SCHEDULES}
     except Exception as exc:
         log.debug("schedule registry read failed: %s", exc)
     return {}
@@ -333,15 +329,15 @@ def _load_router_snapshot() -> Dict[str, Any]:
     except Exception:
         pass
     try:
-        from llm_router import get_router
+        from data.llm_router import get_router
     except ImportError:
         # Standalone rendering context: the trader boot adds every subpackage
         # to sys.path, a bare interpreter does not. One retry, then fail soft.
         try:
-            data_dir = Path(__file__).resolve().parent.parent / "data"
-            if str(data_dir) not in sys.path:
-                sys.path.insert(0, str(data_dir))
-            from llm_router import get_router
+            root_dir = Path(__file__).resolve().parent.parent
+            if str(root_dir) not in sys.path:
+                sys.path.insert(0, str(root_dir))
+            from data.llm_router import get_router
         except Exception as exc:
             return {"providers": [], "agents_error": f"llm_router unavailable: {str(exc)[:120]}"}
     except Exception as exc:

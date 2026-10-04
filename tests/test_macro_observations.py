@@ -1,5 +1,5 @@
 """FRED/calendar macro observations bound to catalog entities."""
-from macro_observations import ingest_fred_snapshot, ingest_calendar_events, recent
+from intelligence.macro_observations import ingest_fred_snapshot, ingest_calendar_events, recent
 
 
 def test_ingest_fred_binds_entities(tmp_path):

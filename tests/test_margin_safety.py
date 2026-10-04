@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from margin_safety import MarginRiskPolicy, MarginSafetyGate
+from core.margin_safety import MarginRiskPolicy, MarginSafetyGate
 
 
 def _account(**overrides):

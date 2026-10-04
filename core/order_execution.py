@@ -94,7 +94,7 @@ except ImportError:
     mt5 = None
 
 try:
-    from execution_planning import validate_emergency_exit_request
+    from core.execution_planning import validate_emergency_exit_request
 except ImportError:
     from core.execution_planning import validate_emergency_exit_request
 

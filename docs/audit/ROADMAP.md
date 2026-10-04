@@ -87,12 +87,16 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [x] 🟠 `PH2-N1` (found in review) Live planned entries never passed the harness ORDER_WRITE token, so every live pending entry raised `PermissionError`. Now `mt5_trader --live` hands its gated profile sandbox to the orchestrator, which mints a 2-minute broker-scoped token per entry (LIVE journal only). The live urgency path gets the same gate. `--demo` gets order authority only when the broker reports a demo account (`trade_mode == ACCOUNT_TRADE_MODE_DEMO`), re-checked on every order. Paper gets no token.
 
 ## Phase 3: Emergency stack that works
-- [ ] 🔴 `P1-C1` = `P1-M1` One import root: `pyproject.toml`, remove 88 `sys.path` inserts, add a double-import guard test. Also fixes `CC-F13` (lazy singletons without locks).
+Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
+- [x] 🔴 `P1-C1` = `P1-M1` One import root: `pyproject.toml`, remove 88 `sys.path` inserts, add a double-import guard test. Also fixes `CC-F13` (lazy singletons without locks).
 - [ ] 🟠 `P1-C4` Implement `flatten` (through the gateway) and `killswitch` (store + cancel pending); emit `CONTROL_EXECUTED` only on success. Make the autonomy gate fail closed.
 - [ ] 🔴 `D1` The deck shows outcomes (requested → acknowledged → applied), never "executed" on HTTP 200, and never when disconnected.
 - [ ] 🔴 `EV` **The news kill-switch latch isn't enforced on the trading path** (only the shadow graph reads it). Wire it into the validator and gateway.
 - [ ] 🟠 `EV` + `PI-P9` The latch trips on false alarms (33 benign vs 13 real; latched since 24 Sep). Fix the tripwire precision and count only allow-listed sources.
+- [ ] 🟠 `PH3-N1` (found while planning) A missing VIX clears the news latch: `graph_nodes.py:444` defaults VIX to 18 (calm).
+- [ ] 🟠 `PH3-N2` (found while planning) Nothing can clear the news latch in live: the only caller of `apply_market_data` is the shadow graph. Add an operator clear and a market-data clear on the main path **before** enforcing the latch.
 - [ ] 🟠 `CC-F5` The latch copies tear the state file. `TS-P6`: a corrupt checkpoint must load as **latched**.
+- [ ] 🟠 `PH3-N3` (found while planning) The API emits `CONTROL_EXECUTED` for a merely queued control and takes `actor` from the request body (`gui_api.py:1872-1877`).
 - [ ] 🟠 `CC-F7` Cross-process operator controls are lost (1,826/2,000). Move controls into the journal with compare-and-set.
 - [ ] 🟠 `CC-F4` The SIGTERM handler deadlocks or is swallowed. Handlers should only set a flag.
 - [ ] 🟠 `CC-F9` The single-instance engine guard is check-then-act (use an OS file lock).
@@ -106,6 +110,7 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [ ] 🟡 Part 1 §7.2 **Persistent safety status bar** in the deck (PAPER/LIVE, autonomy, kill switch and latch, daily P&L vs limit, feed age, bridge, LLM circuit).
 
 ## Phase 4: Live-mode correctness (fix together; only then remove the two accidental blocks)
+Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [ ] 🔴 `1a-F1` The PaperBroker is attached in every mode, so live positions are invisible to management, the position limit and heat.
 - [ ] 🔴 `1a-F2` Live reconciliation books open trades as closed at 0 P&L, plus an `IndexError` (`TL-T8` sqlite Row `.get` is in the same method).
 - [ ] 🔴 `CC-F3` = `1a-F7` Concurrent reconciliation double-counts closes and the streak breaker (per-ticket CAS).
@@ -119,6 +124,7 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [ ] 🟡 `1a-F18` A second position-management engine with a dead partial close (pick one engine).
 - [ ] 🟡 `1a-F14` `captured_at` is stamped after slow work, so the freshness check measures nothing.
 - [ ] 🟠 `CC-F6` LLM budget reservation is check-then-insert.
+- [ ] 🟡 `PH4-N1` (found while planning) 60 broker read calls bypass the gateway's MT5 lock (`CC-F2`, read half); route them through one locked read facade.
 - [ ] 🟡 `CC-F11` Unguarded orchestrator state; `CC-F12` SQLite configuration inconsistencies.
 - [ ] 🟡 `TS-P1` = prior F-RM-1 Lot rounding exceeds the 1 % cap (refuse at broker minimum lot).
 - [ ] ⚪ `TS-P5` NaN prices pass `validate_order_params`.

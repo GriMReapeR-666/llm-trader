@@ -107,7 +107,7 @@ class EconomicNewsTerminal:
         """Load sample economic events data"""
         try:
             # Import sample data from our existing fetch_news_events.py
-            from fetch_news_events import create_sample_calendar_data
+            from data.fetch_news_events import create_sample_calendar_data
             
             sample_df = create_sample_calendar_data()
             self.events = self._convert_sample_data_to_events(sample_df)

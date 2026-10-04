@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import pytest
 
-from news_triage import (
+from data.news_triage import (
     TRIAGE_QUESTION_IDS,
     _deterministic_r1,
     summarize_cycle_evidence,

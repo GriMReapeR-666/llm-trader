@@ -8,16 +8,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from agent_operations import AgentOperations
-from lag_delay_engine import ConfidenceDecayEngine, SmithPredictorEngine, TimestampedEvent, utcnow_iso
-from margin_safety import MarginSafetyGate
-from rate_limiter import RateLimiter
-from rl_action_bridge import bridge_rl_action
-from rl_trainer import RLTrainer
-from semantic_memory import embed, embedding_backend_name, status as semantic_status
-from setup_labeling import classify_setup_outcome
-from local_agent_memory import LocalAgentMemory, LocalAgentMemoryConfig
-from trading_safety import DeterministicValidator, TradeProposal, TradingStore
+from operations.agent_operations import AgentOperations
+from intelligence.lag_delay_engine import ConfidenceDecayEngine, SmithPredictorEngine, TimestampedEvent, utcnow_iso
+from core.margin_safety import MarginSafetyGate
+from core.rate_limiter import RateLimiter
+from research.rl_action_bridge import bridge_rl_action
+from research.rl_trainer import RLTrainer
+from intelligence.semantic_memory import embed, embedding_backend_name, status as semantic_status
+from research.setup_labeling import classify_setup_outcome
+from intelligence.local_agent_memory import LocalAgentMemory, LocalAgentMemoryConfig
+from core.trading_safety import DeterministicValidator, TradeProposal, TradingStore
 
 
 def test_assess_from_mt5_queries_account_and_margin():

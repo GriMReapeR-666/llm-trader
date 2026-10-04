@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import pytest
 
-from news_triage import (
+from data.news_triage import (
     D9_KILL_SWITCH_ACTIVE,
     D9_KILL_SWITCH_NORMAL,
     D9_KILL_SWITCH_NO_DATA,
@@ -182,12 +182,12 @@ def test_summary_no_kill_switch():
 
 def test_run_result_reports_kill_switch_block(tmp_path, monkeypatch):
     import data.realtime_news_ingest as rni
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 
     # Latch semantics: N independent batches confirm; a single batch is only
     # a pending confirmation, so assert on the latch block, not active.
     monkeypatch.setenv("D9_LATCH_PATH", str(tmp_path / "latch.json"))
-    monkeypatch.setattr("news_triage._get_laya", lambda: None)
+    monkeypatch.setattr("data.news_triage._get_laya", lambda: None)
     monkeypatch.setattr(rni, "collect_rss_articles", lambda: [])
     monkeypatch.setattr(rni, "collect_newsapi_articles", lambda *a, **k: [])
     monkeypatch.setattr(rni, "collect_seeking_alpha_articles", lambda *a, **k: [])
@@ -251,7 +251,7 @@ def test_no_kill_switch_keeps_normal_operation():
 def test_macro_analyst_reads_cycle_kill_switch(monkeypatch, tmp_path):
     import intelligence.graph_nodes as gn
     from intelligence.graph_nodes import MacroAnalystNode
-    from kill_switch_latch import KillSwitchLatch
+    from data.kill_switch_latch import KillSwitchLatch
 
     monkeypatch.setattr(gn, "get_kill_switch_latch", lambda: KillSwitchLatch(path=str(tmp_path / "latch.json")))
     node = MacroAnalystNode.__new__(MacroAnalystNode)
@@ -305,7 +305,7 @@ def test_macro_analyst_reads_cycle_kill_switch(monkeypatch, tmp_path):
 def test_macro_analyst_no_tripwire_stays_inactive(monkeypatch, tmp_path):
     import intelligence.graph_nodes as gn
     from intelligence.graph_nodes import MacroAnalystNode
-    from kill_switch_latch import KillSwitchLatch
+    from data.kill_switch_latch import KillSwitchLatch
 
     monkeypatch.setattr(gn, "get_kill_switch_latch", lambda: KillSwitchLatch(path=str(tmp_path / "latch.json")))
     node = MacroAnalystNode.__new__(MacroAnalystNode)
@@ -355,7 +355,7 @@ def test_macro_analyst_no_tripwire_stays_inactive(monkeypatch, tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_ledger_marks_unkill_attempt_as_safety_pair(tmp_path):
-    from news_triage import _D9_TRUTHY  # shared predicate
+    from data.news_triage import _D9_TRUTHY  # shared predicate
     from research.learning.contrastive_pair_miner import ContrastivePairMiner
     from research.learning.triage_ledger import TriageDisagreementLogger
 
