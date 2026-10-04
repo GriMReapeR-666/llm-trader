@@ -24,10 +24,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import numpy as np
 
-from full_pipeline_backtest import run_full_pipeline_backtest
+from research.full_pipeline_backtest import run_full_pipeline_backtest
 from data.market_data_provider import fetch_ohlc
-from continuous_backtest_pipeline import _periods_per_year
-from strategy_signal_registry import build_signal, registry_names
+from research.continuous_backtest_pipeline import _periods_per_year
+from research.strategy_signal_registry import build_signal, registry_names
 
 BARS = 5000
 SYMBOL, TF, THR = "EURUSD", "H1", 0.75

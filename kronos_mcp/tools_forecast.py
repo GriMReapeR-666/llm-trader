@@ -25,12 +25,12 @@ from .schemas import (
 
 def _get_predictor(model_key: str = "kronos-mini"):
     # Lazy import to avoid heavy torch at server startup unless needed
-    from kronos_bridge import KronosPredictor
+    from research.kronos_bridge import KronosPredictor
     return KronosPredictor(model_name=model_key)
 
 
 def _get_integrator(model_key: str = "kronos-mini"):
-    from kronos_trading_integrator import KronosTradingIntegrator
+    from research.kronos_trading_integrator import KronosTradingIntegrator
     return KronosTradingIntegrator(model_key=model_key)
 
 
@@ -44,8 +44,8 @@ def kronos_status(params: StatusParams) -> Dict[str, Any]:
     fidelity +22%). All outputs advisory (execution_authority=False).
     """
     model_key = params.model_key.strip() or "kronos-mini"
-    from kronos_downloader import MODELS
-    from kronos_bridge import KronosPredictor
+    from research.kronos_downloader import MODELS
+    from research.kronos_bridge import KronosPredictor
     predictor = KronosPredictor(model_name=model_key)
     status = predictor.backend_status()
     # Tokenizer info
@@ -100,7 +100,7 @@ def kronos_tokenize(params: TokenizeParams) -> Dict[str, Any]:
     the heuristic hash tokenizer. Returns per-bar tokens and vocab info.
     Advisory only.
     """
-    from kronos_bridge import KronosKLineTokenizer
+    from research.kronos_bridge import KronosKLineTokenizer
     tok = KronosKLineTokenizer(codebook_size=params.codebook_size)
     tokens = tok.tokenize_series(params.ohlcv_history)
     return {
@@ -165,7 +165,7 @@ def kronos_forecast_batch(params: BatchForecastParams) -> Dict[str, Any]:
     Runs Kronos per-symbol sequentially (shared-model sequential batch) and
     returns per-symbol mean_path + vol term structure for cross-asset risk.
     """
-    from kronos_bridge import KronosPredictor
+    from research.kronos_bridge import KronosPredictor
     predictor = KronosPredictor(model_name=params.model_key)
     results: List[Dict[str, Any]] = []
     for sym, hist in zip(params.symbols, params.ohlcv_histories):
@@ -280,7 +280,7 @@ def kronos_synthetic_multi_asset(params: MultiAssetSyntheticParams) -> Dict[str,
     except Exception as exc:
         # fallback via research path
         sys.path.insert(0, str((_REPO_ROOT / "intelligence").resolve()))
-        from kronos_synthetic_generator import generate_correlated_multi_asset_synthetic_dataset  # type: ignore
+        from intelligence.kronos_synthetic_generator import generate_correlated_multi_asset_synthetic_dataset  # type: ignore
     dataset = generate_correlated_multi_asset_synthetic_dataset(
         symbols=params.symbols,
         length_bars=params.length_bars,
@@ -312,7 +312,7 @@ def kronos_mt5_forecast_multi_dim(params: MT5MultiDimParams) -> Dict[str, Any]:
     """
     # import locally to keep sys.path handling consistent
     sys.path.insert(0, str((_REPO_ROOT / "research").resolve()))
-    from kronos_mt5_adapter import KronosMT5Adapter
+    from research.kronos_mt5_adapter import KronosMT5Adapter
     adapter = KronosMT5Adapter(model_key=params.model_key)
     # Normalize tolerates both list[dict] and list[tuple]
     return adapter.get_mt5_multi_dim_forecast(
@@ -329,9 +329,9 @@ def kronos_mt5_advanced_volatility(params: MT5VolParams) -> Dict[str, Any]:
     lot sizing if account_balance provided. MT5 spread-aware. Advisory only.
     """
     sys.path.insert(0, str((_REPO_ROOT / "research").resolve()))
-    from kronos_mt5_adapter import KronosMT5Adapter
-    from kronos_trading_integrator import KronosTradingIntegrator
-    from kronos_bridge import KronosPredictor  # noqa
+    from research.kronos_mt5_adapter import KronosMT5Adapter
+    from research.kronos_trading_integrator import KronosTradingIntegrator
+    from research.kronos_bridge import KronosPredictor  # noqa
     adapter = KronosMT5Adapter(model_key=params.model_key)
     base = adapter.get_mt5_advanced_volatility(params.symbol, params.mt5_rates, horizon_bars=params.horizon_bars)
     # optionally attach sizing
