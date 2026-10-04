@@ -14,6 +14,7 @@ import math
 import os
 import sqlite3
 import threading
+import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
@@ -322,6 +323,8 @@ class TradingStore:
             con.execute("CREATE INDEX IF NOT EXISTS idx_trades_setup ON trades(setup_id, closed_at)")
             con.execute("CREATE INDEX IF NOT EXISTS idx_position_observations_quality ON position_observations(ticket, mark_quality, observed_at)")
             con.execute("CREATE INDEX IF NOT EXISTS idx_market_ticks_quality ON market_ticks(symbol, quality, observed_at)")
+        self._risk_reservations: Dict[str, Tuple[float, float]] = {}
+        self._risk_reservations_lock = threading.Lock()
 
     def get_state(self, key: str, default: Any = None) -> Any:
         with self._connect() as con:
@@ -559,6 +562,12 @@ class TradingStore:
                 ticket, proposal.magic, proposal.strategy, proposal.symbol, proposal.side, volume, proposal.entry,
                 proposal.stop_loss, proposal.take_profit, risk_amount, datetime.now(timezone.utc).isoformat(), json.dumps(payload, default=str), proposal.features.get("setup_id", "unclassified_v1")))
         self.transition_latest_setup(proposal.setup_key(), "FILLED", ticket=int(ticket), reason="broker position recorded")
+        self.release_risk(proposal.setup_key())
+        if isinstance(payload, dict):
+            if "intent_key" in payload:
+                self.release_risk(str(payload["intent_key"]))
+            if "reservation_id" in payload:
+                self.release_risk(str(payload["reservation_id"]))
         self.log_lifecycle_event(ticket, proposal.setup_key(), "FILLED", "execution", {
             "symbol": proposal.symbol, "side": proposal.side, "volume": volume,
             "entry": proposal.entry, "stop_loss": proposal.stop_loss,
@@ -825,10 +834,33 @@ class TradingStore:
         from operations.daily_reconciliation import compare_day
         return compare_day(self, broker_deals, start, end, require_timestamps=require_timestamps)
 
-    def open_risk(self) -> float:
+    def reserve_risk(self, reservation_id: str, amount: float, ttl_seconds: float = 30.0) -> None:
+        """Reserve portfolio risk capacity for a pending order intent."""
+        with self._risk_reservations_lock:
+            now = time.time()
+            self._risk_reservations[str(reservation_id)] = (float(amount), now + ttl_seconds)
+
+    def release_risk(self, reservation_id: str) -> None:
+        """Release a previously reserved risk allocation."""
+        with self._risk_reservations_lock:
+            self._risk_reservations.pop(str(reservation_id), None)
+
+    def reserved_risk(self) -> float:
+        """Return the sum of all active, unexpired risk reservations."""
+        with self._risk_reservations_lock:
+            now = time.time()
+            expired = [k for k, (amt, exp) in self._risk_reservations.items() if exp < now]
+            for k in expired:
+                del self._risk_reservations[k]
+            return float(sum(amt for amt, exp in self._risk_reservations.values()))
+
+    def open_risk(self, include_reserved: bool = True) -> float:
         with self._connect() as con:
             row = con.execute("SELECT COALESCE(SUM(risk_amount),0) AS total FROM trades WHERE closed_at IS NULL").fetchone()
-        return float(row["total"])
+        trades_risk = float(row["total"])
+        if include_reserved:
+            trades_risk += self.reserved_risk()
+        return trades_risk
 
     def open_bucket_risk(self, bucket: str) -> float:
         with self._connect() as con:
@@ -1316,6 +1348,36 @@ class PortfolioRiskArbiter:
         self.max_correlated_risk_fraction = min(max_correlated_risk_fraction, max_open_risk_fraction)
         self.max_net_usd_beta_fraction = max_net_usd_beta_fraction
         self.max_single_currency_fraction = max_single_currency_fraction
+        self._permit_lock = threading.RLock()
+
+    def permit_and_reserve(
+        self,
+        equity: float,
+        new_risk: float,
+        reservation_id: str,
+        ttl_seconds: float = 30.0,
+        bucket_risk: float = 0.0,
+        bucket: str = "",
+        correlated_risk: float = 0.0,
+        symbol: Optional[str] = None,
+        side: Optional[str] = None,
+        use_netting: bool = True,
+    ) -> Tuple[bool, str]:
+        """Atomically evaluate portfolio risk limits and reserve capacity if approved."""
+        with self._permit_lock:
+            ok, reason = self.permit(
+                equity=equity,
+                new_risk=new_risk,
+                bucket_risk=bucket_risk,
+                bucket=bucket,
+                correlated_risk=correlated_risk,
+                symbol=symbol,
+                side=side,
+                use_netting=use_netting,
+            )
+            if ok:
+                self.store.reserve_risk(reservation_id, new_risk, ttl_seconds=ttl_seconds)
+            return ok, reason
 
     def permit(
         self,
@@ -1328,59 +1390,60 @@ class PortfolioRiskArbiter:
         side: Optional[str] = None,
         use_netting: bool = True,
     ) -> Tuple[bool, str]:
-        try:
-            eq = float(equity)
-            nr = float(new_risk)
-            br = float(bucket_risk)
-            cr = float(correlated_risk)
-        except (TypeError, ValueError, OverflowError):
-            return False, "invalid non-numeric risk parameters"
-        if not (math.isfinite(eq) and math.isfinite(nr) and math.isfinite(br) and math.isfinite(cr)):
-            return False, "non-finite risk parameters"
-        if eq <= 0 or nr < 0 or br < 0 or cr < 0:
-            return False, "out-of-bounds risk parameters"
-        equity, new_risk, bucket_risk, correlated_risk = eq, nr, br, cr
-        now = datetime.now(timezone.utc)
+        with self._permit_lock:
+            try:
+                eq = float(equity)
+                nr = float(new_risk)
+                br = float(bucket_risk)
+                cr = float(correlated_risk)
+            except (TypeError, ValueError, OverflowError):
+                return False, "invalid non-numeric risk parameters"
+            if not (math.isfinite(eq) and math.isfinite(nr) and math.isfinite(br) and math.isfinite(cr)):
+                return False, "non-finite risk parameters"
+            if eq <= 0 or nr < 0 or br < 0 or cr < 0:
+                return False, "out-of-bounds risk parameters"
+            equity, new_risk, bucket_risk, correlated_risk = eq, nr, br, cr
+            now = datetime.now(timezone.utc)
 
-        def _peak_mutator(stored_peak: Any) -> float:
-            if stored_peak is None:
-                return equity
-            peak_value = float(stored_peak or equity)
-            return equity if equity > peak_value else peak_value
+            def _peak_mutator(stored_peak: Any) -> float:
+                if stored_peak is None:
+                    return equity
+                peak_value = float(stored_peak or equity)
+                return equity if equity > peak_value else peak_value
 
-        peak = float(self.store.update_state("equity_peak", _peak_mutator, default=None) or equity)
-        drawdown = (peak - equity) / peak if peak > 0 else 0.0
-        if drawdown >= self.max_drawdown_fraction:
-            self.store.set_kill_switch(True, f"maximum drawdown reached: {drawdown:.2%}")
-            return False, "maximum drawdown kill switch"
-        daily = self.store.realized_loss(now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat())
-        week_start = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=now.weekday())
-        weekly = self.store.realized_loss(week_start.isoformat())
-        if daily >= equity * self.daily_loss_fraction: return False, "daily loss limit"
-        if weekly >= equity * self.weekly_loss_fraction: return False, "weekly loss limit"
-        if self.store.open_risk() + new_risk > equity * self.max_open_risk_fraction: return False, "portfolio open-risk limit"
+            peak = float(self.store.update_state("equity_peak", _peak_mutator, default=None) or equity)
+            drawdown = (peak - equity) / peak if peak > 0 else 0.0
+            if drawdown >= self.max_drawdown_fraction:
+                self.store.set_kill_switch(True, f"maximum drawdown reached: {drawdown:.2%}")
+                return False, "maximum drawdown kill switch"
+            daily = self.store.realized_loss(now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat())
+            week_start = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=now.weekday())
+            weekly = self.store.realized_loss(week_start.isoformat())
+            if daily >= equity * self.daily_loss_fraction: return False, "daily loss limit"
+            if weekly >= equity * self.weekly_loss_fraction: return False, "weekly loss limit"
+            if self.store.open_risk() + new_risk > equity * self.max_open_risk_fraction: return False, "portfolio open-risk limit"
 
-        # FX Netting & Dollar Beta validation (opt-in when symbol and side are provided)
-        is_hedging = False
-        if symbol and side and use_netting:
-            from core.fx_portfolio_netting import evaluate_fx_netting_permit
-            open_pos = self.store.open_positions_for_netting()
-            ok, netting_reason, details = evaluate_fx_netting_permit(
-                open_pos, symbol, side, new_risk, equity,
-                max_net_usd_beta_fraction=self.max_net_usd_beta_fraction,
-                max_single_currency_fraction=self.max_single_currency_fraction,
-            )
-            if not ok:
-                return False, netting_reason
-            is_hedging = bool(details.get("is_hedging", False))
+            # FX Netting & Dollar Beta validation (opt-in when symbol and side are provided)
+            is_hedging = False
+            if symbol and side and use_netting:
+                from core.fx_portfolio_netting import evaluate_fx_netting_permit
+                open_pos = self.store.open_positions_for_netting()
+                ok, netting_reason, details = evaluate_fx_netting_permit(
+                    open_pos, symbol, side, new_risk, equity,
+                    max_net_usd_beta_fraction=self.max_net_usd_beta_fraction,
+                    max_single_currency_fraction=self.max_single_currency_fraction,
+                )
+                if not ok:
+                    return False, netting_reason
+                is_hedging = bool(details.get("is_hedging", False))
 
-        current_bucket = max(bucket_risk, self.store.open_bucket_risk(bucket) if bucket else 0.0)
-        if not is_hedging:
-            if current_bucket + new_risk > equity * self.max_open_risk_fraction: return False, "correlated bucket risk limit"
-            if correlated_risk + new_risk > equity * self.max_correlated_risk_fraction: return False, "rolling correlated exposure risk limit"
-        else:
-            if current_bucket + new_risk > equity * self.max_open_risk_fraction * 1.5: return False, "correlated bucket risk limit"
-        return True, "approved"
+            current_bucket = max(bucket_risk, self.store.open_bucket_risk(bucket) if bucket else 0.0)
+            if not is_hedging:
+                if current_bucket + new_risk > equity * self.max_open_risk_fraction: return False, "correlated bucket risk limit"
+                if correlated_risk + new_risk > equity * self.max_correlated_risk_fraction: return False, "rolling correlated exposure risk limit"
+            else:
+                if current_bucket + new_risk > equity * self.max_open_risk_fraction * 1.5: return False, "correlated bucket risk limit"
+            return True, "approved"
 
 
 def safe_risk_fraction(percent_or_fraction: float, cap: float = .01) -> float:
