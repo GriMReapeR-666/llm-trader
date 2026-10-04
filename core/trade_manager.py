@@ -790,6 +790,51 @@ class TradeManager(StoreBackedState):
                 "side": "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL",
                 "symbol": pos.symbol,
             }, requested_volume=vol)
+
+            # Paper mode: route exclusively to paper broker and NEVER call mt5.order_send
+            if self.paper_broker is not None:
+                paper_price = getattr(pos, "price_current", getattr(pos, "price_open", 0.0))
+                if mt5 is not None:
+                    try:
+                        tick = mt5.symbol_info_tick(pos.symbol)
+                        if tick:
+                            paper_price = tick.ask if pos.type == 0 else tick.bid
+                    except Exception:
+                        pass
+                res = None
+                side_str = "BUY" if pos.type == 0 else "SELL"
+                if hasattr(self.paper_broker, "market_order"):
+                    res = self.paper_broker.market_order(
+                        symbol=pos.symbol,
+                        side=side_str,
+                        volume=vol,
+                        price=paper_price,
+                        sl=sl,
+                        tp=pos.tp,
+                        comment="pyramid_entry",
+                        magic=int(getattr(pos, "magic", 0) or 0),
+                    )
+                elif hasattr(self.paper_broker, "place_order"):
+                    res = self.paper_broker.place_order(
+                        symbol=pos.symbol,
+                        volume=vol,
+                        order_type=side_str,
+                        price=paper_price,
+                        sl=sl,
+                        tp=pos.tp,
+                        magic=int(getattr(pos, "magic", 0) or 0),
+                        comment="pyramid_entry",
+                    )
+                self.log.info(f"✅ Pyramid Paper Success: {vol} lots added for #{pos.ticket}")
+                self.pyramid_entries.add(pos.ticket)
+                new_t = res.get("order") if isinstance(res, dict) else None
+                self._record_management(pos.ticket, "PYRAMID_FILLED", {
+                    "parent_ticket": pos.ticket, "volume": vol,
+                    "new_ticket": new_t,
+                    "paper": True,
+                }, requested_volume=vol, filled_volume=vol)
+                self.save_state()
+                return
             
             # Open Market Order via Client
             tick = mt5.symbol_info_tick(pos.symbol)
