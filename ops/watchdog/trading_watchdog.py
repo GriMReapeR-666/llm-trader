@@ -51,6 +51,12 @@ def load_supervisor():
 
 def _wmi_engine_alive() -> bool:
     """Best-effort: is any python process running mt5_trader.py llm-trade?"""
+    if sys.platform != "win32":
+        try:
+            out = subprocess.run(["pgrep", "-f", r"mt5_trader\.py"], capture_output=True, text=True, timeout=15)
+        except Exception:
+            return False
+        return bool(set(out.stdout.split()) - {str(os.getpid())})
     try:
         cmd = ("powershell", "-NoProfile", "-Command",
                "Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" | "

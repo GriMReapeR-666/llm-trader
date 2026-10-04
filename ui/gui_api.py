@@ -609,7 +609,11 @@ def start_trading(config: dict):
 
     try:
         # Launch isolated subprocess
-        subprocess.Popen(cmd, env=env, cwd=os.getcwd(), creationflags=subprocess.CREATE_NEW_CONSOLE)
+        if sys.platform == "win32":
+            subprocess.Popen(cmd, env=env, cwd=os.getcwd(), creationflags=subprocess.CREATE_NEW_CONSOLE)
+        else:
+            # No console windows on macOS/Linux: detach into its own session.
+            subprocess.Popen(cmd, env=env, cwd=os.getcwd(), start_new_session=True)
         ui_state.is_running = True
         return {"status": "success", "message": "Trading started in background"}
     except Exception as e:
@@ -3427,6 +3431,17 @@ def kill_port(port):
     import subprocess
     import re
     
+    if sys.platform != "win32":
+        try:
+            out = subprocess.run(["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"],
+                                 capture_output=True, text=True).stdout
+            for pid in {int(p) for p in out.split()} - {os.getpid()}:
+                print(f"killing process {pid} on port {port}...")
+                os.kill(pid, 9)
+        except Exception:
+            pass  # Port likely free
+        return
+
     try:
         # Find PID
         cmd = f"netstat -ano | findstr :{port}"
