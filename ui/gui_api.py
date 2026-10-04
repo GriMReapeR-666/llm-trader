@@ -1849,23 +1849,79 @@ def deck_control(action: str, request: Request, payload: dict = _Body(default={}
             return {"ok": True, "action": "stop", "pid": _pid, "message": "Engine terminated"}
         except Exception as exc:
             return {"ok": False, "reason": f"failed to stop engine pid {_pid}: {exc}"}
-    if action not in {"pause", "resume", "flatten", "killswitch"}:
+    if action not in {"pause", "resume", "flatten", "killswitch", "killswitch_off"}:
         return {"ok": False, "reason": f"unsupported action {action}"}
+
+    # Session actor integrity (PH3-N3): derive actor strictly from authenticated session
+    session_actor = getattr(request.state, "actor", "authenticated_operator")
+    if not session_actor or session_actor == "unauthenticated":
+        session_actor = "authenticated_operator"
+
+    # Enforce typed confirmation
+    confirm = str(payload.get("confirm") or payload.get("confirmation") or "").strip()
+    if action == "flatten" and confirm != "FLATTEN":
+        raise HTTPException(status_code=400, detail="Confirmation required: pass confirm='FLATTEN'")
+    if action == "killswitch" and confirm != "KILL":
+        raise HTTPException(status_code=400, detail="Confirmation required: pass confirm='KILL'")
+    if action == "killswitch_off" and confirm != "KILLSWITCH_OFF":
+        raise HTTPException(status_code=400, detail="Confirmation required: pass confirm='KILLSWITCH_OFF'")
+
     try:
         from operations.autonomy import get_autonomy
         from operations import event_bridge
 
+        idempotency_key = payload.get("idempotency_key")
         result = get_autonomy().issue_control(
             action,
-            actor=str(payload.get("actor") or "operator"),
+            actor=session_actor,
             source=str(payload.get("source") or "command-deck"),
+            idempotency_key=str(idempotency_key) if idempotency_key else None,
         )
         if result.get("ok"):
-            event_bridge.emit("CONTROL_ISSUED", {"action": action, **payload})
-            event_bridge.emit("CONTROL_EXECUTED", {"action": action, **payload})
+            cid = result.get("control_id")
+            event_bridge.emit("CONTROL_ISSUED", {"action": action, "actor": session_actor, "control_id": cid})
+            event_bridge.emit("CONTROL_REQUESTED", {"action": action, "actor": session_actor, "control_id": cid})
+            status = "REQUESTED"
+            if action == "killswitch":
+                status = "ACKNOWLEDGED"
+            elif action in ("pause", "resume", "killswitch_off"):
+                status = "APPLIED"
+            result["status"] = status
+            result["actor"] = session_actor
         return result
+    except HTTPException:
+        raise
     except Exception as exc:
         return {"ok": False, "reason": str(exc)}
+
+
+@app.get("/api/control/{control_id}")
+def get_control_status(control_id: int):
+    from core.trading_safety import TradingStore
+    try:
+        store = TradingStore()
+        ctrl = store.get_operator_control(int(control_id))
+        if not ctrl:
+            raise HTTPException(status_code=404, detail=f"Control {control_id} not found")
+        status = ctrl["status"]
+        if ctrl.get("action") == "killswitch" and status == "REQUESTED" and store.is_kill_switch_active():
+            status = "ACKNOWLEDGED"
+        return {
+            "ok": True,
+            "control_id": ctrl["id"],
+            "action": ctrl["action"],
+            "actor": ctrl["actor"],
+            "source": ctrl["source"],
+            "status": status,
+            "issued_at": ctrl["issued_at"],
+            "acked_at": ctrl["acked_at"],
+            "applied_at": ctrl["applied_at"],
+            "result": ctrl.get("result", {}),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.get("/api/latch/status")

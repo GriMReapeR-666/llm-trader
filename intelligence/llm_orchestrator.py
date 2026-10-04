@@ -839,6 +839,9 @@ class LLMOrchestrator:
                 paper_broker=getattr(self, "paper_broker", None),
                 arbiter=getattr(self, "arbiter", None),
             )
+            from core.order_gateway import get_default_gateway
+            self.order_gateway = get_default_gateway()
+            self.owned_magics = {460001}
         except Exception as _gw_exc:
             logger.warning("OrderGateway default configuration failed (fail-closed on first order): %s", _gw_exc)
 
@@ -7434,10 +7437,29 @@ class LLMOrchestrator:
         log.info(f"DEBUG: execute_cycle called with display_instance={display_instance}")
         start_time = time.time()
 
-        # --- autonomy gate + lifecycle telemetry (supervisor kernel) ---
+        # --- autonomy gate (fails closed) ---
+        from operations.autonomy import get_autonomy as _get_autonomy
+        try:
+            _autonomy = _get_autonomy()
+            if hasattr(self, "store") and self.store is not None:
+                if getattr(_autonomy, "store", None) is None:
+                    _autonomy.attach_store(self.store)
+            _allowed, _why = _autonomy.trading_allowed()
+        except Exception as exc:
+            logging.getLogger("LLMOrchestrator").warning("Autonomy gate failed closed to HOLD: %s", exc)
+            return {"action": "HOLD", "reasoning": f"autonomy gate error: {exc}"}, 0.0
+
+        if not _allowed:
+            from operations.event_bridge import emit as _emit
+            try:
+                _emit("CYCLE_SKIPPED_AUTONOMY", {"symbol": symbol, "strategy": strategy, "reason": _why})
+            except Exception:
+                pass
+            return {"action": "HOLD", "reasoning": f"autonomy gate: {_why}"}, 0.0
+
+        # --- lifecycle telemetry (supervisor kernel) ---
         try:
             from operations.event_bridge import emit as _emit
-            from operations.autonomy import get_autonomy as _get_autonomy
             from operations.supervisor import get_supervisor as _get_supervisor
 
             _supervisor = _get_supervisor()
@@ -7445,18 +7467,6 @@ class LLMOrchestrator:
 
             # Ψ Guardian heartbeat: signal Γ is alive so Ψ doesn't trip on timeout
             self._guardian_progress("cycle_start")
-
-            _autonomy = _get_autonomy()
-            for _ctl in _autonomy.drain_controls():
-                _emit("CONTROL_EXECUTED", {
-                    "action": _ctl.get("action"),
-                    "actor": _ctl.get("actor"),
-                    "source": _ctl.get("source"),
-                })
-            _allowed, _why = _autonomy.trading_allowed()
-            if not _allowed:
-                _emit("CYCLE_SKIPPED_AUTONOMY", {"symbol": symbol, "strategy": strategy, "reason": _why})
-                return {"action": "HOLD", "reasoning": f"autonomy gate: {_why}"}, 0.0
 
             try:
                 from operations.metrics_exporter import write_metrics

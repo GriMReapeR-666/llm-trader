@@ -78,6 +78,42 @@ class AutonomyManager(StoreBackedState):
         if store is not None:
             self.attach_store(store)
 
+    def attach_store(self, store: Any) -> Dict[str, Any]:
+        report = super().attach_store(store)
+        self._retire_control_plane_file()
+        return report
+
+    def _retire_control_plane_file(self) -> None:
+        if not getattr(self, "control_file", None) or not os.path.exists(self.control_file):
+            return
+        if getattr(self, "store", None) is None:
+            return
+        try:
+            with open(self.control_file, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not rec.get("consumed"):
+                        cid = self.store.create_operator_control(
+                            action=rec.get("action", "unknown"),
+                            actor=rec.get("actor", "operator"),
+                            source=rec.get("source", "retired_control_plane"),
+                        )
+                        self.store.complete_operator_control(
+                            cid,
+                            "EXPIRED",
+                            {"error": "imported from retired control_plane.jsonl as EXPIRED"},
+                        )
+            retired_name = self.control_file + ".retired"
+            os.replace(self.control_file, retired_name)
+        except Exception as exc:
+            logger.warning("Retiring control_plane.jsonl failed: %s", exc)
+
     # ---------- persistence ----------
     def _load(self) -> None:
         try:
@@ -106,6 +142,7 @@ class AutonomyManager(StoreBackedState):
     # ---------- levels ----------
     def snapshot(self) -> AutonomySnapshot:
         with self._lock:
+            self._load()
             return AutonomySnapshot(
                 level=self._state["level"],
                 halted=self._state["halted"],
@@ -175,14 +212,20 @@ class AutonomyManager(StoreBackedState):
             self._state["paused"] = False
             self._state["pause_reason"] = ""
             self._record_locked("RESUME", {"actor": actor})
+            if getattr(self, "store", None) is not None:
+                try:
+                    self.store.set_autonomy_paused(False, actor=actor)
+                except Exception:
+                    pass
             self._persist_locked()
 
     def trading_allowed(self) -> tuple[bool, str]:
         with self._lock:
-            if self._state["halted"]:
-                return False, self._state["halt_reason"] or "kill switch engaged"
-            if self._state["paused"]:
-                return False, self._state["pause_reason"] or "operator pause active"
+            self._load()
+            if self._state.get("halted"):
+                return False, self._state.get("halt_reason") or "kill switch engaged"
+            if self._state.get("paused"):
+                return False, self._state.get("pause_reason") or "operator pause active"
             return True, ""
 
     # ---------- circuits ----------
@@ -228,52 +271,109 @@ class AutonomyManager(StoreBackedState):
         return trips
 
     # ---------- operator control plane ----------
-    def issue_control(self, action: str, actor: str = "operator", source: str = "api") -> Dict[str, Any]:
+    def issue_control(
+        self,
+        action: str,
+        actor: str = "operator",
+        source: str = "api",
+        idempotency_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
         action = action.lower().strip()
         if action not in CONTROL_ACTIONS:
             return {"ok": False, "reason": f"unsupported action {action}"}
-        record = {"ts": time.time(), "action": action, "actor": actor, "source": source, "consumed": False}
         with self._lock:
-            with open(self.control_file, "a", encoding="utf-8") as fh:
-                fh.write(json.dumps(record) + "\n")
-            self._record_locked("CONTROL_ISSUED", {"action": action, "actor": actor, "source": source})
+            control_id = None
+            if self.store is not None and hasattr(self.store, "create_operator_control"):
+                try:
+                    control_id = self.store.create_operator_control(
+                        action=action,
+                        actor=actor,
+                        source=source,
+                        idempotency_key=idempotency_key,
+                    )
+                except Exception as exc:
+                    logger.warning("Failed to insert into operator_controls: %s", exc)
+
+            self._record_locked("CONTROL_ISSUED", {"action": action, "actor": actor, "source": source, "control_id": control_id})
+
             if action == "pause":
                 self._state["paused"] = True
                 self._state["pause_reason"] = f"operator:{actor}"
+                if self.store is not None and hasattr(self.store, "set_autonomy_paused"):
+                    try:
+                        self.store.set_autonomy_paused(True, actor=actor, reason=f"operator:{actor}")
+                    except Exception:
+                        pass
                 self._persist_locked()
-            elif action in ("flatten", "killswitch"):
-                self._record_locked("CONTROL_ACK_QUEUED", {"action": action})
-        return {"ok": True, "action": action}
+                if control_id is not None and hasattr(self.store, "complete_operator_control"):
+                    self.store.complete_operator_control(control_id, "APPLIED", {"action": "pause", "paused": True})
+            elif action == "resume":
+                self._state["paused"] = False
+                self._state["pause_reason"] = ""
+                self._state["halted"] = False
+                self._state["halt_reason"] = ""
+                if self.store is not None and hasattr(self.store, "set_autonomy_paused"):
+                    try:
+                        self.store.set_autonomy_paused(False, actor=actor)
+                    except Exception:
+                        pass
+                self._persist_locked()
+                if control_id is not None and hasattr(self.store, "complete_operator_control"):
+                    self.store.complete_operator_control(control_id, "APPLIED", {"action": "resume", "paused": False})
+            elif action == "killswitch":
+                if self.store is not None and hasattr(self.store, "set_kill_switch"):
+                    try:
+                        self.store.set_kill_switch(True, f"operator:{actor}")
+                    except Exception:
+                        pass
+                self._record_locked("CONTROL_ACK_QUEUED", {"action": action, "control_id": control_id})
+            elif action == "killswitch_off":
+                if self.store is not None and hasattr(self.store, "set_kill_switch"):
+                    try:
+                        self.store.set_kill_switch(False, f"operator:{actor}")
+                    except Exception:
+                        pass
+                if control_id is not None and hasattr(self.store, "complete_operator_control"):
+                    self.store.complete_operator_control(control_id, "APPLIED", {"action": "killswitch_off"})
+            elif action == "flatten":
+                self._record_locked("CONTROL_ACK_QUEUED", {"action": action, "control_id": control_id})
+
+            res = {"ok": True, "action": action}
+            if control_id is not None:
+                res["control_id"] = control_id
+            return res
 
     def drain_controls(self) -> List[Dict[str, Any]]:
-        pending: List[Dict[str, Any]] = []
-        if not os.path.exists(self.control_file):
-            return pending
-        kept: List[Dict[str, Any]] = []
         with self._lock:
-            try:
-                with open(self.control_file, "r", encoding="utf-8") as fh:
-                    for line in fh:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            rec = json.loads(line)
-                        except json.JSONDecodeError:
-                            continue
-                        if rec.get("consumed"):
+            if self.store is not None and hasattr(self.store, "claim_pending_operator_controls"):
+                return self.store.claim_pending_operator_controls()
+            if self.control_file and os.path.exists(self.control_file):
+                pending: List[Dict[str, Any]] = []
+                kept: List[Dict[str, Any]] = []
+                try:
+                    with open(self.control_file, "r", encoding="utf-8") as fh:
+                        for line in fh:
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                rec = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
+                            if rec.get("consumed"):
+                                kept.append(rec)
+                                continue
+                            rec["consumed"] = True
                             kept.append(rec)
-                            continue
-                        rec["consumed"] = True
-                        kept.append(rec)
-                        pending.append(rec)
-                safe_atomic_write_lines(self.control_file, [json.dumps(rec) for rec in kept[-500:]])
-            except Exception as exc:
-                logger.error("drain_controls failed: %s", exc)
-        for rec in pending:
-            if rec.get("action") == "resume":
-                self.resume(str(rec.get("actor", "operator")))
-        return pending
+                            pending.append(rec)
+                    safe_atomic_write_lines(self.control_file, [json.dumps(rec) for rec in kept[-500:]])
+                except Exception as exc:
+                    logger.error("drain_controls failed: %s", exc)
+                for rec in pending:
+                    if rec.get("action") == "resume":
+                        self.resume(str(rec.get("actor", "operator")))
+                return pending
+            return []
 
 
 _default_manager: Optional[AutonomyManager] = None

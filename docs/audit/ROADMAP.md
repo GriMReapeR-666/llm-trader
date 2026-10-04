@@ -89,15 +89,15 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 ## Phase 3: Emergency stack that works
 Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [x] 🔴 `P1-C1` = `P1-M1` One import root: `pyproject.toml`, remove 88 `sys.path` inserts, add a double-import guard test. Also fixes `CC-F13` (lazy singletons without locks).
-- [ ] 🟠 `P1-C4` Implement `flatten` (through the gateway) and `killswitch` (store + cancel pending); emit `CONTROL_EXECUTED` only on success. Make the autonomy gate fail closed.
-- [ ] 🔴 `D1` The deck shows outcomes (requested → acknowledged → applied), never "executed" on HTTP 200, and never when disconnected.
+- [x] 🟠 `P1-C4` Implement `flatten` (through the gateway) and `killswitch` (store + cancel pending); emit `CONTROL_EXECUTED` only on success. Make the autonomy gate fail closed.
+- [x] 🔴 `D1` The deck shows outcomes (requested → acknowledged → applied), never "executed" on HTTP 200, and never when disconnected.
 - [x] 🔴 `EV` **The news kill-switch latch isn't enforced on the trading path** (only the shadow graph reads it). Wire it into the validator and gateway.
 - [x] 🟠 `EV` + `PI-P9` The latch trips on false alarms (33 benign vs 13 real; latched since 24 Sep). Fix the tripwire precision and count only allow-listed sources.
 - [x] 🟠 `PH3-N1` (found while planning) A missing VIX clears the news latch: `graph_nodes.py:444` defaults VIX to 18 (calm).
 - [x] 🟠 `PH3-N2` (found while planning) Nothing can clear the news latch in live: the only caller of `apply_market_data` is the shadow graph. Add an operator clear and a market-data clear on the main path **before** enforcing the latch.
 - [x] 🟠 `CC-F5` The latch copies tear the state file. `TS-P6`: a corrupt checkpoint must load as **latched**.
-- [ ] 🟠 `PH3-N3` (found while planning) The API emits `CONTROL_EXECUTED` for a merely queued control and takes `actor` from the request body (`gui_api.py:1872-1877`).
-- [ ] 🟠 `CC-F7` Cross-process operator controls are lost (1,826/2,000). Move controls into the journal with compare-and-set.
+- [x] 🟠 `PH3-N3` (found while planning) The API emits `CONTROL_EXECUTED` for a merely queued control and takes `actor` from the request body (`gui_api.py:1872-1877`).
+- [x] 🟠 `CC-F7` Cross-process operator controls are lost (1,826/2,000). Move controls into the journal with compare-and-set.
 - [ ] 🟠 `CC-F4` The SIGTERM handler deadlocks or is swallowed. Handlers should only set a flag.
 - [ ] 🟠 `CC-F9` The single-instance engine guard is check-then-act (use an OS file lock).
 - [ ] ⚪ `CC-F14` Shutdown ordering (daemon threads killed mid-write).

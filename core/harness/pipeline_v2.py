@@ -951,9 +951,17 @@ def install_orchestrator_entrypoint() -> None:
             log = logging.getLogger("LLMOrchestrator")
             try:
                 from operations.autonomy import get_autonomy
-                level = get_autonomy().snapshot().level
-            except Exception:
-                level = "L1_PAPER"
+                _aut = get_autonomy()
+                if hasattr(self, "store") and self.store is not None:
+                    if getattr(_aut, "store", None) is None:
+                        _aut.attach_store(self.store)
+                allowed, why = _aut.trading_allowed()
+                level = _aut.snapshot().level
+                if not allowed:
+                    return {"action": "HOLD", "reasoning": f"autonomy gate: {why}"}, 0.0
+            except Exception as exc:
+                log.warning("pipeline_v2 autonomy gate failed closed to HOLD: %s", exc)
+                return {"action": "HOLD", "reasoning": f"autonomy gate error: {exc}"}, 0.0
 
             heat_used_r = heat_cap_r = None
             try:

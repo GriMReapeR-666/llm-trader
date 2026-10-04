@@ -1351,6 +1351,97 @@ def _acknowledge_stop_file() -> str:
     return reason
 
 
+def _drain_operator_controls(orch: Any) -> None:
+    """Drain and execute pending operator controls from the journal.
+
+    Drains once per pulse and inside sleep loops so emergency flatten and
+    kill switch actions are acknowledged and applied within ~1s.
+    """
+    if orch is None:
+        return
+    store = getattr(orch, "store", None)
+    if store is None or not hasattr(store, "claim_pending_operator_controls"):
+        return
+    try:
+        pending = store.claim_pending_operator_controls()
+    except Exception as exc:
+        logging.getLogger("main").warning("Failed to claim pending operator controls: %s", exc)
+        return
+
+    for ctrl in pending:
+        cid = ctrl.get("id")
+        action = str(ctrl.get("action", "")).lower().strip()
+        actor = str(ctrl.get("actor", "operator"))
+        try:
+            if action == "flatten":
+                if hasattr(store, "set_kill_switch"):
+                    store.set_kill_switch(True, f"operator:{actor}")
+                gw = getattr(orch, "order_gateway", None)
+                if gw is None:
+                    from core.order_gateway import get_default_gateway
+                    gw = get_default_gateway()
+                owned_magics = getattr(orch, "owned_magics", None) or {460001}
+                mt5_client = getattr(orch, "client", None)
+                outcome = gw.execute_flatten(owned_magics=owned_magics, mt5_client=mt5_client)
+                outcome_dict = outcome.to_dict() if hasattr(outcome, "to_dict") else {
+                    "closed": getattr(outcome, "closed", len(outcome)),
+                    "cancelled": getattr(outcome, "cancelled", 0),
+                    "failed": getattr(outcome, "failed", 0),
+                    "remaining": getattr(outcome, "remaining", 0),
+                    "sweeps": getattr(outcome, "sweeps", 1),
+                }
+                store.complete_operator_control(cid, "APPLIED", outcome_dict)
+                logging.getLogger("main").warning(
+                    "FLATTEN applied by operator:%s: closed=%s cancelled=%s failed=%s remaining=%s sweeps=%s",
+                    actor, outcome_dict.get("closed"), outcome_dict.get("cancelled"),
+                    outcome_dict.get("failed"), outcome_dict.get("remaining"), outcome_dict.get("sweeps")
+                )
+
+            elif action == "killswitch":
+                if hasattr(store, "set_kill_switch"):
+                    store.set_kill_switch(True, f"operator:{actor}")
+                gw = getattr(orch, "order_gateway", None)
+                if gw is None:
+                    from core.order_gateway import get_default_gateway
+                    gw = get_default_gateway()
+                owned_magics = getattr(orch, "owned_magics", None) or {460001}
+                mt5_client = getattr(orch, "client", None)
+                cancelled_results = gw.cancel_all_owned_pending(owned_magics=owned_magics, mt5_client=mt5_client)
+                cancelled_count = sum(1 for r in cancelled_results if getattr(r, "success", False))
+                store.complete_operator_control(cid, "APPLIED", {"cancelled": cancelled_count, "kill_switch": True})
+                logging.getLogger("main").warning(
+                    "KILLSWITCH applied by operator:%s: cancelled %d pending orders", actor, cancelled_count
+                )
+
+            elif action == "killswitch_off":
+                if hasattr(store, "set_kill_switch"):
+                    store.set_kill_switch(False, f"operator:{actor}")
+                store.complete_operator_control(cid, "APPLIED", {"kill_switch": False})
+                logging.getLogger("main").info("KILLSWITCH_OFF applied by operator:%s", actor)
+
+            elif action == "pause":
+                if hasattr(store, "set_autonomy_paused"):
+                    store.set_autonomy_paused(True, actor=actor, reason=f"operator:{actor}")
+                store.complete_operator_control(cid, "APPLIED", {"paused": True})
+                logging.getLogger("main").info("PAUSE applied by operator:%s", actor)
+
+            elif action == "resume":
+                if hasattr(store, "set_autonomy_paused"):
+                    store.set_autonomy_paused(False, actor=actor)
+                store.complete_operator_control(cid, "APPLIED", {"paused": False})
+                logging.getLogger("main").info("RESUME applied by operator:%s", actor)
+
+            else:
+                store.complete_operator_control(cid, "FAILED", {"error": f"unrecognized action: {action}"})
+
+        except Exception as exc:
+            logging.getLogger("main").exception("Error applying operator control %s (%s): %s", cid, action, exc)
+            try:
+                store.complete_operator_control(cid, "FAILED", {"error": str(exc)})
+            except Exception:
+                pass
+
+
 def main() -> None:
     """Main entry point for the MT5 LLM Trader"""
     global mt5
@@ -1672,6 +1763,12 @@ def main() -> None:
     parser_latch.add_argument("--confirm", default="", help="Type CLEAR_LATCH to confirm clear")
     parser_latch.add_argument("--actor", default="operator", help="Actor recording the clear")
     parser_latch.add_argument("--journal-path", default="trading_state.db")
+
+    parser_flatten = sub.add_parser("flatten", help="Offline flatten owned positions and cancel owned pending orders")
+    parser_flatten.add_argument("--owned", action="store_true", help="Flatten owned positions and orders only")
+    parser_flatten.add_argument("--confirm", required=True, help="Confirmation token (account login or FLATTEN)")
+    parser_flatten.add_argument("--journal-path", default="trading_state.db")
+    parser_flatten.add_argument("--paper", action="store_true", help="Flatten paper broker positions")
 
     parser_provider_circuit = sub.add_parser("provider-circuit", help="Inspect or manually reset the persistent LLM provider circuit")
     parser_provider_circuit.add_argument("action", choices=["status", "reset"])
@@ -2157,6 +2254,21 @@ def main() -> None:
             return
         # Default or --status
         print(json.dumps(latch.snapshot(), indent=2))
+        return
+
+    if args.cmd == "flatten":
+        from core.order_gateway import get_default_gateway, configure_default_gateway
+        from core.trading_safety import TradingStore
+        if not args.confirm:
+            print("Error: Confirmation required. Pass --confirm <account login or FLATTEN>")
+            return
+        store = TradingStore(args.journal_path)
+        gw_mode = "PAPER" if getattr(args, "paper", False) else "LIVE"
+        configure_default_gateway(store, mode=gw_mode)
+        gw = get_default_gateway()
+        store.set_kill_switch(True, f"offline_flatten:{args.confirm}")
+        outcome = gw.execute_flatten(owned_magics={460001} if args.owned else None)
+        print(json.dumps(outcome.to_dict(), indent=2))
         return
 
     if args.cmd == "provider-circuit":
@@ -4456,6 +4568,9 @@ def execute_skill(**kwargs):
             cycle_count = 0
             while args.continuous or cycle_count < args.loops:
 
+                # --- DRAIN OPERATOR CONTROLS (PR 3.3) ---
+                _drain_operator_controls(orch)
+
                 # --- EXTERNAL STOP FLAG (PU-0161 follow-up 4) ---
                 # Checked FIRST, before any work in the iteration: an external
                 # guard (RSS wind-down ladder, operator, scheduler) requests a
@@ -5655,6 +5770,7 @@ def execute_skill(**kwargs):
                         deadline = time.monotonic() + sleep_time
                         while time.monotonic() < deadline:
                             display.update_heartbeat()
+                            _drain_operator_controls(orch)
                             if _stop_file_requested():
                                 break
                             time.sleep(min(1.0, max(0.05, deadline - time.monotonic())))
@@ -5663,6 +5779,7 @@ def execute_skill(**kwargs):
                         # Headless path: same stop-flag poll, same ~1s bound.
                         deadline = time.monotonic() + sleep_time
                         while time.monotonic() < deadline:
+                            _drain_operator_controls(orch)
                             if _stop_file_requested():
                                 break
                             time.sleep(min(1.0, max(0.05, deadline - time.monotonic())))

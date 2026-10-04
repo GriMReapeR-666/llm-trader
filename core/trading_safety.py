@@ -323,6 +323,20 @@ class TradingStore:
             );
             CREATE INDEX IF NOT EXISTS idx_execution_reviews_status
               ON execution_reviews(status, last_detected_at);
+            CREATE TABLE IF NOT EXISTS operator_controls (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              action TEXT NOT NULL,
+              actor TEXT NOT NULL,
+              source TEXT NOT NULL,
+              issued_at TEXT NOT NULL,
+              status TEXT NOT NULL CHECK(status IN ('REQUESTED', 'ACKNOWLEDGED', 'APPLIED', 'FAILED', 'EXPIRED')),
+              acked_at TEXT,
+              applied_at TEXT,
+              result_json TEXT,
+              idempotency_key TEXT UNIQUE
+            );
+            CREATE INDEX IF NOT EXISTS idx_operator_controls_status
+              ON operator_controls(status, issued_at);
             """)
             columns = {row["name"] for row in con.execute("PRAGMA table_info(trades)").fetchall()}
             if "setup_id" not in columns:
@@ -402,6 +416,146 @@ class TradingStore:
     def is_kill_switch_active(self) -> bool:
         value = self.get_state("kill_switch", {"active": False})
         return bool(value.get("active", False)) if isinstance(value, dict) else bool(value)
+
+    def create_operator_control(
+        self,
+        action: str,
+        actor: str = "operator",
+        source: str = "command-deck",
+        idempotency_key: Optional[str] = None,
+    ) -> int:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            try:
+                if idempotency_key:
+                    existing = con.execute(
+                        "SELECT id FROM operator_controls WHERE idempotency_key = ?",
+                        (idempotency_key,),
+                    ).fetchone()
+                    if existing:
+                        con.commit()
+                        return int(existing["id"])
+                cur = con.execute(
+                    """INSERT INTO operator_controls
+                       (action, actor, source, issued_at, status, idempotency_key)
+                       VALUES (?, ?, ?, ?, 'REQUESTED', ?)""",
+                    (action, actor, source, now, idempotency_key),
+                )
+                cid = int(cur.lastrowid)
+                con.commit()
+                return cid
+            except Exception:
+                con.rollback()
+                raise
+
+    def get_operator_control(self, control_id: int) -> Optional[Dict[str, Any]]:
+        with self._connect() as con:
+            row = con.execute(
+                "SELECT * FROM operator_controls WHERE id = ?",
+                (int(control_id),),
+            ).fetchone()
+            if not row:
+                return None
+            res = dict(row)
+            if res.get("result_json"):
+                try:
+                    res["result"] = json.loads(res["result_json"])
+                except Exception:
+                    res["result"] = res["result_json"]
+            else:
+                res["result"] = {}
+            if res.get("action") == "killswitch" and res.get("status") == "REQUESTED":
+                if self.is_kill_switch_active():
+                    res["status"] = "ACKNOWLEDGED"
+            return res
+
+    def claim_pending_operator_controls(
+        self,
+        expiry_seconds: float = 60.0,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        now_dt = datetime.now(timezone.utc)
+        now_iso = now_dt.isoformat()
+        claimed: List[Dict[str, Any]] = []
+        with self._connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            try:
+                # 1. Expire stale requested controls
+                cutoff = (now_dt - timedelta(seconds=expiry_seconds)).isoformat()
+                con.execute(
+                    """UPDATE operator_controls
+                       SET status = 'EXPIRED',
+                           result_json = '{"error": "engine offline: not acknowledged within expiry window"}'
+                       WHERE status = 'REQUESTED' AND issued_at < ?""",
+                    (cutoff,),
+                )
+                # 2. Select pending requested controls
+                query = """SELECT id, action, actor, source, issued_at, idempotency_key
+                           FROM operator_controls
+                           WHERE status = 'REQUESTED'
+                           ORDER BY id ASC"""
+                params: tuple = ()
+                if limit is not None:
+                    query += " LIMIT ?"
+                    params = (int(limit),)
+                rows = con.execute(query, params).fetchall()
+                # 3. Compare-and-set claim each
+                for row in rows:
+                    cid = int(row["id"])
+                    cur = con.execute(
+                        """UPDATE operator_controls
+                           SET status = 'ACKNOWLEDGED', acked_at = ?
+                           WHERE id = ? AND status = 'REQUESTED'""",
+                        (now_iso, cid),
+                    )
+                    if cur.rowcount == 1:
+                        ctrl = dict(row)
+                        ctrl["status"] = "ACKNOWLEDGED"
+                        ctrl["acked_at"] = now_iso
+                        claimed.append(ctrl)
+                con.commit()
+                return claimed
+            except Exception:
+                con.rollback()
+                raise
+
+    def complete_operator_control(
+        self,
+        control_id: int,
+        status: str,
+        result: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        res_json = json.dumps(result or {})
+        with self._connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            try:
+                con.execute(
+                    """UPDATE operator_controls
+                       SET status = ?, applied_at = ?, result_json = ?
+                       WHERE id = ?""",
+                    (status, now_iso, res_json, int(control_id)),
+                )
+                con.commit()
+            except Exception:
+                con.rollback()
+                raise
+
+    def set_autonomy_paused(self, paused: bool, actor: str = "operator", reason: str = "") -> None:
+        self.update_state(
+            "autonomy_state",
+            lambda curr: {
+                **(curr or {"level": "L1_PAPER", "halted": False, "halt_reason": "", "history": []}),
+                "paused": bool(paused),
+                "pause_reason": reason or (f"operator:{actor}" if paused else ""),
+            },
+            default={"level": "L1_PAPER", "halted": False, "halt_reason": "", "paused": bool(paused), "pause_reason": reason or (f"operator:{actor}" if paused else ""), "history": []},
+        )
+
+    def is_autonomy_paused(self) -> bool:
+        st = self.get_state("autonomy_state", {})
+        return bool(st.get("paused", False)) if isinstance(st, dict) else False
 
     def log_proposal(self, proposal: TradeProposal, result: ValidationResult) -> None:
         # Preserve the model hypothesis before recording the deterministic
