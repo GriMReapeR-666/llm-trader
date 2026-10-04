@@ -138,8 +138,14 @@ def test_journaling_and_reflection(sample_bars, temp_db):
     )
     assert isinstance(refl_res, dict)
     assert "health_audit" in refl_res
-    assert "drawdown_analysis" in refl_res
-    assert refl_res["playbook_updated"] is True
+    assert refl_res["playbook_updated"] is False
+
+    # Verify that case_study_memories and playbooks tables were NOT written per PR 2.4
+    con = sqlite3.connect(temp_db)
+    tables = {row[0] for row in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    assert "case_study_memories" not in tables
+    assert "playbooks" not in tables
+    con.close()
 
 
 def test_run_full_autonomous_backtest(temp_db):
