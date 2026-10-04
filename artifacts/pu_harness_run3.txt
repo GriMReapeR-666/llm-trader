@@ -1,0 +1,13 @@
+=== S1: DECK compact on, probe RED ===
+[S1] rc=1
+=== S2: DECK compact on, probe GREEN ===
+[S2] rc=0
+=== S3: DECK compact unset ===
+[S3] rc=0
+=== S4: TRADING compact on, probe RED ===
+[trace] before TRADING call
+[trace] after TRADING call, rc=1
+[S4] rc=1
+=== S5: TRADING compact on, probe GREEN ===
+exit=1
+END-MARKER-PU-0134

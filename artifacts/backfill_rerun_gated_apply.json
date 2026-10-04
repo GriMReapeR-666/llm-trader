@@ -1,0 +1,36 @@
+{
+  "symbol": "EURUSD",
+  "apply": true,
+  "tick_observations": 18117,
+  "tick_span": [
+    "2026-08-27T11:17:13.476204+00:00",
+    "2026-09-25T23:57:10.765010+00:00"
+  ],
+  "releases_scanned": 141,
+  "releases_eligible": 0,
+  "macro_events_recorded": 0,
+  "macro_events_already_gated": 41,
+  "sources_ingested": 0,
+  "trackers_scheduled": 0,
+  "trackers_gated_invalid": 0,
+  "anchors_skipped_no_tick": 0,
+  "anchors_skipped_stale": 52,
+  "reactions_completed": 0,
+  "trackers_still_tracking": 0,
+  "windows_unmeasured": 0,
+  "skipped_series": {
+    "zero_change:FEDFUNDS": 2,
+    "zero_change:UNRATE": 1,
+    "zero_change:DFF": 12,
+    "unmapped_series:VIXCLS": 10,
+    "zero_change:DFEDTARU": 13,
+    "zero_change:T10Y2Y": 3,
+    "zero_change:DFII10": 1,
+    "zero_change:T10Y3M": 1,
+    "zero_change:DGS2": 1,
+    "zero_change:BAA10Y": 2,
+    "zero_change:DGS10": 1,
+    "zero_change:DGS30": 1
+  },
+  "execution_authority": false
+}

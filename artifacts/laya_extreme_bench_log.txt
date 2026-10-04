@@ -1,0 +1,25 @@
+2026-09-23 00:39:34,945 [INFO] Loaded Laya model from C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\models\laya in 16067.9 ms
+2026-09-23 00:39:35,174 [INFO] Running Test Suite 1: Latency & Jitter Microbenchmark (25 iterations)...
+2026-09-23 00:40:47,713 [INFO] Running Test Suite 2: High-Density Multi-Question Parallel Forward Pass (6 Questions)...
+2026-09-23 00:41:21,532 [INFO] Running Test Suite 3: 12 Extreme Macro-Fundamental Scenarios...
+2026-09-23 00:43:04,724 [INFO] Running Test Suite 4: Memory Leak & Commit Stability Audit (30 rounds)...
+================================================================================
+      LAYA MODEL (ModernBERT-421M) EXTREME STRESS & CALIBRATION BENCHMARK
+================================================================================
+
+================================================================================
+                         BENCHMARK RESULTS SUMMARY
+================================================================================
+Total Benchmark Execution Time : 259.35 seconds
+P50 Median Latency             : 2773.47 ms
+P95 Latency                    : 2950.83 ms
+P99 Latency                    : 2962.23 ms
+Jitter StdDev                  : ±101.3 ms
+Throughput                     : 0.36 decisions/second
+Zero Output Tokens Guarantee   : 100.0%
+Multi-Question (6Q) Latency    : 33818.82 ms (all 6 evaluated in 1 pass)
+Macro Decision Accuracy        : 52.2% (12/23)
+Mean Calibration Entropy       : 0.7355
+Memory Leak Delta (30 queries) : 1.55 MB (Leak Free: True)
+Report exported to             : C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\artifacts\laya_extreme_benchmark_report.json
+================================================================================

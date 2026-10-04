@@ -1,0 +1,21 @@
+{
+  "symbol": "USDJPY",
+  "rewards": {
+    "qlearn": 0,
+    "ppo": -0.4,
+    "meta": 0,
+    "grpo": 0
+  },
+  "oos": {
+    "sharpe": -0.73,
+    "win_rate": 0.486,
+    "profit_factor": 0.906,
+    "wfe": -72961866.733
+  },
+  "scenarios": {
+    "passed": 18,
+    "total": 19
+  },
+  "gate_passed": false,
+  "duration": 0.2
+}

@@ -1,0 +1,78 @@
+{
+  "bull_trend": {
+    "passed": true,
+    "trades": 48
+  },
+  "bear_trend": {
+    "passed": true,
+    "trades": 50
+  },
+  "sideways_range": {
+    "passed": true,
+    "trades": 29
+  },
+  "low_vol_grind": {
+    "passed": true,
+    "trades": 26
+  },
+  "volatility_spike": {
+    "passed": true,
+    "trades": 91
+  },
+  "flash_crash": {
+    "passed": true,
+    "trades": 56
+  },
+  "flash_pump": {
+    "passed": true,
+    "trades": 62
+  },
+  "liquidity_drought": {
+    "passed": true,
+    "trades": 42
+  },
+  "correlation_breakdown": {
+    "passed": true,
+    "trades": 69
+  },
+  "regime_transition": {
+    "passed": true,
+    "trades": 68
+  },
+  "gap_up_news": {
+    "passed": true,
+    "trades": 31
+  },
+  "gap_down_news": {
+    "passed": false,
+    "trades": 31
+  },
+  "whipsaw_range": {
+    "passed": true,
+    "trades": 30
+  },
+  "mean_reversion_extreme": {
+    "passed": true,
+    "trades": 79
+  },
+  "trend_exhaustion": {
+    "passed": true,
+    "trades": 45
+  },
+  "false_breakout": {
+    "passed": true,
+    "trades": 32
+  },
+  "black_swan_crash": {
+    "passed": true,
+    "trades": 55
+  },
+  "black_swan_spike": {
+    "passed": true,
+    "trades": 50
+  },
+  "slow_bleed": {
+    "passed": true,
+    "trades": 86
+  }
+}

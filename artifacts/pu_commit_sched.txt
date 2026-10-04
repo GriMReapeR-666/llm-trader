@@ -1,0 +1,8 @@
+[feat/ui-pipeline-compact-tabs cb1e933] feat(scheduler): add self-verification smoke suite for schedules, journal, autonomy
+ 4 files changed, 747 insertions(+)
+ create mode 100644 artifacts/scheduler_smoke_report.json
+ create mode 100644 artifacts/scheduler_smoke_report.txt
+ create mode 100644 scripts/scheduler_smoke.py
+ create mode 100644 tests/test_scheduler_smoke.py
+exit=0
+END-MARKER-PU-0114

@@ -1,0 +1,25 @@
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_ensemble.py:375: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+Loading 100000 real MT5 bars: EURUSD M15 ...
+========================================================================================
+  PARAMETER STABILITY SURFACE - trend_quantile x min_edge_multiple
+  data: mt5:EURUSD:M15
+========================================================================================
+ tq \ me |        0.5 |        1.0 |        1.5 |        2.0 |        3.0 |
+---------------------------------------------------------------------------
+     0.3 |     0.35.|     0.36.|     0.20.|     0.27|     0.00|
+     0.4 |     0.35.|     0.36.|     0.18.|     0.27|     0.00|
+     0.5 |     0.36.|     0.43.|     0.29*.|     0.27|     0.00|
+     0.6 |     0.45.|     0.46.|     0.16.|     0.27|     0.00|
+     0.7 |     0.41.|     0.46.|     0.48|    99.00|     0.00|
+
+  cell = profit factor  (* = default operating point)
+  + = profitable (>=10 trades)   . = unprofitable   blank = unmeasurable
+
+CENTER (tq=0.5, me=1.5): trades=13 ret=-0.02% pf=0.29 win=38.5%
+profitable cells: 0/14 measurable  (share=0%)
+
+VERDICT: FLAT DEAD - unprofitable across the surface; no edge at this entry rule, honestly
+========================================================================================
+
+JSON saved: artifacts/param_stability_sweep_eurusd_m15_4y.json

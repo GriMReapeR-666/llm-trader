@@ -1,0 +1,13 @@
+
+[PASS] pytest suite: OK (20.5s, exit=0)
+[PASS]   pytest: 158 passed
+[PASS] E2E validation battery: OK (33.6s, exit=0)
+[PASS]   E2E: GREEN — 38 pass / 0 fail
+[PASS] transcribe-stage probe: OK (0.5s, exit=0)
+[PASS]   transcribe probe: GREEN — 17 pass / 0 fail
+[PASS] download-stage probe: OK (0.3s, exit=0)
+[PASS]   download probe: GREEN — 12 pass / 0 fail
+
+Verdict: GREEN
+Report: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\artifacts\qkf_smoke_report.txt
+END-MARKER-PU-0085

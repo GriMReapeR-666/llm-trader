@@ -1,0 +1,566 @@
+2026-09-18 14:47:38,397 INFO MT5Client:  Using Account: DEMO - 5055089321
+2026-09-18 14:47:38,899 INFO MT5Client: Trying default MT5 initialization...
+2026-09-18 14:47:38,982 INFO MT5Client:  Connected to MetaTrader 5 (MetaQuotes Ltd.)
+2026-09-18 14:47:38,983 INFO MT5Client:  Auto-trading is ENABLED
+2026-09-18 14:47:38,983 INFO MT5Client: === Account Info ===
+2026-09-18 14:47:38,983 INFO MT5Client: Login: 5055089321
+2026-09-18 14:47:38,983 INFO MT5Client: Server: MetaQuotes-Demo
+2026-09-18 14:47:38,983 INFO MT5Client: Balance: 100000.0
+2026-09-18 14:47:38,984 INFO MT5Client: Equity: 100000.0
+2026-09-18 14:47:38,984 INFO MT5Client: Company: MetaQuotes Ltd.
+2026-09-18 14:47:38,984 INFO MT5Client: Name: Llm trader  antigravity Graph ai
+2026-09-18 14:47:38,984 INFO MT5Client: =====================
+2026-09-18 14:47:39,262 INFO MT5Client: Broker preflight captured for XAUUSD; specification changed=False
+ Single symbol mode: XAUUSD
+2026-09-18 14:47:40,069 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-18 14:47:40,406 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-18 14:47:40,753 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-18 14:47:42,521 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-18 14:47:42,521 INFO main: LLM Router initialized: 4 providers, 3 agents
+2026-09-18 14:47:42,589 INFO core.harness.plugins: RiskManagementPlugin initialized with balance 10000.00, max risk 1.00%
+2026-09-18 14:47:42,589 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'risk_management' (v1.0.0)
+2026-09-18 14:47:42,597 INFO core.harness.plugins: TradingMemoryPlugin mounted on database 'trading_state.db'
+2026-09-18 14:47:42,598 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'trading_memory' (v1.0.0)
+2026-09-18 14:47:42,609 INFO TradeManager: Loaded active conditions for 2 symbols
+2026-09-18 14:47:42,609 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-18 14:47:42,609 INFO core.harness.plugins: BrokerPlugin mounted (mode=PAPER)
+2026-09-18 14:47:42,609 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'broker' (v1.0.0)
+2026-09-18 14:47:42,610 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-18 14:47:42,610 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-18 14:47:42,610 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-18 14:47:42,610 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-18 14:47:42,610 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-18 14:47:42,610 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-18 14:47:42,610 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-18 14:47:42,644 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-18 14:47:42,644 INFO core.harness.plugins: DataHubPlugin mounted (market_data=yes + FRED/COT/news/OpenBB).
+2026-09-18 14:47:42,644 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'data_hub' (v1.0.0)
+2026-09-18 14:47:42,646 INFO core.harness.plugins: CausalIntelligencePlugin mounted with 134 macro dynamic nodes.
+2026-09-18 14:47:42,646 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'causal_intelligence' (v1.0.0)
+2026-09-18 14:47:42,657 INFO core.harness.plugins: AnalyticalFrameworksPlugin mounted (Modules 01-07 Foresight, Spreads & Signals).
+2026-09-18 14:47:42,657 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'analytical_frameworks' (v1.0.0)
+2026-09-18 14:47:42,664 INFO core.harness.plugins: KronosIntelligencePlugin mounted (Signal Calibration, Synthetic Jumps & CPCV).
+2026-09-18 14:47:42,664 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'kronos_intelligence' (v1.0.0)
+2026-09-18 14:47:42,668 INFO core.harness.plugins: ExecutionSafetyPlugin mounted.
+2026-09-18 14:47:42,669 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'execution_safety' (v1.0.0)
+2026-09-18 14:47:42,671 INFO core.harness.plugins: CointegrationGovernancePlugin mounted.
+2026-09-18 14:47:42,671 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'cointegration_governance' (v1.0.0)
+2026-09-18 14:47:42,688 INFO core.harness.plugins: SkillsPlugin mounted with 35 standard skills.
+2026-09-18 14:47:42,688 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'skills' (v1.0.0)
+2026-09-18 14:47:42,690 INFO core.harness.plugins: JournalAuditPlugin mounted for database 'trading_state.db'.
+2026-09-18 14:47:42,691 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'journal_audit' (v1.0.0)
+2026-09-18 14:47:42,691 INFO core.harness.plugins: QuantWorkflowsPlugin mounted with 7 trading workflows.
+2026-09-18 14:47:42,691 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'quant_workflows' (v1.0.0)
+2026-09-18 14:47:42,695 INFO core.harness.plugins: MacroEventAlphaPlugin mounted with leading indicators, ESI & 3-phase execution.
+2026-09-18 14:47:42,695 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'macro_event_alpha' (v1.0.0)
+2026-09-18 14:47:42,699 INFO core.harness.extracted_module_plugins: ExtractedMetricsPlugin mounted — 14 metric functions available.
+2026-09-18 14:47:42,706 INFO core.harness.extracted_module_plugins: ExtractedValidationPlugin mounted — CPCV, MC shuffle, stress, jitter available.
+2026-09-18 14:47:42,726 INFO core.harness.extracted_module_plugins: ExtractedAlphaSourcePlugin mounted — alpha discovery, ensemble, decay, rotation available.
+2026-09-18 14:47:42,734 INFO core.harness.extracted_module_plugins: ExtractedRegimePlugin mounted — HMM/Hurst regime + allocation matrix wired.
+2026-09-18 14:47:42,738 INFO core.harness.extracted_module_plugins: ExtractedNewsPlugin mounted — ESI, Delta, phase detection, NFP/CPI weights available.
+2026-09-18 14:47:42,738 INFO core.harness.extracted_module_plugins: ExtractedRiskPlugin mounted — 3-layer risk, 1R sizing, vol targeting, heat management.
+2026-09-18 14:47:42,754 INFO core.harness.extracted_module_plugins: ExtractedAutonomousPlugin mounted — constitution, trust levels, seasons, drift detection.
+2026-09-18 14:47:42,755 INFO core.harness.extracted_module_plugins: ExtractedAltDataPlugin mounted — gold FV, vol regime, carry, synthetic index available.
+2026-09-18 14:47:42,771 INFO core.harness.extracted_module_plugins: ExtractedResearchPlugin mounted — FactorMiner, AQuA, MARS configs + challenge mapping.
+2026-09-18 14:47:42,771 INFO core.harness.extracted_module_plugins: ExtractedModulesPlugin mounted 9/9 adapters: ['extracted_metrics', 'extracted_validation', 'extracted_alpha_source', 'extracted_regime', 'extracted_news', 'extracted_risk', 'extracted_autonomous', 'extracted_alt_data', 'extracted_research']
+2026-09-18 14:47:42,771 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'extracted_modules' (v1.0.0)
+2026-09-18 14:47:42,807 INFO core.harness.quant_models_plugins: RetailQuantBundlePlugin mounted (12 modules).
+2026-09-18 14:47:42,807 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'retail_quant_bundle' (v1.0.0)
+2026-09-18 14:47:44,086 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-18 14:47:44,439 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-18 14:47:44,777 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-18 14:47:46,498 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-18 14:47:46,517 INFO RiskManager: 🔁 Daily Limits Reset. Start Equity: $100000.00
+2026-09-18 14:47:46,563 INFO core.harness.plugins: DeliberativeGraphPlugin compiled and mounted.
+2026-09-18 14:47:46,563 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'deliberative_graph' (v1.0.0)
+2026-09-18 14:47:46,567 INFO core.harness.live_trading_plugin: LiveTradingPlugin mounted (paper=True) — loop factory, sandbox, live advisories via TradingContext
+2026-09-18 14:47:46,568 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'live_trading' (v1.0.0)
+2026-09-18 14:47:46,568 INFO core.harness.quant_models_plugins: Profile 'paper' mounted with 17 plugins into context 'paper_ctx'.
+2026-09-18 14:47:46,572 INFO operations.event_bridge: event_bridge initialized (db=trading_state.db)
+2026-09-18 14:47:46,572 INFO main: Event bridge initialized for engine process
+2026-09-18 14:47:46,572 INFO main: Profile 'paper' mounted via TradingContext — 71 services, 17 plugins
+2026-09-18 14:47:46,596 INFO PrometheusExporter: Prometheus exporter started on 0.0.0.0:9090
+2026-09-18 14:47:46,596 INFO main: Prometheus metrics exporter started on port 9090
+2026-09-18 14:47:46,599 INFO main: Memory Orchestrator initialized (L0-L3 hierarchy)
+2026-09-18 14:47:46,601 INFO main: Knowledge Retrieval initialized (macro + cases + domain)
+2026-09-18 14:47:46,601 INFO main: Meta-Improvement Orchestrator initialized
+2026-09-18 14:47:46,601 INFO main: Kronos Signal Fusion initialized (multi-horizon)
+2026-09-18 14:47:46,602 INFO main: Advanced RL Pipeline initialized (multi-agent)
+2026-09-18 14:47:46,603 INFO main: Improvement Pipeline initialized (auto-apply low-risk)
+2026-09-18 14:47:46,611 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-18 14:47:46,611 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-18 14:47:46,611 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-18 14:47:46,611 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-18 14:47:46,611 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-18 14:47:46,612 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-18 14:47:46,612 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-18 14:47:46,614 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-18 14:47:46,722 INFO LLMOrchestrator: Using LLM Router | agent=trader | model=mistralai/mistral-7b-instruct-v0.2
+2026-09-18 14:47:46,723 INFO RLTrainer: RL model loaded from rl_model.json (0 states, 0 updates)
+2026-09-18 14:47:52,293 INFO KronosBridge: ✅ Kronos neural backend ready (kronos-mini): loaded neural weights model=kronos-mini tokenizer=kronos-tokenizer-2k device=cpu — error cleared
+2026-09-18 14:47:52,294 INFO LLMOrchestrator: Kronos advisory enabled | backend=neural | weights_loaded=True
+2026-09-18 14:47:52,310 INFO main: LLMOrchestrator constructed via harness factory (profile=paper)
+2026-09-18 14:47:52,311 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-18 14:47:52,311 INFO main: TradeManager wired from harness context to orchestrator
+Starting LLM Trader on XAUUSD (M15)...
+Mode: DEMO
+Model: mistralai/mistral-7b-instruct-v0.2
+2026-09-18 14:47:52,316 INFO ExternalGuardian: Ψ Guardian thread started (poll_interval=2.0s)
+2026-09-18 14:47:52,317 INFO ExternalGuardian: Ψ Guardian thread spawned
+2026-09-18 14:47:52,317 INFO main: Ψ External Guardian started (hardcoded thresholds, independent of Γ)
+2026-09-18 14:47:52,389 INFO TaskQueue: Migrated 39 intervals to S.Q priority queue
+2026-09-18 14:47:52,390 INFO main: S.Q Priority Queue initialized (39 scheduled tasks)
+2026-09-18 14:47:52,390 INFO main: κ Compliance Audit started (hash-chained, append-only)
+2026-09-18 14:47:52,410 INFO CrashRecovery: Crash recovery: checking system state...
+2026-09-18 14:47:52,415 INFO CrashRecovery: Recovery: clean start (no crash detected)
+2026-09-18 14:47:52,415 INFO main: Crash recovery started (hash-chained checkpoint journal, atexit+SIGTERM hooks)
+2026-09-18 14:47:52,599 INFO MT5Client: Broker preflight captured for XAUUSD; specification changed=False
+2026-09-18 14:47:52,627 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-18 14:47:54,910 INFO APIManager: Fetched 1 FRED series
+┌──────────────────────────── 🚀 CYCLE 1/3 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: H1 | Time: 14:47:55                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 14:47:55,150 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 14:47:55,272 INFO MarketScanner: Scanning Key Markets & Wildcards...
+2026-09-18 14:48:03,867 INFO APIManager: Fetched 5 FRED series
+2026-09-18 14:48:06,523 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-18 14:48:06,550 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-18 14:48:10,218 WARNING LLMOrchestrator: schedule batch exceeded 15.0s budget; abandoning this pulse
+2026-09-18 14:48:10,252 INFO MarketData: MT5 server-timezone offset detected: +10800s (UTC+3)
+2026-09-18 14:48:11,854 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-18 14:48:15,531 INFO LLMOrchestrator: Fetching data for XAUUSD...
+2026-09-18 14:48:16,398 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-18 14:48:16,536 INFO core.signal_orthogonalizer: Signal orthogonalization: method=ols, n_alphas=17, n_factors=5, window=120
+2026-09-18 14:48:18,266 INFO core.signal_orthogonalizer: Orthogonalization complete: method=ols, factors_removed=0, mean_r2=0.0926
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_ensemble.py:362: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+2026-09-18 14:48:20,575 INFO core.signal_orthogonalizer: Signal orthogonalization: method=ols, n_alphas=17, n_factors=5, window=120
+2026-09-18 14:48:20,777 INFO core.signal_orthogonalizer: Orthogonalization complete: method=ols, factors_removed=0, mean_r2=0.0926
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_decay_monitor.py:115: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+2026-09-18 14:48:23,741 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_055 [CRITICAL]
+2026-09-18 14:48:23,785 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_017 [CRITICAL]
+2026-09-18 14:48:23,797 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DECAY_alpha_001 [WARNING]
+2026-09-18 14:48:23,804 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_009 [CRITICAL]
+2026-09-18 14:48:23,818 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DECAY_alpha_023 [WARNING]
+2026-09-18 14:48:23,833 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DEAD_alpha_028 [CRITICAL]
+2026-09-18 14:48:23,871 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_030 [CRITICAL]
+2026-09-18 14:48:23,882 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_034 [CRITICAL]
+2026-09-18 14:48:23,893 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_035 [CRITICAL]
+2026-09-18 14:48:23,933 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DEAD_alpha_036 [CRITICAL]
+2026-09-18 14:48:23,944 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_037 [CRITICAL]
+2026-09-18 14:48:23,947 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_038 [CRITICAL]
+2026-09-18 14:48:23,952 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_041 [CRITICAL]
+2026-09-18 14:48:23,966 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_043 [CRITICAL]
+2026-09-18 14:48:23,974 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_060 [CRITICAL]
+2026-09-18 14:48:23,978 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_101 [CRITICAL]
+2026-09-18 14:48:24,009 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_dead [CRITICAL]
+2026-09-18 14:48:24,012 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_reversed [CRITICAL]
+2026-09-18 14:48:24,013 INFO alpha_rotation: Alpha alpha_055 is REVERSED but no candidate available for promotion
+2026-09-18 14:48:24,013 INFO alpha_rotation: Alpha alpha_034 is REVERSED but no candidate available for promotion
+2026-09-18 14:48:24,013 INFO alpha_rotation: Alpha alpha_017 is REVERSED but no candidate available for promotion
+2026-09-18 14:48:24,013 INFO alpha_rotation: Alpha alpha_009 is REVERSED but no candidate available for promotion
+2026-09-18 14:48:24,013 INFO alpha_rotation: Alpha alpha_041 is REVERSED but no candidate available for promotion
+2026-09-18 14:48:24,013 INFO alpha_rotation: Alpha alpha_101 is REVERSED but no candidate available for promotion
+2026-09-18 14:48:24,013 INFO alpha_rotation: Alpha alpha_030 is REVERSED but no candidate available for promotion
+2026-09-18 14:48:24,013 INFO alpha_rotation: Alpha alpha_035 is REVERSED but no candidate available for promotion
+2026-09-18 14:48:24,013 INFO alpha_rotation: Alpha alpha_036 is DEAD but no candidate available for promotion
+2026-09-18 14:48:24,013 INFO alpha_rotation: Alpha alpha_043 is REVERSED but no candidate available for promotion
+2026-09-18 14:48:24,926 INFO APIManager: Fetched 1 news articles for: ['XAUUSD']
+2026-09-18 14:48:25,724 INFO APIManager: Fetched 3 hot topics (incl. geopolitics)
+2026-09-18 14:48:35,546 INFO APIManager: Fetched 18 FRED series
+2026-09-18 14:48:36,439 INFO APIManager: Fetched 5 news articles for: ['XAUUSD', 'Federal Reserve', 'US Dollar', 'Gold', 'XAU']
+2026-09-18 14:48:55,258 INFO APIManager: Fetched 18 FRED series
+2026-09-18 14:48:55,259 INFO MarketData: Fetched 18 FRED indicators
+2026-09-18 14:48:55,845 INFO core.news_indicator_fetcher: Fetching live indicators (FRED API: available)
+2026-09-18 14:48:56,354 WARNING core.news_indicator_fetcher: FRED fetch failed for ADPFE: Bad Request.  The series does not exist.
+2026-09-18 14:49:00,124 WARNING core.news_indicator_fetcher: FRED fetch failed for NAPM: Bad Request.  The series does not exist.
+2026-09-18 14:49:04,923 WARNING core.news_indicator_fetcher: FRED fetch failed for RETAILSALES: Bad Request.  The series does not exist.
+2026-09-18 14:49:06,967 WARNING core.news_indicator_fetcher: FRED fetch failed for CONSCONF: Bad Request.  The series does not exist.
+2026-09-18 14:49:06,967 INFO core.news_trading: Live indicators: NFP=MODERATE_BEAT CPI=MODERATE_BEAT ESI=62.5 (live=True)
+2026-09-18 14:49:08,666 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-18 14:49:33,843 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: cboe -> Input should be 'fmp' or 'yfinance') in 1.0s
+2026-09-18 14:49:34,884 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: cboe -> Input should be 'fmp' or 'yfinance') in 1.9s
+2026-09-18 14:49:36,789 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: cboe -> Input should be 'fmp' or 'yfinance'
+2026-09-18 14:49:36,812 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'yfinance') in 0.9s
+2026-09-18 14:49:37,678 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'yfinance') in 1.7s
+2026-09-18 14:49:39,364 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'yfinance'
+2026-09-18 14:49:39,804 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp') in 1.0s
+2026-09-18 14:49:40,846 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp') in 1.8s
+2026-09-18 14:49:42,671 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp'
+2026-09-18 14:49:42,807 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp', 'intrinio' or 'yfinance') in 0.8s
+2026-09-18 14:49:43,621 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp', 'intrinio' or 'yfinance') in 1.8s
+2026-09-18 14:49:45,464 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp', 'intrinio' or 'yfinance'
+2026-09-18 14:49:51,809 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'intrinio' or 'yfinance') in 1.0s
+2026-09-18 14:49:52,842 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'intrinio' or 'yfinance') in 1.9s
+2026-09-18 14:49:54,746 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'intrinio' or 'yfinance'
+2026-09-18 14:49:54,755 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 1.1s
+2026-09-18 14:49:55,844 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 1.8s
+2026-09-18 14:49:57,620 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred'
+2026-09-18 14:49:59,635 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.1s
+2026-09-18 14:50:00,703 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.8s
+2026-09-18 14:50:02,514 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred'
+2026-09-18 14:50:04,516 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.1s
+2026-09-18 14:50:05,593 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.9s
+2026-09-18 14:50:07,541 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 14:50:07,544 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.0s
+2026-09-18 14:50:08,563 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.6s
+2026-09-18 14:50:10,177 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+2026-09-18 14:50:10,178 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 0.9s
+2026-09-18 14:50:11,107 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.7s
+2026-09-18 14:50:12,806 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 14:50:57,557 CRITICAL ExternalGuardian: Ψ GUARDIAN TRIPPED [HEARTBEAT]: HEARTBEAT_TIMEOUT: Γ silent for 121.7s > 120.0s | equity=100000.00 dd=0.00% positions=0 leverage=0.00
+2026-09-18 14:50:57,564 CRITICAL ExternalGuardian: Ψ FLATTEN COMPLETE: All orders cancelled, all positions closed
+2026-09-18 14:50:59,948 INFO LLMOrchestrator: RL Suggestion: BUY (exploitation)
+2026-09-18 14:51:00,557 INFO LLMOrchestrator: Requesting LLM decision...
+2026-09-18 14:51:00,682 INFO LLMOrchestrator: User Prompt Length: 43510 chars
+2026-09-18 14:51:02,739 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-18 14:51:25,382 INFO LLMOrchestrator: Raw LLM Response (6047 chars, Attempt 1/3): We are given a market data JSON for XAUUSD (Gold). We need to analyze it and output a deterministic ...
+2026-09-18 14:51:25,404 WARNING LLMOrchestrator: Primary JSON load failed. Attempting AGGRESSIVE repair.
+2026-09-18 14:51:25,404 ERROR LLMOrchestrator: JSON Parse Error: Extra data: line 1 column 197 (char 196)
+2026-09-18 14:51:25,404 INFO LLMOrchestrator: Raw Invalid Response: {"enabled":true,"dynamic_beta":0.5407,"alpha":0.4983,"spread_z_score":0.0,"ou_half_life_bars":5.0,"signal":"FLAT","recommendation":"EXIT","execution_authority":false,"advisory_only":true}         spread_z_score=0.0 -> not in mean-reversion zone (|z|>2). Signal is FLAT -> no strong trend from Kalman? But note: the recommendation is EXIT, which might be because of other factors.        - Alpha ensemble composite:              "alpha_ensemble":{"composite_signal":"NEUTRAL","composite_strength":0.6561,"composite_confidence":"LOW","composite_value":0.6561,"raw_value":0.18094,...}         The composite_signal is NEUTRAL, raw_value=0.18094 (slightly bullish but weak).        - BOCPD: from live_advisory_hub:              "bocpd":{"enabled":true,"changepoint_probability":0.0039,"has_recent_shift":false,"detected_count":0,"changepoints":[],"hazard_lambda":30.0,"threshold":0.1,"should_hold":false,"execution_authority":false,"advisory_only":true}         No recent structural shift.      Trend Strength (ADX):          indicators.adx_14: [21.4334,22.21123,23.02373,23.47151,23.88731] -> latest 23.88731 (above 20, so trending).      Session Context: London session -> we can consider breakouts (less fakeout risk than Asian).      M15/M5 Price Action:         M15:            ohlc_last_3:             [08:45:00] open=4386.8, high=4394.26, low=4386.25, close=4392.21 -> bullish candle (close>open)             [09:00:00] open=4392.29, high=4398.14, low=4391.52, close=4394.35 -> bullish candle             [09:15:00] open=4394.35, high=4395.31, low=4392.63, close=4392.85 -> small bearish candle (close<open) but very small body.          M5:           [09:05:00] open=4394.93, high=4397.31, low=4394.17, close=4396.11 -> bullish           [09:10:00] open=4396.11, high=4398.14, low=4394.14, close=4394.35 -> bearish           [09:15:00] open=4394.35, high=4395.31, low=4392.63, close=4392.85 -> bearish (small body)          The last M5 candle is bearish but very small. The M15 last candle is also small bearish.      Momentum Rule:          HMA(200) is increasing (bullish), Kalman drift? We don't have the drift directly, but the Kalman signal is FLAT.          Alpha ensemble composite_value=0.18094 (bullish but weak).          We are not in a situation where HMA is declining AND Kalman drift negative AND alpha ensemble < -0.5 -> so we are not forbidden from buying.      Alpha Factors (from indicators.alpha_factors):         We have several alphas. Let's look at the top contributors from alpha_ensemble:           alpha_012: current=1.01, mean_20=-3.4035, std_20=11.18751 -> (1.01 - (-3.4035))/11.18751 = 0.394 -> about 0.4 sigma above mean -> mild bullish.           alpha_053: current=0.59895, mean_20=-1.06308, std_20=5.46687 -> (0.59895 - (-1.06308))/5.46687 = 0.304 -> mild bullish.           alpha_055: current=-0.31453, mean_20=-0.27808, std_20=0.42484 -> (-0.31453 - (-0.27808))/0.42484 = -0.086 -> mild bearish.           alpha_034: current=0.86345, mean_20=0.48213, std_20=0.26848 -> (0.86345-0.48213)/0.26848 = 1.42 -> strong bullish.           alpha_009: current=-1.01, mean_20=0.9605, std_20=11.6783 -> (-1.01-0.9605)/11.6783 = -0.168 -> mild bearish.           alpha_041: current=23.43834, mean_20=-7.89972, std_20=16.22913 -> (23.43834 - (-7.89972))/16.22913 = 1.93 -> strong bullish.           alpha_101: current=-1089.98494, mean_20=1708.54218, std_20=9117.72467 -> (-1089.98494-1708.54218)/9117.72467 = -0.307 -> mild bearish.          The top contributors by weight in the ensemble are:           alpha_012 (weight 0.19831, ic_ir 0.36564) -> bullish           alpha_025 (weight 0.14273, ic_ir 0.19463) -> we don't have alpha_025 in the alpha_factors? Wait, the alpha_factors list doesn't have alpha_025? Actually, it does:              "alpha_025":{"current":0.52381,"mean_20":0.48117,"std_20":0.26528}...
+┌────────────────────── 💼 Account & Positions - XAUUSD ──────────────────────┐
+│ Mission: Cycle 1/3 [███░░░░░░░]                                             │
+│ Market: Bid: 4393.05000 | Ask: 4393.25000 | Spread: 0.20000                 │
+│ Account: $100000.00 (Eq: $100000.00)                                        │
+│ Open Trades: 0                                                              │
+│ No Open Positions                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────── 🧠 Cycle 1 Logic ──────────────────────────────┐
+│ LLM Logic:                                                                  │
+│ JSON Parse Error. Raw Output:                                               │
+│ {"enabled":true,"dynamic_beta":0.5407,"alpha":0.4983,"spread_z_score":0.0," │
+│ ou_half_life_bars":5.0,"signal":"FLAT","recommendation":"EXIT","execution_a │
+│ uthority":false,"advisory_only":true}         spread_z_score=0.0 -> not in  │
+│ mean-reversion zone (|z|>2). Signal is FLAT -> no strong trend from Kalman? │
+│ But note: the recommendation is EXIT, which might be because of other       │
+│ factors.        - Alpha ensemble composite:                                 │
+│ "alpha_ensemble":{"composite_signal":"NEUTRAL","composite_strength":0.65... │
+│                                                                             │
+│ Confluence Analysis:                                                        │
+│ Score: 0/12                                                                 │
+│ News Bonus: +0 | Volume Bonus: +0                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────── 🕰️ Multi-Timeframe Analysis ─────────────────────────┐
+│ D1: BULLISH (RSI: 53.6)                                                     │
+│ H4: BULLISH (RSI: 61.5)                                                     │
+│ H1: BULLISH (RSI: 67.6)                                                     │
+│ M30: BULLISH (RSI: 70.1)                                                    │
+│ M15: BULLISH (RSI: 59.8)                                                    │
+│ M5: BULLISH (RSI: 56.2)                                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────── 📰 News & Economic Events ─────────────────────────┐
+│ Hot Topics:                                                                 │
+│ • Amazon Deal Sends AI Power Play Skyrocketing - Investor's Business Daily  │
+│ (NEUTRAL)                                                                   │
+│ • Stock market today: Dow, S&P 500, Nasdaq rise as Fed rate hike pacifies   │
+│ markets' inflation worries - Yahoo Finance (BULLISH)                        │
+│ • OpenAI flags new concerning AI behavior, to track model misalignment      │
+│ regularly - NPR (NEUTRAL)                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────── ⚡ Trade Decision & Planning ────────────────────────┐
+│ ACTION: BUY                                                                 │
+│ Entry: 4393.25000                                                           │
+│ SL: 4366.14430                                                              │
+│ TP: 4447.46140                                                              │
+│                                                                             │
+│ Current Condition: Monitoring price action                                  │
+│                                                                             │
+│ (No specific conditional orders set this cycle)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────── 🤖 System Intelligence ───────────────────────────┐
+│ RL State:                                                                   │
+│ Action: BUY (Exploitation)                                                  │
+│ Confidence: N/A                                                             │
+│ Epsilon: 0.2000 | Q-Table: 1                                                │
+│                                                                             │
+│ Performance:                                                                │
+│ Win Rate (20): 0.0% | Profit Factor: 0.00                                   │
+│ Rolling Sharpe: 0.000 | Rolling Sortino: 0.000                              │
+│ Total PnL: $0.00 | Max DD: $0.00                                            │
+│ Total Trades: 0                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────── 🏁 CYCLE 1 COMPLETE ────────────────────────────┐
+│ Waiting for next interval...                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 14:51:25,611 WARNING LLMOrchestrator: Deterministic validator rejected BUY XAUUSD: Overfit gate NOT_VALIDATED: Strategy 'swing' has never been validated against overfit detection
+┌──────────────────────────── 🚀 CYCLE 1/3 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: M15 | Time: 14:51:25                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 14:51:25,950 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 14:51:26,021 INFO MarketScanner: Scanning Key Markets & Wildcards...
+2026-09-18 14:51:40,994 WARNING LLMOrchestrator: schedule batch exceeded 15.0s budget; abandoning this pulse
+2026-09-18 14:51:41,066 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-18 14:51:41,067 INFO LLMOrchestrator: Fetching data for XAUUSD...
+2026-09-18 14:51:41,693 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.82
+2026-09-18 14:51:41,744 INFO core.signal_orthogonalizer: Signal orthogonalization: method=ols, n_alphas=17, n_factors=5, window=120
+2026-09-18 14:51:41,942 INFO core.signal_orthogonalizer: Orthogonalization complete: method=ols, factors_removed=0, mean_r2=0.0601
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_ensemble.py:362: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+2026-09-18 14:51:42,843 INFO alpha_ensemble: Decay filter: alpha_055 weight zeroed (status=REVERSED, IC=-0.1436)
+2026-09-18 14:51:42,843 INFO alpha_ensemble: Decay filter: alpha_034 weight zeroed (status=REVERSED, IC=-0.1307)
+2026-09-18 14:51:42,844 INFO alpha_ensemble: Decay filter: alpha_017 weight zeroed (status=REVERSED, IC=-0.0486)
+2026-09-18 14:51:42,844 INFO alpha_ensemble: Decay filter: alpha_009 weight zeroed (status=REVERSED, IC=-0.1078)
+2026-09-18 14:51:42,844 INFO alpha_ensemble: Decay filter: alpha_041 weight zeroed (status=REVERSED, IC=-0.0438)
+2026-09-18 14:51:42,844 INFO alpha_ensemble: Decay filter: alpha_101 weight zeroed (status=REVERSED, IC=-0.0615)
+2026-09-18 14:51:42,844 INFO alpha_ensemble: Decay filter: alpha_030 weight zeroed (status=REVERSED, IC=-0.1136)
+2026-09-18 14:51:42,844 INFO alpha_ensemble: Decay filter: alpha_035 weight zeroed (status=REVERSED, IC=-0.0651)
+2026-09-18 14:51:42,844 INFO alpha_ensemble: Decay filter: alpha_036 weight zeroed (status=DEAD, IC=0.0694)
+2026-09-18 14:51:42,844 INFO alpha_ensemble: Decay filter: alpha_043 weight zeroed (status=REVERSED, IC=-0.0281)
+2026-09-18 14:51:42,859 INFO core.signal_orthogonalizer: Signal orthogonalization: method=ols, n_alphas=17, n_factors=5, window=120
+2026-09-18 14:51:43,049 INFO core.signal_orthogonalizer: Orthogonalization complete: method=ols, factors_removed=0, mean_r2=0.0601
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_decay_monitor.py:115: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+2026-09-18 14:51:44,916 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DEAD_alpha_022 [CRITICAL]
+2026-09-18 14:51:44,917 INFO alpha_rotation: Alpha alpha_055 is REVERSED but no candidate available for promotion
+2026-09-18 14:51:44,917 INFO alpha_rotation: Alpha alpha_017 is DEAD but no candidate available for promotion
+2026-09-18 14:51:44,917 INFO alpha_rotation: Alpha alpha_041 is REVERSED but no candidate available for promotion
+2026-09-18 14:51:44,917 INFO alpha_rotation: Alpha alpha_101 is REVERSED but no candidate available for promotion
+2026-09-18 14:51:44,917 INFO alpha_rotation: Alpha alpha_022 is DEAD but no candidate available for promotion
+2026-09-18 14:51:44,917 INFO alpha_rotation: Alpha alpha_043 is REVERSED but no candidate available for promotion
+2026-09-18 14:51:44,935 INFO MarketData: Fetched 18 FRED indicators
+2026-09-18 14:51:45,550 INFO core.news_trading: Live indicators: NFP=MODERATE_BEAT CPI=MODERATE_BEAT ESI=62.5 (live=True)
+2026-09-18 14:51:53,953 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-18 14:51:53,994 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-18 14:51:54,037 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-18 14:52:03,358 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 0.9s
+2026-09-18 14:52:04,231 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 1.7s
+2026-09-18 14:52:05,944 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred'
+2026-09-18 14:52:07,947 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.0s
+2026-09-18 14:52:08,991 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.8s
+2026-09-18 14:52:10,788 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred'
+2026-09-18 14:52:12,792 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.0s
+2026-09-18 14:52:13,763 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.7s
+2026-09-18 14:52:15,493 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 14:52:15,495 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.0s
+2026-09-18 14:52:16,507 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.7s
+2026-09-18 14:52:18,195 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+2026-09-18 14:52:18,197 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.0s
+2026-09-18 14:52:19,231 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.9s
+2026-09-18 14:52:21,136 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 14:53:16,298 INFO LLMOrchestrator: RL Suggestion: BUY (exploitation)
+2026-09-18 14:53:16,319 INFO LLMOrchestrator: Requesting LLM decision...
+2026-09-18 14:53:16,416 INFO LLMOrchestrator: User Prompt Length: 38587 chars
+2026-09-18 14:53:16,416 WARNING LLMRouter: Token budget enforced for mistralai/mistral-7b-instruct-v0.2: 25478 -> 24011 tokens (cap 24000)
+2026-09-18 14:53:17,802 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-18 14:53:48,367 INFO LLMOrchestrator: Raw LLM Response (6258 chars, Attempt 1/3): We are given two sets of market data? Actually, the user provided two JSONs? The first one ended wit...
+2026-09-18 14:53:48,377 WARNING LLMOrchestrator: Primary JSON load failed. Attempting AGGRESSIVE repair.
+2026-09-18 14:53:48,378 ERROR LLMOrchestrator: JSON Parse Error: Extra data: line 1 column 197 (char 196)
+2026-09-18 14:53:48,378 INFO LLMOrchestrator: Raw Invalid Response: {"enabled":true,"dynamic_beta":0.5407,"alpha":0.4983,"spread_z_score":0.0,"ou_half_life_bars":5.0,"signal":"FLAT","recommendation":"EXIT","execution_authority":false,"advisory_only":true}         spread_z_score=0.0 -> not in mean-reversion zone. Signal is FLAT -> no strong trend from Kalman? But note: the recommendation is EXIT, which might be because of other factors.       - Alpha ensemble composite:              "alpha_ensemble":{"composite_signal":"SHORT","composite_strength":1.3557,"composite_confidence":"MEDIUM","composite_value":-1.3557,"raw_value":-0.6096,...}         The composite_signal is SHORT, raw_value=-0.6096 (bearish).       - BOCPD: from live_advisory_hub:              "bocpd":{"enabled":true,"changepoint_probability":0.0039,"has_recent_shift":false,"detected_count":0,"changepoints":[],"hazard_lambda":30.0,"threshold":0.1,"should_hold":false,"execution_authority":false,"advisory_only":true}...
+┌────────────────────── 💼 Account & Positions - XAUUSD ──────────────────────┐
+│ Mission: Cycle 1/3 [███░░░░░░░]                                             │
+│ Market: Bid: 4393.92000 | Ask: 4394.10000 | Spread: 0.18000                 │
+│ Account: $100000.00 (Eq: $100000.00)                                        │
+│ Open Trades: 0                                                              │
+│ No Open Positions                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────── 🧠 Cycle 1 Logic ──────────────────────────────┐
+│ LLM Logic:                                                                  │
+│ JSON Parse Error. Raw Output:                                               │
+│ {"enabled":true,"dynamic_beta":0.5407,"alpha":0.4983,"spread_z_score":0.0," │
+│ ou_half_life_bars":5.0,"signal":"FLAT","recommendation":"EXIT","execution_a │
+│ uthority":false,"advisory_only":true}         spread_z_score=0.0 -> not in  │
+│ mean-reversion zone. Signal is FLAT -> no strong trend from Kalman? But     │
+│ note: the recommendation is EXIT, which might be because of other factors.  │
+│ - Alpha ensemble composite:                                                 │
+│ "alpha_ensemble":{"composite_signal":"SHORT","composite_strength":1.3557,"c │
+│ omposi...                                                                   │
+│                                                                             │
+│ Confluence Analysis:                                                        │
+│ Score: 0/12                                                                 │
+│ News Bonus: +0 | Volume Bonus: +0                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────── 🕰️ Multi-Timeframe Analysis ─────────────────────────┐
+│ D1: BULLISH (RSI: 53.7)                                                     │
+│ H4: BULLISH (RSI: 61.7)                                                     │
+│ H1: BULLISH (RSI: 68.0)                                                     │
+│ M30: BULLISH (RSI: 70.6)                                                    │
+│ M15: BULLISH (RSI: 61.7)                                                    │
+│ M5: BULLISH (RSI: 54.9)                                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────── 📰 News & Economic Events ─────────────────────────┐
+│ Hot Topics:                                                                 │
+│ • Amazon Deal Sends AI Power Play Skyrocketing - Investor's Business Daily  │
+│ (NEUTRAL)                                                                   │
+│ • Stock market today: Dow, S&P 500, Nasdaq rise as Fed rate hike pacifies   │
+│ markets' inflation worries - Yahoo Finance (BULLISH)                        │
+│ • OpenAI flags new concerning AI behavior, to track model misalignment      │
+│ regularly - NPR (NEUTRAL)                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────── ⚡ Trade Decision & Planning ────────────────────────┐
+│ ACTION: BUY                                                                 │
+│ Entry: 4394.10000                                                           │
+│ SL: 4383.13464                                                              │
+│ TP: 4416.03073                                                              │
+│                                                                             │
+│ Current Condition: Monitoring price action                                  │
+│                                                                             │
+│ (No specific conditional orders set this cycle)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────── 🤖 System Intelligence ───────────────────────────┐
+│ RL State:                                                                   │
+│ Action: BUY (Exploitation)                                                  │
+│ Confidence: N/A                                                             │
+│ Epsilon: 0.2000 | Q-Table: 2                                                │
+│                                                                             │
+│ Performance:                                                                │
+│ Win Rate (20): 0.0% | Profit Factor: 0.00                                   │
+│ Rolling Sharpe: 0.000 | Rolling Sortino: 0.000                              │
+│ Total PnL: $0.00 | Max DD: $0.00                                            │
+│ Total Trades: 0                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────── 🏁 CYCLE 1 COMPLETE ────────────────────────────┐
+│ Waiting for next interval...                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 14:53:48,492 WARNING LLMOrchestrator: Deterministic validator rejected BUY XAUUSD: setup registry rejected: no registered deterministic setup matched
+2026-09-18 14:53:49,090 WARNING AlertRules: ALERT [WARNING]: Rolling win rate below 40% (value=0.0, threshold=0.4)
+2026-09-18 14:53:49,093 WARNING main: ALERT [WARNING]: Rolling win rate below 40% (value=0.0)
+2026-09-18 14:53:49,094 INFO DegradationDetector: Running degradation check...
+2026-09-18 14:53:49,094 INFO DegradationDetector: Action REDUCE in cooldown, skipping
+
+ Next market pulse in 5 seconds...
+2026-09-18 14:53:54,100 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+┌──────────────────────────── 🚀 CYCLE 2/3 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: H1 | Time: 14:53:54                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 14:53:54,373 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 14:53:54,432 INFO MarketScanner: Scanning Key Markets & Wildcards...
+2026-09-18 14:53:55,861 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-18 14:53:55,882 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-18 14:54:09,405 WARNING LLMOrchestrator: schedule batch exceeded 15.0s budget; abandoning this pulse
+┌──────────────────────────── 🚀 CYCLE 2/3 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: M15 | Time: 14:54:10                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 14:54:10,094 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 14:54:10,245 INFO MarketScanner: Scanning Key Markets & Wildcards...
+2026-09-18 14:54:20,943 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-18 14:54:25,155 WARNING LLMOrchestrator: schedule batch exceeded 15.0s budget; abandoning this pulse
+2026-09-18 14:54:25,896 WARNING AlertRules: ALERT [WARNING]: Rolling win rate below 40% (value=0.0, threshold=0.4)
+2026-09-18 14:54:25,899 WARNING main: ALERT [WARNING]: Rolling win rate below 40% (value=0.0)
+2026-09-18 14:54:25,899 INFO DegradationDetector: Running degradation check...
+2026-09-18 14:54:25,900 INFO DegradationDetector: Action REDUCE in cooldown, skipping
+
+ Next market pulse in 5 seconds...
+2026-09-18 14:54:30,907 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+┌──────────────────────────── 🚀 CYCLE 3/3 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: H1 | Time: 14:54:31                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 14:54:31,841 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+┌──────────────────────────── 🚀 CYCLE 3/3 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: M15 | Time: 14:54:32                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 14:54:32,774 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 14:54:33,640 WARNING AlertRules: ALERT [WARNING]: Rolling win rate below 40% (value=0.0, threshold=0.4)
+2026-09-18 14:54:33,645 WARNING main: ALERT [WARNING]: Rolling win rate below 40% (value=0.0)
+2026-09-18 14:54:33,646 INFO DegradationDetector: Running degradation check...
+2026-09-18 14:54:33,646 INFO DegradationDetector: Action REDUCE in cooldown, skipping
+2026-09-18 14:54:33,721 INFO ExternalGuardian: Ψ Guardian thread stopped
+2026-09-18 14:54:33,721 INFO main: Ψ Guardian stopped
+
+▣ Alpha dashboard (final): alpha_dashboard.html
+   Dashboard auto-generated 4 time(s) during this run.
+2026-09-18 14:54:34,116 INFO CrashRecovery: Crash recovery: graceful shutdown initiated
+2026-09-18 14:54:34,138 INFO CrashRecovery: Shutdown snapshot saved for cycle 3 (checkpoint 13481)
+2026-09-18 14:54:34,138 INFO CrashRecovery: Crash recovery: shutdown complete

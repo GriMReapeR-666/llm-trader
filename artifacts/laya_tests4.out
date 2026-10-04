@@ -1,0 +1,19 @@
+....................F.............                                       [100%]
+================================== FAILURES ===================================
+_______________ test_laya_circuit_opens_after_repeated_failures _______________
+tests\test_triage_model_path.py:388: in test_laya_circuit_opens_after_repeated_failures
+    s3 = triage_articles([_article(key="x5")])
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+data\news_triage.py:1002: in triage_articles
+    verdict = triage_article(article, seen_keys=seen, laya=model)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+data\news_triage.py:860: in triage_article
+    model = _get_laya() if laya is None else (laya if laya is not False else None)
+            ^^^^^^^^^^^
+tests\test_triage_model_path.py:386: in _boom_factory
+    raise AssertionError("circuit open: factory must not be called")
+E   AssertionError: circuit open: factory must not be called
+------------------------------ Captured log call ------------------------------
+WARNING  NewsTriage:news_triage.py:1035 Laya triage circuit OPEN 900s after repeated inference failures (2 this batch); deterministic path holds
+=========================== short test summary info ===========================
+FAILED tests/test_triage_model_path.py::test_laya_circuit_opens_after_repeated_failures

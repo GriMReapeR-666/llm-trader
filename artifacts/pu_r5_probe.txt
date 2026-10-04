@@ -1,0 +1,6 @@
+sections: 60 -> 13 (collapsed=48)
+serialized: 25,334 -> 12,292 chars (13,042 saved, 51.5%)
+blob size: 2,859 chars
+PU-0121-OK
+exit=0
+END-MARKER-PU-0121

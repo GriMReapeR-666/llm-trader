@@ -1,0 +1,13 @@
+[PASS] journal: quick_check: ok; integrity_check: ok
+[PASS] schedules: 25 schedules registered, 25 in code registry; registry matches code (names, intervals, payload kinds)
+[PASS] events: 24h severities: {"ERROR": 19, "INFO": 453, "WARNING": 58}; agent_runs by status (all time): {"FAILED": 1, "STALE_RECOVERED": 512, "STOPPED": 62}
+[PASS] autonomy: level L3_FULL; halted=false; paused=false
+running scheduler test battery (this can take a while)...
+[PASS] tests: exit 0
+........................................................................ [ 35%]
+........................................................................ [ 71%]
+.........................................................                [100%]
+
+SCHEDULER-SMOKE-VERDICT: GREEN
+report: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\artifacts\scheduler_smoke_report.txt
+END-MARKER-PU-0089

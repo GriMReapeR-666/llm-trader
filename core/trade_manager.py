@@ -684,11 +684,23 @@ class TradeManager(StoreBackedState):
                 minimum = 0.01
                 maximum = float(max_volume) if max_volume is not None else requested_value
                 if maximum < minimum:
+                    if requested_value > 0:
+                        logging.getLogger("TradeManager").warning(
+                            "Volume normalization for %s: requested %.4f is below minimum %.4f (step %.4f, max %.4f) -> normalized to 0.0",
+                            symbol, requested_value, minimum, step, maximum,
+                        )
                     return 0.0
                 bounded = min(requested_value, maximum)
                 steps = math.floor((bounded + step * 1e-9) / step)
                 normalized = round(steps * step, 2)
-                return normalized if normalized >= minimum else 0.0
+                if normalized < minimum:
+                    if requested_value > 0:
+                        logging.getLogger("TradeManager").warning(
+                            "Volume normalization for %s: requested %.4f is below minimum %.4f (step %.4f, max %.4f) -> normalized to 0.0",
+                            symbol, requested_value, minimum, step, maximum,
+                        )
+                    return 0.0
+                return normalized
             return 0.0
         try:
             minimum = float(getattr(info, "volume_min", getattr(info, "trade_volume_min", 0.0)) or 0.0)
@@ -705,13 +717,25 @@ class TradeManager(StoreBackedState):
             except (TypeError, ValueError, OverflowError):
                 return 0.0
         if maximum < minimum:
+            if requested_value > 0:
+                logging.getLogger("TradeManager").warning(
+                    "Volume normalization for %s: requested %.4f is below minimum %.4f (step %.4f, max %.4f) -> normalized to 0.0",
+                    symbol, requested_value, minimum, step, maximum,
+                )
             return 0.0
         bounded = min(requested_value, maximum)
         steps = math.floor((bounded + step * 1e-9) / step)
         normalized = steps * step
         precision = max(0, int(math.ceil(-math.log10(step))) + 2) if step < 1 else 2
         normalized = round(normalized, precision)
-        return normalized if normalized >= minimum - 1e-12 and normalized > 0 else 0.0
+        if normalized < minimum - 1e-12 or normalized <= 0:
+            if requested_value > 0:
+                logging.getLogger("TradeManager").warning(
+                    "Volume normalization for %s: requested %.4f is below minimum %.4f (step %.4f, max %.4f) -> normalized to 0.0",
+                    symbol, requested_value, minimum, step, maximum,
+                )
+            return 0.0
+        return normalized
 
     def _broker_filling_mode(self, symbol: str, info=None) -> Optional[int]:
         """Select a market filling mode from the broker's symbol bitmask.

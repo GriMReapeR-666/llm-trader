@@ -1,0 +1,15 @@
+# QKF Smoke Test Report
+
+Command: python smoke_test.py --fast  (cwd=C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\quant_knowledge_framework)
+Mode: fast (sandbox probes only; pytest + E2E battery skipped)
+Verdict: GREEN
+
+[PASS] pytest suite: SKIPPED (--fast)
+[PASS] E2E validation battery: SKIPPED (--fast)
+[PASS] transcribe-stage probe: OK (0.5s, exit=0)
+[PASS]   transcribe probe: GREEN — 17 pass / 0 fail
+[PASS] download-stage probe: OK (0.3s, exit=0)
+[PASS]   download probe: GREEN — 12 pass / 0 fail
+
+SMOKE-VERDICT: GREEN
+END-MARKER-SMOKE-20260929-204520

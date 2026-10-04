@@ -1,0 +1,6 @@
+2026-09-21 11:32:54,266 INFO MT5Client:  Using Account: DEMO - 5055089321
+2026-09-21 11:32:54,768 INFO MT5Client: Trying default MT5 initialization...
+2026-09-21 11:32:54,870 WARNING MT5Client: Init failed (path=None): (-6, 'Terminal: Authorization failed')
+2026-09-21 11:32:54,870 INFO MT5Client: Trying path: C:\Program Files\MetaTrader 5\terminal64.exe
+2026-09-21 11:32:54,872 WARNING MT5Client: Init failed (path=C:\Program Files\MetaTrader 5\terminal64.exe): (-6, 'Terminal: Authorization failed')
+2026-09-21 11:32:54,872 ERROR MT5Client: Failed to connect to MT5 terminal

@@ -1,0 +1,95 @@
+...FF..FF.F..FF.                                                         [100%]
+================================== FAILURES ===================================
+__________________ test_model_cannot_unkill_deterministic_d9 __________________
+tests\test_triage_model_path.py:121: in test_model_cannot_unkill_deterministic_d9
+    assert v.source == "laya"
+E   AssertionError: assert 'deterministic' == 'laya'
+E     
+E     - laya
+E     + deterministic
+_________________ test_model_can_escalate_d9_normal_to_active _________________
+tests\test_triage_model_path.py:130: in test_model_can_escalate_d9_normal_to_active
+    assert v.d9 == D9_KILL_SWITCH_ACTIVE
+E   AssertionError: assert 'NORMAL_OPERATION' == 'EMERGENCY_HALT_ACTIVE'
+E     
+E     - EMERGENCY_HALT_ACTIVE
+E     + NORMAL_OPERATION
+________________ test_r1_model_cannot_erase_concrete_det_class ________________
+tests\test_triage_model_path.py:163: in test_r1_model_cannot_erase_concrete_det_class
+    assert v.r1 == "EVENT_CPI"
+E   AssertionError: assert 'NOT_EVENT_NOISE' == 'EVENT_CPI'
+E     
+E     - EVENT_CPI
+E     + NOT_EVENT_NOISE
+_______________ test_r1_model_adds_class_lexical_router_missed ________________
+tests\test_triage_model_path.py:171: in test_r1_model_adds_class_lexical_router_missed
+    assert v.r1 == "EVENT_CENTRAL_BANKER_SPEECH"
+E   AssertionError: assert 'EVENT_CB_MEETING' == 'EVENT_CENTRAL_BANKER_SPEECH'
+E     
+E     - EVENT_CENTRAL_BANKER_SPEECH
+E     + EVENT_CB_MEETING
+____________________ test_r1_unknown_model_label_deferred _____________________
+tests\test_triage_model_path.py:190: in test_r1_unknown_model_label_deferred
+    assert v.r1 == "EVENT_CPI"  # det label wins over unknown vocabulary
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: assert 'NOT_EVENT_NOISE' == 'EVENT_CPI'
+E     
+E     - EVENT_CPI
+E     + NOT_EVENT_NOISE
+_____________ test_batch_model_path_tags_and_rejects_through_gate _____________
+tests\test_triage_model_path.py:226: in test_batch_model_path_tags_and_rejects_through_gate
+    assert verdicts["b1"]["source"] == "laya"
+E   AssertionError: assert 'deterministic' == 'laya'
+E     
+E     - laya
+E     + deterministic
+_____________ test_ingest_articles_end_to_end_with_injected_model _____________
+tests\test_triage_model_path.py:244: in test_ingest_articles_end_to_end_with_injected_model
+    assert result["triage"].get("laya_used", result["triage"].get("laya_articles", 0)) >= 1
+E   AssertionError: assert 0 >= 1
+E    +  where 0 = <built-in method get of dict object at 0x0000018828247300>('laya_used', 0)
+E    +    where <built-in method get of dict object at 0x0000018828247300> = {'article_count': 1, 'counts': {'INGEST': 1, 'REJECT': 0, 'TAG': 0}, 'execution_authority': False, 'laya_latency_ms_avg': 0.01, ...}.get
+E    +    and   0 = <built-in method get of dict object at 0x0000018828247300>('laya_articles', 0)
+E    +      where <built-in method get of dict object at 0x0000018828247300> = {'article_count': 1, 'counts': {'INGEST': 1, 'REJECT': 0, 'TAG': 0}, 'execution_authority': False, 'laya_latency_ms_avg': 0.01, ...}.get
+============================== warnings summary ===============================
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_core\provider\utils\client.py:65
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_core\provider\utils\client.py:65: DeprecationWarning: Inheritance class ClientSession from ClientSession is discouraged
+    class ClientSession(aiohttp.ClientSession):
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_core\app\model\system_settings.py:77
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_core\app\model\system_settings.py:77: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")  # type: ignore
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_congress_gov\models\congress_amendments.py:75
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_congress_gov\models\congress_amendments.py:75: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_congress_gov\models\congress_bills.py:87
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_congress_gov\models\congress_bills.py:87: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\equity_historical.py:83
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\equity_historical.py:83: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\forward_eps_estimates.py:52
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\forward_eps_estimates.py:52: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\forward_sales_estimates.py:52
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\forward_sales_estimates.py:52: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\options_chains.py:118
+  C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\openbb_intrinio\models\options_chains.py:118: PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.13/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.
+    @model_validator(mode="after")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_triage_model_path.py::test_model_cannot_unkill_deterministic_d9
+FAILED tests/test_triage_model_path.py::test_model_can_escalate_d9_normal_to_active
+FAILED tests/test_triage_model_path.py::test_r1_model_cannot_erase_concrete_det_class
+FAILED tests/test_triage_model_path.py::test_r1_model_adds_class_lexical_router_missed
+FAILED tests/test_triage_model_path.py::test_r1_unknown_model_label_deferred
+FAILED tests/test_triage_model_path.py::test_batch_model_path_tags_and_rejects_through_gate
+FAILED tests/test_triage_model_path.py::test_ingest_articles_end_to_end_with_injected_model

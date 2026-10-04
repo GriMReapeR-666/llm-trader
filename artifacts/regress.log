@@ -1,0 +1,9 @@
+.......................................                                  [100%]
+============================== warnings summary ===============================
+tests/test_alpha_miner.py::test_pca_projector
+tests/test_alpha_miner.py::test_ga_engine
+tests/test_alpha_miner.py::test_ga_engine
+  C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pca_projector.py:98: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+    behavior_df = behavior_df.fillna(method='ffill').fillna(method='bfill')
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html

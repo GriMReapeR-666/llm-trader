@@ -1,0 +1,7 @@
+{
+  "EURUSD": {
+    "path": "artifacts\\training\\EURUSD_1791017924.json",
+    "gate_passed": true,
+    "oos_sharpe": 2.016864091084006
+  }
+}

@@ -1,0 +1,320 @@
+{
+  "status": "COMPLETED",
+  "model_kind": "meta_rl_pearl_rl2_ppo_v1",
+  "training_data_hash": "c19280cd1324be28cce1c044328bbf28244582d1a264c6ee02347011f36e803a",
+  "configuration": {
+    "updates": 2,
+    "context_episodes": 1,
+    "adapt_episodes": 2,
+    "max_steps": 16,
+    "seed": 7,
+    "simulator": "kronos",
+    "backend": "torch",
+    "model_kind": "meta_rl_pearl_rl2_ppo_v1",
+    "latent_dim": 8,
+    "actions": [
+      "HOLD",
+      "TIGHTEN_SL",
+      "TRAIL",
+      "PARTIAL_CLOSE",
+      "FULL_EXIT"
+    ],
+    "tasks": [
+      "EURUSD|volatile|breakout_mgmt",
+      "EURUSD|range|mean_reversion_mgmt",
+      "GBPUSD|bull|trend_follow_mgmt",
+      "USDJPY|bear|breakdown_mgmt"
+    ]
+  },
+  "updates": [
+    {
+      "update": 0,
+      "timesteps": 27,
+      "mean_reward": -0.20784074074074077,
+      "mean_advantage": -0.35919402684486185,
+      "n_tasks": 4,
+      "policy_loss": -0.018332941457629204,
+      "value_loss": 0.36396080255508423,
+      "entropy": 1.6046738624572754
+    },
+    {
+      "update": 1,
+      "timesteps": 22,
+      "mean_reward": 0.2920909090909091,
+      "mean_advantage": 0.8949936850971709,
+      "n_tasks": 4,
+      "policy_loss": -0.0035024555400013924,
+      "value_loss": 2.3953540325164795,
+      "entropy": 1.5996836423873901
+    }
+  ],
+  "task_details": [
+    {
+      "task": "EURUSD|volatile|breakout_mgmt",
+      "symbol": "EURUSD",
+      "regime": "volatile",
+      "setup_id": "breakout_mgmt",
+      "context_mean_reward": 0.0,
+      "adapt_mean_reward": -0.38005,
+      "adapt_episodes": [
+        {
+          "steps": 4,
+          "reward": -0.8897,
+          "pnl": -0.8896675568652792,
+          "direction": 1.0,
+          "context_updates": 1
+        },
+        {
+          "steps": 2,
+          "reward": 0.1296,
+          "pnl": 0.12956840318112334,
+          "direction": -1.0,
+          "context_updates": 1
+        }
+      ],
+      "latent_norm": 0.44077402353286743,
+      "execution_authority": false
+    },
+    {
+      "task": "EURUSD|range|mean_reversion_mgmt",
+      "symbol": "EURUSD",
+      "regime": "range",
+      "setup_id": "mean_reversion_mgmt",
+      "context_mean_reward": -0.1307,
+      "adapt_mean_reward": -0.26940000000000003,
+      "adapt_episodes": [
+        {
+          "steps": 6,
+          "reward": -0.9139,
+          "pnl": -0.9139166754106826,
+          "direction": 1.0,
+          "context_updates": 3
+        },
+        {
+          "steps": 7,
+          "reward": 0.3751,
+          "pnl": 0.37506305568720444,
+          "direction": -1.0,
+          "context_updates": 3
+        }
+      ],
+      "latent_norm": 0.3195692002773285,
+      "execution_authority": false
+    },
+    {
+      "task": "GBPUSD|bull|trend_follow_mgmt",
+      "symbol": "GBPUSD",
+      "regime": "bull",
+      "setup_id": "trend_follow_mgmt",
+      "context_mean_reward": 0.0188,
+      "adapt_mean_reward": -1.4063999999999999,
+      "adapt_episodes": [
+        {
+          "steps": 2,
+          "reward": -0.5833,
+          "pnl": -0.5832644438320903,
+          "direction": 1.0,
+          "context_updates": 1
+        },
+        {
+          "steps": 4,
+          "reward": -2.2295,
+          "pnl": -2.2293744594623432,
+          "direction": -1.0,
+          "context_updates": 1
+        }
+      ],
+      "latent_norm": 0.3908940553665161,
+      "execution_authority": false
+    },
+    {
+      "task": "USDJPY|bear|breakdown_mgmt",
+      "symbol": "USDJPY",
+      "regime": "bear",
+      "setup_id": "breakdown_mgmt",
+      "context_mean_reward": 0.2185,
+      "adapt_mean_reward": -0.75,
+      "adapt_episodes": [
+        {
+          "steps": 1,
+          "reward": -1.5,
+          "pnl": -1.4999999999999876,
+          "direction": 1.0,
+          "context_updates": 2
+        },
+        {
+          "steps": 1,
+          "reward": 0.0,
+          "pnl": 0.0,
+          "direction": -1.0,
+          "context_updates": 2
+        }
+      ],
+      "latent_norm": 0.3168276846408844,
+      "execution_authority": false
+    },
+    {
+      "task": "EURUSD|volatile|breakout_mgmt",
+      "symbol": "EURUSD",
+      "regime": "volatile",
+      "setup_id": "breakout_mgmt",
+      "context_mean_reward": 0.0,
+      "adapt_mean_reward": 1.8210000000000002,
+      "adapt_episodes": [
+        {
+          "steps": 2,
+          "reward": 0.7543,
+          "pnl": 0.7543281896876225,
+          "direction": 1.0,
+          "context_updates": 1
+        },
+        {
+          "steps": 3,
+          "reward": 2.8877,
+          "pnl": 2.8876456126268066,
+          "direction": -1.0,
+          "context_updates": 1
+        }
+      ],
+      "latent_norm": 0.43993473052978516,
+      "execution_authority": false
+    },
+    {
+      "task": "EURUSD|range|mean_reversion_mgmt",
+      "symbol": "EURUSD",
+      "regime": "range",
+      "setup_id": "mean_reversion_mgmt",
+      "context_mean_reward": 0.741,
+      "adapt_mean_reward": -0.17414999999999997,
+      "adapt_episodes": [
+        {
+          "steps": 3,
+          "reward": -0.7352,
+          "pnl": -0.7351589781290261,
+          "direction": 1.0,
+          "context_updates": 3
+        },
+        {
+          "steps": 6,
+          "reward": 0.3869,
+          "pnl": 0.38697549159058725,
+          "direction": -1.0,
+          "context_updates": 3
+        }
+      ],
+      "latent_norm": 0.27006712555885315,
+      "execution_authority": false
+    },
+    {
+      "task": "GBPUSD|bull|trend_follow_mgmt",
+      "symbol": "GBPUSD",
+      "regime": "bull",
+      "setup_id": "trend_follow_mgmt",
+      "context_mean_reward": 0.0,
+      "adapt_mean_reward": -0.31305,
+      "adapt_episodes": [
+        {
+          "steps": 1,
+          "reward": 0.0,
+          "pnl": 0.0,
+          "direction": 1.0,
+          "context_updates": 1
+        },
+        {
+          "steps": 3,
+          "reward": -0.6261,
+          "pnl": -0.6260434056761299,
+          "direction": -1.0,
+          "context_updates": 1
+        }
+      ],
+      "latent_norm": 0.4414464235305786,
+      "execution_authority": false
+    },
+    {
+      "task": "USDJPY|bear|breakdown_mgmt",
+      "symbol": "USDJPY",
+      "regime": "bear",
+      "setup_id": "breakdown_mgmt",
+      "context_mean_reward": -0.0245,
+      "adapt_mean_reward": 1.8792,
+      "adapt_episodes": [
+        {
+          "steps": 1,
+          "reward": 0.0,
+          "pnl": 0.0,
+          "direction": 1.0,
+          "context_updates": 3
+        },
+        {
+          "steps": 3,
+          "reward": 3.7584,
+          "pnl": 3.7583637075192353,
+          "direction": -1.0,
+          "context_updates": 3
+        }
+      ],
+      "latent_norm": 0.3100924789905548,
+      "execution_authority": false
+    }
+  ],
+  "task_rollup": [
+    {
+      "task": "EURUSD|volatile|breakout_mgmt",
+      "symbol": "EURUSD",
+      "regime": "volatile",
+      "setup_id": "breakout_mgmt",
+      "passes": 2,
+      "mean_adapt_reward": 0.7204750000000001,
+      "mean_context_reward": 0.0,
+      "execution_authority": false
+    },
+    {
+      "task": "EURUSD|range|mean_reversion_mgmt",
+      "symbol": "EURUSD",
+      "regime": "range",
+      "setup_id": "mean_reversion_mgmt",
+      "passes": 2,
+      "mean_adapt_reward": -0.221775,
+      "mean_context_reward": 0.30515,
+      "execution_authority": false
+    },
+    {
+      "task": "GBPUSD|bull|trend_follow_mgmt",
+      "symbol": "GBPUSD",
+      "regime": "bull",
+      "setup_id": "trend_follow_mgmt",
+      "passes": 2,
+      "mean_adapt_reward": -0.859725,
+      "mean_context_reward": 0.0094,
+      "execution_authority": false
+    },
+    {
+      "task": "USDJPY|bear|breakdown_mgmt",
+      "symbol": "USDJPY",
+      "regime": "bear",
+      "setup_id": "breakdown_mgmt",
+      "passes": 2,
+      "mean_adapt_reward": 0.5646,
+      "mean_context_reward": 0.097,
+      "execution_authority": false
+    }
+  ],
+  "mean_adapt_reward": 0.05089375000000007,
+  "artifact_written": true,
+  "promotion_safe": false,
+  "promotion_candidate": false,
+  "promotion_criteria": {
+    "min_tasks": 2,
+    "min_positive_ratio": 0.5,
+    "min_mean_adapt_reward": 0.3,
+    "actual_tasks": 4,
+    "actual_positive": 2,
+    "actual_mean_reward": 0.0509
+  },
+  "execution_authority": false,
+  "source": "KronosRLMarketSimulator",
+  "limitation": "Offline Meta-RL research artifact only; promotion_candidate=True flags this for human review but never grants automatic live execution.",
+  "artifact_path": "artifacts\\meta_rl_position_mgmt.json",
+  "artifact_sha256": "6e5ca5c5c0b381c7f8559a0237241f853ddfd12e4e7ad48bed7955b70bf4fd9f"
+}

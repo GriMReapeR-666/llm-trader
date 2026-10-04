@@ -1,0 +1,64 @@
+2026-09-28 08:05:44,939 INFO main: Paper market-data session established (terminal-only, no credential login): MetaTrader 5
+ Single symbol mode: EURUSD
+▣ AUTO schedules independent swing (H1) and scalp (M15) engines.
+2026-09-28 08:05:44,945 INFO main: Normalized UI risk input 1.0000 to 1.00%
+2026-09-28 08:05:44,961 INFO main: Seeded paper/fallback account balance: $100000.00
+2026-09-28 08:05:45,608 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-28 08:05:45,911 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-28 08:05:46,208 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-28 08:05:47,694 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-28 08:05:47,695 INFO main: LLM Router initialized: 4 providers, 3 agents
+2026-09-28 08:05:47,735 WARNING RiskManager: Ignoring persisted initial_balance 100000.00 (inconsistent with account anchor 10000.00) — possible state from a different account scale; floor re-anchored.
+2026-09-28 08:05:47,736 INFO core.harness.plugins: RiskManagementPlugin initialized with balance 10000.00, max risk 1.00%
+2026-09-28 08:05:47,737 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'risk_management' (v1.0.0)
+2026-09-28 08:05:47,748 INFO core.harness.plugins: TradingMemoryPlugin mounted on database 'trading_state.db'
+2026-09-28 08:05:47,748 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'trading_memory' (v1.0.0)
+2026-09-28 08:05:47,756 INFO TradeManager: Loaded active conditions for 2 symbols
+2026-09-28 08:05:47,757 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-28 08:05:47,757 INFO core.harness.plugins: BrokerPlugin mounted (mode=PAPER)
+2026-09-28 08:05:47,757 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'broker' (v1.0.0)
+2026-09-28 08:05:47,757 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-28 08:05:47,758 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-28 08:05:47,758 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-28 08:05:47,758 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-28 08:05:47,759 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-28 08:05:47,759 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-28 08:05:47,759 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-28 08:05:47,785 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-28 08:05:47,785 INFO core.harness.plugins: DataHubPlugin mounted (market_data=yes + FRED/COT/news/OpenBB).
+2026-09-28 08:05:47,785 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'data_hub' (v1.0.0)
+2026-09-28 08:05:47,789 INFO core.harness.plugins: CausalIntelligencePlugin mounted with 134 macro dynamic nodes.
+2026-09-28 08:05:47,789 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'causal_intelligence' (v1.0.0)
+2026-09-28 08:05:47,812 INFO core.harness.plugins: AnalyticalFrameworksPlugin mounted (Modules 01-07 Foresight, Spreads & Signals).
+2026-09-28 08:05:47,812 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'analytical_frameworks' (v1.0.0)
+2026-09-28 08:05:47,818 INFO core.harness.plugins: KronosIntelligencePlugin mounted (Signal Calibration, Synthetic Jumps & CPCV).
+2026-09-28 08:05:47,818 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'kronos_intelligence' (v1.0.0)
+2026-09-28 08:05:47,821 INFO core.harness.plugins: ExecutionSafetyPlugin mounted.
+2026-09-28 08:05:47,821 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'execution_safety' (v1.0.0)
+2026-09-28 08:05:47,823 INFO core.harness.plugins: CointegrationGovernancePlugin mounted.
+2026-09-28 08:05:47,823 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'cointegration_governance' (v1.0.0)
+2026-09-28 08:05:47,834 INFO core.harness.plugins: SkillsPlugin mounted with 35 standard skills.
+2026-09-28 08:05:47,835 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'skills' (v1.0.0)
+2026-09-28 08:05:47,835 INFO core.harness.plugins: JournalAuditPlugin mounted for database 'trading_state.db'.
+2026-09-28 08:05:47,835 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'journal_audit' (v1.0.0)
+2026-09-28 08:05:47,835 INFO core.harness.plugins: QuantWorkflowsPlugin mounted with 7 trading workflows.
+2026-09-28 08:05:47,836 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'quant_workflows' (v1.0.0)
+2026-09-28 08:05:47,838 INFO core.harness.plugins: MacroEventAlphaPlugin mounted with leading indicators, ESI & 3-phase execution.
+2026-09-28 08:05:47,839 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'macro_event_alpha' (v1.0.0)
+2026-09-28 08:05:47,841 INFO core.harness.extracted_module_plugins: ExtractedMetricsPlugin mounted — 14 metric functions available.
+2026-09-28 08:05:47,848 INFO core.harness.extracted_module_plugins: ExtractedValidationPlugin mounted — CPCV, MC shuffle, stress, jitter available.
+2026-09-28 08:05:49,696 INFO core.harness.extracted_module_plugins: ExtractedAlphaSourcePlugin mounted — alpha discovery, ensemble, decay, rotation available.
+2026-09-28 08:05:49,699 INFO core.harness.extracted_module_plugins: ExtractedRegimePlugin mounted — HMM/Hurst regime + allocation matrix wired.
+2026-09-28 08:05:49,701 INFO core.harness.extracted_module_plugins: ExtractedNewsPlugin mounted — ESI, Delta, phase detection, NFP/CPI weights available.
+2026-09-28 08:05:49,702 INFO core.harness.extracted_module_plugins: ExtractedRiskPlugin mounted — 3-layer risk, 1R sizing, vol targeting, heat management.
+2026-09-28 08:05:49,717 INFO core.harness.extracted_module_plugins: ExtractedAutonomousPlugin mounted — constitution, trust levels, seasons, drift detection.
+2026-09-28 08:05:49,717 INFO core.harness.extracted_module_plugins: ExtractedAltDataPlugin mounted — gold FV, vol regime, carry, synthetic index available.
+2026-09-28 08:05:49,721 INFO core.harness.extracted_module_plugins: ExtractedResearchPlugin mounted — FactorMiner, AQuA, MARS configs + challenge mapping.
+2026-09-28 08:05:49,722 INFO core.harness.extracted_module_plugins: ExtractedModulesPlugin mounted 9/9 adapters: ['extracted_metrics', 'extracted_validation', 'extracted_alpha_source', 'extracted_regime', 'extracted_news', 'extracted_risk', 'extracted_autonomous', 'extracted_alt_data', 'extracted_research']
+2026-09-28 08:05:49,722 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'extracted_modules' (v1.0.0)
+2026-09-28 08:05:49,749 INFO core.harness.quant_models_plugins: RetailQuantBundlePlugin mounted (12 modules).
+2026-09-28 08:05:49,749 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'retail_quant_bundle' (v1.0.0)
+2026-09-28 08:05:50,047 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-28 08:05:50,343 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-28 08:05:50,636 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-28 08:05:52,102 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)

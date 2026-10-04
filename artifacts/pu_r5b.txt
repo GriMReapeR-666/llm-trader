@@ -1,0 +1,17 @@
+bringing up nodes...
+bringing up nodes...
+
+................................................F....                    [100%]
+================================== FAILURES ===================================
+________________ test_r5_small_sections_collapse_into_one_blob ________________
+[gw1] win32 -- Python 3.13.5 C:\Users\User\AppData\Local\Programs\Python\Python313\python.exe
+tests\test_request_budget.py:147: in test_r5_small_sections_collapse_into_one_blob
+    assert blob_len < len(json.dumps({k: toon[k] for k in ("ewc_forgetting_status", "walk_forward_decay", "optimal_execution_cost", "dom")}))
+E   assert 252 < 180
+E    +  where 180 = len('{"ewc_forgetting_status": {"lambda": 0.5, "ok": true}, "walk_forward_decay": {"decay": 0.12}, "optimal_execution_cost": {"pips": 0.4}, "dom": {"best_bid": 1.1, "best_ask": 1.1002}}')
+E    +    where '{"ewc_forgetting_status": {"lambda": 0.5, "ok": true}, "walk_forward_decay": {"decay": 0.12}, "optimal_execution_cost": {"pips": 0.4}, "dom": {"best_bid": 1.1, "best_ask": 1.1002}}' = <function dumps at 0x0000028C1774F100>({'dom': {'best_ask': 1.1002, 'best_bid': 1.1}, 'ewc_forgetting_status': {'lambda': 0.5, 'ok': True}, 'optimal_execution_cost': {'pips': 0.4}, 'walk_forward_decay': {'decay': 0.12}})
+E    +      where <function dumps at 0x0000028C1774F100> = json.dumps
+=========================== short test summary info ===========================
+FAILED tests/test_request_budget.py::test_r5_small_sections_collapse_into_one_blob
+pytest-exit=1
+END-MARKER-PU-0119

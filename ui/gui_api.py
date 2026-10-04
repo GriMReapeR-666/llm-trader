@@ -1,4 +1,5 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -90,6 +91,57 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+def get_configured_api_token() -> Optional[str]:
+    """Return the configured API token/key from environment, if any."""
+    return os.environ.get("GUI_API_TOKEN") or os.environ.get("GUI_API_KEY") or None
+
+
+def is_request_authenticated(headers: Any, query_params: Any = None) -> bool:
+    """Validate incoming request headers or query params against the configured token."""
+    token = get_configured_api_token()
+    if not token:
+        return True
+
+    # 1. Check Authorization: Bearer <token>
+    auth_header = headers.get("authorization", "") if hasattr(headers, "get") else ""
+    if auth_header.startswith("Bearer "):
+        bearer = auth_header[7:].strip()
+        if bearer == token:
+            return True
+
+    # 2. Check X-API-Key header
+    api_key_header = headers.get("x-api-key", "") if hasattr(headers, "get") else ""
+    if api_key_header == token:
+        return True
+
+    # 3. Check query param (e.g. for WebSockets or simple query URLs)
+    if query_params and hasattr(query_params, "get"):
+        if query_params.get("token") == token:
+            return True
+
+    return False
+
+
+@app.middleware("http")
+async def api_auth_middleware(request: Request, call_next):
+    token = get_configured_api_token()
+    if token:
+        path = request.url.path
+        if path not in ("/", "/api/health", "/docs", "/openapi.json"):
+            is_control_route = any(
+                path.startswith(p) for p in ("/api/control", "/api/config", "/api/internal")
+            )
+            strict_auth = os.environ.get("GUI_STRICT_AUTH", "0") == "1"
+            if is_control_route or strict_auth:
+                if not is_request_authenticated(request.headers, request.query_params):
+                    return JSONResponse(
+                        status_code=401,
+                        content={"error": "Unauthorized: invalid or missing API token"},
+                    )
+    return await call_next(request)
+
+
 # Active WebSocket Clients for Harness Live Event Streaming
 active_ws_clients: List[WebSocket] = []
 
@@ -107,6 +159,10 @@ def _health():
 
 @app.websocket("/ws/harness-events")
 async def websocket_harness_events(websocket: WebSocket):
+    token = get_configured_api_token()
+    if token and not is_request_authenticated(websocket.headers, websocket.query_params):
+        await websocket.close(code=4001, reason="Unauthorized: invalid or missing API token")
+        return
     await websocket.accept()
     active_ws_clients.append(websocket)
     try:

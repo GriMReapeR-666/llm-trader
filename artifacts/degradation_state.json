@@ -1,0 +1,254 @@
+{
+  "current_action": "REDUCE",
+  "action_history": [
+    {
+      "action": "SHUTDOWN",
+      "reason": "Drawdown 25.0% exceeded 15% shutdown threshold",
+      "timestamp": "2026-09-13T12:13:37.808975+00:00",
+      "details": {
+        "drawdown_pct": 0.25,
+        "threshold": 0.15
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-17T16:31:51.458753+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-18T01:31:20.039030+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-18T02:50:25.113427+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-18T08:36:19.683117+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-18T21:32:59.273511+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-23T16:53:49.917722+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-24T18:24:05.558911+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-24T19:26:49.821033+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-24T20:26:54.363630+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-24T21:29:11.804358+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-24T23:13:10.633515+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T05:56:34.397367+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T07:34:08.848825+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T08:34:39.949210+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T10:16:30.342673+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T11:16:51.316862+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T12:17:54.283714+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T13:19:42.979959+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T14:22:01.599240+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T15:22:55.883937+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T17:36:16.898401+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T19:00:54.562774+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T20:10:00.284628+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T21:11:32.861300+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T22:12:15.665452+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    },
+    {
+      "action": "REDUCE",
+      "reason": "Win rate 0.0% below 35% floor",
+      "timestamp": "2026-09-25T23:13:17.385689+00:00",
+      "details": {
+        "win_rate": 0.0,
+        "threshold": 0.35
+      }
+    }
+  ],
+  "equity_lows": [
+    0.0
+  ],
+  "last_check": "2026-10-02T22:14:28.360772+00:00",
+  "frozen_until": null,
+  "freeze_reason": null
+}

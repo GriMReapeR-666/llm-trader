@@ -1,0 +1,10 @@
+UTC now: 2026-09-28T10:44:25+00:00
+free RAM: 0.07GB (bar 1.50GB)
+trader processes: [(1672, 2344, '15:58:31')]
+boot watcher PIDs: none
+duty watcher 27292 alive: True
+watch_2h_duty.out exists: False
+watch_2h_followup.out exists: False
+run windows since 10:29Z: [('run_started', '2026-09-28T10:29:17.211274+00:00')]
+total events since 10:29Z: 82
+END-MARKER-PU-0041

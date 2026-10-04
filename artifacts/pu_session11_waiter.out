@@ -1,0 +1,597 @@
+2026-10-02T17:14:21+00:00 waiter armed (boot window 16h, run cap 5h, active RAM guard armed)
+2026-10-02T17:18:21+00:00 boot detected at 2026-10-02T17:17:42.975731+00:00 (pid 27748) - waiting out grace period
+2026-10-02T17:29:29+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.33GB (trader RSS: 2.77GB)
+2026-10-02T17:32:37+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.28GB (trader RSS: 2.69GB)
+2026-10-02T17:33:37+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.25GB (trader RSS: 3.02GB)
+2026-10-02T17:33:37+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.25GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T17:33:38+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.32GB
+2026-10-02T17:39:42+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.35GB (trader RSS: 2.15GB)
+2026-10-02T17:40:42+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.40GB (trader RSS: 2.17GB)
+2026-10-02T17:42:44+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.35GB (trader RSS: 2.16GB)
+2026-10-02T17:43:45+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.37GB (trader RSS: 2.48GB)
+2026-10-02T17:45:46+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.39GB (trader RSS: 2.93GB)
+2026-10-02T17:46:47+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.29GB (trader RSS: 2.48GB)
+2026-10-02T17:48:48+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.19GB (trader RSS: 2.47GB)
+2026-10-02T17:48:52+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.19GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T17:48:52+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.26GB
+2026-10-02T17:53:56+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.26GB (trader RSS: 2.57GB)
+2026-10-02T18:00:02+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.39GB (trader RSS: 2.60GB)
+2026-10-02T18:02:04+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.34GB (trader RSS: 2.07GB)
+2026-10-02T18:10:09+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.10GB (trader RSS: 1.35GB)
+2026-10-02T18:10:09+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.10GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:10:10+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.19GB
+2026-10-02T18:11:10+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.35GB (trader RSS: 1.38GB)
+2026-10-02T18:12:11+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.23GB (trader RSS: 0.08GB)
+2026-10-02T18:12:11+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.23GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:12:11+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.25GB
+2026-10-02T18:13:12+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.10GB (trader RSS: 0.94GB)
+2026-10-02T18:13:12+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.10GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:13:12+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T18:14:14+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 1.91GB)
+2026-10-02T18:14:14+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:14:14+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.28GB
+2026-10-02T18:15:16+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 2.27GB)
+2026-10-02T18:15:16+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:15:17+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.11GB
+2026-10-02T18:15:17+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T18:16:18+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.23GB (trader RSS: 1.29GB)
+2026-10-02T18:16:18+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.23GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:16:18+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.24GB
+2026-10-02T18:17:19+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 2.36GB)
+2026-10-02T18:17:19+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 6/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:17:20+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.15GB
+2026-10-02T18:17:20+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T18:18:29+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.21GB (trader RSS: 2.01GB)
+2026-10-02T18:18:29+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.21GB, strike 7/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:18:30+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.49GB
+2026-10-02T18:21:51+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 0.38GB)
+2026-10-02T18:22:02+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:22:02+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.38GB
+2026-10-02T18:23:03+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 1.36GB)
+2026-10-02T18:23:03+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:23:03+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.59GB
+2026-10-02T18:24:04+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.12GB (trader RSS: 1.35GB)
+2026-10-02T18:24:04+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.12GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:24:04+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.19GB
+2026-10-02T18:24:04+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T18:25:05+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.18GB (trader RSS: 1.25GB)
+2026-10-02T18:25:05+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.18GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:25:05+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.25GB
+2026-10-02T18:26:06+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.12GB (trader RSS: 1.77GB)
+2026-10-02T18:26:06+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.12GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:26:06+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.16GB
+2026-10-02T18:26:06+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T18:27:07+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.01GB (trader RSS: 1.11GB)
+2026-10-02T18:27:07+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.01GB, strike 6/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:27:08+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.07GB
+2026-10-02T18:27:08+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T18:28:09+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.10GB (trader RSS: 2.73GB)
+2026-10-02T18:28:09+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.10GB, strike 7/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:28:09+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.31GB
+2026-10-02T18:29:10+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.17GB (trader RSS: 2.16GB)
+2026-10-02T18:29:10+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.17GB, strike 8/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:29:10+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T18:30:22+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.04GB (trader RSS: 1.67GB)
+2026-10-02T18:30:22+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.04GB, strike 9/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:30:23+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.07GB
+2026-10-02T18:30:23+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T18:31:24+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 2.34GB)
+2026-10-02T18:31:24+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 10/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:31:24+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.25GB
+2026-10-02T18:32:25+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.08GB (trader RSS: 0.71GB)
+2026-10-02T18:32:25+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.08GB, strike 11/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:32:25+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.10GB
+2026-10-02T18:32:25+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T18:33:26+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.29GB (trader RSS: 0.47GB)
+2026-10-02T18:34:28+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.19GB (trader RSS: 0.32GB)
+2026-10-02T18:34:28+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.19GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:34:33+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.27GB
+2026-10-02T18:35:34+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.27GB (trader RSS: 0.43GB)
+2026-10-02T18:36:35+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.17GB (trader RSS: 1.11GB)
+2026-10-02T18:36:35+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.17GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:36:35+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T18:37:36+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.27GB (trader RSS: 1.23GB)
+2026-10-02T18:38:37+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.22GB (trader RSS: 1.29GB)
+2026-10-02T18:38:37+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.22GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:38:37+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.28GB
+2026-10-02T18:39:38+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.06GB (trader RSS: 1.23GB)
+2026-10-02T18:39:38+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.06GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:39:38+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T18:40:38+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.15GB (trader RSS: 1.82GB)
+2026-10-02T18:40:38+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.15GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:40:39+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.22GB
+2026-10-02T18:41:39+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.09GB (trader RSS: 2.23GB)
+2026-10-02T18:41:39+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.09GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:41:40+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.14GB
+2026-10-02T18:41:40+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T18:42:41+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.34GB (trader RSS: 2.21GB)
+2026-10-02T18:44:50+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.19GB (trader RSS: 2.34GB)
+2026-10-02T18:44:50+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.19GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:44:50+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.27GB
+2026-10-02T18:47:01+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.28GB (trader RSS: 2.45GB)
+2026-10-02T18:48:02+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.25GB (trader RSS: 0.23GB)
+2026-10-02T18:48:02+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.25GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:48:02+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.28GB
+2026-10-02T18:50:03+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 1.63GB)
+2026-10-02T18:50:03+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:50:03+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.16GB
+2026-10-02T18:51:04+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.04GB (trader RSS: 1.37GB)
+2026-10-02T18:51:04+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.04GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:51:04+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T18:52:10+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.10GB (trader RSS: 1.38GB)
+2026-10-02T18:52:11+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.10GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:52:11+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.20GB
+2026-10-02T18:53:12+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.28GB (trader RSS: 1.56GB)
+2026-10-02T18:54:13+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.39GB (trader RSS: 2.27GB)
+2026-10-02T18:55:14+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.23GB (trader RSS: 1.99GB)
+2026-10-02T18:55:14+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.23GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:55:14+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.30GB
+2026-10-02T18:56:26+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.14GB (trader RSS: 1.28GB)
+2026-10-02T18:56:26+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.14GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:56:27+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.10GB
+2026-10-02T18:58:30+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.23GB (trader RSS: 2.26GB)
+2026-10-02T18:58:30+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.23GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T18:58:30+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.34GB
+2026-10-02T18:59:31+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.29GB (trader RSS: 2.32GB)
+2026-10-02T19:01:32+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.26GB (trader RSS: 1.21GB)
+2026-10-02T19:02:33+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.18GB (trader RSS: 0.56GB)
+2026-10-02T19:02:33+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.18GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:02:33+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.22GB
+2026-10-02T19:03:34+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.35GB (trader RSS: 0.17GB)
+2026-10-02T19:04:35+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.31GB (trader RSS: 0.79GB)
+2026-10-02T19:05:35+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.18GB (trader RSS: 1.46GB)
+2026-10-02T19:05:35+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.18GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:05:36+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.26GB
+2026-10-02T19:06:36+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.18GB (trader RSS: 1.23GB)
+2026-10-02T19:06:36+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.18GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:06:36+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.31GB
+2026-10-02T19:07:38+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.19GB (trader RSS: 1.29GB)
+2026-10-02T19:07:39+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.19GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:07:39+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.36GB
+2026-10-02T19:08:39+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.10GB (trader RSS: 1.63GB)
+2026-10-02T19:08:39+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.10GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:08:40+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T19:08:40+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T19:09:40+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.26GB (trader RSS: 2.65GB)
+2026-10-02T19:10:41+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.13GB (trader RSS: 2.64GB)
+2026-10-02T19:10:41+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.13GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:10:42+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.12GB
+2026-10-02T19:11:43+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.31GB (trader RSS: 2.68GB)
+2026-10-02T19:12:44+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.16GB (trader RSS: 2.52GB)
+2026-10-02T19:12:44+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.16GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:12:44+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.31GB
+2026-10-02T19:14:49+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.23GB (trader RSS: 1.25GB)
+2026-10-02T19:14:49+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.23GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:14:49+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.28GB
+2026-10-02T19:15:50+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.21GB (trader RSS: 1.32GB)
+2026-10-02T19:15:50+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.21GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:15:50+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.50GB
+2026-10-02T19:16:51+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.17GB (trader RSS: 1.34GB)
+2026-10-02T19:16:51+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.17GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:16:51+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T19:17:51+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.12GB (trader RSS: 1.83GB)
+2026-10-02T19:17:51+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.12GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:17:52+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T19:18:53+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 2.40GB)
+2026-10-02T19:18:53+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:18:53+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.07GB
+2026-10-02T19:18:53+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T19:19:54+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.28GB (trader RSS: 2.46GB)
+2026-10-02T19:20:55+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.14GB (trader RSS: 1.85GB)
+2026-10-02T19:20:55+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.14GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:20:55+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.01GB
+2026-10-02T19:21:56+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.29GB (trader RSS: 1.15GB)
+2026-10-02T19:24:18+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 0.51GB)
+2026-10-02T19:24:19+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:24:19+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.30GB
+2026-10-02T19:25:20+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.26GB (trader RSS: 0.26GB)
+2026-10-02T19:26:21+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.33GB (trader RSS: 0.27GB)
+2026-10-02T19:28:22+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.29GB (trader RSS: 1.50GB)
+2026-10-02T19:29:23+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.14GB (trader RSS: 1.26GB)
+2026-10-02T19:29:23+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.14GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:29:23+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.28GB
+2026-10-02T19:30:24+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 1.23GB)
+2026-10-02T19:30:24+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:30:24+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.17GB
+2026-10-02T19:31:24+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.10GB (trader RSS: 1.66GB)
+2026-10-02T19:31:24+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.10GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:31:25+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.19GB
+2026-10-02T19:31:25+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T19:32:26+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.04GB (trader RSS: 2.56GB)
+2026-10-02T19:32:26+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.04GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:32:26+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.02GB
+2026-10-02T19:32:26+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T19:33:27+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.06GB (trader RSS: 2.71GB)
+2026-10-02T19:33:27+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.06GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:33:28+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.06GB
+2026-10-02T19:33:28+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T19:34:28+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 2.25GB)
+2026-10-02T19:34:28+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 6/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:34:29+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T19:34:29+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T19:35:30+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.27GB (trader RSS: 2.56GB)
+2026-10-02T19:37:31+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.12GB (trader RSS: 0.80GB)
+2026-10-02T19:37:31+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.12GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:37:31+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.16GB
+2026-10-02T19:38:32+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 1.42GB)
+2026-10-02T19:38:32+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:38:32+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.17GB
+2026-10-02T19:39:33+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.08GB (trader RSS: 1.24GB)
+2026-10-02T19:39:33+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.08GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:39:33+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.20GB
+2026-10-02T19:40:34+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 1.29GB)
+2026-10-02T19:40:34+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:40:34+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.19GB
+2026-10-02T19:40:34+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T19:41:35+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.06GB (trader RSS: 1.28GB)
+2026-10-02T19:41:35+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.06GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:41:35+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.28GB
+2026-10-02T19:42:36+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.10GB (trader RSS: 1.85GB)
+2026-10-02T19:42:36+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.10GB, strike 6/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:42:36+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T19:42:36+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T19:43:37+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.28GB (trader RSS: 2.10GB)
+2026-10-02T19:44:38+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.01GB (trader RSS: 2.27GB)
+2026-10-02T19:44:38+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.01GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:44:38+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.10GB
+2026-10-02T19:46:40+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 2.69GB)
+2026-10-02T19:46:40+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:46:40+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.44GB
+2026-10-02T19:47:49+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 2.56GB)
+2026-10-02T19:47:49+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:47:49+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.28GB
+2026-10-02T19:48:50+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.15GB (trader RSS: 0.42GB)
+2026-10-02T19:48:50+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.15GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:48:50+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.22GB
+2026-10-02T19:50:51+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.37GB (trader RSS: 1.56GB)
+2026-10-02T19:51:52+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.18GB (trader RSS: 1.30GB)
+2026-10-02T19:51:52+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.18GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:51:52+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.35GB
+2026-10-02T19:52:53+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.16GB (trader RSS: 1.33GB)
+2026-10-02T19:52:53+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.16GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:52:53+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.25GB
+2026-10-02T19:53:53+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.22GB (trader RSS: 1.76GB)
+2026-10-02T19:53:53+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.22GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:53:54+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.28GB
+2026-10-02T19:54:55+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.12GB (trader RSS: 1.44GB)
+2026-10-02T19:54:55+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.12GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:54:55+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.08GB
+2026-10-02T19:54:55+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T19:55:56+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.36GB (trader RSS: 2.58GB)
+2026-10-02T19:58:22+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.16GB (trader RSS: 2.09GB)
+2026-10-02T19:58:22+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.16GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:58:23+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.27GB
+2026-10-02T19:59:23+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.09GB (trader RSS: 2.32GB)
+2026-10-02T19:59:23+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.09GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T19:59:24+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.24GB
+2026-10-02T20:00:25+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.27GB (trader RSS: 2.66GB)
+2026-10-02T20:01:30+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.27GB (trader RSS: 3.10GB)
+2026-10-02T20:02:31+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.16GB (trader RSS: 0.60GB)
+2026-10-02T20:02:31+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.16GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:02:31+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.19GB
+2026-10-02T20:03:32+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.28GB (trader RSS: 0.54GB)
+2026-10-02T20:04:32+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.30GB (trader RSS: 1.45GB)
+2026-10-02T20:05:33+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.18GB (trader RSS: 1.28GB)
+2026-10-02T20:05:33+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.18GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:05:33+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.26GB
+2026-10-02T20:06:34+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 1.19GB)
+2026-10-02T20:06:34+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:06:34+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.25GB
+2026-10-02T20:07:35+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.09GB (trader RSS: 1.70GB)
+2026-10-02T20:07:35+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.09GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:07:35+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.14GB
+2026-10-02T20:07:35+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T20:08:36+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.23GB (trader RSS: 1.81GB)
+2026-10-02T20:08:36+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.23GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:08:36+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.22GB
+2026-10-02T20:09:37+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.27GB (trader RSS: 2.31GB)
+2026-10-02T20:10:38+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.15GB (trader RSS: 2.25GB)
+2026-10-02T20:10:38+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.15GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:10:38+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.24GB
+2026-10-02T20:11:39+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.05GB (trader RSS: 2.22GB)
+2026-10-02T20:11:39+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.05GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:11:40+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.12GB
+2026-10-02T20:12:40+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.21GB (trader RSS: 2.68GB)
+2026-10-02T20:12:40+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.21GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:12:41+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.25GB
+2026-10-02T20:13:41+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.31GB (trader RSS: 1.15GB)
+2026-10-02T20:14:42+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.16GB (trader RSS: 1.47GB)
+2026-10-02T20:14:42+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.16GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:14:43+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.21GB
+2026-10-02T20:15:43+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 1.34GB)
+2026-10-02T20:15:43+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:15:43+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.27GB
+2026-10-02T20:16:44+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.27GB (trader RSS: 1.21GB)
+2026-10-02T20:17:45+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.25GB (trader RSS: 1.46GB)
+2026-10-02T20:18:45+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.09GB (trader RSS: 1.68GB)
+2026-10-02T20:18:45+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.09GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:18:45+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.17GB
+2026-10-02T20:19:46+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.25GB (trader RSS: 1.87GB)
+2026-10-02T20:20:47+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.23GB (trader RSS: 2.92GB)
+2026-10-02T20:20:47+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.23GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:20:48+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.27GB
+2026-10-02T20:21:48+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.08GB (trader RSS: 2.88GB)
+2026-10-02T20:21:48+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.08GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:21:49+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T20:22:50+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.13GB (trader RSS: 2.57GB)
+2026-10-02T20:22:50+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.13GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:22:50+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.19GB
+2026-10-02T20:22:50+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T20:23:53+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.21GB (trader RSS: 2.21GB)
+2026-10-02T20:23:54+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.21GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:23:54+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.22GB
+2026-10-02T20:24:55+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.27GB (trader RSS: 0.78GB)
+2026-10-02T20:25:58+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 0.27GB)
+2026-10-02T20:25:58+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:25:59+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.33GB
+2026-10-02T20:27:00+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 0.13GB)
+2026-10-02T20:27:00+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:27:00+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.11GB
+2026-10-02T20:28:01+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.20GB (trader RSS: 1.38GB)
+2026-10-02T20:28:01+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.20GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:28:01+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.26GB
+2026-10-02T20:29:02+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.25GB (trader RSS: 1.31GB)
+2026-10-02T20:29:02+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.25GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:29:02+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.41GB
+2026-10-02T20:30:03+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.22GB (trader RSS: 1.39GB)
+2026-10-02T20:30:03+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.22GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:30:03+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.36GB
+2026-10-02T20:31:04+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.13GB (trader RSS: 1.56GB)
+2026-10-02T20:31:04+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.13GB, strike 6/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:31:04+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.21GB
+2026-10-02T20:32:05+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.13GB (trader RSS: 2.54GB)
+2026-10-02T20:32:05+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.13GB, strike 7/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:32:05+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.11GB
+2026-10-02T20:32:05+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T20:33:06+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.13GB (trader RSS: 2.05GB)
+2026-10-02T20:33:06+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.13GB, strike 8/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:33:06+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.11GB
+2026-10-02T20:33:06+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T20:34:07+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.18GB (trader RSS: 2.08GB)
+2026-10-02T20:34:07+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.18GB, strike 9/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:34:08+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.19GB
+2026-10-02T20:34:08+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T20:35:08+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.06GB (trader RSS: 2.56GB)
+2026-10-02T20:35:08+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.06GB, strike 10/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:35:09+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.21GB
+2026-10-02T20:37:19+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.17GB (trader RSS: 1.66GB)
+2026-10-02T20:37:19+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.17GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:37:19+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.21GB
+2026-10-02T20:38:20+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.20GB (trader RSS: 0.26GB)
+2026-10-02T20:38:20+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.20GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:38:20+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T20:39:21+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.26GB (trader RSS: 1.39GB)
+2026-10-02T20:40:21+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.22GB (trader RSS: 1.58GB)
+2026-10-02T20:40:21+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.22GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:40:22+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.33GB
+2026-10-02T20:41:23+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.21GB (trader RSS: 1.29GB)
+2026-10-02T20:41:23+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.21GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:41:23+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.35GB
+2026-10-02T20:42:24+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.25GB (trader RSS: 1.37GB)
+2026-10-02T20:42:24+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.25GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:42:24+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.46GB
+2026-10-02T20:43:24+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.16GB (trader RSS: 1.82GB)
+2026-10-02T20:43:24+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.16GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:43:25+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.31GB
+2026-10-02T20:44:26+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 2.08GB)
+2026-10-02T20:44:26+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:44:26+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.25GB
+2026-10-02T20:45:27+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.06GB (trader RSS: 2.12GB)
+2026-10-02T20:45:27+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.06GB, strike 6/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:45:27+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.05GB
+2026-10-02T20:45:27+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T20:46:28+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.19GB (trader RSS: 2.21GB)
+2026-10-02T20:46:28+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.19GB, strike 7/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:46:28+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T20:46:28+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T20:47:29+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.05GB (trader RSS: 2.25GB)
+2026-10-02T20:47:29+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.05GB, strike 8/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:47:29+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.16GB
+2026-10-02T20:47:29+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T20:48:30+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.36GB (trader RSS: 3.25GB)
+2026-10-02T20:50:31+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.30GB (trader RSS: 0.33GB)
+2026-10-02T20:51:32+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.09GB (trader RSS: 1.40GB)
+2026-10-02T20:51:32+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.09GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:51:32+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.11GB
+2026-10-02T20:52:33+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.06GB (trader RSS: 1.23GB)
+2026-10-02T20:52:33+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.06GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:52:33+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.28GB
+2026-10-02T20:53:34+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 1.45GB)
+2026-10-02T20:53:34+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:53:34+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.25GB
+2026-10-02T20:54:35+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 1.81GB)
+2026-10-02T20:54:35+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:54:35+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.36GB
+2026-10-02T20:55:36+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.15GB (trader RSS: 2.69GB)
+2026-10-02T20:55:36+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.15GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:55:36+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.20GB
+2026-10-02T20:56:37+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 2.05GB)
+2026-10-02T20:56:37+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 6/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:56:37+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.27GB
+2026-10-02T20:57:38+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 2.39GB)
+2026-10-02T20:57:38+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 7/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:57:38+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.09GB
+2026-10-02T20:57:38+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T20:58:39+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 2.56GB)
+2026-10-02T20:58:39+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 8/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T20:58:39+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.02GB
+2026-10-02T20:58:39+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T21:00:41+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 2.15GB)
+2026-10-02T21:00:41+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:00:41+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.19GB
+2026-10-02T21:01:42+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.09GB (trader RSS: 1.37GB)
+2026-10-02T21:01:42+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.09GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:01:42+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.28GB
+2026-10-02T21:02:43+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.20GB (trader RSS: 1.30GB)
+2026-10-02T21:02:43+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.20GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:02:43+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.34GB
+2026-10-02T21:03:43+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.08GB (trader RSS: 1.86GB)
+2026-10-02T21:03:43+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.08GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:03:44+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.17GB
+2026-10-02T21:03:44+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T21:04:44+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.36GB (trader RSS: 1.43GB)
+2026-10-02T21:05:45+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.15GB (trader RSS: 2.33GB)
+2026-10-02T21:05:45+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.15GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:05:46+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.16GB
+2026-10-02T21:07:48+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.20GB (trader RSS: 2.68GB)
+2026-10-02T21:07:48+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.20GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:07:48+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T21:08:49+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.13GB (trader RSS: 2.17GB)
+2026-10-02T21:08:49+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.13GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:08:49+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.22GB
+2026-10-02T21:09:50+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 1.26GB)
+2026-10-02T21:09:50+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:09:50+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.26GB
+2026-10-02T21:10:51+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 1.58GB)
+2026-10-02T21:10:51+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:10:51+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.25GB
+2026-10-02T21:11:54+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.30GB (trader RSS: 1.24GB)
+2026-10-02T21:12:55+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.20GB (trader RSS: 1.28GB)
+2026-10-02T21:12:55+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.20GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:12:55+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.38GB
+2026-10-02T21:13:55+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.15GB (trader RSS: 1.77GB)
+2026-10-02T21:13:55+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.15GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:13:56+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.24GB
+2026-10-02T21:14:56+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.22GB (trader RSS: 2.57GB)
+2026-10-02T21:14:56+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.22GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:14:57+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.27GB
+2026-10-02T21:15:58+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.04GB (trader RSS: 1.43GB)
+2026-10-02T21:15:58+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.04GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:15:58+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.29GB
+2026-10-02T21:16:59+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.05GB (trader RSS: 2.38GB)
+2026-10-02T21:16:59+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.05GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:16:59+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.09GB
+2026-10-02T21:16:59+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T21:18:00+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.06GB (trader RSS: 2.72GB)
+2026-10-02T21:18:00+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.06GB, strike 6/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:18:01+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T21:19:02+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.32GB (trader RSS: 1.51GB)
+2026-10-02T21:20:12+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.15GB (trader RSS: 1.28GB)
+2026-10-02T21:20:12+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.15GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:20:13+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T21:21:13+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.12GB (trader RSS: 1.28GB)
+2026-10-02T21:21:13+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.12GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:21:13+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T21:22:14+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 1.37GB)
+2026-10-02T21:22:14+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:22:14+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.16GB
+2026-10-02T21:22:14+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T21:23:15+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.09GB (trader RSS: 1.91GB)
+2026-10-02T21:23:15+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.09GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:23:15+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.21GB
+2026-10-02T21:25:28+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.01GB (trader RSS: 2.38GB)
+2026-10-02T21:25:28+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.01GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:25:30+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.34GB
+2026-10-02T21:26:30+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.07GB (trader RSS: 2.33GB)
+2026-10-02T21:26:30+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.07GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:26:31+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T21:27:33+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 2.42GB)
+2026-10-02T21:27:35+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:27:36+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T21:27:36+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T21:30:05+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.27GB (trader RSS: 0.91GB)
+2026-10-02T21:31:06+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.31GB (trader RSS: 1.75GB)
+2026-10-02T21:32:06+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.14GB (trader RSS: 1.56GB)
+2026-10-02T21:32:06+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.14GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:32:06+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.35GB
+2026-10-02T21:33:07+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.23GB (trader RSS: 1.27GB)
+2026-10-02T21:33:08+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.23GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:33:08+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.36GB
+2026-10-02T21:34:08+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.26GB (trader RSS: 1.42GB)
+2026-10-02T21:35:09+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.20GB (trader RSS: 1.97GB)
+2026-10-02T21:35:09+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.20GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:35:09+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.40GB
+2026-10-02T21:36:10+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 2.44GB)
+2026-10-02T21:36:10+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:36:10+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.25GB
+2026-10-02T21:37:11+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.20GB (trader RSS: 2.23GB)
+2026-10-02T21:37:11+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.20GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:37:12+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.26GB
+2026-10-02T21:38:12+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.04GB (trader RSS: 2.31GB)
+2026-10-02T21:38:12+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.04GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:38:13+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.14GB
+2026-10-02T21:38:13+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T21:39:14+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.18GB (trader RSS: 2.35GB)
+2026-10-02T21:39:14+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.18GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:39:14+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.31GB
+2026-10-02T21:40:15+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.17GB (trader RSS: 2.53GB)
+2026-10-02T21:40:15+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.17GB, strike 6/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:40:16+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.19GB
+2026-10-02T21:40:16+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T21:41:24+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.09GB (trader RSS: 1.48GB)
+2026-10-02T21:41:24+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.09GB, strike 7/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:41:24+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.27GB
+2026-10-02T21:42:25+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.08GB (trader RSS: 1.31GB)
+2026-10-02T21:42:25+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.08GB, strike 8/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:42:25+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.26GB
+2026-10-02T21:45:28+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.12GB (trader RSS: 1.95GB)
+2026-10-02T21:45:29+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.12GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:45:30+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.29GB
+2026-10-02T21:46:30+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.19GB (trader RSS: 2.35GB)
+2026-10-02T21:46:30+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.19GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:46:31+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.18GB
+2026-10-02T21:47:32+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 2.32GB)
+2026-10-02T21:47:32+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:47:32+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.54GB
+2026-10-02T21:48:33+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.08GB (trader RSS: 2.29GB)
+2026-10-02T21:48:33+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.08GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:48:33+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T21:50:35+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.20GB (trader RSS: 2.69GB)
+2026-10-02T21:50:35+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.20GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:50:35+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.31GB
+2026-10-02T21:51:36+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.14GB (trader RSS: 2.15GB)
+2026-10-02T21:51:36+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.14GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:51:37+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.27GB
+2026-10-02T21:52:37+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.14GB (trader RSS: 1.48GB)
+2026-10-02T21:52:37+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.14GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:52:37+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.31GB
+2026-10-02T21:53:38+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.26GB (trader RSS: 1.42GB)
+2026-10-02T21:54:39+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.17GB (trader RSS: 1.60GB)
+2026-10-02T21:54:39+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.17GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:54:39+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.50GB
+2026-10-02T21:55:40+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 1.92GB)
+2026-10-02T21:55:40+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:55:40+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.40GB
+2026-10-02T21:56:41+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.16GB (trader RSS: 2.79GB)
+2026-10-02T21:56:41+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.16GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:56:41+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.21GB
+2026-10-02T21:57:42+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.19GB (trader RSS: 2.62GB)
+2026-10-02T21:57:42+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.19GB, strike 4/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:57:42+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.24GB
+2026-10-02T21:58:43+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.11GB (trader RSS: 2.26GB)
+2026-10-02T21:58:43+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.11GB, strike 5/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T21:58:44+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.23GB
+2026-10-02T21:59:44+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.25GB (trader RSS: 2.22GB)
+2026-10-02T22:01:52+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.23GB (trader RSS: 1.44GB)
+2026-10-02T22:01:52+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.23GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T22:01:52+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.39GB
+2026-10-02T22:02:53+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 1.39GB)
+2026-10-02T22:02:53+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T22:02:53+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.51GB
+2026-10-02T22:03:54+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.25GB (trader RSS: 1.35GB)
+2026-10-02T22:04:55+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.21GB (trader RSS: 1.45GB)
+2026-10-02T22:04:55+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.21GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T22:04:55+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.46GB
+2026-10-02T22:05:56+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.25GB (trader RSS: 1.76GB)
+2026-10-02T22:05:56+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.25GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T22:05:56+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.32GB
+2026-10-02T22:06:56+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.25GB (trader RSS: 2.23GB)
+2026-10-02T22:07:57+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.08GB (trader RSS: 2.57GB)
+2026-10-02T22:07:57+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.08GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T22:07:58+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.16GB
+2026-10-02T22:08:59+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.13GB (trader RSS: 2.60GB)
+2026-10-02T22:08:59+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.13GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T22:08:59+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.17GB
+2026-10-02T22:10:00+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.04GB (trader RSS: 2.49GB)
+2026-10-02T22:10:00+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.04GB, strike 3/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T22:10:00+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.01GB
+2026-10-02T22:10:00+00:00 [RAM_GUARD] EMERGENCY: Sustained severe RAM depletion (<0.20GB) across 3 polls. Logging resource alert.
+2026-10-02T22:13:02+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.23GB (trader RSS: 1.76GB)
+2026-10-02T22:13:02+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.23GB, strike 1/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T22:13:03+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.69GB
+2026-10-02T22:14:03+00:00 [RAM_GUARD] WARNING: Low free RAM: 0.24GB (trader RSS: 1.49GB)
+2026-10-02T22:14:03+00:00 [RAM_GUARD] CAUTION: System free RAM critically low (0.24GB, strike 2/3). Attempting working-set trim on trader pid 4740...
+2026-10-02T22:14:04+00:00 [RAM_GUARD] Working-set trim result: True -> new free RAM: 0.56GB
+2026-10-02T22:16:06+00:00 trader process gone on two consecutive polls - run complete
+2026-10-02T22:16:26+00:00 running PU-0150 report (window start 2026-10-02T17:17:42.975731+00:00)
+2026-10-02T22:16:26+00:00 report exit=0 -> artifacts/pu_session11_report.txt

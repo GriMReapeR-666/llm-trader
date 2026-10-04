@@ -1,0 +1,472 @@
+{
+  "symbol": "EURUSD",
+  "timeframe": "M5",
+  "total_trades": 1037,
+  "benchmark_score": 40.0,
+  "benchmark_grade": "D",
+  "ready_for_live": "False",
+  "gate_passed": false,
+  "summary": "1037 trades | Grade D (40/100) | Gate FAIL | 7s",
+  "phases": [
+    {
+      "name": "real_backtest",
+      "status": "PASS",
+      "trades": 57,
+      "duration": 4.2,
+      "details": {
+        "alpha_cols": 27,
+        "cost_model": "tce_per_fill",
+        "cpcv": {
+          "status": "OVERFITTING_RISK_DETECTED",
+          "mean_cpcv_sharpe": -3.073,
+          "deflated_sharpe_ratio": 1.0,
+          "pbo": 0.9333,
+          "is_statistically_robust": false,
+          "samples": 57
+        }
+      }
+    },
+    {
+      "name": "scenario_stress",
+      "status": "PASS",
+      "trades": 980,
+      "duration": 0.0,
+      "details": {
+        "scenarios_tested": 19,
+        "scenarios_passed": 18
+      }
+    },
+    {
+      "name": "rl_training",
+      "status": "PASS",
+      "trades": 0,
+      "duration": 0.0,
+      "details": {
+        "status": "ok"
+      }
+    },
+    {
+      "name": "meta_improvement",
+      "status": "PASS",
+      "trades": 0,
+      "duration": 0.0,
+      "details": {
+        "cycle": 1,
+        "improvements_applied": 0,
+        "checks": {
+          "parameter_stability": {
+            "status": "no_persisted_status",
+            "available": true,
+            "note": "on-demand only: run_parameter_stability(grids, strategy_fn)"
+          },
+          "overfit_gate": {
+            "total_validated": 57,
+            "passed": 3,
+            "rejected": 54,
+            "not_validated_count": 0,
+            "blocked_risk_levels": [
+              "CRITICAL",
+              "HIGH"
+            ],
+            "strategies": {
+              "swing": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789730190.055459
+              },
+              "swing_search/baseline_trend_hma21_ema50_adx14": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733567.3104172
+              },
+              "swing_search/slow_trend_hma50_ema100": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733568.0460677
+              },
+              "swing_search/slow_trend_hma75_ema150": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733568.7912846
+              },
+              "swing_search/slow_trend_hma100_ema200": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733569.554146
+              },
+              "swing_search/pullback_adx15_hma50": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733570.28952
+              },
+              "swing_search/pullback_adx18_hma50": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733571.0150704
+              },
+              "swing_search/pullback_adx20_hma50": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733571.7441587
+              },
+              "swing_search/wide_stop_sl2.0_tp4.0": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733572.460499
+              },
+              "swing_search/wide_stop_sl2.5_tp5.0": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733573.1603572
+              },
+              "swing_search/high_rr_sl1.5_tp4.5": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733573.8994708
+              },
+              "swing_search/high_rr_slow_hma75_ema150_tp4.5": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789733574.6600912
+              },
+              "widestop_family/anchor_unmanaged": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737605.8779724
+              },
+              "widestop_family/ratchet_1R_to_be": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737606.604859
+              },
+              "widestop_family/ratchet_1R_lock0.1": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737607.309529
+              },
+              "widestop_family/ratchet_1.25R_lock0.25": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737608.0307992
+              },
+              "widestop_family/ratchet_1.5R_lock0.5": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737608.73935
+              },
+              "widestop_family/timestop_48": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737609.4436455
+              },
+              "widestop_family/timestop_96": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737610.1659386
+              },
+              "widestop_family/ratchet1R+timestop48": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737610.9065945
+              },
+              "widestop_family/ratchet1R+timestop96": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737611.636768
+              },
+              "widestop_family/ratchet1.25R+ts96_lock0.25": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737612.3671417
+              },
+              "widestop_family/ratchet1.5R+ts96_lock0.5": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789737613.068145
+              },
+              "entry_quality/anchor_unfiltered": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743489.791541
+              },
+              "entry_quality/session_12-20utc": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743490.5584142
+              },
+              "entry_quality/session_7-17utc": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743491.3052013
+              },
+              "entry_quality/nochase_rsi75": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743493.870694
+              },
+              "entry_quality/nochase_rsi70": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743494.637669
+              },
+              "entry_quality/extcap_1.5atr": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743495.3756344
+              },
+              "entry_quality/extcap_1.0atr": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743496.1317506
+              },
+              "entry_quality/combo_session+nochase+ext": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743496.9150321
+              },
+              "entry_quality/volband_20-90": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743492.2114596
+              },
+              "entry_quality/volband_30-80": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743493.1170907
+              },
+              "entry_quality/combo_volband+nochase": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743497.7934165
+              },
+              "entry_quality/combo_all4": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789743498.7378433
+              },
+              "ensemble_entry/tsmom_10d": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789747454.1221583
+              },
+              "ensemble_entry/tsmom_20d": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789747454.8029983
+              },
+              "ensemble_entry/tsmom_40d": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789747455.53596
+              },
+              "ensemble_entry/ma_gap": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789747456.2439463
+              },
+              "ensemble_entry/sign_agreement_0.75": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789747456.9466689
+              },
+              "ensemble_entry/combo_tsmom": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789747457.6263294
+              },
+              "ensemble_entry/combo_all5": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789747458.3214443
+              },
+              "ensemble_entry/combo_tsmom_2.0": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789747459.0265868
+              },
+              "ensemble_entry/combo_tsmom+extcap1.0": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789747459.6983502
+              },
+              "ensemble_entry/combo_all5+extcap1.0": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789747460.392359
+              },
+              "tsmom_slow/tsmom_60d": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789748664.67436
+              },
+              "tsmom_slow/tsmom_80d": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789748665.3256533
+              },
+              "tsmom_slow/tsmom_120d": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789748665.9830487
+              },
+              "tsmom_slow/tsmom_60d+extcap1.0": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789748666.645561
+              },
+              "tsmom_slow/tsmom_80d+extcap1.0": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789748667.3135157
+              },
+              "tsmom_slow/tsmom_120d+extcap1.0": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789748667.9665887
+              },
+              "tsmom_slow/combo_slow": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789748668.6185868
+              },
+              "tsmom_slow/combo_slow+extcap1.0": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1789748669.295616
+              },
+              "statarb_eur_chf": {
+                "risk_level": "MODERATE",
+                "grade": "C",
+                "validated_at": 1790316821.9665549
+              },
+              "sprt_hypothesis_gate": {
+                "risk_level": "MODERATE",
+                "grade": "C",
+                "validated_at": 1790382927.3092775
+              },
+              "model_bocpd_changepoint": {
+                "risk_level": "MODERATE",
+                "grade": "C",
+                "validated_at": 1790361235.0657585
+              },
+              "scalp": {
+                "risk_level": "CRITICAL",
+                "grade": "F",
+                "validated_at": 1790579311.1859393
+              }
+            }
+          },
+          "return_diagnostics": {
+            "n_observations": 150,
+            "is_white_noise": true,
+            "has_linear_dependence": false,
+            "has_volatility_clustering": false,
+            "durbin_watson": 2.0833,
+            "runs_test_p_value": 0.6085,
+            "summary": "n=150 | returns: no linear dependence | |returns|: no volatility clustering | DW=2.083 | WHITE NOISE \u2713"
+          }
+        }
+      }
+    },
+    {
+      "name": "alpha_evaluation",
+      "status": "SKIP",
+      "trades": 0,
+      "duration": 2.4,
+      "details": {
+        "error": "compute_alpha_quality() missing 1 required positional argument: 'name'"
+      }
+    },
+    {
+      "name": "regime_analysis",
+      "status": "PASS",
+      "trades": 0,
+      "duration": 0.0,
+      "details": {
+        "regimes": 1
+      }
+    },
+    {
+      "name": "journal_gathering",
+      "status": "SKIP",
+      "trades": 0,
+      "duration": 0.1,
+      "details": {
+        "error": "cannot import name 'Journal' from 'core.trading_tools' (C:\\Users\\User\\OneDrive\\Desktop\\selfmade game"
+      }
+    },
+    {
+      "name": "benchmarking",
+      "status": "PASS",
+      "trades": 0,
+      "duration": 0.0,
+      "details": {
+        "overall_score": 40.0,
+        "overall_grade": "D",
+        "total_trades": 1037,
+        "min_trades_met": true,
+        "ready_for_deployment": "False",
+        "summary": "Grade D | 1037 trades | MIN_MET | 6 issues | NEEDS_WORK",
+        "dimensions": {
+          "risk_adjusted_returns": {
+            "score": 0,
+            "grade": "F",
+            "issues": [
+              "Sharpe -0.14 < 0.5"
+            ]
+          },
+          "statistical_significance": {
+            "score": 47.2,
+            "grade": "C",
+            "issues": [
+              "p-value 1.812 > 0.05 (not significant)"
+            ]
+          },
+          "robustness": {
+            "score": 50,
+            "grade": "C+",
+            "issues": [
+              "PBO 0.500 > 0.3 (overfitting risk)"
+            ]
+          },
+          "regime_performance": {
+            "score": 10.5,
+            "grade": "F",
+            "issues": []
+          },
+          "edge_case_survival": {
+            "score": 94.7,
+            "grade": "A+",
+            "issues": []
+          },
+          "drawdown_analysis": {
+            "score": 0,
+            "grade": "F",
+            "issues": [
+              "Max drawdown -13342118744.0% > -20%"
+            ]
+          },
+          "execution_quality": {
+            "score": 68.9,
+            "grade": "B",
+            "issues": [
+              "Profit factor 0.98 < 1.0"
+            ]
+          },
+          "capacity": {
+            "score": 80,
+            "grade": "A",
+            "issues": [
+              "Max volume 2992.0000 may exceed capacity"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "artifacts": {
+    "trades": "artifacts\\capstone\\trades_EURUSD_1790580298.json",
+    "equity": "artifacts\\capstone\\equity_EURUSD_1790580298.json",
+    "scenarios": "artifacts\\capstone\\scenarios_EURUSD_1790580298.json"
+  }
+}

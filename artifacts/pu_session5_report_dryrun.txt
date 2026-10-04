@@ -1,0 +1,94 @@
+{
+  "report": "PU-0150",
+  "window_start": "2026-09-29T19:00:00+00:00",
+  "llm_requests": [
+    {
+      "created_at": "2026-09-29T19:18:58.663749+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items",
+      "estimated_tokens": 1500,
+      "response_chars": 1782
+    },
+    {
+      "created_at": "2026-09-29T19:32:32.596902+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items",
+      "estimated_tokens": 1500,
+      "response_chars": 1782
+    },
+    {
+      "created_at": "2026-09-29T21:11:14.311840+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items",
+      "estimated_tokens": 1500,
+      "response_chars": 1782
+    },
+    {
+      "created_at": "2026-09-29T21:23:18.240786+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items",
+      "estimated_tokens": 1500,
+      "response_chars": 2925
+    },
+    {
+      "created_at": "2026-09-29T22:52:32.221380+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items",
+      "estimated_tokens": 1500,
+      "response_chars": 1782
+    }
+  ],
+  "trader_summary": {
+    "n": 0,
+    "errors": 0,
+    "successes": 0,
+    "error_rate": null,
+    "baseline_error_rate": 0.579
+  },
+  "by_strategy": {},
+  "errors_detail": [],
+  "prompt_join": [],
+  "prompt_stats": {
+    "n": 0
+  },
+  "memory_summary": {
+    "n": 5,
+    "errors": 5,
+    "parse_status_counts": {
+      "FAILURE": 5
+    },
+    "error_strings": [
+      "memory batch contained failed items"
+    ]
+  },
+  "operational_event_counts": {
+    "distillation_failed": 15,
+    "schedule_handler_overrun": 3
+  },
+  "memory_outbox_status": {
+    "PENDING": 18
+  }
+}
+PU-0150-OK
+exit=0
+END-MARKER-PU-0150DRY

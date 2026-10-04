@@ -1,0 +1,33 @@
+{
+  "generated_at": "2026-09-29T15:05:11.016471+00:00",
+  "verdict": "GREEN",
+  "failures": [],
+  "steps": [
+    {
+      "name": "journal",
+      "ok": true,
+      "note": "quick_check: ok; integrity_check: ok"
+    },
+    {
+      "name": "schedules",
+      "ok": true,
+      "note": "25 schedules registered, 25 in code registry; registry matches code (names, intervals, payload kinds)"
+    },
+    {
+      "name": "events",
+      "ok": true,
+      "note": "24h severities: {\"ERROR\": 19, \"INFO\": 453, \"WARNING\": 58}; agent_runs by status (all time): {\"FAILED\": 1, \"STALE_RECOVERED\": 512, \"STOPPED\": 62}"
+    },
+    {
+      "name": "autonomy",
+      "ok": true,
+      "note": "level L3_FULL; halted=false; paused=false"
+    },
+    {
+      "name": "tests",
+      "ok": true,
+      "note": "exit 0\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n.........................................................                [100%]"
+    }
+  ],
+  "marker": "END-MARKER-SMOKE-20260929-150511"
+}

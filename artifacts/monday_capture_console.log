@@ -1,0 +1,93 @@
+[capture] now=2026-09-19T16:31:34.593600+00:00 target=2026-09-21T00:05:00+00:00 wait=31.6h session=24x30s XAUUSD H1
+[capture] pid=22028 recorded: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\artifacts\monday_capture.pid
+[capture] waiting... 31.1h remaining
+[capture] waiting... 30.6h remaining
+[capture] waiting... 30.1h remaining
+[capture] waiting... 29.6h remaining
+[capture] waiting... 29.1h remaining
+[capture] waiting... 28.6h remaining
+[capture] waiting... 28.1h remaining
+[capture] waiting... 27.5h remaining
+[capture] waiting... 27.0h remaining
+[capture] waiting... 26.5h remaining
+[capture] waiting... 26.0h remaining
+[capture] waiting... 25.5h remaining
+[capture] waiting... 25.0h remaining
+[capture] waiting... 24.5h remaining
+[capture] waiting... 24.0h remaining
+[capture] waiting... 23.5h remaining
+[capture] waiting... 23.0h remaining
+[capture] waiting... 22.5h remaining
+[capture] waiting... 22.0h remaining
+[capture] waiting... 21.5h remaining
+[capture] waiting... 21.0h remaining
+[capture] waiting... 20.5h remaining
+[capture] waiting... 20.0h remaining
+[capture] waiting... 19.5h remaining
+[capture] waiting... 19.0h remaining
+[capture] waiting... 18.5h remaining
+[capture] waiting... 18.0h remaining
+[capture] waiting... 17.5h remaining
+[capture] waiting... 17.0h remaining
+[capture] waiting... 16.5h remaining
+[capture] waiting... 16.0h remaining
+[capture] waiting... 15.5h remaining
+[capture] waiting... 15.0h remaining
+[capture] waiting... 14.5h remaining
+[capture] waiting... 14.0h remaining
+[capture] waiting... 13.5h remaining
+[capture] waiting... 13.0h remaining
+[capture] waiting... 12.5h remaining
+[capture] waiting... 12.0h remaining
+[capture] waiting... 11.5h remaining
+[capture] waiting... 11.0h remaining
+[capture] waiting... 10.5h remaining
+[capture] waiting... 10.0h remaining
+[capture] waiting... 9.5h remaining
+[capture] waiting... 9.0h remaining
+[capture] waiting... 8.5h remaining
+[capture] waiting... 8.0h remaining
+[capture] waiting... 7.5h remaining
+[capture] waiting... 7.0h remaining
+[capture] waiting... 6.5h remaining
+[capture] waiting... 6.0h remaining
+[capture] waiting... 5.5h remaining
+[capture] waiting... 5.0h remaining
+[capture] baseline: corpus=127 rl_updates=150 reward_max_ts=2026-09-19T10:38:49.139728+00:00
+[capture] session start 2026-09-21T06:02:17.815744+00:00
+[capture] cmd: C:\Users\User\AppData\Local\Programs\Python\Python313\python.exe C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\mt5_trader.py llm-trade --symbol XAUUSD --timeframe H1 --demo --yes --loops 24 --poll-interval 30
+[capture] log: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\artifacts\monday_capture_20260921_0602.log
+[capture] session exit=1 2026-09-21T06:02:58.284359+00:00
+
+===== MONDAY CAPTURE VERDICT =====
+{
+  "launched_at": "2026-09-21T06:02:12.758760+00:00",
+  "checked_at": "2026-09-21T06:02:58.292072+00:00",
+  "corpus": {
+    "db_exists": true,
+    "new_entries": 0,
+    "labeled_regimes": 0,
+    "sample": []
+  },
+  "rl": {
+    "states": 94,
+    "total_updates": 150,
+    "baseline_updates": 150,
+    "grew": false,
+    "new_training_rows": 0
+  },
+  "reward_events": {
+    "new_since_launch": 0
+  },
+  "captured_live_close": false,
+  "session_healthy": false,
+  "session_exit": 1,
+  "session_log": "C:\\Users\\User\\OneDrive\\Desktop\\selfmade game projects\\llm trader - Checkpoint dicisipline soilder - used in antigravity\\artifacts\\monday_capture_20260921_0602.log",
+  "session": {
+    "log_exists": true,
+    "errors": 1,
+    "cycles": 0,
+    "pipeline_tick": null
+  }
+}
+[capture] verdict written: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\artifacts\monday_capture_verdict.json

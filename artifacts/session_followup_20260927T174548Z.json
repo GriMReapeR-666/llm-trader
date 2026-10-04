@@ -1,0 +1,35 @@
+{
+  "ran_at": "2026-09-27T17:45:48+00:00",
+  "session": {
+    "start": "2026-09-27T17:35:50.005244+00:00",
+    "finish": "2026-09-27T17:10:13.577255+00:00",
+    "open": true
+  },
+  "results": {
+    "report": {
+      "ok": true,
+      "note": "exit 0\n\n== claimed-but-abandoned batches (schedule_skipped) ==\n  no schedule_skipped events yet\n  (0 batches scanned)\n\nsaved: artifacts\\scheduler_tuning_report.json"
+    },
+    "verify": {
+      "ok": true,
+      "note": "rows=2 exit 0\nverifying 2 verdict row(s) against the pinned thresholds:\nVERIFIED - all verdicts match the pinned RAISE/AT_CAP/WATCH boundaries (provenance: confirmed)"
+    },
+    "apply": {
+      "ok": true,
+      "note": "no RAISE verdicts - nothing to apply (budgets untouched)"
+    },
+    "duty": {
+      "ok": true,
+      "note": "exit 0 (no comparison verdicts yet)"
+    },
+    "dashboard": {
+      "ok": true,
+      "note": "dashboard written: compliance_dashboard.html"
+    }
+  },
+  "critical_failed": [],
+  "commit_worthies": [
+    "apply"
+  ],
+  "note": "no auto-commit; review applied budgets and the refreshed report artifact before committing"
+}

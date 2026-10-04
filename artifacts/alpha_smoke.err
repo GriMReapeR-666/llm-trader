@@ -1,0 +1,103 @@
+INFO MarketData: MT5 server-timezone offset detected: +10800s (UTC+3)
+INFO research.alpha_miner.exploration_grid: Built exploration grid with 660 cells
+INFO research.alpha_miner.alpha101_knowledge_base: Alpha101KnowledgeBase loaded 29 records
+INFO research.alpha_miner.pipeline: ======================================================================
+INFO research.alpha_miner.pipeline: ALPHA MINING PIPELINE - Starting
+INFO research.alpha_miner.pipeline: ======================================================================
+INFO research.alpha_miner.pipeline: 
+Phase 1: Hierarchical GA Evolution
+INFO research.alpha_miner.ga_engine: Initializing population of 30 expressions...
+INFO research.alpha_miner.ga_engine: Generation 1/3
+INFO research.alpha_miner.ga_engine:   Avg IC: -0.0359, Max IC: 0.1179, Significant: 13, Diversity: 1.00
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pca_projector.py:98: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  behavior_df = behavior_df.fillna(method='ffill').fillna(method='bfill')
+INFO research.alpha_miner.ga_engine:   Increasing max depth to 2
+INFO research.alpha_miner.ga_engine: Generation 2/3
+INFO research.alpha_miner.ga_engine:   Avg IC: 0.0079, Max IC: 0.1179, Significant: 8, Diversity: 0.62
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pca_projector.py:98: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  behavior_df = behavior_df.fillna(method='ffill').fillna(method='bfill')
+INFO research.alpha_miner.ga_engine:   Increasing max depth to 3
+INFO research.alpha_miner.ga_engine: Generation 3/3
+INFO research.alpha_miner.ga_engine:   Avg IC: 0.0407, Max IC: 0.1179, Significant: 12, Diversity: 0.38
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pca_projector.py:98: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  behavior_df = behavior_df.fillna(method='ffill').fillna(method='bfill')
+INFO research.alpha_miner.ga_engine: Evolution completed in 73.9s
+INFO research.alpha_miner.ga_engine: Best IC: 0.1179
+INFO research.alpha_miner.ga_engine: Significant alphas: 12
+INFO research.alpha_miner.pipeline: 
+Phase 2: PCA Grid Selection & Diversity
+INFO research.alpha_miner.pipeline: 
+Phase 2.1: Deterministic Judge Rubric Pre-Filter (Vu et al. 2026)
+INFO research.alpha_miner.pipeline: 
+Phase 2.5: Horizon-Aware Alpha Evaluation
+INFO research.alpha_miner.pipeline:   Horizon filter: 12 -> 12 alphas (0 misleading)
+INFO research.alpha_miner.pipeline: 
+Phase 3: Failure-Aware Repair
+INFO research.alpha_miner.pipeline: 
+Phase 3.5: Regime Detection & Liquidity Screening
+INFO research.alpha_miner.pipeline:   Regime: ranging (confidence=0.49, trend=0.04)
+INFO research.alpha_miner.pipeline:   Liquidity: score=0.26, liquid=False, slippage=100.0bps
+INFO research.alpha_miner.pipeline: 
+Phase 4: Strategy Registration
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_339ff1e4 (Alpha-1)
+INFO research.alpha_miner.pipeline:   Registered: alpha_339ff1e4 (IC=-0.1274)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_6435dad6 (Alpha-2)
+INFO research.alpha_miner.pipeline:   Registered: alpha_6435dad6 (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_562e93b3 (Alpha-3)
+INFO research.alpha_miner.pipeline:   Registered: alpha_562e93b3 (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_fc3c147e (Alpha-4)
+INFO research.alpha_miner.pipeline:   Registered: alpha_fc3c147e (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_469775a9 (Alpha-5)
+INFO research.alpha_miner.pipeline:   Registered: alpha_469775a9 (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_de89ade9 (Alpha-6)
+INFO research.alpha_miner.pipeline:   Registered: alpha_de89ade9 (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_418ffe9f (Alpha-7)
+INFO research.alpha_miner.pipeline:   Registered: alpha_418ffe9f (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_039c79b9 (Alpha-8)
+INFO research.alpha_miner.pipeline:   Registered: alpha_039c79b9 (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_deaf6435 (Alpha-9)
+INFO research.alpha_miner.pipeline:   Registered: alpha_deaf6435 (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_53767541 (Alpha-10)
+INFO research.alpha_miner.pipeline:   Registered: alpha_53767541 (IC=0.0975)
+INFO research.alpha_miner.pipeline: 
+Phase 5: MegaAlpha Portfolio Construction
+INFO research.alpha_miner.pipeline:   MegaAlpha composite shape: (1500,)
+INFO research.alpha_miner.pipeline: 
+Phase 6: Optimal Strategy Statistics
+WARNING research.alpha_miner.pipeline: Optimal statistics computation failed: too many values to unpack (expected 2)
+INFO research.alpha_miner.pipeline: 
+Phase 7: Microstructure Signal Analysis
+INFO research.alpha_miner.pipeline:   FVG: 50 gaps detected (strong=1, moderate=12, weak=37, avg_degree=0.000676)
+INFO research.alpha_miner.pipeline:   KAT: 0 absorption events (bull=0, bear=0, state=none)
+INFO research.alpha_miner.pipeline:   Spoofing: 0 events (bullish=0, bearish=0, avg_score=0.00)
+INFO research.alpha_miner.pipeline:   RL Agent: SELL (confidence=0.00, size=0.00)
+INFO research.alpha_miner.pipeline: 
+Phase 8: Pairs Trading & Breakout Detection
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pairs_trader.py:147: CollinearityWarning: y0 and y1 are (almost) perfectly colinear.Cointegration test is not reliable in this case.
+  _, adf_stat, _ = coint(s1, s2)
+C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\statsmodels\regression\linear_model.py:1782: RuntimeWarning: invalid value encountered in scalar divide
+  return 1 - self.ssr/self.centered_tss
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pairs_trader.py:147: CollinearityWarning: y0 and y1 are (almost) perfectly colinear.Cointegration test is not reliable in this case.
+  _, adf_stat, _ = coint(s1, s2)
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pairs_trader.py:147: CollinearityWarning: y0 and y1 are (almost) perfectly colinear.Cointegration test is not reliable in this case.
+  _, adf_stat, _ = coint(s1, s2)
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pairs_trader.py:147: CollinearityWarning: y0 and y1 are (almost) perfectly colinear.Cointegration test is not reliable in this case.
+  _, adf_stat, _ = coint(s1, s2)
+INFO research.alpha_miner.pipeline:   Pairs: 0 cointegrated pairs found, 0 signals generated
+INFO research.alpha_miner.pipeline:   Breakout: 1 breakouts (bull=0, bear=1, avg_vol_ratio=4.58)
+INFO research.alpha_miner.pipeline: 
+Phase 9: Walk-Forward Validation
+INFO research.alpha_miner.pipeline:   Walk-Forward: 4 folds, 3 profitable, avg_sharpe=0.56, robustness=0.75
+INFO research.alpha_miner.pipeline: 
+======================================================================
+INFO research.alpha_miner.pipeline: ALPHA MINING PIPELINE - Complete
+INFO research.alpha_miner.pipeline: ======================================================================
+INFO research.alpha_miner.pipeline: Total expressions evaluated: 30
+INFO research.alpha_miner.pipeline: Significant alphas found: 12
+INFO research.alpha_miner.pipeline: Best IC: 0.1179
+INFO research.alpha_miner.pipeline: Pipeline duration: 87.1s
+Traceback (most recent call last):
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\_tmp_alpha_smoke.py", line 36, in <module>
+    print("stats: %s" % result.stats)
+                        ^^^^^^^^^^^^
+AttributeError: 'AlphaMiningResult' object has no attribute 'stats'

@@ -1,0 +1,275 @@
+{
+  "report": "PU-0150",
+  "window_start": "2026-09-30T20:37:16.611549+00:00",
+  "llm_requests": [
+    {
+      "created_at": "2026-09-30T20:44:30.851175+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "FAILURE",
+      "error": "memory batch contained failed items; left queued for retry",
+      "estimated_tokens": 1500,
+      "response_chars": 415
+    },
+    {
+      "created_at": "2026-09-30T20:59:05.861948+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 617
+    },
+    {
+      "created_at": "2026-09-30T20:59:05.862055+00:00",
+      "strategy": "swing",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 617
+    },
+    {
+      "created_at": "2026-09-30T21:03:29.133702+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "SUCCESS",
+      "parse_status": "PROVIDER_OUTAGE",
+      "error": "",
+      "estimated_tokens": 1500,
+      "response_chars": 0
+    },
+    {
+      "created_at": "2026-09-30T21:15:09.686617+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 849
+    },
+    {
+      "created_at": "2026-09-30T21:15:19.800792+00:00",
+      "strategy": "swing",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 638
+    },
+    {
+      "created_at": "2026-09-30T21:16:23.723947+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 638
+    },
+    {
+      "created_at": "2026-09-30T21:38:33.433648+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 849
+    },
+    {
+      "created_at": "2026-09-30T22:01:00.422842+00:00",
+      "strategy": "memory",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "SUCCESS",
+      "parse_status": "PROVIDER_OUTAGE",
+      "error": "",
+      "estimated_tokens": 1500,
+      "response_chars": 0
+    },
+    {
+      "created_at": "2026-09-30T22:03:31.483569+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 616
+    },
+    {
+      "created_at": "2026-09-30T22:28:08.896186+00:00",
+      "strategy": "swing",
+      "provider": "nvidia_nim",
+      "model": "mistralai/mistral-7b-instruct-v0.2",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 849
+    }
+  ],
+  "trader_summary": {
+    "n": 8,
+    "errors": 8,
+    "successes": 0,
+    "error_rate": 1.0,
+    "baseline_error_rate": 0.579
+  },
+  "by_strategy": {
+    "scalp": {
+      "n": 5,
+      "errors": 5,
+      "successes": 0
+    },
+    "swing": {
+      "n": 3,
+      "errors": 3,
+      "successes": 0
+    }
+  },
+  "errors_detail": [
+    {
+      "at": "2026-09-30T20:59:05.861948+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-09-30T20:59:05.862055+00:00",
+      "strategy": "swing",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-09-30T21:15:09.686617+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-09-30T21:15:19.800792+00:00",
+      "strategy": "swing",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-09-30T21:16:23.723947+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-09-30T21:38:33.433648+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-09-30T22:03:31.483569+00:00",
+      "strategy": "scalp",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    },
+    {
+      "at": "2026-09-30T22:28:08.896186+00:00",
+      "strategy": "swing",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "error": "parse_status=DETERMINISTIC_FALLBACK attempts=1"
+    }
+  ],
+  "prompt_join": [
+    {
+      "at": "2026-09-30T20:59:05.861948+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 45701
+    },
+    {
+      "at": "2026-09-30T20:59:05.862055+00:00",
+      "strategy": "swing",
+      "status": "ERROR",
+      "prompt_chars": 45701
+    },
+    {
+      "at": "2026-09-30T21:15:09.686617+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 46235
+    },
+    {
+      "at": "2026-09-30T21:15:19.800792+00:00",
+      "strategy": "swing",
+      "status": "ERROR",
+      "prompt_chars": 46198
+    },
+    {
+      "at": "2026-09-30T21:16:23.723947+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 48991
+    },
+    {
+      "at": "2026-09-30T21:38:33.433648+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 46546
+    },
+    {
+      "at": "2026-09-30T22:03:31.483569+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 45225
+    },
+    {
+      "at": "2026-09-30T22:28:08.896186+00:00",
+      "strategy": "swing",
+      "status": "ERROR",
+      "prompt_chars": 46607
+    }
+  ],
+  "prompt_stats": {
+    "n": 8,
+    "min": 45225,
+    "max": 48991,
+    "avg": 46400,
+    "over_96k": 0,
+    "baseline_avg": 129820,
+    "baseline_max": 287319
+  },
+  "memory_summary": {
+    "n": 3,
+    "errors": 1,
+    "parse_status_counts": {
+      "FAILURE": 1,
+      "PROVIDER_OUTAGE": 2
+    },
+    "error_strings": [
+      "memory batch contained failed items; left queued for retry"
+    ]
+  },
+  "operational_event_counts": {
+    "distillation_failed": 9,
+    "schedule_handler_overrun": 12
+  },
+  "memory_outbox_status": {
+    "PENDING": 7,
+    "SENT": 13
+  }
+}
+PU-0150-OK

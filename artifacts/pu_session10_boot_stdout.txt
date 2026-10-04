@@ -1,0 +1,4 @@
+2026-10-02T07:32:00+00:00 armed: bar 1.50GB, window 16.0h, poll 30s, free 0.98GB, ablation=no_llm (loops=24, waits for session-9 slot: report or proven wind-down)
+2026-10-02T07:32:00+00:00 session-9 slot free (waiter exited; report NOT present) - preflight loop
+2026-10-02T07:55:32+00:00 PREFLIGHT PASS: 1.53GB >= 1.50GB and fresh M15 candle - launching ABLATION boot (PU_ABLATION=no_llm)
+2026-10-02T07:55:32+00:00 boot spawned (pid 13292); meta written; watcher exits

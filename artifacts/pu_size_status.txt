@@ -1,0 +1,108 @@
+{
+  "trader_rows_7d": 38,
+  "matched_with_prompt": 38,
+  "errors_on_gt96k_prompts": 13,
+  "success_on_gt96k_prompts": 6,
+  "errors_on_le96k_prompts": 9,
+  "pairs": [
+    {
+      "at": "2026-09-28T06:56:37.049974+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "prompt_chars": 77219,
+      "prompt_dt_s": 0
+    },
+    {
+      "at": "2026-09-28T07:29:37.650560+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "prompt_chars": 56545,
+      "prompt_dt_s": 0
+    },
+    {
+      "at": "2026-09-28T10:41:48.868859+00:00",
+      "strategy": "swing",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "prompt_chars": 56596,
+      "prompt_dt_s": 1
+    },
+    {
+      "at": "2026-09-28T10:50:34.071196+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "prompt_chars": 89085,
+      "prompt_dt_s": 1
+    },
+    {
+      "at": "2026-09-28T10:52:30.249634+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "prompt_chars": 112801,
+      "prompt_dt_s": 0
+    },
+    {
+      "at": "2026-09-28T10:54:53.383780+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "prompt_chars": 146301,
+      "prompt_dt_s": 0
+    },
+    {
+      "at": "2026-09-28T11:05:02.885943+00:00",
+      "strategy": "swing",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "prompt_chars": 179108,
+      "prompt_dt_s": 0
+    },
+    {
+      "at": "2026-09-28T11:06:56.848635+00:00",
+      "strategy": "swing",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "prompt_chars": 138404,
+      "prompt_dt_s": 0
+    },
+    {
+      "at": "2026-09-28T11:09:00.654249+00:00",
+      "strategy": "swing",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "prompt_chars": 173775,
+      "prompt_dt_s": 0
+    },
+    {
+      "at": "2026-09-28T11:15:31.969137+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "prompt_chars": 169617,
+      "prompt_dt_s": 0
+    },
+    {
+      "at": "2026-09-28T11:17:34.339038+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "prompt_chars": 140291,
+      "prompt_dt_s": 0
+    },
+    {
+      "at": "2026-09-28T11:18:44.111414+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "parse_status": "DETERMINISTIC_FALLBACK",
+      "prompt_chars": 175733,
+      "prompt_dt_s": 0
+    }
+  ]
+}
+PU-0143-OK
+exit=0
+END-MARKER-PU-0143

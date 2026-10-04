@@ -1,0 +1,325 @@
+{
+  "report": "PU-0150",
+  "window_start": "2026-10-02T17:17:42.975731+00:00",
+  "llm_requests": [
+    {
+      "created_at": "2026-10-02T17:37:24.773804+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 235
+    },
+    {
+      "created_at": "2026-10-02T17:51:09.015311+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 177
+    },
+    {
+      "created_at": "2026-10-02T18:07:23.880888+00:00",
+      "strategy": "swing",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 178
+    },
+    {
+      "created_at": "2026-10-02T18:07:23.881318+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 197
+    },
+    {
+      "created_at": "2026-10-02T18:21:28.171021+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 197
+    },
+    {
+      "created_at": "2026-10-02T18:34:46.462697+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 197
+    },
+    {
+      "created_at": "2026-10-02T18:48:10.232893+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 237
+    },
+    {
+      "created_at": "2026-10-02T19:03:54.465216+00:00",
+      "strategy": "swing",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 178
+    },
+    {
+      "created_at": "2026-10-02T19:26:07.362300+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 237
+    },
+    {
+      "created_at": "2026-10-02T19:37:31.960949+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 317
+    },
+    {
+      "created_at": "2026-10-02T19:50:08.693490+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 317
+    },
+    {
+      "created_at": "2026-10-02T20:03:17.821035+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "SUCCESS",
+      "parse_status": "SUCCESS",
+      "error": "",
+      "estimated_tokens": 4000,
+      "response_chars": 477
+    },
+    {
+      "created_at": "2026-10-02T20:26:21.924206+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "PARSE_ERROR",
+      "error": "parse_status=PARSE_ERROR attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 368
+    },
+    {
+      "created_at": "2026-10-02T20:38:37.801515+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "PARSE_ERROR",
+      "error": "parse_status=PARSE_ERROR attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 368
+    },
+    {
+      "created_at": "2026-10-02T20:50:13.292149+00:00",
+      "strategy": "scalp",
+      "provider": "nvidia_nim",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": "ERROR",
+      "parse_status": "PARSE_ERROR",
+      "error": "parse_status=PARSE_ERROR attempts=1",
+      "estimated_tokens": 4000,
+      "response_chars": 368
+    }
+  ],
+  "trader_summary": {
+    "n": 15,
+    "errors": 3,
+    "successes": 12,
+    "error_rate": 0.2,
+    "baseline_error_rate": 0.579
+  },
+  "by_strategy": {
+    "scalp": {
+      "n": 13,
+      "errors": 3,
+      "successes": 10
+    },
+    "swing": {
+      "n": 2,
+      "errors": 0,
+      "successes": 2
+    }
+  },
+  "errors_detail": [
+    {
+      "at": "2026-10-02T20:26:21.924206+00:00",
+      "strategy": "scalp",
+      "parse_status": "PARSE_ERROR",
+      "error": "parse_status=PARSE_ERROR attempts=1"
+    },
+    {
+      "at": "2026-10-02T20:38:37.801515+00:00",
+      "strategy": "scalp",
+      "parse_status": "PARSE_ERROR",
+      "error": "parse_status=PARSE_ERROR attempts=1"
+    },
+    {
+      "at": "2026-10-02T20:50:13.292149+00:00",
+      "strategy": "scalp",
+      "parse_status": "PARSE_ERROR",
+      "error": "parse_status=PARSE_ERROR attempts=1"
+    }
+  ],
+  "prompt_join": [
+    {
+      "at": "2026-10-02T17:37:24.773804+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 65141
+    },
+    {
+      "at": "2026-10-02T17:51:09.015311+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 79658
+    },
+    {
+      "at": "2026-10-02T18:07:23.880888+00:00",
+      "strategy": "swing",
+      "status": "SUCCESS",
+      "prompt_chars": 55615
+    },
+    {
+      "at": "2026-10-02T18:07:23.881318+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 55615
+    },
+    {
+      "at": "2026-10-02T18:21:28.171021+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 100879
+    },
+    {
+      "at": "2026-10-02T18:34:46.462697+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 101321
+    },
+    {
+      "at": "2026-10-02T18:48:10.232893+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 99646
+    },
+    {
+      "at": "2026-10-02T19:03:54.465216+00:00",
+      "strategy": "swing",
+      "status": "SUCCESS",
+      "prompt_chars": 96985
+    },
+    {
+      "at": "2026-10-02T19:26:07.362300+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 100057
+    },
+    {
+      "at": "2026-10-02T19:37:31.960949+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 101013
+    },
+    {
+      "at": "2026-10-02T19:50:08.693490+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 101684
+    },
+    {
+      "at": "2026-10-02T20:03:17.821035+00:00",
+      "strategy": "scalp",
+      "status": "SUCCESS",
+      "prompt_chars": 102214
+    },
+    {
+      "at": "2026-10-02T20:26:21.924206+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 104146
+    },
+    {
+      "at": "2026-10-02T20:38:37.801515+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 104785
+    },
+    {
+      "at": "2026-10-02T20:50:13.292149+00:00",
+      "strategy": "scalp",
+      "status": "ERROR",
+      "prompt_chars": 105909
+    }
+  ],
+  "prompt_stats": {
+    "n": 15,
+    "min": 55615,
+    "max": 105909,
+    "avg": 91645,
+    "over_96k": 11,
+    "baseline_avg": 129820,
+    "baseline_max": 287319
+  },
+  "memory_summary": {
+    "n": 0,
+    "errors": 0,
+    "parse_status_counts": {},
+    "error_strings": []
+  },
+  "operational_event_counts": {
+    "schedule_handler_overrun": 18
+  },
+  "memory_outbox_status": {
+    "FAILED": 6,
+    "SENT": 14
+  }
+}
+PU-0150-OK

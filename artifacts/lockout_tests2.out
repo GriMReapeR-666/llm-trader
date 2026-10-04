@@ -1,0 +1,26 @@
+.......FF.                                                               [100%]
+================================== FAILURES ===================================
+____________ test_build_execution_plan_lockout_raises_and_journals ____________
+tests\test_live_order_lockout.py:150: in test_build_execution_plan_lockout_raises_and_journals
+    assert TOKEN not in str(o.operations.events) + str(o.store.lifecycle)
+E   assert 'I_UNDERSTAN...LL_BE_PLACED' not in "[(('RiskCon...True}), {})]"
+E     
+E     'I_UNDERSTAND_LIVE_ORDERS_WILL_BE_PLACED' is contained here:
+E        exactly "I_UNDERSTAND_LIVE_ORDERS_WILL_BE_PLACED")', 'env_flag': 'REQUIRE_LIVE_CONFIRMATION', 'token_env': 'LIVE_CONFIRMATION_TOKEN', 'execution_authority': False, 'paper_mode': True}), {'run_id': 'run', 'severity': 'WARNING'})][((None, 'test_setup', 'REJECTED', 'live_order_lockout', {'reason': 'REQUIRE_LIVE_CONFIRMATION is enabled but LIVE_CONFIRMATION_TOKEN is missing or incorrect (must be exactly "I_UNDERSTAND_LIVE_ORDERS_WILL_BE_PLACED")', 'env_flag': 'REQUIRE_LIVE_CONFIRMATION', 'token_env': 'LIVE_CONFI...
+E     
+E     ...Full output truncated (2 lines hidden), use '-vv' to show
+------------------------------ Captured log call ------------------------------
+WARNING  LLMOrchestrator:llm_orchestrator.py:2944 LIVE ORDER LOCKOUT engaged: REQUIRE_LIVE_CONFIRMATION is enabled but LIVE_CONFIRMATION_TOKEN is missing or incorrect (must be exactly "I_UNDERSTAND_LIVE_ORDERS_WILL_BE_PLACED")
+________ test_build_execution_plan_authorized_env_reaches_live_branch _________
+tests\test_live_order_lockout.py:160: in test_build_execution_plan_authorized_env_reaches_live_branch
+    o._build_execution_plan(_proposal_stub(), {}, paper_mode=False, volume=0.01)
+intelligence\llm_orchestrator.py:2972: in _build_execution_plan
+    execution_policy = load_execution_policy(self.store, proposal.symbol)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core\execution_policy.py:84: in load
+    policies = store.get_state("execution_policies", {}) or {}
+               ^^^^^^^^^^^^^^^
+E   AttributeError: '_Store' object has no attribute 'get_state'
+=========================== short test summary info ===========================
+FAILED tests/test_live_order_lockout.py::test_build_execution_plan_lockout_raises_and_journals
+FAILED tests/test_live_order_lockout.py::test_build_execution_plan_authorized_env_reaches_live_branch

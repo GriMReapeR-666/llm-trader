@@ -1,0 +1,99 @@
+DSR GATE REJECT: kronos_h1 (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2296)
+DSR GATE REJECT: kronos_h1 Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2296
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated kronos_h1 implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: kronos_h1 (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15666)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2297)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2297
+[1/14] kronos_h1: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (12.0s)
+DSR GATE REJECT: statarb_eur_chf (Sharpe=-4.299, DSR=0.0000 < 0.95, n_trials=2298)
+DSR GATE REJECT: statarb_eur_chf Sharpe=-4.299 DSR=0.0000 < 0.95 n_trials=2298
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated statarb_eur_chf implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: statarb_eur_chf (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15669)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2299)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2299
+[2/14] statarb_eur_chf: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.6s)
+DSR GATE REJECT: macro_nfp_pullback (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2300)
+DSR GATE REJECT: macro_nfp_pullback Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2300
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated macro_nfp_pullback implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: macro_nfp_pullback (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15672)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2301)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2301
+[3/14] macro_nfp_pullback: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.6s)
+DSR GATE REJECT: meanrev_bollinger (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2302)
+DSR GATE REJECT: meanrev_bollinger Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2302
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated meanrev_bollinger implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: meanrev_bollinger (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15675)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2303)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2303
+[4/14] meanrev_bollinger: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.6s)
+DSR GATE REJECT: alpha_055_orderflow (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2304)
+DSR GATE REJECT: alpha_055_orderflow Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2304
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated alpha_055_orderflow implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: alpha_055_orderflow (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15678)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2305)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2305
+[5/14] alpha_055_orderflow: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.8s)
+DSR GATE REJECT: alpha_098_copula (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2306)
+DSR GATE REJECT: alpha_098_copula Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2306
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated alpha_098_copula implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: alpha_098_copula (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15681)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2307)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2307
+[6/14] alpha_098_copula: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.6s)
+DSR GATE REJECT: agent_execution_rl (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2308)
+DSR GATE REJECT: agent_execution_rl Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2308
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated agent_execution_rl implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: agent_execution_rl (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15684)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2309)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2309
+[7/14] agent_execution_rl: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.6s)
+DSR GATE REJECT: agent_regime_supervisor (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2310)
+DSR GATE REJECT: agent_regime_supervisor Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2310
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated agent_regime_supervisor implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: agent_regime_supervisor (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15687)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.596, DSR=0.0000 < 0.95, n_trials=2311)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.596 DSR=0.0000 < 0.95 n_trials=2311
+[8/14] agent_regime_supervisor: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.6s)
+DSR GATE REJECT: model_bocpd_changepoint (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2312)
+DSR GATE REJECT: model_bocpd_changepoint Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2312
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated model_bocpd_changepoint implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: model_bocpd_changepoint (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15690)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2313)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2313
+[9/14] model_bocpd_changepoint: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.6s)
+DSR GATE REJECT: model_kalman_filter (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2314)
+DSR GATE REJECT: model_kalman_filter Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2314
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated model_kalman_filter implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: model_kalman_filter (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15693)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2315)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2315
+[10/14] model_kalman_filter: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.6s)
+DSR GATE REJECT: gold_momentum_h4 (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2316)
+DSR GATE REJECT: gold_momentum_h4 Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2316
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated gold_momentum_h4 implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: gold_momentum_h4 (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15696)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2317)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2317
+[11/14] gold_momentum_h4: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.6s)
+DSR GATE REJECT: spx_volatility_skew (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2318)
+DSR GATE REJECT: spx_volatility_skew Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2318
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated spx_volatility_skew implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: spx_volatility_skew (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15699)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2319)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2319
+[12/14] spx_volatility_skew: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.6s)
+DSR GATE REJECT: sprt_hypothesis_gate (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2320)
+DSR GATE REJECT: sprt_hypothesis_gate Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2320
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated sprt_hypothesis_gate implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: sprt_hypothesis_gate (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15702)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.597, DSR=0.0000 < 0.95, n_trials=2321)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.597 DSR=0.0000 < 0.95 n_trials=2321
+[13/14] sprt_hypothesis_gate: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.7s)
+DSR GATE REJECT: EURUSD_H1_backtest (Sharpe=-4.298, DSR=0.0000 < 0.95, n_trials=2322)
+DSR GATE REJECT: EURUSD_H1_backtest Sharpe=-4.298 DSR=0.0000 < 0.95 n_trials=2322
+Stage 1 scored ruleset 'deterministic_signal', not a dedicated default implementation — these metrics do not describe that strategy.
+DSR GATE REJECT: EURUSD_H1 (Sharpe=-4.300, DSR=0.0000 < 0.95, n_trials=15705)
+DSR GATE REJECT: EURUSD_cpcv_stage (Sharpe=-8.596, DSR=0.0000 < 0.95, n_trials=2323)
+DSR GATE REJECT: EURUSD_cpcv_stage Sharpe=-8.596 DSR=0.0000 < 0.95 n_trials=2323
+[14/14] default: bt=completed trades=207 sharpe=-4.3 cpcv=OVERFITTING_RISK_DETECTED/backtest_trades/n=207 verdict=FAIL (0.7s)
+SWEEP-DONE

@@ -1,0 +1,8 @@
+=== PU-0146 tokenrouter key identity @ 2026-09-30T02:54:12Z UTC ===
+TOKENROUTER_KEY fingerprint: sk-kdo...
+GET /api/v1/key -> 401
+  recognized-key fields: {}
+raw chat -> 401 {"error":{"message":"Missing Authentication header","code":401}}
+PU-0146-OK
+exit=0
+END-MARKER-PU-0146

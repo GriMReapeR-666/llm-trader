@@ -1,0 +1,12 @@
+2026-09-28T09:40:28+00:00 armed: bar 1.50GB, window 4.0h, free 0.92GB
+2026-09-28T09:46:09+00:00 trader already running - nothing to do, watcher exits
+2026-09-28T09:48:49+00:00 armed: bar 1.50GB, window 4.0h, free 0.62GB
+2026-09-28T10:04:10+00:00 PREFLIGHT PASS: 1.50GB >= 1.50GB - launching guarded paper boot
+2026-09-28T10:04:10+00:00 boot spawned (pid 2304); watcher exits - session monitoring stays with the 2h duty watcher
+2026-09-28T10:27:30+00:00 armed: bar 1.50GB, window 4.0h, free 1.03GB
+2026-09-28T10:28:30+00:00 PREFLIGHT PASS: 2.78GB >= 1.50GB - launching guarded paper boot
+2026-09-28T10:28:30+00:00 boot spawned (pid 17620); watcher exits - session monitoring stays with the 2h duty watcher
+2026-09-28T16:38:37+00:00 armed: bar 1.50GB, window 4.0h, free 0.87GB
+2026-09-28T16:46:57+00:00 PREFLIGHT PASS: 1.52GB >= 1.50GB - launching guarded paper boot
+2026-09-28T16:46:57+00:00 boot spawned (pid 24728); watcher exits - session monitoring stays with the 2h duty watcher
+2026-09-28T16:46:57+00:00 boot spawned (pid 24728); watcher exits - session monitoring stays with the 2h duty watcher

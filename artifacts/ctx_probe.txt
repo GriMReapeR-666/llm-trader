@@ -1,0 +1,12 @@
+CTX PROBE (compact-context preflight)
+[PASS] env flag is truthy
+[PASS] compact mode active
+[PASS] only latest cycle live
+[PASS] evicted cycles summarized
+[PASS] summary blob bounded
+[PASS] legacy mode inactive
+[PASS] request budget caps oversized request
+[PASS] live user message intact
+[note] env LLM_TRADER_COMPACT_CONTEXT='1'
+verdict: GREEN
+END-MARKER-PU-0127

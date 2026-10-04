@@ -1,0 +1,28 @@
+{
+  "expressions": [
+    "AlphaExpression(abs(close))",
+    "AlphaExpression(sign(high))",
+    "AlphaExpression(log(open))",
+    "AlphaExpression(negate(low))",
+    "AlphaExpression(square(high))",
+    "AlphaExpression(sqrt(high))",
+    "AlphaExpression(add(volume, volume))",
+    "AlphaExpression(subtract(low, volume))",
+    "AlphaExpression(multiply(open, open))",
+    "AlphaExpression(divide(volume, volume))"
+  ],
+  "best_ics": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "significant_count": 0,
+  "best_ic": 0.0
+}

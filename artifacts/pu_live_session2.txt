@@ -1,0 +1,484 @@
+2026-09-30 00:57:54,050 INFO main: Paper market-data session established (terminal-only, no credential login): MetaTrader 5
+ Single symbol mode: EURUSD
+▣ AUTO schedules independent swing (H1) and scalp (M15) engines.
+2026-09-30 00:57:54,051 INFO main: Normalized UI risk input 1.0000 to 1.00%
+2026-09-30 00:57:54,064 INFO main: Seeded paper/fallback account balance: $100000.00
+2026-09-30 00:57:54,748 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-30 00:57:55,049 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-30 00:57:55,349 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-30 00:57:56,842 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-30 00:57:56,842 INFO main: LLM Router initialized: 4 providers, 3 agents
+2026-09-30 00:57:56,879 INFO core.harness.plugins: RiskManagementPlugin initialized with balance 10000.00, max risk 1.00%
+2026-09-30 00:57:56,879 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'risk_management' (v1.0.0)
+2026-09-30 00:57:56,892 INFO core.harness.plugins: TradingMemoryPlugin mounted on database 'trading_state.db'
+2026-09-30 00:57:56,892 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'trading_memory' (v1.0.0)
+2026-09-30 00:57:56,898 INFO TradeManager: Loaded active conditions for 2 symbols
+2026-09-30 00:57:56,898 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-30 00:57:56,899 INFO core.harness.plugins: BrokerPlugin mounted (mode=PAPER)
+2026-09-30 00:57:56,899 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'broker' (v1.0.0)
+2026-09-30 00:57:56,899 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-30 00:57:56,899 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-30 00:57:56,899 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-30 00:57:56,899 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-30 00:57:56,899 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-30 00:57:56,899 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-30 00:57:56,899 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-30 00:57:56,914 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-30 00:57:56,914 INFO core.harness.plugins: DataHubPlugin mounted (market_data=yes + FRED/COT/news/OpenBB).
+2026-09-30 00:57:56,914 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'data_hub' (v1.0.0)
+2026-09-30 00:57:56,917 INFO core.harness.plugins: CausalIntelligencePlugin mounted with 134 macro dynamic nodes.
+2026-09-30 00:57:56,917 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'causal_intelligence' (v1.0.0)
+2026-09-30 00:57:56,937 INFO core.harness.plugins: AnalyticalFrameworksPlugin mounted (Modules 01-07 Foresight, Spreads & Signals).
+2026-09-30 00:57:56,937 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'analytical_frameworks' (v1.0.0)
+2026-09-30 00:57:56,944 INFO core.harness.plugins: KronosIntelligencePlugin mounted (Signal Calibration, Synthetic Jumps & CPCV).
+2026-09-30 00:57:56,944 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'kronos_intelligence' (v1.0.0)
+2026-09-30 00:57:56,947 INFO core.harness.plugins: ExecutionSafetyPlugin mounted.
+2026-09-30 00:57:56,947 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'execution_safety' (v1.0.0)
+2026-09-30 00:57:56,949 INFO core.harness.plugins: CointegrationGovernancePlugin mounted.
+2026-09-30 00:57:56,949 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'cointegration_governance' (v1.0.0)
+2026-09-30 00:57:56,961 INFO core.harness.plugins: SkillsPlugin mounted with 35 standard skills.
+2026-09-30 00:57:56,961 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'skills' (v1.0.0)
+2026-09-30 00:57:56,961 INFO core.harness.plugins: JournalAuditPlugin mounted for database 'trading_state.db'.
+2026-09-30 00:57:56,961 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'journal_audit' (v1.0.0)
+2026-09-30 00:57:56,962 INFO core.harness.plugins: QuantWorkflowsPlugin mounted with 7 trading workflows.
+2026-09-30 00:57:56,962 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'quant_workflows' (v1.0.0)
+2026-09-30 00:57:56,966 INFO core.harness.plugins: MacroEventAlphaPlugin mounted with leading indicators, ESI & 3-phase execution.
+2026-09-30 00:57:56,966 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'macro_event_alpha' (v1.0.0)
+2026-09-30 00:57:56,968 INFO core.harness.extracted_module_plugins: ExtractedMetricsPlugin mounted — 14 metric functions available.
+2026-09-30 00:57:56,974 INFO core.harness.extracted_module_plugins: ExtractedValidationPlugin mounted — CPCV, MC shuffle, stress, jitter available.
+2026-09-30 00:57:57,600 INFO core.harness.extracted_module_plugins: ExtractedAlphaSourcePlugin mounted — alpha discovery, ensemble, decay, rotation available.
+2026-09-30 00:57:57,602 INFO core.harness.extracted_module_plugins: ExtractedRegimePlugin mounted — HMM/Hurst regime + allocation matrix wired.
+2026-09-30 00:57:57,604 INFO core.harness.extracted_module_plugins: ExtractedNewsPlugin mounted — ESI, Delta, phase detection, NFP/CPI weights available.
+2026-09-30 00:57:57,605 INFO core.harness.extracted_module_plugins: ExtractedRiskPlugin mounted — 3-layer risk, 1R sizing, vol targeting, heat management.
+2026-09-30 00:57:57,618 INFO core.harness.extracted_module_plugins: ExtractedAutonomousPlugin mounted — constitution, trust levels, seasons, drift detection.
+2026-09-30 00:57:57,619 INFO core.harness.extracted_module_plugins: ExtractedAltDataPlugin mounted — gold FV, vol regime, carry, synthetic index available.
+2026-09-30 00:57:57,623 INFO core.harness.extracted_module_plugins: ExtractedResearchPlugin mounted — FactorMiner, AQuA, MARS configs + challenge mapping.
+2026-09-30 00:57:57,623 INFO core.harness.extracted_module_plugins: ExtractedModulesPlugin mounted 9/9 adapters: ['extracted_metrics', 'extracted_validation', 'extracted_alpha_source', 'extracted_regime', 'extracted_news', 'extracted_risk', 'extracted_autonomous', 'extracted_alt_data', 'extracted_research']
+2026-09-30 00:57:57,623 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'extracted_modules' (v1.0.0)
+2026-09-30 00:57:57,650 INFO core.harness.quant_models_plugins: RetailQuantBundlePlugin mounted (12 modules).
+2026-09-30 00:57:57,650 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'retail_quant_bundle' (v1.0.0)
+2026-09-30 00:57:57,952 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-30 00:57:58,249 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-30 00:57:58,551 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-30 00:58:00,053 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-30 00:58:31,643 INFO LayaDecisionModel: Loaded Laya model from C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\models\laya in 12915.7 ms
+2026-09-30 00:58:31,877 INFO RiskManager: 🔁 Daily Limits Reset. Start Equity: $100000.00
+2026-09-30 00:58:31,878 WARNING RiskManager: Ignoring persisted initial_balance 10000.00 (inconsistent with account anchor 100000.00) — possible state from a different account scale; floor re-anchored.
+2026-09-30 00:58:31,880 INFO RiskManager: 🔁 Daily Limits Reset. Start Equity: $100000.00
+2026-09-30 00:58:31,958 INFO core.harness.plugins: DeliberativeGraphPlugin compiled and mounted.
+2026-09-30 00:58:31,958 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'deliberative_graph' (v1.0.0)
+2026-09-30 00:58:31,969 INFO core.harness.live_trading_plugin: LiveTradingPlugin mounted (paper=True) — loop factory, sandbox, live advisories via TradingContext
+2026-09-30 00:58:31,980 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'live_trading' (v1.0.0)
+2026-09-30 00:58:31,981 INFO core.harness.quant_models_plugins: Profile 'paper' mounted with 17 plugins into context 'paper_ctx'.
+2026-09-30 00:58:31,990 INFO operations.event_bridge: event_bridge initialized (db=trading_state.db)
+2026-09-30 00:58:31,991 INFO main: Event bridge initialized for engine process
+2026-09-30 00:58:32,007 INFO main: Profile 'paper' mounted via TradingContext — 71 services, 17 plugins
+2026-09-30 00:58:32,194 INFO PrometheusExporter: Prometheus exporter started on 0.0.0.0:9090
+2026-09-30 00:58:32,194 INFO main: Prometheus metrics exporter started on port 9090
+2026-09-30 00:58:32,208 INFO main: Memory Orchestrator initialized (L0-L3 hierarchy)
+2026-09-30 00:58:32,224 INFO main: Knowledge Retrieval initialized (macro + cases + domain)
+2026-09-30 00:58:32,227 INFO main: Meta-Improvement Orchestrator initialized
+2026-09-30 00:58:32,227 INFO main: Kronos Signal Fusion initialized (multi-horizon)
+2026-09-30 00:58:32,229 INFO main: Advanced RL Pipeline initialized (multi-agent)
+2026-09-30 00:58:32,230 INFO main: Improvement Pipeline initialized (auto-apply low-risk)
+2026-09-30 00:58:32,255 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-30 00:58:32,257 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-30 00:58:32,257 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-30 00:58:32,257 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-30 00:58:32,257 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-30 00:58:32,258 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-30 00:58:32,258 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-30 00:58:32,266 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-30 00:58:32,713 INFO LLMOrchestrator: Using LLM Router | agent=trader | model=mistralai/mistral-7b-instruct-v0.2
+2026-09-30 00:58:32,747 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 00:58:33,287 INFO KronosBridge: ✅ Kronos neural backend ready (kronos-mini): loaded neural weights model=kronos-mini tokenizer=kronos-tokenizer-2k device=cpu — error cleared
+2026-09-30 00:58:33,288 INFO LLMOrchestrator: Kronos advisory enabled | backend=neural | weights_loaded=True
+2026-09-30 00:58:33,303 INFO main: LLMOrchestrator constructed via harness factory (profile=paper)
+2026-09-30 00:58:33,303 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-30 00:58:33,304 INFO main: TradeManager wired from harness context to orchestrator
+Starting LLM Trader on EURUSD (AUTO)...
+Mode: PAPER
+Model: mistralai/mistral-7b-instruct-v0.2
+2026-09-30 00:58:33,377 INFO TaskQueue: Migrated 43 intervals to S.Q priority queue
+2026-09-30 00:58:33,377 INFO main: S.Q Priority Queue initialized (43 scheduled tasks)
+2026-09-30 00:58:33,377 INFO main: κ Compliance Audit started (hash-chained, append-only)
+2026-09-30 00:58:33,391 INFO CrashRecovery: Crash recovery: checking system state...
+2026-09-30 00:58:33,392 WARNING CrashRecovery: Crash detected: last checkpoint was interrupted
+2026-09-30 00:58:33,425 CRITICAL CrashRecovery: Hash chain integrity check FAILED — broken at checkpoint 13907
+2026-09-30 00:58:33,426 WARNING main: ⚠  Crash detected — last completed cycle: 1 (action: HALT_AND_ALERT)
+2026-09-30 00:58:33,426 WARNING main:   Recovery reason: Last checkpoint was RUNNING (crash-interrupted)
+2026-09-30 00:58:33,426 WARNING main:   Recovery reason: Hash chain broken at checkpoint 13907
+2026-09-30 00:58:33,426 INFO main: Crash recovery started (hash-chained checkpoint journal, atexit+SIGTERM hooks)
+2026-09-30 00:58:33,432 INFO core.autonomous_bootstrap: ======================================================================
+2026-09-30 00:58:33,432 INFO core.autonomous_bootstrap: AUTONOMOUS BOOTSTRAP STARTING
+2026-09-30 00:58:33,432 INFO core.autonomous_bootstrap: ======================================================================
+2026-09-30 00:58:33,432 INFO core.autonomous_bootstrap: --- Phase 1: VALIDATE ---
+2026-09-30 00:58:33,432 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1a. Crash recovery check
+2026-09-30 00:58:33,433 INFO CrashRecovery: Crash recovery: checking system state...
+2026-09-30 00:58:33,433 WARNING CrashRecovery: Crash detected: last checkpoint was interrupted
+2026-09-30 00:58:33,435 CRITICAL CrashRecovery: Hash chain integrity check FAILED — broken at checkpoint 13907
+2026-09-30 00:58:33,435 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1b. MT5 connection verification
+2026-09-30 00:58:33,435 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1c. Readiness report
+2026-09-30 00:58:34,472 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1d. Backtest active strategies
+2026-09-30 00:58:34,483 INFO core.autonomous_bootstrap:   Backtesting strategy: kronos_h1
+2026-09-30 00:58:34,483 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,483 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=kronos_h1)
+2026-09-30 00:58:34,483 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,483 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:34,483 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:34,484 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:34,508 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:34,521 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:34,521 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:34,529 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:34,554 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,554 INFO ContinuousBacktest: Validation complete: FAIL (0.1s)
+2026-09-30 00:58:34,554 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,558 INFO core.autonomous_bootstrap:   Backtesting strategy: statarb_eur_chf
+2026-09-30 00:58:34,559 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,559 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=statarb_eur_chf)
+2026-09-30 00:58:34,559 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,559 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:34,559 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:34,559 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:34,564 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:34,574 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:34,575 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:34,578 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:34,612 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,612 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:34,612 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,616 INFO core.autonomous_bootstrap:   Backtesting strategy: macro_nfp_pullback
+2026-09-30 00:58:34,616 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,616 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=macro_nfp_pullback)
+2026-09-30 00:58:34,616 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,617 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:34,617 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:34,617 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:34,622 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:34,633 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:34,633 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:34,636 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:34,680 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,680 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:34,681 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,971 INFO core.autonomous_bootstrap:   Backtesting strategy: meanrev_bollinger
+2026-09-30 00:58:34,972 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,972 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=meanrev_bollinger)
+2026-09-30 00:58:34,972 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:34,972 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:34,972 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:34,972 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:34,978 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:34,990 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:34,990 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:34,992 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:35,035 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,036 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:35,036 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,043 INFO core.autonomous_bootstrap:   Backtesting strategy: alpha_055_orderflow
+2026-09-30 00:58:35,043 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,043 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=alpha_055_orderflow)
+2026-09-30 00:58:35,043 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,043 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:35,043 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:35,044 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:35,051 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:35,065 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:35,065 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:35,068 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:35,106 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,106 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:35,107 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,112 INFO core.autonomous_bootstrap:   Backtesting strategy: alpha_098_copula
+2026-09-30 00:58:35,112 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,112 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=alpha_098_copula)
+2026-09-30 00:58:35,112 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,112 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:35,112 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:35,112 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:35,118 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:35,133 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:35,134 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:35,138 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:35,181 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,181 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:35,181 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,185 INFO core.autonomous_bootstrap:   Backtesting strategy: agent_execution_rl
+2026-09-30 00:58:35,185 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,185 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=agent_execution_rl)
+2026-09-30 00:58:35,185 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,185 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:35,185 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:35,185 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:35,190 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:35,201 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:35,202 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:35,204 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:35,239 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,240 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:35,240 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,244 INFO core.autonomous_bootstrap:   Backtesting strategy: agent_regime_supervisor
+2026-09-30 00:58:35,245 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,245 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=agent_regime_supervisor)
+2026-09-30 00:58:35,245 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,245 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:35,245 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:35,245 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:35,250 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:35,260 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:35,261 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:35,263 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:35,298 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,298 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:35,298 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,302 INFO core.autonomous_bootstrap:   Backtesting strategy: model_bocpd_changepoint
+2026-09-30 00:58:35,302 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,303 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=model_bocpd_changepoint)
+2026-09-30 00:58:35,303 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,303 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:35,303 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:35,303 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:35,309 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:35,323 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:35,323 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:35,326 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:35,359 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,359 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:35,359 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,363 INFO core.autonomous_bootstrap:   Backtesting strategy: model_kalman_filter
+2026-09-30 00:58:35,364 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,364 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=model_kalman_filter)
+2026-09-30 00:58:35,364 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,364 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:35,364 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:35,364 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:35,369 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:35,381 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:35,381 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:35,383 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:35,420 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,420 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:35,420 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,424 INFO core.autonomous_bootstrap:   Backtesting strategy: gold_momentum_h4
+2026-09-30 00:58:35,425 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,425 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=gold_momentum_h4)
+2026-09-30 00:58:35,425 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,425 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:35,425 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:35,425 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:35,432 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:35,445 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:35,446 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:35,448 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:35,482 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,482 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:35,482 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,487 INFO core.autonomous_bootstrap:   Backtesting strategy: spx_volatility_skew
+2026-09-30 00:58:35,487 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,487 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=spx_volatility_skew)
+2026-09-30 00:58:35,487 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,487 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:35,487 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:35,488 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:35,495 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:35,507 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:35,508 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:35,511 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:35,544 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,545 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:35,545 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,550 INFO core.autonomous_bootstrap:   Backtesting strategy: sprt_hypothesis_gate
+2026-09-30 00:58:35,550 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,550 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=sprt_hypothesis_gate)
+2026-09-30 00:58:35,550 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,551 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 00:58:35,551 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 00:58:35,551 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 00:58:35,557 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 00:58:35,575 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 00:58:35,575 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 00:58:35,579 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 00:58:35,619 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,620 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 00:58:35,620 INFO ContinuousBacktest: ============================================================
+2026-09-30 00:58:35,624 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1e. Walk-forward validation
+2026-09-30 00:58:35,632 INFO core.autonomous_bootstrap:   Skipping WFE for sprt_hypothesis_gate (backtest failed)
+2026-09-30 00:58:35,633 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1f. Overfit gate seeding
+2026-09-30 00:58:35,640 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1g. Strategy scoring
+2026-09-30 00:58:35,642 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1h. Macro fundamental study validation
+2026-09-30 00:58:35,643 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] Complete: passed=True duration=2.2s blockers=0
+2026-09-30 00:58:35,643 INFO core.autonomous_bootstrap: --- Phase 2: PREPARE ---
+2026-09-30 00:58:35,643 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2a. Data source initialization
+2026-09-30 00:58:35,643 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2b. Macro graph seed
+2026-09-30 00:58:35,655 INFO NewsTriage: Laya triage skipped (auto mode, CPU, free RAM 0.68GB below 1.8GB; deterministic rule triage active)
+2026-09-30 00:59:11,261 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c. News ingestion
+2026-09-30 00:59:11,579 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-30 00:59:11,887 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-30 00:59:12,188 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-30 00:59:13,692 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-30 00:59:20,071 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c2. Global Macro Bridge
+2026-09-30 00:59:51,321 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c3. Alternative Data Provider
+2026-09-30 01:01:25,739 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c4. Yahoo Finance
+2026-09-30 01:01:26,726 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c5. CFTC COT
+2026-09-30 01:01:26,815 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c6. EIA Petroleum
+2026-09-30 01:01:26,816 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c7. ForexFactory
+2026-09-30 01:01:27,429 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c8. Exness
+2026-09-30 01:01:27,994 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c9. SEC EDGAR
+2026-09-30 01:01:27,996 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c10. OpenBB Bridge
+2026-09-30 01:01:27,996 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c11. Zero-Lag Macro
+2026-09-30 01:01:27,996 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c12. Sentiment Veto Engine
+2026-09-30 01:01:27,996 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c13. Enhanced MT5 Calendar
+2026-09-30 01:01:27,997 WARNING core.autonomous_bootstrap: Enhanced MT5 Calendar init skipped: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-30 01:01:27,997 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c14. News Triage
+2026-09-30 01:01:27,997 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c15. Kill-Switch Latch
+2026-09-30 01:01:28,006 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c16. Domain Knowledge Pillars
+2026-09-30 01:01:28,010 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c17. Sanctions & Financial Plumbing
+2026-09-30 01:01:28,013 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c18. Brain Observability
+2026-09-30 01:01:28,015 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c19. FRED Backtest Data
+2026-09-30 01:01:28,025 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2d. Memory warmup
+2026-09-30 01:01:28,026 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2e. Knowledge retrieval warmup
+2026-09-30 01:01:28,026 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2f. RL model baseline
+2026-09-30 01:01:28,032 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 01:01:28,034 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 01:01:28,034 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2g. LLM provider health check
+2026-09-30 01:01:28,034 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2h. Guardian startup
+2026-09-30 01:01:28,034 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2i. Alpha discovery check
+2026-09-30 01:01:28,036 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2j. Task queue hydration
+2026-09-30 01:01:28,036 INFO TaskQueue: Migrated 43 intervals to S.Q priority queue
+2026-09-30 01:01:28,037 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2k. Compliance audit
+2026-09-30 01:01:28,037 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] Complete: duration=172.4s warnings=0
+2026-09-30 01:01:28,037 INFO core.autonomous_bootstrap: ======================================================================
+2026-09-30 01:01:28,037 INFO core.autonomous_bootstrap: BOOTSTRAP COMPLETE: ready=True duration=174.6s quality=0.60
+2026-09-30 01:01:28,037 INFO core.autonomous_bootstrap: ======================================================================
+2026-09-30 01:01:28,039 INFO main: Bootstrap complete: ready=True phase=READY duration=174.6s quality=0.60
+2026-09-30 01:01:28,043 INFO main: Startup training pipeline: running initial backtest + training...
+2026-09-30 01:01:28,043 INFO main:   [1/6] Walk-forward validator initialized
+2026-09-30 01:01:28,044 INFO main:   [2/6] CPCV backtester available
+2026-09-30 01:01:28,044 INFO main:   [3/6] Alpha ensemble warm-up
+2026-09-30 01:01:28,643 INFO main:   [5/6] Progressive gates initialized
+2026-09-30 01:01:28,646 INFO main:   [6/6] Training orchestrator available
+2026-09-30 01:01:31,948 INFO core.capstone_validator: Capstone real_backtest: TCE slippage applied on 2940 fills (0 skipped) — R-multiples net-of-cost
+2026-09-30 01:01:31,978 INFO core.capstone_validator: Capstone CPCV (n=57): mean_sharpe=-0.935 DSR_conf=1.0 PBO=0.6667 -> OVERFITTING_RISK_DETECTED
+2026-09-30 01:01:32,000 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 01:01:34,193 INFO core.progressive_gates: Gate REJECT unknown stage=SCREENING quality=0.20 reasons=4
+2026-09-30 01:01:34,199 INFO core.capstone_validator: Capstone validation complete: 1037 trades | Grade C (40/100) | Gate FAIL | 6s
+2026-09-30 01:01:34,199 INFO main:   [7/7] Capstone: Grade C (40/100) 1037 trades ready=False
+2026-09-30 01:01:34,204 INFO core.automated_training_manager: [TRAINING] Starting training cycle for EURUSD (quick=True)
+2026-09-30 01:01:34,204 INFO core.automated_training_manager: [TRAINING] Phase 1: Generating Kronos synthetic OOS data...
+2026-09-30 01:01:34,584 INFO KronosBridge: ✅ Kronos neural backend ready (kronos-mini): loaded neural weights model=kronos-mini tokenizer=kronos-tokenizer-2k device=cpu — error cleared
+2026-09-30 01:01:34,594 INFO core.automated_training_manager: [TRAINING] Phase 2: RL training...
+2026-09-30 01:01:34,597 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 01:01:34,597 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 01:01:34,677 INFO RLTrainer: Kronos offline RL training complete: episodes=2 updates=380
+2026-09-30 01:01:34,677 INFO core.automated_training_manager:   Q-learning: reward=0.0000
+2026-09-30 01:01:34,681 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 01:01:34,684 INFO PPOTrainer: PPO forced to numpy backend (use_torch=False) — linear policy, not MLP
+2026-09-30 01:01:34,685 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 01:01:34,692 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 01:01:34,700 INFO PPOTrainer: PPO offline training complete: updates=1 episodes=2 backend=numpy
+2026-09-30 01:01:34,701 INFO core.automated_training_manager:   PPO: reward=-0.4000
+2026-09-30 01:01:34,719 INFO core.automated_training_manager: [TRAINING] Phase 3: GRPO training...
+2026-09-30 01:01:34,734 INFO GRPOProposer: GRPO offline complete: updates=2 mean_group_reward=0.0003 frozen=RiskController
+2026-09-30 01:01:34,738 INFO core.automated_training_manager: [TRAINING] Phase 4: OOS validation on Kronos synthetic...
+2026-09-30 01:01:34,829 INFO core.automated_training_manager:   OOS validation: TCE slippage applied on 1891 fills — R-multiples net-of-cost
+2026-09-30 01:01:34,829 INFO core.automated_training_manager: [TRAINING] Phase 5: Scenario stress testing...
+2026-09-30 01:01:34,839 INFO core.automated_training_manager: [TRAINING] EURUSD training complete: OOS_Sharpe=0.218 WFE=0.833 gate=True (0.6s)
+2026-09-30 01:01:34,840 INFO main:   [8/8] Training: OOS_Sharpe=0.218 WFE=0.833 gate=True (0.6s)
+2026-09-30 01:01:34,840 INFO main: Startup training pipeline complete: {'walk_forward': 'initialized', 'cpcv': 'available', 'alpha_ensemble': 'warmed', 'progressive_gates': 'initialized', 'training_orchestrator': 'available', 'capstone': {'grade': 'C', 'score': np.float64(40.35128340877819), 'trades': 1037}, 'automated_training': {'oos_sharpe': 0.2178396247197601, 'wfe': 0.8333333333333334, 'gate': True}}
+2026-09-30 01:01:34,846 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-30 01:01:34,847 INFO main: Deliberative Graph shadow mode enabled.
+2026-09-30 01:02:30,666 INFO APIManager: Fetched 0 news articles for: ['EURUSD', 'USD', 'Federal Reserve', 'EUR', 'ECB']
+2026-09-30 01:02:44,385 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 01:02:45,439 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 01:02:46,698 INFO httpx: HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-09-30 01:02:47,691 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-09-30 01:02:47,697 WARNING LLMRouter: Provider openrouter error (429). Retrying in 2.8s... (Attempt 1/3)
+2026-09-30 01:02:50,656 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-09-30 01:02:50,658 WARNING LLMRouter: Provider openrouter error (429). Retrying in 4.6s... (Attempt 2/3)
+2026-09-30 01:02:55,474 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-09-30 01:02:55,502 ERROR LLMRouter: All LLM providers failed for agent 'trader'; returning deterministic HOLD. Errors: nvidia_nim: Error: nvidia_nim failed: Error code: 403 - {'status': 403, 'title': 'Forbidden', 'detail': 'Authorization failed'}; cerebras: Error: cerebras failed: Error code: 402 - {'message': 'Payment required to access this resource. Visit your billing tab.', 'type': 'payment_required_error', 'param': 'quota', 'code': 'payment_required'}; openrouter: Error: openrouter failed: Error code: 429 - {'error': {'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day', 'code': 429, 'metadata': {'headers': {'X-RateLimit-Limit': '50', 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': '1790726400000'}, 'limit_source': 'openrouter_free_tier_daily', 'remedy_hint': 'Wait for the daily reset (see X-RateLimit-Reset), or purchase credits to raise your free-model daily limit.', 'provider_name': None}}, 'user_id': 'user_36uemiOzOnZ8cd0yGwUW6n629wi'}
+2026-09-30 01:03:16,110 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+┌──────────────────────────── 🚀 CYCLE 1/5 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 01:07:20                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 01:07:20,467 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+┌──────────────────────────── 🚀 CYCLE 1/5 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 01:07:22                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 01:07:22,646 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 01:07:22,860 INFO MarketData: MT5 server-timezone offset detected: +10800s (UTC+3)
+2026-09-30 01:07:23,219 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-29 18:00:00 already analyzed (duplicate trigger)
+2026-09-30 01:07:23,267 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+┌──────────────────────────── 🚀 CYCLE 1/5 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 01:07:23                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 01:07:23,282 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 01:07:23,432 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-29 18:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 1/5 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 01:07:23                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 01:07:23,550 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 01:07:23,584 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 01:07:23,738 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-29 18:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 1/5 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 01:07:23                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 01:07:23,815 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 01:07:24,092 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-29 18:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 1/5 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 01:07:24                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 01:07:24,150 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 01:07:24,232 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-29 18:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 1/5 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 01:07:24                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 01:07:24,260 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 01:07:24,336 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-29 18:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 1/5 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 01:07:24                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 01:07:24,361 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 01:07:24,608 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-29 18:00:00 already analyzed (duplicate trigger)
+2026-09-30 01:07:24,681 INFO main: ⏸️ [DECISION] Cycle 1: HOLD EURUSD H1 (swing) | Duplicate analysis trigger (candle 2026-09-29 18:00:00 already analyzed)
+2026-09-30 01:07:27,733 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+2026-09-30 01:07:27,838 CRITICAL AlertAgent: OPERATOR ALERT [CRITICAL] STALE_AGENT_HEARTBEATS: {"code": "STALE_AGENT_HEARTBEATS", "count": 2, "details": {}, "severity": "CRITICAL"}
+2026-09-30 01:07:27,886 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 01:07:36,607 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 01:07:36,662 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 01:07:36,673 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 01:07:36,992 INFO alpha_rotation: Resuming pending discovered-alpha materialization: alpha_d2824_0 (promoted at bar 1790578443)
+2026-09-30 01:07:37,332 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 01:07:38,322 INFO MarketData: Regime engine: regime=HIGH_VOL_TREND approved=True multiplier=0.50
+2026-09-30 01:07:44,350 INFO core.capstone_validator: Capstone real_backtest: TCE slippage applied on 2940 fills (0 skipped) — R-multiples net-of-cost
+2026-09-30 01:07:44,463 INFO core.capstone_validator: Capstone CPCV (n=57): mean_sharpe=-2.557 DSR_conf=1.0 PBO=0.8667 -> OVERFITTING_RISK_DETECTED
+2026-09-30 01:07:44,499 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 01:07:47,899 INFO core.progressive_gates: Gate REJECT unknown stage=SCREENING quality=0.20 reasons=4
+2026-09-30 01:07:47,921 INFO core.capstone_validator: Capstone validation complete: 1037 trades | Grade D (39/100) | Gate FAIL | 8s
+2026-09-30 01:07:47,922 INFO core.automated_training_manager: [TRAINING] Starting training cycle for EURUSD (quick=True)
+2026-09-30 01:07:47,923 INFO core.automated_training_manager: [TRAINING] Phase 1: Generating Kronos synthetic OOS data...
+2026-09-30 01:07:55,621 INFO KronosBridge: ✅ Kronos neural backend ready (kronos-mini): loaded neural weights model=kronos-mini tokenizer=kronos-tokenizer-2k device=cpu — error cleared
+2026-09-30 01:07:55,631 INFO core.automated_training_manager: [TRAINING] Phase 2: RL training...
+2026-09-30 01:07:55,635 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 01:07:55,637 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 01:07:55,745 INFO RLTrainer: Kronos offline RL training complete: episodes=2 updates=380
+2026-09-30 01:07:55,746 INFO core.automated_training_manager:   Q-learning: reward=0.0000
+2026-09-30 01:07:55,748 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 01:07:55,752 INFO PPOTrainer: PPO forced to numpy backend (use_torch=False) — linear policy, not MLP
+2026-09-30 01:07:55,771 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 01:07:55,806 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 01:07:55,866 INFO PPOTrainer: PPO offline training complete: updates=1 episodes=2 backend=numpy
+2026-09-30 01:07:55,869 INFO core.automated_training_manager:   PPO: reward=-0.4000
+2026-09-30 01:07:55,929 INFO core.automated_training_manager: [TRAINING] Phase 3: GRPO training...
+2026-09-30 01:07:55,948 INFO GRPOProposer: GRPO offline complete: updates=2 mean_group_reward=0.0003 frozen=RiskController
+2026-09-30 01:07:55,958 INFO core.automated_training_manager: [TRAINING] Phase 4: OOS validation on Kronos synthetic...
+2026-09-30 01:07:56,053 INFO core.automated_training_manager:   OOS validation: TCE slippage applied on 1891 fills — R-multiples net-of-cost
+2026-09-30 01:07:56,053 INFO core.automated_training_manager: [TRAINING] Phase 5: Scenario stress testing...
+2026-09-30 01:07:56,068 INFO core.automated_training_manager: [TRAINING] EURUSD training complete: OOS_Sharpe=0.218 WFE=0.833 gate=True (8.1s)
+2026-09-30 01:08:15,715 WARNING APIManager: FRED error for DGS2: 
+2026-09-30 01:08:20,725 INFO APIManager: Fetched 18 FRED series
+2026-09-30 01:08:56,048 INFO APIManager: Fetched 17 FRED series
+2026-09-30 01:08:56,049 INFO MarketData: Fetched 17 FRED indicators
+2026-09-30 01:08:56,997 INFO core.news_indicator_fetcher: Fetching live indicators (FRED API: available)
+2026-09-30 01:09:16,975 INFO core.news_trading: Live indicators: NFP=IN_LINE CPI=MODERATE_BEAT ESI=54.5 (live=True)

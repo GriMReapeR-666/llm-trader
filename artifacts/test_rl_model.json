@@ -1,0 +1,195 @@
+{
+  "q_table": {
+    "rsi:bin_3|macd:neg|ma:0|conf:bin_1|sr:1|htf:1|news:bin_0|vol:high|trend:bin_2|sess:ny": {
+      "BUY": -0.09789083036435826,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_2|macd:neg|ma:0|conf:bin_1|sr:1|htf:1|news:bin_0|vol:high|trend:bin_2|sess:ny": {
+      "BUY": 0.0,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_2|macd:neg|ma:0|conf:bin_2|sr:1|htf:1|news:bin_2|vol:medium|trend:bin_1|sess:asian": {
+      "BUY": -0.08917183299749035,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_2|macd:pos|ma:-1|conf:bin_2|sr:0|htf:1|news:bin_1|vol:low|trend:bin_0|sess:ny": {
+      "BUY": 0.018584897320074335,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_0|macd:pos|ma:-1|conf:bin_2|sr:0|htf:1|news:bin_1|vol:low|trend:bin_0|sess:ny": {
+      "BUY": 0.0,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_3|macd:pos|ma:0|conf:bin_2|sr:1|htf:0|news:bin_0|vol:low|trend:bin_0|sess:ny": {
+      "BUY": -0.09813509001900228,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_4|macd:pos|ma:0|conf:bin_2|sr:1|htf:0|news:bin_0|vol:low|trend:bin_0|sess:ny": {
+      "BUY": 0.0,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_0|macd:neg|ma:0|conf:bin_1|sr:1|htf:-1|news:bin_0|vol:low|trend:bin_1|sess:london": {
+      "BUY": -0.09412720425322024,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_1|macd:neg|ma:0|conf:bin_1|sr:1|htf:-1|news:bin_0|vol:low|trend:bin_1|sess:london": {
+      "BUY": 0.0,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_4|macd:neg|ma:-1|conf:bin_1|sr:0|htf:0|news:bin_0|vol:medium|trend:bin_1|sess:ny": {
+      "BUY": 0.0,
+      "SELL": 0.005758440313813829,
+      "HOLD": 0.0
+    },
+    "rsi:bin_2|macd:pos|ma:1|conf:bin_1|sr:1|htf:1|news:bin_1|vol:medium|trend:bin_1|sess:ny": {
+      "BUY": 0.03626263759813924,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_0|macd:pos|ma:1|conf:bin_1|sr:1|htf:1|news:bin_1|vol:medium|trend:bin_1|sess:ny": {
+      "BUY": 0.0,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_0|macd:neg|ma:0|conf:bin_1|sr:0|htf:-1|news:bin_2|vol:high|trend:bin_0|sess:asian": {
+      "BUY": -0.05094562630338859,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_2|macd:neg|ma:0|conf:bin_1|sr:0|htf:-1|news:bin_2|vol:high|trend:bin_0|sess:asian": {
+      "BUY": 0.0,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_2|macd:neg|ma:0|conf:bin_1|sr:0|htf:-1|news:bin_2|vol:low|trend:bin_0|sess:london": {
+      "BUY": -0.03819476119424632,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_0|macd:neg|ma:0|conf:bin_1|sr:0|htf:-1|news:bin_2|vol:low|trend:bin_0|sess:london": {
+      "BUY": 0.0,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    },
+    "rsi:bin_3|macd:pos|ma:0|conf:bin_2|sr:0|htf:1|news:bin_0|vol:high|trend:bin_0|sess:asian": {
+      "BUY": 0.0,
+      "SELL": 0.0,
+      "HOLD": 0.039450100201047736
+    },
+    "rsi:bin_0|macd:pos|ma:0|conf:bin_2|sr:0|htf:1|news:bin_0|vol:high|trend:bin_0|sess:asian": {
+      "BUY": 0.0,
+      "SELL": 0.0,
+      "HOLD": 0.0
+    }
+  },
+  "training_data": [
+    {
+      "state_key": "rsi:bin_3|macd:neg|ma:0|conf:bin_1|sr:1|htf:1|news:bin_0|vol:high|trend:bin_2|sess:ny",
+      "action": "BUY",
+      "reward": -0.9789083036435826,
+      "q_value": -0.09789083036435826,
+      "timestamp": "2025-11-22T00:15:03.176148"
+    },
+    {
+      "state_key": "rsi:bin_2|macd:neg|ma:0|conf:bin_2|sr:1|htf:1|news:bin_2|vol:medium|trend:bin_1|sess:asian",
+      "action": "BUY",
+      "reward": -0.8917183299749034,
+      "q_value": -0.08917183299749035,
+      "timestamp": "2025-11-22T00:15:03.176253"
+    },
+    {
+      "state_key": "rsi:bin_2|macd:pos|ma:-1|conf:bin_2|sr:0|htf:1|news:bin_1|vol:low|trend:bin_0|sess:ny",
+      "action": "BUY",
+      "reward": 0.18584897320074334,
+      "q_value": 0.018584897320074335,
+      "timestamp": "2025-11-22T00:15:03.176277"
+    },
+    {
+      "state_key": "rsi:bin_3|macd:pos|ma:0|conf:bin_2|sr:1|htf:0|news:bin_0|vol:low|trend:bin_0|sess:ny",
+      "action": "BUY",
+      "reward": -0.9813509001900227,
+      "q_value": -0.09813509001900228,
+      "timestamp": "2025-11-22T00:15:03.176303"
+    },
+    {
+      "state_key": "rsi:bin_0|macd:neg|ma:0|conf:bin_1|sr:1|htf:-1|news:bin_0|vol:low|trend:bin_1|sess:london",
+      "action": "BUY",
+      "reward": -0.9412720425322023,
+      "q_value": -0.09412720425322024,
+      "timestamp": "2025-11-22T00:15:03.176325"
+    },
+    {
+      "state_key": "rsi:bin_4|macd:neg|ma:-1|conf:bin_1|sr:0|htf:0|news:bin_0|vol:medium|trend:bin_1|sess:ny",
+      "action": "SELL",
+      "reward": 0.057584403138138285,
+      "q_value": 0.005758440313813829,
+      "timestamp": "2025-11-22T00:15:03.176345"
+    },
+    {
+      "state_key": "rsi:bin_2|macd:pos|ma:1|conf:bin_1|sr:1|htf:1|news:bin_1|vol:medium|trend:bin_1|sess:ny",
+      "action": "BUY",
+      "reward": 0.36262637598139236,
+      "q_value": 0.03626263759813924,
+      "timestamp": "2025-11-22T00:15:03.176366"
+    },
+    {
+      "state_key": "rsi:bin_0|macd:neg|ma:0|conf:bin_1|sr:0|htf:-1|news:bin_2|vol:high|trend:bin_0|sess:asian",
+      "action": "BUY",
+      "reward": -0.5094562630338859,
+      "q_value": -0.05094562630338859,
+      "timestamp": "2025-11-22T00:15:03.176391"
+    },
+    {
+      "state_key": "rsi:bin_2|macd:neg|ma:0|conf:bin_1|sr:0|htf:-1|news:bin_2|vol:low|trend:bin_0|sess:london",
+      "action": "BUY",
+      "reward": -0.3819476119424632,
+      "q_value": -0.03819476119424632,
+      "timestamp": "2025-11-22T00:15:03.176418"
+    },
+    {
+      "state_key": "rsi:bin_3|macd:pos|ma:0|conf:bin_2|sr:0|htf:1|news:bin_0|vol:high|trend:bin_0|sess:asian",
+      "action": "HOLD",
+      "reward": 0.39450100201047733,
+      "q_value": 0.039450100201047736,
+      "timestamp": "2025-11-22T00:15:03.176443"
+    }
+  ],
+  "episode_rewards": [
+    -0.9789083036435826,
+    -0.8917183299749034,
+    0.18584897320074334,
+    -0.9813509001900227,
+    -0.9412720425322023,
+    0.057584403138138285,
+    0.36262637598139236,
+    -0.5094562630338859,
+    -0.3819476119424632,
+    0.39450100201047733
+  ],
+  "stats": {
+    "total_updates": 10,
+    "exploration_count": 2,
+    "exploitation_count": 8,
+    "exploration_rate": 0.2,
+    "q_table_size": 18,
+    "avg_reward_100": -0.36840926969863086,
+    "total_reward": -3.684092696986309,
+    "best_reward": 0.39450100201047733,
+    "worst_reward": -0.9813509001900227
+  },
+  "hyperparameters": {
+    "learning_rate": 0.1,
+    "discount_factor": 0.95,
+    "epsilon": 0.2
+  },
+  "saved_at": "2025-11-22T00:15:03.177652"
+}

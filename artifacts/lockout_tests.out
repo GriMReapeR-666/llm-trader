@@ -1,0 +1,89 @@
+FFFFFF.FFF                                                               [100%]
+================================== FAILURES ===================================
+______________________ test_gate_fail_closed_when_unset _______________________
+tests\test_live_order_lockout.py:84: in test_gate_fail_closed_when_unset
+    ok, why = LLMOrchestrator._live_orders_authorized(object())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+intelligence\llm_orchestrator.py:2897: in _live_orders_authorized
+    raw = str(os.getenv(self.LIVE_CONFIRMATION_ENV, "") or "").strip().lower()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'object' object has no attribute 'LIVE_CONFIRMATION_ENV'
+_________________ test_gate_fail_closed_on_flag_without_token _________________
+tests\test_live_order_lockout.py:91: in test_gate_fail_closed_on_flag_without_token
+    ok, why = LLMOrchestrator._live_orders_authorized(object())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+intelligence\llm_orchestrator.py:2897: in _live_orders_authorized
+    raw = str(os.getenv(self.LIVE_CONFIRMATION_ENV, "") or "").strip().lower()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'object' object has no attribute 'LIVE_CONFIRMATION_ENV'
+____________________ test_gate_fail_closed_on_wrong_token _____________________
+tests\test_live_order_lockout.py:99: in test_gate_fail_closed_on_wrong_token
+    ok, why = LLMOrchestrator._live_orders_authorized(object())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+intelligence\llm_orchestrator.py:2897: in _live_orders_authorized
+    raw = str(os.getenv(self.LIVE_CONFIRMATION_ENV, "") or "").strip().lower()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'object' object has no attribute 'LIVE_CONFIRMATION_ENV'
+_____________________ test_gate_authorized_with_both_envs _____________________
+tests\test_live_order_lockout.py:107: in test_gate_authorized_with_both_envs
+    ok, why = LLMOrchestrator._live_orders_authorized(object())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+intelligence\llm_orchestrator.py:2897: in _live_orders_authorized
+    raw = str(os.getenv(self.LIVE_CONFIRMATION_ENV, "") or "").strip().lower()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'object' object has no attribute 'LIVE_CONFIRMATION_ENV'
+_____________ test_gate_accepts_aliases_and_tolerates_whitespace ______________
+tests\test_live_order_lockout.py:115: in test_gate_accepts_aliases_and_tolerates_whitespace
+    ok, _ = LLMOrchestrator._live_orders_authorized(object())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+intelligence\llm_orchestrator.py:2897: in _live_orders_authorized
+    raw = str(os.getenv(self.LIVE_CONFIRMATION_ENV, "") or "").strip().lower()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'object' object has no attribute 'LIVE_CONFIRMATION_ENV'
+___________________ test_gate_stays_locked_on_explicit_zero ___________________
+tests\test_live_order_lockout.py:122: in test_gate_stays_locked_on_explicit_zero
+    ok, _ = LLMOrchestrator._live_orders_authorized(object())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+intelligence\llm_orchestrator.py:2897: in _live_orders_authorized
+    raw = str(os.getenv(self.LIVE_CONFIRMATION_ENV, "") or "").strip().lower()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'object' object has no attribute 'LIVE_CONFIRMATION_ENV'
+____________ test_build_execution_plan_lockout_raises_and_journals ____________
+tests\test_live_order_lockout.py:149: in test_build_execution_plan_lockout_raises_and_journals
+    assert TOKEN not in str(o.operations.events) + str(o.store.lifecycle)
+E   assert 'I_UNDERSTAN...LL_BE_PLACED' not in "[(('RiskCon...True}), {})]"
+E     
+E     'I_UNDERSTAND_LIVE_ORDERS_WILL_BE_PLACED' is contained here:
+E        exactly "I_UNDERSTAND_LIVE_ORDERS_WILL_BE_PLACED")', 'env_flag': 'REQUIRE_LIVE_CONFIRMATION', 'token_env': 'LIVE_CONFIRMATION_TOKEN', 'execution_authority': False, 'paper_mode': True}), {'run_id': 'run', 'severity': 'WARNING'})][((None, 'test_setup', 'REJECTED', 'live_order_lockout', {'reason': 'REQUIRE_LIVE_CONFIRMATION is enabled but LIVE_CONFIRMATION_TOKEN is missing or incorrect (must be exactly "I_UNDERSTAND_LIVE_ORDERS_WILL_BE_PLACED")', 'env_flag': 'REQUIRE_LIVE_CONFIRMATION', 'token_env': 'LIVE_CONFI...
+E     
+E     ...Full output truncated (2 lines hidden), use '-vv' to show
+------------------------------ Captured log call ------------------------------
+WARNING  LLMOrchestrator:llm_orchestrator.py:2944 LIVE ORDER LOCKOUT engaged: REQUIRE_LIVE_CONFIRMATION is enabled but LIVE_CONFIRMATION_TOKEN is missing or incorrect (must be exactly "I_UNDERSTAND_LIVE_ORDERS_WILL_BE_PLACED")
+________ test_build_execution_plan_authorized_env_reaches_live_branch _________
+tests\test_live_order_lockout.py:159: in test_build_execution_plan_authorized_env_reaches_live_branch
+    o._build_execution_plan(_proposal_stub(), {}, paper_mode=False, volume=0.01)
+intelligence\llm_orchestrator.py:2972: in _build_execution_plan
+    execution_policy = load_execution_policy(self.store, proposal.symbol)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core\execution_policy.py:84: in load
+    policies = store.get_state("execution_policies", {}) or {}
+               ^^^^^^^^^^^^^^^
+E   AttributeError: '_Store' object has no attribute 'get_state'
+______________ test_build_execution_plan_paper_mode_never_gates _______________
+tests\test_live_order_lockout.py:168: in test_build_execution_plan_paper_mode_never_gates
+    plan, preflight = o._build_execution_plan(
+intelligence\llm_orchestrator.py:2954: in _build_execution_plan
+    plan = build_pending_entry(
+core\execution_planning.py:108: in build_pending_entry
+    raise ValueError("planned entry is at/through the current quote; refresh plan instead of using market execution")
+E   ValueError: planned entry is at/through the current quote; refresh plan instead of using market execution
+=========================== short test summary info ===========================
+FAILED tests/test_live_order_lockout.py::test_gate_fail_closed_when_unset - A...
+FAILED tests/test_live_order_lockout.py::test_gate_fail_closed_on_flag_without_token
+FAILED tests/test_live_order_lockout.py::test_gate_fail_closed_on_wrong_token
+FAILED tests/test_live_order_lockout.py::test_gate_authorized_with_both_envs
+FAILED tests/test_live_order_lockout.py::test_gate_accepts_aliases_and_tolerates_whitespace
+FAILED tests/test_live_order_lockout.py::test_gate_stays_locked_on_explicit_zero
+FAILED tests/test_live_order_lockout.py::test_build_execution_plan_lockout_raises_and_journals
+FAILED tests/test_live_order_lockout.py::test_build_execution_plan_authorized_env_reaches_live_branch
+FAILED tests/test_live_order_lockout.py::test_build_execution_plan_paper_mode_never_gates

@@ -1,0 +1,21 @@
+{
+  "error_rows_7d": 27,
+  "buckets": {
+    "quota_429": 0,
+    "payment_402": 0,
+    "auth_403": 0,
+    "context_length": 0,
+    "other": 27
+  },
+  "non_context_failures": 27,
+  "example_other": {
+    "at": "2026-09-23T16:52:53.338698+00:00",
+    "strategy": "swing",
+    "provider": "openrouter",
+    "parse_status": "PARSE_ERROR",
+    "err_head": "parse_status=PARSE_ERROR attempts=1"
+  }
+}
+PU-0142-OK
+exit=0
+END-MARKER-PU-0142

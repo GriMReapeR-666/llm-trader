@@ -1,0 +1,30 @@
+diff --git a/START_DECK.bat b/START_DECK.bat
+index 4946a80..ce4cac2 100644
+--- a/START_DECK.bat
++++ b/START_DECK.bat
+@@ -35,9 +35,25 @@
+     exit /b 1
+ )
+ 
++REM -- Optional QKF smoke preflight: set SMOKE_PREFLIGHT=1 to enable --------
++
++if /i "%SMOKE_PREFLIGHT%"=="1" (
++  echo  [PREFLIGHT] QKF smoke probes running ^(set SMOKE_PREFLIGHT=0 to skip^)...
++  pushd "%PROJECT_ROOT%quant_knowledge_framework"
++  python -X utf8 smoke_test.py --fast
++  if errorlevel 1 (
++    popd
++    echo  [X] PREFLIGHT: QKF smoke RED - aborting launch. Report: artifacts\qkf_smoke_report.txt
++    pause
++    exit /b 1
++  )
++  popd
++  echo  [OK] PREFLIGHT: QKF smoke GREEN.
++)
++
+ if not exist "%PROJECT_ROOT%tui_opentui\package.json" (
+     echo  [X] Project not found. Run from repo root.
+     pause
+     exit /b 1
+ )
+ 

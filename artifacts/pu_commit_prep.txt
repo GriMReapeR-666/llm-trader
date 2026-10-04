@@ -1,0 +1,13 @@
+HEAD: 31a9ce9 | branch: feat/ui-pipeline-compact-tabs
+--- porcelain (candidates) ---
+ M intelligence/llm_orchestrator.py
+ M scripts/run_session_followups.py
+ M tests/test_scheduler_pulse.py
+?? data/news_triage.py
+?? tests/test_laya_bundle_prompt.py
+?? tests/test_live_order_lockout.py
+?? tests/test_session_followups.py
+?? tests/test_triage_model_path.py
+--- compile gate ---
+COMPILE-ALL-OK
+END-MARKER-PU-0040

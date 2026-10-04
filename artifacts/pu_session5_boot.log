@@ -1,0 +1,1315 @@
+2026-09-30 10:37:29,386 INFO main: Paper market-data session established (terminal-only, no credential login): MetaTrader 5
+ Single symbol mode: EURUSD
+▣ AUTO schedules independent swing (H1) and scalp (M15) engines.
+2026-09-30 10:37:29,387 INFO main: Normalized UI risk input 1.0000 to 1.00%
+2026-09-30 10:37:29,393 INFO main: Seeded paper/fallback account balance: $100000.00
+2026-09-30 10:37:30,112 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-30 10:37:30,458 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-30 10:37:30,803 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-30 10:37:32,550 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-30 10:37:32,551 INFO main: LLM Router initialized: 4 providers, 3 agents
+2026-09-30 10:37:32,589 INFO RiskManager: 🔁 Daily Limits Reset. Start Equity: $100000.00
+2026-09-30 10:37:32,593 INFO core.harness.plugins: RiskManagementPlugin initialized with balance 10000.00, max risk 1.00%
+2026-09-30 10:37:32,593 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'risk_management' (v1.0.0)
+2026-09-30 10:37:32,609 INFO core.harness.plugins: TradingMemoryPlugin mounted on database 'trading_state.db'
+2026-09-30 10:37:32,609 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'trading_memory' (v1.0.0)
+2026-09-30 10:37:32,616 INFO TradeManager: Loaded active conditions for 2 symbols
+2026-09-30 10:37:32,616 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-30 10:37:32,617 INFO core.harness.plugins: BrokerPlugin mounted (mode=PAPER)
+2026-09-30 10:37:32,617 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'broker' (v1.0.0)
+2026-09-30 10:37:32,617 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-30 10:37:32,617 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-30 10:37:32,617 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-30 10:37:32,617 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-30 10:37:32,617 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-30 10:37:32,617 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-30 10:37:32,617 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-30 10:37:32,621 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-30 10:37:32,621 INFO core.harness.plugins: DataHubPlugin mounted (market_data=yes + FRED/COT/news/OpenBB).
+2026-09-30 10:37:32,621 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'data_hub' (v1.0.0)
+2026-09-30 10:37:32,625 INFO core.harness.plugins: CausalIntelligencePlugin mounted with 134 macro dynamic nodes.
+2026-09-30 10:37:32,625 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'causal_intelligence' (v1.0.0)
+2026-09-30 10:37:32,638 INFO core.harness.plugins: AnalyticalFrameworksPlugin mounted (Modules 01-07 Foresight, Spreads & Signals).
+2026-09-30 10:37:32,638 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'analytical_frameworks' (v1.0.0)
+2026-09-30 10:37:32,641 INFO core.harness.plugins: KronosIntelligencePlugin mounted (Signal Calibration, Synthetic Jumps & CPCV).
+2026-09-30 10:37:32,642 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'kronos_intelligence' (v1.0.0)
+2026-09-30 10:37:32,644 INFO core.harness.plugins: ExecutionSafetyPlugin mounted.
+2026-09-30 10:37:32,645 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'execution_safety' (v1.0.0)
+2026-09-30 10:37:32,646 INFO core.harness.plugins: CointegrationGovernancePlugin mounted.
+2026-09-30 10:37:32,646 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'cointegration_governance' (v1.0.0)
+2026-09-30 10:37:32,657 INFO core.harness.plugins: SkillsPlugin mounted with 35 standard skills.
+2026-09-30 10:37:32,657 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'skills' (v1.0.0)
+2026-09-30 10:37:32,657 INFO core.harness.plugins: JournalAuditPlugin mounted for database 'trading_state.db'.
+2026-09-30 10:37:32,657 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'journal_audit' (v1.0.0)
+2026-09-30 10:37:32,657 INFO core.harness.plugins: QuantWorkflowsPlugin mounted with 7 trading workflows.
+2026-09-30 10:37:32,657 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'quant_workflows' (v1.0.0)
+2026-09-30 10:37:32,660 INFO core.harness.plugins: MacroEventAlphaPlugin mounted with leading indicators, ESI & 3-phase execution.
+2026-09-30 10:37:32,660 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'macro_event_alpha' (v1.0.0)
+2026-09-30 10:37:32,662 INFO core.harness.extracted_module_plugins: ExtractedMetricsPlugin mounted — 14 metric functions available.
+2026-09-30 10:37:32,666 INFO core.harness.extracted_module_plugins: ExtractedValidationPlugin mounted — CPCV, MC shuffle, stress, jitter available.
+2026-09-30 10:37:33,022 INFO core.harness.extracted_module_plugins: ExtractedAlphaSourcePlugin mounted — alpha discovery, ensemble, decay, rotation available.
+2026-09-30 10:37:33,024 INFO core.harness.extracted_module_plugins: ExtractedRegimePlugin mounted — HMM/Hurst regime + allocation matrix wired.
+2026-09-30 10:37:33,026 INFO core.harness.extracted_module_plugins: ExtractedNewsPlugin mounted — ESI, Delta, phase detection, NFP/CPI weights available.
+2026-09-30 10:37:33,026 INFO core.harness.extracted_module_plugins: ExtractedRiskPlugin mounted — 3-layer risk, 1R sizing, vol targeting, heat management.
+2026-09-30 10:37:33,039 INFO core.harness.extracted_module_plugins: ExtractedAutonomousPlugin mounted — constitution, trust levels, seasons, drift detection.
+2026-09-30 10:37:33,039 INFO core.harness.extracted_module_plugins: ExtractedAltDataPlugin mounted — gold FV, vol regime, carry, synthetic index available.
+2026-09-30 10:37:33,042 INFO core.harness.extracted_module_plugins: ExtractedResearchPlugin mounted — FactorMiner, AQuA, MARS configs + challenge mapping.
+2026-09-30 10:37:33,042 INFO core.harness.extracted_module_plugins: ExtractedModulesPlugin mounted 9/9 adapters: ['extracted_metrics', 'extracted_validation', 'extracted_alpha_source', 'extracted_regime', 'extracted_news', 'extracted_risk', 'extracted_autonomous', 'extracted_alt_data', 'extracted_research']
+2026-09-30 10:37:33,042 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'extracted_modules' (v1.0.0)
+2026-09-30 10:37:33,057 INFO core.harness.quant_models_plugins: RetailQuantBundlePlugin mounted (12 modules).
+2026-09-30 10:37:33,057 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'retail_quant_bundle' (v1.0.0)
+2026-09-30 10:37:33,376 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-30 10:37:33,681 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-30 10:37:33,987 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-30 10:37:35,509 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-30 10:38:17,035 INFO LayaDecisionModel: Loaded Laya model from C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\models\laya in 13959.6 ms
+2026-09-30 10:38:17,278 INFO RiskManager: 🔁 Daily Limits Reset. Start Equity: $100000.00
+2026-09-30 10:38:17,279 WARNING RiskManager: Ignoring persisted initial_balance 10000.00 (inconsistent with account anchor 100000.00) — possible state from a different account scale; floor re-anchored.
+2026-09-30 10:38:17,345 INFO core.harness.plugins: DeliberativeGraphPlugin compiled and mounted.
+2026-09-30 10:38:17,345 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'deliberative_graph' (v1.0.0)
+2026-09-30 10:38:17,358 INFO core.harness.live_trading_plugin: LiveTradingPlugin mounted (paper=True) — loop factory, sandbox, live advisories via TradingContext
+2026-09-30 10:38:17,376 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'live_trading' (v1.0.0)
+2026-09-30 10:38:17,376 INFO core.harness.quant_models_plugins: Profile 'paper' mounted with 17 plugins into context 'paper_ctx'.
+2026-09-30 10:38:17,381 INFO operations.event_bridge: event_bridge initialized (db=trading_state.db)
+2026-09-30 10:38:17,383 INFO main: Event bridge initialized for engine process
+2026-09-30 10:38:17,401 INFO main: Profile 'paper' mounted via TradingContext — 71 services, 17 plugins
+2026-09-30 10:38:17,493 INFO PrometheusExporter: Prometheus exporter started on 0.0.0.0:9090
+2026-09-30 10:38:17,494 INFO main: Prometheus metrics exporter started on port 9090
+2026-09-30 10:38:17,516 INFO main: Memory Orchestrator initialized (L0-L3 hierarchy)
+2026-09-30 10:38:17,525 INFO main: Knowledge Retrieval initialized (macro + cases + domain)
+2026-09-30 10:38:17,536 INFO main: Meta-Improvement Orchestrator initialized
+2026-09-30 10:38:17,537 INFO main: Kronos Signal Fusion initialized (multi-horizon)
+2026-09-30 10:38:17,538 INFO main: Advanced RL Pipeline initialized (multi-agent)
+2026-09-30 10:38:17,538 INFO main: Improvement Pipeline initialized (auto-apply low-risk)
+2026-09-30 10:38:17,571 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-30 10:38:17,572 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-30 10:38:17,573 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-30 10:38:17,573 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-30 10:38:17,573 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-30 10:38:17,574 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-30 10:38:17,574 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-30 10:38:17,619 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-30 10:38:18,182 INFO LLMOrchestrator: Using LLM Router | agent=trader | model=mistralai/mistral-7b-instruct-v0.2
+2026-09-30 10:38:18,217 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 10:38:18,754 INFO KronosBridge: ✅ Kronos neural backend ready (kronos-mini): loaded neural weights model=kronos-mini tokenizer=kronos-tokenizer-2k device=cpu — error cleared
+2026-09-30 10:38:18,754 INFO LLMOrchestrator: Kronos advisory enabled | backend=neural | weights_loaded=True
+2026-09-30 10:38:18,768 INFO main: LLMOrchestrator constructed via harness factory (profile=paper)
+2026-09-30 10:38:18,769 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-30 10:38:18,769 INFO main: TradeManager wired from harness context to orchestrator
+Starting LLM Trader on EURUSD (AUTO)...
+Mode: PAPER
+Model: mistralai/mistral-7b-instruct-v0.2
+2026-09-30 10:38:18,834 INFO TaskQueue: Migrated 43 intervals to S.Q priority queue
+2026-09-30 10:38:18,834 INFO main: S.Q Priority Queue initialized (43 scheduled tasks)
+2026-09-30 10:38:18,834 INFO main: κ Compliance Audit started (hash-chained, append-only)
+2026-09-30 10:38:18,852 INFO CrashRecovery: Crash recovery: checking system state...
+2026-09-30 10:38:18,852 WARNING CrashRecovery: Crash detected: last checkpoint was interrupted
+2026-09-30 10:38:18,856 CRITICAL CrashRecovery: Hash chain integrity check FAILED — broken at checkpoint 13907
+2026-09-30 10:38:18,856 WARNING main: ⚠  Crash detected — last completed cycle: 1 (action: HALT_AND_ALERT)
+2026-09-30 10:38:18,856 WARNING main:   Recovery reason: Last checkpoint was RUNNING (crash-interrupted)
+2026-09-30 10:38:18,856 WARNING main:   Recovery reason: Hash chain broken at checkpoint 13907
+2026-09-30 10:38:18,857 INFO main: Crash recovery started (hash-chained checkpoint journal, atexit+SIGTERM hooks)
+2026-09-30 10:38:18,861 INFO core.autonomous_bootstrap: ======================================================================
+2026-09-30 10:38:18,861 INFO core.autonomous_bootstrap: AUTONOMOUS BOOTSTRAP STARTING
+2026-09-30 10:38:18,861 INFO core.autonomous_bootstrap: ======================================================================
+2026-09-30 10:38:18,861 INFO core.autonomous_bootstrap: --- Phase 1: VALIDATE ---
+2026-09-30 10:38:18,861 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1a. Crash recovery check
+2026-09-30 10:38:18,861 INFO CrashRecovery: Crash recovery: checking system state...
+2026-09-30 10:38:18,862 WARNING CrashRecovery: Crash detected: last checkpoint was interrupted
+2026-09-30 10:38:18,863 CRITICAL CrashRecovery: Hash chain integrity check FAILED — broken at checkpoint 13907
+2026-09-30 10:38:18,863 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1b. MT5 connection verification
+2026-09-30 10:38:18,863 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1c. Readiness report
+2026-09-30 10:38:28,392 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1d. Backtest active strategies
+2026-09-30 10:38:28,412 INFO core.autonomous_bootstrap:   Backtesting strategy: kronos_h1
+2026-09-30 10:38:28,412 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,413 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=kronos_h1)
+2026-09-30 10:38:28,413 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,413 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:28,414 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:28,414 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:28,436 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:28,446 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:28,450 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:28,458 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:28,475 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,476 INFO ContinuousBacktest: Validation complete: FAIL (0.1s)
+2026-09-30 10:38:28,476 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,480 INFO core.autonomous_bootstrap:   Backtesting strategy: statarb_eur_chf
+2026-09-30 10:38:28,480 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,481 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=statarb_eur_chf)
+2026-09-30 10:38:28,481 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,481 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:28,481 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:28,481 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:28,486 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:28,497 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:28,497 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:28,499 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:28,525 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,525 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 10:38:28,525 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,529 INFO core.autonomous_bootstrap:   Backtesting strategy: macro_nfp_pullback
+2026-09-30 10:38:28,529 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,529 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=macro_nfp_pullback)
+2026-09-30 10:38:28,529 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,529 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:28,529 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:28,529 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:28,535 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:28,546 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:28,546 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:28,548 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:28,580 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,581 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 10:38:28,581 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,585 INFO core.autonomous_bootstrap:   Backtesting strategy: meanrev_bollinger
+2026-09-30 10:38:28,585 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,586 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=meanrev_bollinger)
+2026-09-30 10:38:28,586 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,586 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:28,586 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:28,586 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:28,609 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:28,622 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:28,622 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:28,625 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:28,657 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,657 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 10:38:28,657 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,754 INFO core.autonomous_bootstrap:   Backtesting strategy: alpha_055_orderflow
+2026-09-30 10:38:28,837 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,837 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=alpha_055_orderflow)
+2026-09-30 10:38:28,837 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,837 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:28,837 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:28,838 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:28,843 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:28,856 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:28,857 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:28,859 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:28,881 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,881 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 10:38:28,881 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,884 INFO core.autonomous_bootstrap:   Backtesting strategy: alpha_098_copula
+2026-09-30 10:38:28,884 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,885 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=alpha_098_copula)
+2026-09-30 10:38:28,885 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,885 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:28,885 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:28,885 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:28,892 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:28,903 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:28,903 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:28,905 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:28,931 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,931 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 10:38:28,931 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,934 INFO core.autonomous_bootstrap:   Backtesting strategy: agent_execution_rl
+2026-09-30 10:38:28,934 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,934 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=agent_execution_rl)
+2026-09-30 10:38:28,935 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,935 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:28,935 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:28,935 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:28,942 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:28,954 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:28,954 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:28,956 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:28,983 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,983 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 10:38:28,983 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,986 INFO core.autonomous_bootstrap:   Backtesting strategy: agent_regime_supervisor
+2026-09-30 10:38:28,987 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,987 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=agent_regime_supervisor)
+2026-09-30 10:38:28,987 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:28,987 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:28,987 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:28,987 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:28,993 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:29,006 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:29,006 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:29,009 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:29,032 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,032 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 10:38:29,033 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,037 INFO core.autonomous_bootstrap:   Backtesting strategy: model_bocpd_changepoint
+2026-09-30 10:38:29,037 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,037 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=model_bocpd_changepoint)
+2026-09-30 10:38:29,037 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,037 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:29,037 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:29,037 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:29,043 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:29,054 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:29,054 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:29,057 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:29,089 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,090 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 10:38:29,090 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,093 INFO core.autonomous_bootstrap:   Backtesting strategy: model_kalman_filter
+2026-09-30 10:38:29,093 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,093 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=model_kalman_filter)
+2026-09-30 10:38:29,093 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,093 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:29,094 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:29,094 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:29,106 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:29,123 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:29,124 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:29,127 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:29,195 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,195 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 10:38:29,196 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,227 INFO core.autonomous_bootstrap:   Backtesting strategy: gold_momentum_h4
+2026-09-30 10:38:29,228 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,228 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=gold_momentum_h4)
+2026-09-30 10:38:29,228 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:29,228 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:29,228 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:29,228 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:29,278 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:30,526 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:30,557 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:31,584 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:33,599 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:33,607 INFO ContinuousBacktest: Validation complete: FAIL (4.3s)
+2026-09-30 10:38:33,607 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:33,660 INFO core.autonomous_bootstrap:   Backtesting strategy: spx_volatility_skew
+2026-09-30 10:38:33,661 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:33,661 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=spx_volatility_skew)
+2026-09-30 10:38:33,661 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:33,661 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:33,661 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:33,661 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:33,666 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:33,681 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:33,682 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:33,685 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:33,861 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:33,893 INFO ContinuousBacktest: Validation complete: FAIL (0.0s)
+2026-09-30 10:38:33,924 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:34,063 INFO core.autonomous_bootstrap:   Backtesting strategy: sprt_hypothesis_gate
+2026-09-30 10:38:34,110 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:34,142 INFO ContinuousBacktest: Starting full validation: EURUSD H1 (500 bars, strategy=sprt_hypothesis_gate)
+2026-09-30 10:38:34,172 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:34,202 INFO ContinuousBacktest: Stage 1: Full Pipeline Backtest
+2026-09-30 10:38:34,233 ERROR ContinuousBacktest: Backtest failed: live OHLC unavailable for EURUSD/H1; refusing synthetic replay bars
+2026-09-30 10:38:34,265 INFO ContinuousBacktest: Stage 2: DSR Gate Validation
+2026-09-30 10:38:35,702 WARNING ContinuousBacktest: DSR stage skipped: no completed backtest to defend
+2026-09-30 10:38:38,277 INFO ContinuousBacktest: Stage 2b CPCV not run: only 0 net-of-cost journal_trades returns available (need >= 40 for combinatorial paths)
+2026-09-30 10:38:38,277 INFO ContinuousBacktest: Stage 3: Walk-Forward Analysis
+2026-09-30 10:38:38,363 INFO ContinuousBacktest: Stage 4: Live-vs-Backtest Comparison
+2026-09-30 10:38:38,394 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:38,395 INFO ContinuousBacktest: Validation complete: FAIL (4.2s)
+2026-09-30 10:38:38,395 INFO ContinuousBacktest: ============================================================
+2026-09-30 10:38:38,399 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1e. Walk-forward validation
+2026-09-30 10:38:38,451 INFO core.autonomous_bootstrap:   Skipping WFE for sprt_hypothesis_gate (backtest failed)
+2026-09-30 10:38:38,451 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1f. Overfit gate seeding
+2026-09-30 10:38:38,461 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1g. Strategy scoring
+2026-09-30 10:38:38,463 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] 1h. Macro fundamental study validation
+2026-09-30 10:38:38,463 INFO core.autonomous_bootstrap: [Bootstrap/VALIDATE] Complete: passed=True duration=19.6s blockers=0
+2026-09-30 10:38:38,464 INFO core.autonomous_bootstrap: --- Phase 2: PREPARE ---
+2026-09-30 10:38:38,464 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2a. Data source initialization
+2026-09-30 10:38:38,464 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2b. Macro graph seed
+2026-09-30 10:40:12,991 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c. News ingestion
+2026-09-30 10:40:13,366 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-30 10:40:13,678 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-30 10:40:14,001 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-30 10:40:15,726 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-30 10:40:25,930 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c2. Global Macro Bridge
+2026-09-30 10:41:07,415 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c3. Alternative Data Provider
+2026-09-30 10:41:45,603 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c4. Yahoo Finance
+2026-09-30 10:41:47,345 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c5. CFTC COT
+2026-09-30 10:41:47,439 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c6. EIA Petroleum
+2026-09-30 10:41:47,440 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c7. ForexFactory
+2026-09-30 10:41:50,926 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c8. Exness
+2026-09-30 10:41:51,571 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c9. SEC EDGAR
+2026-09-30 10:41:51,690 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c10. OpenBB Bridge
+2026-09-30 10:41:51,690 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c11. Zero-Lag Macro
+2026-09-30 10:41:51,690 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c12. Sentiment Veto Engine
+2026-09-30 10:41:51,691 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c13. Enhanced MT5 Calendar
+2026-09-30 10:41:51,693 WARNING core.autonomous_bootstrap: Enhanced MT5 Calendar init skipped: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-30 10:41:51,694 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c14. News Triage
+2026-09-30 10:41:51,694 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c15. Kill-Switch Latch
+2026-09-30 10:41:51,698 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c16. Domain Knowledge Pillars
+2026-09-30 10:41:51,705 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c17. Sanctions & Financial Plumbing
+2026-09-30 10:41:51,710 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c18. Brain Observability
+2026-09-30 10:41:51,714 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2c19. FRED Backtest Data
+2026-09-30 10:41:51,726 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2d. Memory warmup
+2026-09-30 10:41:51,726 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2e. Knowledge retrieval warmup
+2026-09-30 10:41:51,726 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2f. RL model baseline
+2026-09-30 10:41:51,735 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 10:41:51,739 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 10:41:51,740 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2g. LLM provider health check
+2026-09-30 10:41:51,740 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2h. Guardian startup
+2026-09-30 10:41:51,741 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2i. Alpha discovery check
+2026-09-30 10:41:51,743 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2j. Task queue hydration
+2026-09-30 10:41:51,745 INFO TaskQueue: Migrated 43 intervals to S.Q priority queue
+2026-09-30 10:41:51,745 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] 2k. Compliance audit
+2026-09-30 10:41:51,746 INFO core.autonomous_bootstrap: [Bootstrap/PREPARE] Complete: duration=193.3s warnings=0
+2026-09-30 10:41:51,746 INFO core.autonomous_bootstrap: ======================================================================
+2026-09-30 10:41:51,747 INFO core.autonomous_bootstrap: BOOTSTRAP COMPLETE: ready=True duration=212.9s quality=0.60
+2026-09-30 10:41:51,747 INFO core.autonomous_bootstrap: ======================================================================
+2026-09-30 10:41:51,749 INFO main: Bootstrap complete: ready=True phase=READY duration=212.9s quality=0.60
+2026-09-30 10:41:51,756 INFO main: Startup training pipeline: running initial backtest + training...
+2026-09-30 10:41:51,757 INFO main:   [1/6] Walk-forward validator initialized
+2026-09-30 10:41:51,757 INFO main:   [2/6] CPCV backtester available
+2026-09-30 10:41:51,757 INFO main:   [3/6] Alpha ensemble warm-up
+2026-09-30 10:41:52,266 INFO main:   [5/6] Progressive gates initialized
+2026-09-30 10:41:52,269 INFO main:   [6/6] Training orchestrator available
+2026-09-30 10:41:55,586 INFO core.capstone_validator: Capstone real_backtest: TCE slippage applied on 2940 fills (0 skipped) — R-multiples net-of-cost
+2026-09-30 10:41:55,654 INFO core.capstone_validator: Capstone CPCV (n=57): mean_sharpe=-1.255 DSR_conf=1.0 PBO=0.7333 -> OVERFITTING_RISK_DETECTED
+2026-09-30 10:41:55,668 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 10:41:57,941 INFO core.progressive_gates: Gate REJECT unknown stage=SCREENING quality=0.20 reasons=4
+2026-09-30 10:41:57,946 INFO core.capstone_validator: Capstone validation complete: 1037 trades | Grade C (40/100) | Gate FAIL | 6s
+2026-09-30 10:41:57,947 INFO main:   [7/7] Capstone: Grade C (40/100) 1037 trades ready=False
+2026-09-30 10:41:57,950 INFO core.automated_training_manager: [TRAINING] Starting training cycle for EURUSD (quick=True)
+2026-09-30 10:41:57,950 INFO core.automated_training_manager: [TRAINING] Phase 1: Generating Kronos synthetic OOS data...
+2026-09-30 10:41:58,074 INFO KronosBridge: ✅ Kronos neural backend ready (kronos-mini): loaded neural weights model=kronos-mini tokenizer=kronos-tokenizer-2k device=cpu — error cleared
+2026-09-30 10:41:58,086 INFO core.automated_training_manager: [TRAINING] Phase 2: RL training...
+2026-09-30 10:41:58,088 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 10:41:58,089 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 10:41:58,202 INFO RLTrainer: Kronos offline RL training complete: episodes=2 updates=380
+2026-09-30 10:41:58,203 INFO core.automated_training_manager:   Q-learning: reward=0.0000
+2026-09-30 10:41:58,211 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 10:41:58,212 INFO PPOTrainer: PPO forced to numpy backend (use_torch=False) — linear policy, not MLP
+2026-09-30 10:41:58,212 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 10:41:58,214 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 10:41:58,221 INFO PPOTrainer: PPO offline training complete: updates=1 episodes=2 backend=numpy
+2026-09-30 10:41:58,223 INFO core.automated_training_manager:   PPO: reward=-0.4000
+2026-09-30 10:41:58,259 INFO core.automated_training_manager: [TRAINING] Phase 3: GRPO training...
+2026-09-30 10:41:58,277 INFO GRPOProposer: GRPO offline complete: updates=2 mean_group_reward=0.0003 frozen=RiskController
+2026-09-30 10:41:58,281 INFO core.automated_training_manager: [TRAINING] Phase 4: OOS validation on Kronos synthetic...
+2026-09-30 10:41:58,378 INFO core.automated_training_manager:   OOS validation: TCE slippage applied on 1884 fills — R-multiples net-of-cost
+2026-09-30 10:41:58,379 INFO core.automated_training_manager: [TRAINING] Phase 5: Scenario stress testing...
+2026-09-30 10:41:58,390 INFO core.automated_training_manager: [TRAINING] EURUSD training complete: OOS_Sharpe=-1.056 WFE=-0.833 gate=False (0.4s)
+2026-09-30 10:41:58,391 INFO main:   [8/8] Training: OOS_Sharpe=-1.056 WFE=-0.833 gate=False (0.4s)
+2026-09-30 10:41:58,391 INFO main: Startup training pipeline complete: {'walk_forward': 'initialized', 'cpcv': 'available', 'alpha_ensemble': 'warmed', 'progressive_gates': 'initialized', 'training_orchestrator': 'available', 'capstone': {'grade': 'C', 'score': np.float64(40.413944242399225), 'trades': 1037}, 'automated_training': {'oos_sharpe': -1.0558641772742414, 'wfe': -0.8333333333333333, 'gate': False}}
+2026-09-30 10:41:58,424 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-30 10:41:58,426 INFO main: Deliberative Graph shadow mode enabled.
+2026-09-30 10:42:38,265 INFO APIManager: Fetched 5 news articles for: ['EUR', 'EURUSD', 'ECB', 'Federal Reserve', 'USD']
+2026-09-30 10:42:46,352 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 10:42:47,614 INFO APIManager: Fetched 1 FRED series
+2026-09-30 10:42:51,851 INFO APIManager: Fetched 1 FRED series
+2026-09-30 10:43:02,817 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 10:43:03,579 INFO httpx: HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-09-30 10:43:04,576 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 10:43:49,584 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 10:48:40                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:48:40,616 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 10:48:40                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:48:40,933 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 10:48:41,097 INFO MarketData: MT5 server-timezone offset detected: +10800s (UTC+3)
+2026-09-30 10:48:41,389 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 10:48:41,425 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 10:48:41,428 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 10:48:41,806 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 10:48:41,964 INFO alpha_rotation: Resuming pending discovered-alpha materialization: alpha_d2824_0 (promoted at bar 1790578443)
+2026-09-30 10:48:42,220 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 10:48:42,378 WARNING AlertAgent: OPERATOR ALERT [WARNING] EXPIRED_AGENT_TASK_LEASES: {"code": "EXPIRED_AGENT_TASK_LEASES", "count": 5, "details": {}, "severity": "WARNING"}
+2026-09-30 10:48:42,446 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 10:48:42,599 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 10:48:43,531 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-30 10:48:44,870 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+2026-09-30 10:48:48,005 INFO core.capstone_validator: Capstone real_backtest: TCE slippage applied on 2940 fills (0 skipped) — R-multiples net-of-cost
+2026-09-30 10:48:48,031 INFO core.capstone_validator: Capstone CPCV (n=57): mean_sharpe=-1.255 DSR_conf=1.0 PBO=0.7333 -> OVERFITTING_RISK_DETECTED
+2026-09-30 10:48:48,052 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 10:48:50,903 INFO core.progressive_gates: Gate REJECT unknown stage=SCREENING quality=0.20 reasons=4
+2026-09-30 10:48:50,910 INFO core.capstone_validator: Capstone validation complete: 1037 trades | Grade C (40/100) | Gate FAIL | 7s
+2026-09-30 10:48:50,911 INFO core.automated_training_manager: [TRAINING] Starting training cycle for EURUSD (quick=True)
+2026-09-30 10:48:50,911 INFO core.automated_training_manager: [TRAINING] Phase 1: Generating Kronos synthetic OOS data...
+2026-09-30 10:48:51,064 INFO KronosBridge: ✅ Kronos neural backend ready (kronos-mini): loaded neural weights model=kronos-mini tokenizer=kronos-tokenizer-2k device=cpu — error cleared
+2026-09-30 10:48:51,075 INFO core.automated_training_manager: [TRAINING] Phase 2: RL training...
+2026-09-30 10:48:51,078 INFO RLTrainer: RL model loaded from rl_model.json (111 states, 300 updates)
+2026-09-30 10:48:51,078 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 10:48:51,187 INFO RLTrainer: Kronos offline RL training complete: episodes=2 updates=380
+2026-09-30 10:48:51,187 INFO core.automated_training_manager:   Q-learning: reward=0.0000
+2026-09-30 10:48:51,188 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 10:48:51,190 INFO PPOTrainer: PPO forced to numpy backend (use_torch=False) — linear policy, not MLP
+2026-09-30 10:48:51,191 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 10:48:51,193 INFO KronosBridge: Kronos Predictor initialized (kronos-mini) backend=heuristic — forced heuristic backend
+2026-09-30 10:48:51,198 INFO PPOTrainer: PPO offline training complete: updates=1 episodes=2 backend=numpy
+2026-09-30 10:48:51,199 INFO core.automated_training_manager:   PPO: reward=-0.4000
+2026-09-30 10:48:51,393 INFO core.automated_training_manager: [TRAINING] Phase 3: GRPO training...
+2026-09-30 10:48:51,406 INFO GRPOProposer: GRPO offline complete: updates=2 mean_group_reward=0.0003 frozen=RiskController
+2026-09-30 10:48:51,410 INFO core.automated_training_manager: [TRAINING] Phase 4: OOS validation on Kronos synthetic...
+2026-09-30 10:48:51,502 INFO core.automated_training_manager:   OOS validation: TCE slippage applied on 1884 fills — R-multiples net-of-cost
+2026-09-30 10:48:51,503 INFO core.automated_training_manager: [TRAINING] Phase 5: Scenario stress testing...
+2026-09-30 10:48:51,515 INFO core.automated_training_manager: [TRAINING] EURUSD training complete: OOS_Sharpe=-1.056 WFE=-0.833 gate=False (0.6s)
+2026-09-30 10:48:53,507 INFO APIManager: Fetched 0 news articles for: ['EURUSD']
+2026-09-30 10:48:54,691 INFO APIManager: Fetched 3 hot topics (incl. geopolitics)
+2026-09-30 10:48:56,178 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 10:48:56,266 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 10:48:56,267 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 10:48:57,219 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 10:49:00,816 INFO MarketData: Regime engine: regime=LOW_VOL_RANGE approved=True multiplier=0.50
+2026-09-30 10:50:05,801 INFO APIManager: Fetched 18 FRED series
+2026-09-30 10:50:24,448 INFO APIManager: Fetched 18 FRED series
+2026-09-30 10:50:24,449 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 10:50:29,582 INFO APIManager: Fetched 18 FRED series
+2026-09-30 10:50:29,583 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 10:50:33,117 WARNING LLMOrchestrator: NEWS GATE BLOCKED: EURUSD — Pre-news warning: German Prelim CPI m/m in 68min (Tier 1, 120min warning)
+2026-09-30 10:50:33,123 WARNING LLMOrchestrator: NEWS GATE BLOCKED: EURUSD — Pre-news warning: German Prelim CPI m/m in 68min (Tier 1, 120min warning)
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 10:50:33                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:33,350 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 10:50:33                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:33,353 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 10:50:33,499 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+2026-09-30 10:50:33,547 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 10:50:33                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:33,575 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 10:50:33                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:33,762 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 10:50:33,834 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+2026-09-30 10:50:33,851 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 10:50:33                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:33,877 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 10:50:33                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:33,881 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 10:50:33,945 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+2026-09-30 10:50:33,955 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 10:50:33                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:33,988 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 10:50:34                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:34,003 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 10:50:34,053 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+2026-09-30 10:50:34,063 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 10:50:34                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:34,084 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 10:50:34                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:34,096 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 10:50:34,157 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+2026-09-30 10:50:34,166 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 10:50:34                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:34,191 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+┌──────────────────────────── 🚀 CYCLE 1/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 10:50:34                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 10:50:34,218 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 10:50:34,251 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+2026-09-30 10:50:34,299 INFO main: ⏸️ [DECISION] Cycle 1: HOLD EURUSD M15 (scalp) | News trading gate: Pre-news warning: German Prelim CPI m/m in 68min (Tier 1, 120min warning)
+2026-09-30 10:50:34,318 INFO LLMOrchestrator: ⏸️ [CYCLE 1] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+2026-09-30 10:50:34,347 INFO main: ⏸️ [DECISION] Cycle 1: HOLD EURUSD H1 (swing) | News trading gate: Pre-news warning: German Prelim CPI m/m in 68min (Tier 1, 120min warning)
+2026-09-30 10:51:06,361 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-30 10:51:15,350 INFO operations.executors: executor 'session_review' handled by QuantitativeCoach
+2026-09-30 10:52:46,449 INFO MaintenanceAgent: journal maintenance (checkpoint): {'wal_checkpoint': {'busy': 0, 'log_pages': 0, 'checkpointed': 0}, 'integrity_ok': True, 'integrity_messages': ['ok'], 'execution_authority': False, 'outbox_incident': {'health_status': 'OK', 'raised': False, 'resolved': False, 'suppressed': False, 'execution_authority': False, 'transport': 'NONE'}, 'daily_prune': {'harness_events': 592, 'market_ticks': 0, 'correlation_returns': 0, 'metrics_equity': 0}}
+2026-09-30 10:52:46,473 INFO operations.executors: executor 'journal_maintenance' handled by MaintenanceAgent
+2026-09-30 10:52:46,508 WARNING LLMOrchestrator: schedule batch exceeded 240.0s budget (245.4s actual)
+2026-09-30 10:55:14,591 INFO main: Deliberative shadow EURUSD/H1 -> {'status': 'REJECTED', 'validation_passed': False, 'fusion_score': 0.0, 'rejection_reasons': ['NO_ACTIONABLE_PROPOSAL']}
+2026-09-30 10:55:15,390 INFO DegradationDetector: Running degradation check...
+
+ Next market pulse in 5 seconds...
+2026-09-30 10:55:20,409 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-30 10:55:20,414 INFO main: Deliberative Graph shadow mode enabled.
+2026-09-30 10:56:06,240 WARNING LLMOrchestrator: Boot fetch stage 'data_source_pipeline' exceeded 45.0s budget; abandoning worker and continuing degraded
+2026-09-30 10:56:08,539 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 10:56:09,089 INFO httpx: HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-09-30 10:56:09,907 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 10:56:32,474 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 10:56:33,169 INFO httpx: HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-09-30 10:56:33,173 WARNING LLMRouter: ⚡ Circuit breaker TRIPPED for provider 'cerebras' until 1790746293.1718736
+2026-09-30 10:56:33,463 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 10:56:58,314 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+┌─┌─────────────────────────────────────────────────────── 🚀 CYCLE 2/8 START  🚀 CYCLE 2/8 START ─────────────────────────────────────────────────────────┐─┐
+
+││  Symbol: EURUSD | TF: M15 | Time: 11:04:14Symbol: EURUSD | TF: H1 | Time: 11:04:14                                                                       ││
+
+└─────────────────────────────────────────────────────────────────────────────┘└─────────────────────────────────────────────────────────────────────────────┘
+
+2026-09-30 11:04:14,383 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:14,387 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:15,549 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 11:04:15,561 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 11:04:15,563 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 11:04:18,144 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 11:04:38,921 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 11:04:38,930 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+2026-09-30 11:04:42,361 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:04:46                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:47,375 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:47,822 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 11:04:48,189 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:04:48                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:48,354 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:48,448 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+2026-09-30 11:04:48,456 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:04:48                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:48,496 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:48,572 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:04:48                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:48,623 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:49,273 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:04:49                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:49,332 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:49,435 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:04:49                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:49,488 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:49,575 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+2026-09-30 11:04:49,625 INFO main: ⏸️ [DECISION] Cycle 2: HOLD EURUSD H1 (swing) | Duplicate analysis trigger (candle 2026-09-30 04:00:00 already analyzed)
+2026-09-30 11:04:49,768 INFO MarketData: Regime engine: regime=LOW_VOL_RANGE approved=True multiplier=0.50
+2026-09-30 11:04:50,839 INFO APIManager: Fetched 5 hot topics (incl. geopolitics)
+2026-09-30 11:04:51,293 INFO APIManager: Fetched 0 news articles for: ['EURUSD']
+2026-09-30 11:04:51,295 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 11:04:51,784 INFO APIManager: Fetched 5 news articles for: ['EUR', 'EURUSD', 'ECB', 'Federal Reserve', 'USD']
+2026-09-30 11:04:56,114 WARNING LLMOrchestrator: NEWS GATE BLOCKED: EURUSD — Pre-spike blackout: German Prelim CPI m/m in 54min (Tier 1, 60min blackout)
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:04:56                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:56,207 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:56,294 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:15:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:04:56                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:56,323 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:56,390 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:15:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:04:56                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:56,423 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:56,470 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:15:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:04:56                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:56,498 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:56,558 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:15:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:04:56                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:56,586 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:56,642 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:15:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 2/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:04:56                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:04:56,670 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:04:56,719 INFO LLMOrchestrator: ⏸️ [CYCLE 2] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:15:00 already analyzed (duplicate trigger)
+2026-09-30 11:04:56,745 INFO main: ⏸️ [DECISION] Cycle 2: HOLD EURUSD M15 (scalp) | News trading gate: Pre-spike blackout: German Prelim CPI m/m in 54min (Tier 1, 60min blackout)
+2026-09-30 11:05:29,824 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-30 11:09:55,817 INFO main: Deliberative shadow EURUSD/H1 -> {'status': 'REJECTED', 'validation_passed': False, 'fusion_score': 0.0, 'rejection_reasons': ['NO_ACTIONABLE_PROPOSAL']}
+2026-09-30 11:09:56,060 INFO DegradationDetector: Running degradation check...
+
+ Next market pulse in 5 seconds...
+2026-09-30 11:10:01,086 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-30 11:10:01,088 INFO main: Deliberative Graph shadow mode enabled.
+2026-09-30 11:10:57,500 WARNING LLMOrchestrator: Boot fetch stage 'data_source_pipeline' exceeded 45.0s budget; abandoning worker and continuing degraded
+2026-09-30 11:11:01,791 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 11:11:02,585 INFO httpx: HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-09-30 11:11:02,585 WARNING LLMRouter: ⚡ Circuit breaker TRIPPED for provider 'cerebras' until 1790747162.5858657
+2026-09-30 11:11:03,745 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 11:11:04,443 INFO APIManager: Fetched 1 FRED series
+2026-09-30 11:11:05,501 INFO APIManager: Fetched 1 FRED series
+2026-09-30 11:11:47,853 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 11:11:48,793 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 11:11:49,637 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+┌─┌─────────────────────────────────────────────────────── 🚀 CYCLE 3/8 START  🚀 CYCLE 3/8 START ─────────────────────────────────────────────────────────┐─┐
+
+││  Symbol: EURUSD | TF: M15 | Time: 11:21:55Symbol: EURUSD | TF: H1 | Time: 11:21:55                                                                       ││
+
+└─────────────────────────────────────────────────────────────────────────────┘└─────────────────────────────────────────────────────────────────────────────┘
+
+2026-09-30 11:21:56,023 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:21:56,035 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:21:58,526 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 11:21:58,565 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 11:21:58,569 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 11:22:00,004 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 11:22:00,241 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 11:22:02,946 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 11:22:02,988 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 11:22:03,770 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+2026-09-30 11:22:05,895 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-30 11:22:07,793 INFO APIManager: Fetched 0 news articles for: ['EURUSD']
+2026-09-30 11:22:08,608 INFO APIManager: Fetched 3 hot topics (incl. geopolitics)
+2026-09-30 11:22:13,870 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:22:13                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:22:13,912 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:22:13,968 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:22:13                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:22:13,994 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:22:14,046 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:22:14                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:22:14,075 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:22:14,126 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:22:14                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:22:14,160 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:22:14,206 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:22:14                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:22:14,234 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:22:14,309 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:22:14                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:22:14,341 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:22:14,419 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD H1 (swing): candle 2026-09-30 04:00:00 already analyzed (duplicate trigger)
+2026-09-30 11:22:14,462 INFO main: ⏸️ [DECISION] Cycle 3: HOLD EURUSD H1 (swing) | Duplicate analysis trigger (candle 2026-09-30 04:00:00 already analyzed)
+2026-09-30 11:23:00,797 INFO APIManager: Fetched 18 FRED series
+2026-09-30 11:23:00,798 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 11:23:03,701 INFO APIManager: Fetched 18 FRED series
+2026-09-30 11:23:07,519 INFO APIManager: Fetched 5 news articles for: ['EUR', 'EURUSD', 'ECB', 'Federal Reserve', 'USD']
+2026-09-30 11:23:17,270 WARNING LLMOrchestrator: NEWS GATE BLOCKED: EURUSD — Pre-spike blackout: German Prelim CPI m/m in 36min (Tier 1, 60min blackout)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:23:17                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:23:17,481 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:23:17,662 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:30:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:23:17                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:23:17,691 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:23:17,775 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:30:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:23:17                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:23:17,811 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:23:17,899 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:30:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:23:17                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:23:17,932 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:23:18,009 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:30:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:23:18                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:23:18,071 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:23:18,127 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:30:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 3/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:23:18                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:23:18,188 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:23:18,275 INFO LLMOrchestrator: ⏸️ [CYCLE 3] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:30:00 already analyzed (duplicate trigger)
+2026-09-30 11:23:18,305 INFO main: ⏸️ [DECISION] Cycle 3: HOLD EURUSD M15 (scalp) | News trading gate: Pre-spike blackout: German Prelim CPI m/m in 36min (Tier 1, 60min blackout)
+2026-09-30 11:24:11,741 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-30 11:26:14,447 INFO MaintenanceAgent: journal maintenance (checkpoint): {'wal_checkpoint': {'busy': 0, 'log_pages': 0, 'checkpointed': 0}, 'integrity_ok': True, 'integrity_messages': ['ok'], 'execution_authority': False, 'outbox_incident': {'health_status': 'OK', 'raised': False, 'resolved': False, 'suppressed': False, 'execution_authority': False, 'transport': 'NONE'}}
+2026-09-30 11:26:14,484 INFO operations.executors: executor 'journal_maintenance' handled by MaintenanceAgent
+2026-09-30 11:26:14,540 WARNING LLMOrchestrator: schedule batch exceeded 240.0s budget (256.4s actual)
+2026-09-30 11:28:00,477 INFO main: Deliberative shadow EURUSD/H1 -> {'status': 'REJECTED', 'validation_passed': False, 'fusion_score': 0.0, 'rejection_reasons': ['NO_ACTIONABLE_PROPOSAL']}
+2026-09-30 11:28:00,694 INFO DegradationDetector: Running degradation check...
+
+ Next market pulse in 5 seconds...
+2026-09-30 11:28:05,714 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-30 11:28:05,716 INFO main: Deliberative Graph shadow mode enabled.
+2026-09-30 11:28:51,958 WARNING LLMOrchestrator: Boot fetch stage 'data_source_pipeline' exceeded 45.0s budget; abandoning worker and continuing degraded
+2026-09-30 11:29:02,294 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 11:29:02,984 INFO APIManager: Fetched 1 FRED series
+2026-09-30 11:29:03,777 INFO httpx: HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-09-30 11:29:03,778 WARNING LLMRouter: ⚡ Circuit breaker TRIPPED for provider 'cerebras' until 1790748243.778181
+2026-09-30 11:29:05,153 INFO APIManager: Fetched 1 FRED series
+2026-09-30 11:29:05,812 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 11:30:14,290 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 11:30:16,131 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 11:30:16,914 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:37:27                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:27,664 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:28,968 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 11:37:29,107 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 11:37:29,257 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+2026-09-30 11:37:29,334 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:37:30                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:30,525 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:30,953 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 11:37:30,981 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 11:37:30,984 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 11:37:31,696 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 11:37:31,988 INFO APIManager: Fetched 5 hot topics (incl. geopolitics)
+2026-09-30 11:37:32,331 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-30 11:37:33,290 INFO APIManager: Fetched 0 news articles for: ['EURUSD']
+2026-09-30 11:37:33,290 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 11:37:35,946 WARNING LLMOrchestrator: NEWS GATE BLOCKED: EURUSD — Pre-spike blackout: German Prelim CPI m/m in 21min (Tier 1, 60min blackout)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:37:36                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:36,045 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:36,113 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:37:36                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:36,159 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:36,212 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:37:36                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:36,257 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:36,306 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:37:36                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:36,359 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:36,448 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:37:36                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:36,493 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:36,570 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:37:36                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:36,619 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:36,680 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+2026-09-30 11:37:36,727 INFO main: ⏸️ [DECISION] Cycle 4: HOLD EURUSD H1 (swing) | News trading gate: Pre-spike blackout: German Prelim CPI m/m in 21min (Tier 1, 60min blackout)
+2026-09-30 11:37:43,099 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 11:37:43,109 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 11:37:43,110 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 11:37:43,656 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 11:37:44,247 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-30 11:37:44,314 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 11:37:45,045 WARNING LLMOrchestrator: NEWS GATE BLOCKED: EURUSD — Pre-spike blackout: German Prelim CPI m/m in 21min (Tier 1, 60min blackout)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:37:45                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:45,273 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:45,337 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:45:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:37:45                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:45,364 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:45,439 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:45:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:37:45                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:45,466 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:45,521 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:45:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:37:45                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:45,547 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:45,609 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:45:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:37:45                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:45,634 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:45,684 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:45:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 4/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:37:45                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:37:45,710 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:37:45,761 INFO LLMOrchestrator: ⏸️ [CYCLE 4] HOLD EURUSD M15 (scalp): candle 2026-09-30 05:45:00 already analyzed (duplicate trigger)
+2026-09-30 11:37:45,786 INFO main: ⏸️ [DECISION] Cycle 4: HOLD EURUSD M15 (scalp) | News trading gate: Pre-spike blackout: German Prelim CPI m/m in 21min (Tier 1, 60min blackout)
+2026-09-30 11:38:13,470 INFO APIManager: Fetched 5 news articles for: ['EUR', 'EURUSD', 'ECB', 'Federal Reserve', 'USD']
+2026-09-30 11:38:14,644 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-30 11:38:34,685 INFO operations.executors: executor 'session_review' handled by QuantitativeCoach
+2026-09-30 11:43:01,766 INFO main: Deliberative shadow EURUSD/H1 -> {'status': 'REJECTED', 'validation_passed': False, 'fusion_score': 0.0, 'rejection_reasons': ['NO_ACTIONABLE_PROPOSAL']}
+2026-09-30 11:43:02,144 INFO DegradationDetector: Running degradation check...
+
+ Next market pulse in 5 seconds...
+2026-09-30 11:43:07,174 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-30 11:43:07,176 INFO main: Deliberative Graph shadow mode enabled.
+2026-09-30 11:43:59,265 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 11:44:00,127 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 11:44:00,699 INFO httpx: HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-09-30 11:44:00,708 WARNING LLMRouter: ⚡ Circuit breaker TRIPPED for provider 'cerebras' until 1790749140.7043955
+2026-09-30 11:44:01,610 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 11:44:28,109 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 11:44:28,405 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+┌─┌─────────────────────────────────────────────────────── 🚀 CYCLE 5/8 START ──────────────────────────── 🚀 CYCLE 5/8 START ─┐────────────────────────────
+│─┐
+ │Symbol: EURUSD | TF: M15 | Time: 11:51:05                                   Symbol: EURUSD | TF: H1 | Time: 11:51:05                                     ││
+
+└─────────────────────────────────────────────────────────────────────────────┘└─────────────────────────────────────────────────────────────────────────────┘
+
+2026-09-30 11:51:05,149 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:51:05,148 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:51:06,066 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 11:51:06,129 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 11:51:06,133 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 11:51:06,961 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 11:51:06,974 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 11:51:07,092 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 11:51:07,270 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 11:51:07,361 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+2026-09-30 11:51:07,877 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-30 11:51:20,779 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:51:20                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:51:20,835 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:51:20,890 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:51:20                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:51:20,931 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:51:20,983 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:51:21                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:51:21,024 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:51:21,121 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:51:21                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:51:22,257 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:51:23,908 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:51:24                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:51:24,020 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:51:24,077 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 11:51:24                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:51:24,111 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:51:24,166 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+2026-09-30 11:51:24,212 INFO main: ⏸️ [DECISION] Cycle 5: HOLD EURUSD H1 (swing) | Duplicate analysis trigger (candle 2026-09-30 05:00:00 already analyzed)
+2026-09-30 11:52:07,505 INFO APIManager: Fetched 18 FRED series
+2026-09-30 11:52:07,506 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 11:52:13,014 WARNING LLMOrchestrator: NEWS GATE BLOCKED: EURUSD — Pre-spike blackout: German Prelim CPI m/m in 7min (Tier 1, 60min blackout)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:52:13                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:52:13,117 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:52:13,217 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:52:13                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:52:13,247 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:52:13,324 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:52:13                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:52:13,360 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:52:13,430 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:52:13                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:52:13,460 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:52:13,539 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:52:13                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:52:13,569 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:52:13,646 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 5/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 11:52:13                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 11:52:13,673 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 11:52:13,754 INFO LLMOrchestrator: ⏸️ [CYCLE 5] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+2026-09-30 11:52:13,783 INFO main: ⏸️ [DECISION] Cycle 5: HOLD EURUSD M15 (scalp) | News trading gate: Pre-spike blackout: German Prelim CPI m/m in 7min (Tier 1, 60min blackout)
+2026-09-30 11:52:17,866 INFO APIManager: Fetched 18 FRED series
+2026-09-30 11:53:37,230 INFO APIManager: Fetched 5 news articles for: ['EUR', 'EURUSD', 'ECB', 'Federal Reserve', 'USD']
+2026-09-30 11:53:38,954 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-30 11:58:11,518 INFO main: Deliberative shadow EURUSD/H1 -> {'status': 'REJECTED', 'validation_passed': False, 'fusion_score': 0.0, 'rejection_reasons': ['NO_ACTIONABLE_PROPOSAL']}
+2026-09-30 11:58:12,746 INFO DegradationDetector: Running degradation check...
+
+ Next market pulse in 5 seconds...
+2026-09-30 11:58:17,828 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-30 11:58:17,869 INFO main: Deliberative Graph shadow mode enabled.
+2026-09-30 11:59:10,581 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 11:59:11,573 INFO APIManager: Fetched 1 FRED series
+2026-09-30 11:59:13,532 INFO APIManager: Fetched 1 FRED series
+2026-09-30 11:59:13,576 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 11:59:14,191 INFO httpx: HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-09-30 11:59:14,193 WARNING LLMRouter: ⚡ Circuit breaker TRIPPED for provider 'cerebras' until 1790750054.1927035
+2026-09-30 11:59:15,445 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 11:59:30,422 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:06:49                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:06:49,983 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:06:50                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:06:50,157 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:06:50,862 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 12:06:50,894 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 12:06:50,896 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 12:06:51,369 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 12:06:51,482 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 12:06:51,688 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 12:06:51,844 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+2026-09-30 12:06:51,903 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 12:06:52,626 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-30 12:06:53,799 INFO APIManager: Fetched 5 hot topics (incl. geopolitics)
+2026-09-30 12:06:54,237 INFO APIManager: Fetched 0 news articles for: ['EURUSD']
+2026-09-30 12:06:54,238 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 12:06:56,903 INFO core.news_indicator_fetcher: Fetching live indicators (FRED API: available)
+2026-09-30 12:07:06,985 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:07:07                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:07:07,110 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:07:10,200 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:07:10                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:07:10,359 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:07:10,589 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:07:10                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:07:10,690 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:07:10,983 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:07:11                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:07:11,122 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:07:14,113 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:07:16                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:07:16,501 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:07:16,585 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:07:16                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:07:16,670 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:07:16,809 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+2026-09-30 12:07:17,174 INFO main: ⏸️ [DECISION] Cycle 6: HOLD EURUSD H1 (swing) | Duplicate analysis trigger (candle 2026-09-30 05:00:00 already analyzed)
+2026-09-30 12:07:36,471 INFO core.news_trading: Live indicators: NFP=IN_LINE CPI=MODERATE_BEAT ESI=54.5 (live=True)
+2026-09-30 12:07:54,724 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-30 12:08:59,572 INFO APIManager: Fetched 5 news articles for: ['EUR', 'EURUSD', 'ECB', 'Federal Reserve', 'USD']
+2026-09-30 12:09:05,953 INFO LLMOrchestrator: RL Suggestion: HOLD (exploration)
+2026-09-30 12:09:06,150 INFO LLMOrchestrator: Alpha mining enrichment: 90 active alphas, composite=-0.0555, diversity=0.4000, decay_alerts=0
+2026-09-30 12:09:06,151 INFO LLMOrchestrator: Requesting LLM decision...
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:09:06                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:09:06,245 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:09:06,399 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:15:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:09:06                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:09:06,430 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:09:06,491 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:15:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:09:06                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:09:06,525 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:09:06,580 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:15:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:09:06                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:09:06,609 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:09:06,661 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:15:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:09:06                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:09:06,691 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:09:06,744 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:15:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 6/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:09:06                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:09:06,772 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:09:06,824 INFO LLMOrchestrator: ⏸️ [CYCLE 6] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:15:00 already analyzed (duplicate trigger)
+2026-09-30 12:09:06,855 INFO main: ⏸️ [DECISION] Cycle 6: HOLD EURUSD M15 (scalp) | provider circuit is deterministic-only after repeated failures
+2026-09-30 12:09:45,480 INFO MaintenanceAgent: journal maintenance (checkpoint): {'wal_checkpoint': {'busy': 0, 'log_pages': 0, 'checkpointed': 0}, 'integrity_ok': True, 'integrity_messages': ['ok'], 'execution_authority': False, 'outbox_incident': {'health_status': 'OK', 'raised': False, 'resolved': False, 'suppressed': False, 'execution_authority': False, 'transport': 'NONE'}}
+2026-09-30 12:09:45,512 INFO operations.executors: executor 'journal_maintenance' handled by MaintenanceAgent
+2026-09-30 12:14:58,879 INFO main: Deliberative shadow EURUSD/H1 -> {'status': 'REJECTED', 'validation_passed': False, 'fusion_score': 0.0, 'rejection_reasons': ['NO_ACTIONABLE_PROPOSAL']}
+2026-09-30 12:14:59,116 INFO DegradationDetector: Running degradation check...
+
+ Next market pulse in 5 seconds...
+2026-09-30 12:15:04,137 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-30 12:15:04,139 INFO main: Deliberative Graph shadow mode enabled.
+2026-09-30 12:15:53,238 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 12:15:54,265 INFO httpx: HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-09-30 12:15:54,296 WARNING LLMRouter: ⚡ Circuit breaker TRIPPED for provider 'cerebras' until 1790751054.2950287
+2026-09-30 12:15:55,572 INFO APIManager: Fetched 1 FRED series
+2026-09-30 12:15:55,682 INFO APIManager: Fetched 1 FRED series
+2026-09-30 12:15:55,857 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 12:16:59,479 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 12:17:00,354 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 12:17:19,858 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+┌─┌─────────────────────────────────────────────────────── 🚀 CYCLE 7/8 START  🚀 CYCLE 7/8 START ─────────────────────────────────────────────────────────┐─┐
+
+││ Symbol: EURUSD | TF: H1 | Time: 12:26:25                                    Symbol: EURUSD | TF: M15 | Time: 12:26:25                                   │ 
+└─────────────────────────────────────────────────────────────────────────────┘│
+
+2026-09-30 12:26:25,214 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:26:25,229 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:26:27,046 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:26:27                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:26:27,146 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:26:27,263 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:26:27                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:26:27,352 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:26:27,438 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:26:27                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:26:27,475 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:26:27,609 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:26:27                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:26:27,672 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:26:27,787 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:26:27                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:26:27,849 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:26:27,903 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 12:26:27,986 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:26:28                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:26:28,085 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:26:28,184 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD H1 (swing): candle 2026-09-30 05:00:00 already analyzed (duplicate trigger)
+2026-09-30 12:26:28,234 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 12:26:28,245 INFO main: ⏸️ [DECISION] Cycle 7: HOLD EURUSD H1 (swing) | Duplicate analysis trigger (candle 2026-09-30 05:00:00 already analyzed)
+2026-09-30 12:26:28,340 WARNING AlertAgent: OPERATOR ALERT [WARNING] ALPHA_DECAY_alpha_012: {"code": "ALPHA_DECAY_alpha_012", "count": null, "details": {"alpha": "alpha_012", "consecutive_low": 41, "ic_current": 0.0, "ic_mean": 0.0, "ic_trend": 0.0, "message": "Alpha alpha_012 DEGRADED: IC=0.0000 below 0.02 for 41 bars. Trend=0.000000 (decaying)."}, "severity": "WARNING"}
+2026-09-30 12:26:28,465 WARNING AlertAgent: OPERATOR ALERT [WARNING] ALPHA_DECAY_alpha_053: {"code": "ALPHA_DECAY_alpha_053", "count": null, "details": {"alpha": "alpha_053", "consecutive_low": 41, "ic_current": 0.0, "ic_mean": 0.0, "ic_trend": 0.0, "message": "Alpha alpha_053 DEGRADED: IC=0.0000 below 0.02 for 41 bars. Trend=0.000000 (decaying)."}, "severity": "WARNING"}
+2026-09-30 12:26:28,512 WARNING AlertAgent: OPERATOR ALERT [WARNING] ALPHA_DECAY_alpha_055: {"code": "ALPHA_DECAY_alpha_055", "count": null, "details": {"alpha": "alpha_055", "consecutive_low": 41, "ic_current": 0.0, "ic_mean": 0.0, "ic_trend": 0.0, "message": "Alpha alpha_055 DEGRADED: IC=0.0000 below 0.02 for 41 bars. Trend=0.000000 (decaying)."}, "severity": "WARNING"}
+2026-09-30 12:26:28,547 CRITICAL AlertAgent: OPERATOR ALERT [CRITICAL] ALPHA_REVERSED_alpha_041: {"code": "ALPHA_REVERSED_alpha_041", "count": null, "details": {"alpha": "alpha_041", "consecutive_low": 41, "ic_current": -1.0, "ic_mean": -0.9975070736765214, "ic_trend": -2.6737883730132487e-05, "message": "Alpha alpha_041 has REVERSED: IC=-1.0000 (mean=-0.9975, trend=-0.000027). Negative IC mean
+2026-09-30 12:26:28,582 WARNING AlertAgent: OPERATOR ALERT [WARNING] ALPHA_DECAY_alpha_101: {"code": "ALPHA_DECAY_alpha_101", "count": null, "details": {"alpha": "alpha_101", "consecutive_low": 41, "ic_current": 0.0, "ic_mean": 0.0, "ic_trend": 0.0, "message": "Alpha alpha_101 DEGRADED: IC=0.0000 below 0.02 for 41 bars. Trend=0.000000 (decaying)."}, "severity": "WARNING"}
+2026-09-30 12:26:28,633 WARNING AlertAgent: OPERATOR ALERT [WARNING] ALPHA_DECAY_alpha_030: {"code": "ALPHA_DECAY_alpha_030", "count": null, "details": {"alpha": "alpha_030", "consecutive_low": 41, "ic_current": 0.0, "ic_mean": 0.0, "ic_trend": 0.0, "message": "Alpha alpha_030 DEGRADED: IC=0.0000 below 0.02 for 41 bars. Trend=0.000000 (decaying)."}, "severity": "WARNING"}
+2026-09-30 12:26:28,664 WARNING AlertAgent: OPERATOR ALERT [WARNING] ALPHA_DECAY_alpha_035: {"code": "ALPHA_DECAY_alpha_035", "count": null, "details": {"alpha": "alpha_035", "consecutive_low": 41, "ic_current": 0.0, "ic_mean": 0.0, "ic_trend": 0.0, "message": "Alpha alpha_035 DEGRADED: IC=0.0000 below 0.02 for 41 bars. Trend=0.000000 (decaying)."}, "severity": "WARNING"}
+2026-09-30 12:26:28,728 WARNING AlertAgent: OPERATOR ALERT [WARNING] ALPHA_DECAY_alpha_014: {"code": "ALPHA_DECAY_alpha_014", "count": null, "details": {"alpha": "alpha_014", "consecutive_low": 41, "ic_current": 0.0, "ic_mean": 0.0, "ic_trend": 0.0, "message": "Alpha alpha_014 DEGRADED: IC=0.0000 below 0.02 for 41 bars. Trend=0.000000 (decaying)."}, "severity": "WARNING"}
+2026-09-30 12:26:28,761 WARNING AlertAgent: OPERATOR ALERT [WARNING] ALPHA_DECAY_alpha_022: {"code": "ALPHA_DECAY_alpha_022", "count": null, "details": {"alpha": "alpha_022", "consecutive_low": 41, "ic_current": 0.0, "ic_mean": 0.0, "ic_trend": 0.0, "message": "Alpha alpha_022 DEGRADED: IC=0.0000 below 0.02 for 41 bars. Trend=0.000000 (decaying)."}, "severity": "WARNING"}
+2026-09-30 12:26:28,789 CRITICAL AlertAgent: OPERATOR ALERT [CRITICAL] ALPHA_REVERSED_alpha_025: {"code": "ALPHA_REVERSED_alpha_025", "count": null, "details": {"alpha": "alpha_025", "consecutive_low": 41, "ic_current": -1.0, "ic_mean": -0.964125508219119, "ic_trend": -0.0016062659881909958, "message": "Alpha alpha_025 has REVERSED: IC=-1.0000 (mean=-0.9641, trend=-0.001606). Negative IC means 
+2026-09-30 12:26:28,836 WARNING AlertAgent: OPERATOR ALERT [WARNING] ALPHA_DECAY_alpha_019: {"code": "ALPHA_DECAY_alpha_019", "count": null, "details": {"alpha": "alpha_019", "consecutive_low": 41, "ic_current": 0.0, "ic_mean": 0.0, "ic_trend": 0.0, "message": "Alpha alpha_019 DEGRADED: IC=0.0000 below 0.02 for 41 bars. Trend=0.000000 (decaying)."}, "severity": "WARNING"}
+2026-09-30 12:26:28,868 CRITICAL AlertAgent: OPERATOR ALERT [CRITICAL] ALPHA_REVERSED_alpha_023: {"code": "ALPHA_REVERSED_alpha_023", "count": null, "details": {"alpha": "alpha_023", "consecutive_low": 33, "ic_current": -1.0, "ic_mean": -0.59890565968661, "ic_trend": -0.021079530758140556, "message": "Alpha alpha_023 has REVERSED: IC=-1.0000 (mean=-0.5989, trend=-0.021080). Negative IC means al
+2026-09-30 12:26:28,919 WARNING AlertAgent: OPERATOR ALERT [WARNING] ALPHA_DECAY_alpha_036: {"code": "ALPHA_DECAY_alpha_036", "count": null, "details": {"alpha": "alpha_036", "consecutive_low": 41, "ic_current": 0.0, "ic_mean": 0.0, "ic_trend": 0.0, "message": "Alpha alpha_036 DEGRADED: IC=0.0000 below 0.02 for 41 bars. Trend=0.000000 (decaying)."}, "severity": "WARNING"}
+2026-09-30 12:26:28,969 CRITICAL AlertAgent: OPERATOR ALERT [CRITICAL] ALPHA_REVERSED_alpha_043: {"code": "ALPHA_REVERSED_alpha_043", "count": null, "details": {"alpha": "alpha_043", "consecutive_low": 41, "ic_current": -0.2181765049678551, "ic_mean": -0.3739689164762765, "ic_trend": 0.006758660065724199, "message": "Alpha alpha_043 has REVERSED: IC=-0.2182 (mean=-0.3740, trend=0.006759). Negat
+2026-09-30 12:26:29,035 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 12:26:29,129 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+2026-09-30 12:26:41,407 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 12:26:41,436 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 12:26:41,441 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 12:26:42,363 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 12:26:43,612 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.82
+2026-09-30 12:26:46,058 INFO APIManager: Fetched 0 news articles for: ['EURUSD']
+2026-09-30 12:26:47,584 INFO APIManager: Fetched 3 hot topics (incl. geopolitics)
+2026-09-30 12:28:05,385 INFO APIManager: Fetched 18 FRED series
+2026-09-30 12:28:06,360 INFO APIManager: Fetched 5 news articles for: ['EUR', 'EURUSD', 'ECB', 'Federal Reserve', 'USD']
+2026-09-30 12:28:20,161 INFO APIManager: Fetched 18 FRED series
+2026-09-30 12:28:20,162 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 12:28:20,988 INFO core.news_indicator_fetcher: Fetching live indicators (FRED API: available)
+2026-09-30 12:28:21,952 INFO core.news_trading: Live indicators: NFP=IN_LINE CPI=MODERATE_BEAT ESI=54.5 (live=True)
+2026-09-30 12:28:43,693 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-30 12:30:30,128 INFO LLMOrchestrator: RL Suggestion: BUY (exploration)
+2026-09-30 12:30:30,455 INFO LLMOrchestrator: Alpha mining enrichment: 90 active alphas, composite=-0.0555, diversity=0.4000, decay_alerts=0
+2026-09-30 12:30:30,456 INFO LLMOrchestrator: Requesting LLM decision...
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:30:30                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:30:30,617 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:30:30,974 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 12:30:31,027 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 12:30:31,186 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 12:30:31,215 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+2026-09-30 12:30:32,525 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 12:30:32,527 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 12:30:32,528 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 12:30:33,249 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 12:30:33,895 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-30 12:30:34,067 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 12:30:40,545 INFO core.news_trading: Live indicators: NFP=IN_LINE CPI=MODERATE_BEAT ESI=54.5 (live=True)
+2026-09-30 12:33:42,166 INFO LLMOrchestrator: RL Suggestion: BUY (exploitation)
+2026-09-30 12:33:42,225 INFO LLMOrchestrator: Alpha mining enrichment: 90 active alphas, composite=-0.0555, diversity=0.4000, decay_alerts=0
+2026-09-30 12:33:42,226 INFO LLMOrchestrator: Requesting LLM decision...
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:33:42                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:33:42,345 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:33:42,551 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 12:33:42,621 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 12:33:42,756 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 12:33:42,783 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+2026-09-30 12:33:57,914 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:45:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:33:57                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:33:57,999 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:33:58,123 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:45:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:33:58                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:33:58,222 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:33:58,300 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:45:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:33:58                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:33:58,390 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:33:58,462 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:45:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 7/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:33:58                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:33:58,524 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:33:58,662 INFO LLMOrchestrator: ⏸️ [CYCLE 7] HOLD EURUSD M15 (scalp): candle 2026-09-30 06:45:00 already analyzed (duplicate trigger)
+2026-09-30 12:33:58,757 INFO main: ⏸️ [DECISION] Cycle 7: HOLD EURUSD M15 (scalp) | provider circuit is deterministic-only after repeated failures
+2026-09-30 12:34:20,832 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-30 12:39:53,482 INFO main: Deliberative shadow EURUSD/H1 -> {'status': 'REJECTED', 'validation_passed': False, 'fusion_score': 0.0, 'rejection_reasons': ['NO_ACTIONABLE_PROPOSAL']}
+2026-09-30 12:39:54,221 INFO DegradationDetector: Running degradation check...
+
+ Next market pulse in 5 seconds...
+2026-09-30 12:39:59,263 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-30 12:39:59,271 INFO main: Deliberative Graph shadow mode enabled.
+2026-09-30 12:40:47,230 WARNING LLMOrchestrator: Boot fetch stage 'data_source_pipeline' exceeded 45.0s budget; abandoning worker and continuing degraded
+2026-09-30 12:41:13,748 INFO APIManager: Fetched 1 FRED series
+2026-09-30 12:41:15,904 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 12:41:16,901 INFO APIManager: Fetched 1 FRED series
+2026-09-30 12:41:17,837 INFO httpx: HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-09-30 12:41:17,840 WARNING LLMRouter: ⚡ Circuit breaker TRIPPED for provider 'cerebras' until 1790752577.8397975
+2026-09-30 12:41:18,681 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 12:41:18,821 ERROR LLMRouter: All LLM providers failed for agent 'trader'; returning deterministic HOLD. Errors: nvidia_nim: Error: nvidia_nim failed: Error code: 403 - {'status': 403, 'title': 'Forbidden', 'detail': 'Authorization failed'}; cerebras: Error: cerebras failed: Error code: 402 - {'message': 'Payment required to access this resource. Visit your billing tab.', 'type': 'payment_required_error', 'param': 'quota', 'code': 'payment_required'}; openrouter: Error: openrouter failed: openrouter: upstream returned HTTP 200 with no choices: Upstream error from Nvidia: Service temporarily overloaded
+2026-09-30 12:41:29,554 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-30 12:41:31,810 INFO httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-09-30 12:41:32,697 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:54:23                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:54:23,632 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:54:25,113 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 12:54:25,247 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 12:54:25,321 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 12:54:25,369 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:54:28                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:54:28,165 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:54:28,529 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 12:54:28,553 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 12:54:28,556 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 12:54:29,389 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 12:54:30,137 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-30 12:54:31,321 INFO APIManager: Fetched 0 news articles for: ['EURUSD']
+2026-09-30 12:54:32,238 INFO APIManager: Fetched 3 hot topics (incl. geopolitics)
+2026-09-30 12:54:39,388 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-30 12:54:39,398 INFO LLMOrchestrator: Fetching data for EURUSD...
+2026-09-30 12:54:39,399 INFO MarketData: Paper data plane: using read-only terminal session (no credential login)
+2026-09-30 12:54:42,337 WARNING MarketData: compute_indicators failed: Unknown alpha factor: 'ALPHAd2824_0'. Available: ['ALPHA001', 'ALPHA005', 'ALPHAP01', 'ALPHAP02', 'ALPHAP03', 'ALPHAP04', 'ALPHAP05', 'ALPHAP06', 'ALPHA009', 'ALPHA012', 'ALPHA014', 'ALPHA017', 'ALPHA019', 'ALPHA022', 'ALPHA023', 'ALPHA025', 'ALPHA028', 'ALPHA030', 'ALPHA034', 'ALPHA035', 'ALPHA036', 'ALPHA037', 'ALPHA038', 'ALPHA041', 'ALPHA043', 'ALPHA053', 'ALPHA055', 'ALPHA060', 'ALPHA101']; falling back to standard indicators
+2026-09-30 12:54:43,959 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-30 12:55:14,128 INFO APIManager: Fetched 18 FRED series
+2026-09-30 12:55:15,391 INFO APIManager: Fetched 5 news articles for: ['EUR', 'EURUSD', 'ECB', 'Federal Reserve', 'USD']
+2026-09-30 12:55:16,939 INFO APIManager: Fetched 18 FRED series
+2026-09-30 12:55:16,940 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 12:55:19,877 INFO core.news_indicator_fetcher: Fetching live indicators (FRED API: available)
+2026-09-30 12:55:20,997 INFO core.news_trading: Live indicators: NFP=IN_LINE CPI=MODERATE_BEAT ESI=54.5 (live=True)
+2026-09-30 12:55:29,114 INFO APIManager: Fetched 18 FRED series
+2026-09-30 12:55:29,116 INFO MarketData: Fetched 18 FRED indicators
+2026-09-30 12:55:29,805 INFO core.news_trading: Live indicators: NFP=IN_LINE CPI=MODERATE_BEAT ESI=54.5 (live=True)
+2026-09-30 12:55:54,363 WARNING SeekingAlphaProvider: Seeking Alpha request error (HTTPSConnectionPool(host='seekingalpha.com', port=443): Read timed out. (read timeout=5.0)); retry in 0.5s
+2026-09-30 12:55:56,816 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-30 12:56:07,383 INFO operations.executors: executor 'session_review' handled by QuantitativeCoach
+2026-09-30 12:57:07,407 INFO LLMOrchestrator: RL Suggestion: BUY (exploitation)
+2026-09-30 12:57:07,483 INFO LLMOrchestrator: Alpha mining enrichment: 90 active alphas, composite=-0.0555, diversity=0.4000, decay_alerts=0
+2026-09-30 12:57:07,484 INFO LLMOrchestrator: Requesting LLM decision...
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:57:07                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:07,558 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:07,769 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-30 12:57:07,814 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-30 12:57:07,919 INFO operations.executors: executor 'sieve_poll' handled by ResearchAgent
+2026-09-30 12:57:07,985 INFO operations.executors: executor 'alert_dispatch' handled by IncidentAgent
+2026-09-30 12:57:08,883 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD H1 (swing): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:57:08                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:08,914 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:08,981 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD H1 (swing): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:57:09                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:09,013 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:09,070 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD H1 (swing): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:57:09                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:09,105 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:09,180 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD H1 (swing): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:57:09                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:09,320 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:09,379 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD H1 (swing): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: H1 | Time: 12:57:09                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:09,408 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:09,471 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD H1 (swing): candle 2026-09-30 06:00:00 already analyzed (duplicate trigger)
+2026-09-30 12:57:09,505 INFO main: ⏸️ [DECISION] Cycle 8: HOLD EURUSD H1 (swing) | provider circuit is deterministic-only after repeated failures
+2026-09-30 12:57:11,597 INFO LLMOrchestrator: RL Suggestion: BUY (exploitation)
+2026-09-30 12:57:11,645 INFO LLMOrchestrator: Alpha mining enrichment: 90 active alphas, composite=-0.0555, diversity=0.4000, decay_alerts=0
+2026-09-30 12:57:11,646 INFO LLMOrchestrator: Requesting LLM decision...
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:57:11                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:11,694 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:11,757 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD M15 (scalp): candle 2026-09-30 07:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:57:11                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:11,784 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:11,842 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD M15 (scalp): candle 2026-09-30 07:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:57:11                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:11,869 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:11,921 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD M15 (scalp): candle 2026-09-30 07:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:57:11                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:11,948 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:11,991 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD M15 (scalp): candle 2026-09-30 07:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:57:12                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:12,017 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:12,066 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD M15 (scalp): candle 2026-09-30 07:00:00 already analyzed (duplicate trigger)
+┌──────────────────────────── 🚀 CYCLE 8/8 START ─────────────────────────────┐
+│ Symbol: EURUSD | TF: M15 | Time: 12:57:12                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-30 12:57:12,092 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-30 12:57:12,149 INFO LLMOrchestrator: ⏸️ [CYCLE 8] HOLD EURUSD M15 (scalp): candle 2026-09-30 07:00:00 already analyzed (duplicate trigger)
+2026-09-30 12:57:12,176 INFO main: ⏸️ [DECISION] Cycle 8: HOLD EURUSD M15 (scalp) | provider circuit is deterministic-only after repeated failures
+2026-09-30 13:02:29,383 INFO main: Deliberative shadow EURUSD/H1 -> {'status': 'REJECTED', 'validation_passed': False, 'fusion_score': 0.0, 'rejection_reasons': ['NO_ACTIONABLE_PROPOSAL']}
+2026-09-30 13:02:33,079 INFO DegradationDetector: Running degradation check...
+2026-09-30 13:02:33,980 INFO CrashRecovery: Crash recovery: graceful shutdown initiated
+2026-09-30 13:02:34,014 INFO CrashRecovery: Shutdown snapshot saved for cycle 8 (checkpoint 13936)
+2026-09-30 13:02:43,051 INFO CrashRecovery: Post-session scheduler report archived: scheduler_tuning_report_20260930T073242Z.json
+2026-09-30 13:02:43,051 INFO CrashRecovery: Crash recovery: shutdown complete

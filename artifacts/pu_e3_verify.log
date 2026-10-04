@@ -1,0 +1,9 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-8.4.1, pluggy-1.6.0
+rootdir: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity
+configfile: pytest.ini
+plugins: anyio-4.9.0, dash-3.2.0, langsmith-0.4.59, asyncio-1.2.0, cov-7.0.0, xdist-3.8.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 18 items
+
+tests\test_pipeline_v2_e3.py ............

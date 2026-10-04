@@ -1,0 +1,7 @@
+{
+ "qc_evaluate_strategy_lifecycle": true,
+ "qc_quant_survival_audit": true,
+ "qc_research_report_write": true,
+ "qc_still_cannot_submit_orders": false
+}
+END-MARKER-PU-0059

@@ -1,0 +1,26 @@
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_ensemble.py:375: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+Loading 100000 real MT5 bars: XAUEUR M15 ...
+Alpha set: higher-persistence family (6 alphas, multi-day momentum), edge_horizon=480
+========================================================================================
+  PARAMETER STABILITY SURFACE - trend_quantile x min_edge_multiple
+  data: mt5:XAUEUR:M15
+========================================================================================
+ tq \ me |        0.5 |        1.0 |        1.5 |        2.0 |        3.0 |
+---------------------------------------------------------------------------
+     0.3 |     1.41+|     1.41+|     1.41+|     1.41+|     1.41+|
+     0.4 |     1.41+|     1.41+|     1.41+|     1.41+|     1.41+|
+     0.5 |     1.41+|     1.41+|     1.41*+|     1.41+|     1.41+|
+     0.6 |     1.36+|     1.36+|     1.36+|     1.36+|     1.36+|
+     0.7 |     1.43+|     1.43+|     1.43+|     1.43+|     1.43+|
+
+  cell = profit factor  (* = default operating point)
+  + = profitable (>=10 trades)   . = unprofitable   blank = unmeasurable
+
+CENTER (tq=0.5, me=1.5): trades=13 ret=+0.15% pf=1.41 win=38.5%
+profitable cells: 25/25 measurable  (share=100%)
+
+VERDICT: ROBUST PLATEAU - center profitable and neighbourhood agrees; parameters are not doing the work
+========================================================================================
+
+JSON saved: artifacts/param_stability_sweep_xaueur_m15_4y_persistence.json

@@ -63,9 +63,14 @@ try:
 except ImportError:
     try:
         from core.strategy_trial_ledger import verify_chain_readonly as _verify_chain_cpcv
-    except ImportError:
+    except ImportError as _cpcv_err:
         def _verify_chain_cpcv():
-            return {"valid": True, "status": "ABSENT"}
+            return {
+                "valid": False,
+                "status": "MODULE_IMPORT_ERROR",
+                "error": f"core.strategy_trial_ledger could not be imported: {_cpcv_err}",
+            }
+
 
 
 def _redact_preflight_envelope(envelope: Any) -> Dict[str, Any]:

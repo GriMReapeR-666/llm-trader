@@ -1,0 +1,16 @@
+Agent 'trader' configured provider 'routesme' is unavailable; refusing silent provider substitution.
+Agent 'analyst' configured provider 'routesme' is unavailable; refusing silent provider substitution.
+Agent 'risk' configured provider 'routesme' is unavailable; refusing silent provider substitution.
+All LLM providers failed for agent 'trader'; returning deterministic HOLD. Errors: provider failover disabled; selected provider is authoritative; Provider 'routesme' not initialized
+prompt chars: 985
+reply type: str, chars: 539
+--- RAW REPLY ---
+{"action": "HOLD", "decision": "HOLD", "confidence": 0.0, "deterministic_fallback": true, "reasoning": "Deterministic HOLD fallback: all LLM providers failed for agent 'trader'. No new risk may be taken until a provider recovers.", "self_reflection": "Provider total failure; safety HOLD engaged.", "confluence_explanation": "N/A \u2014 deterministic fallback", "entry": 0.0, "stop_loss": 0.0, "take_profit": 0.0, "provider_errors": ["provider failover disabled; selected provider is authoritative", "Provider 'routesme' not initialized"]}
+--- END RAW REPLY ---
+json.loads OK; type=dict
+keys: ['action', 'confidence', 'confluence_explanation', 'decision', 'deterministic_fallback', 'entry', 'provider_errors', 'reasoning', 'self_reflection', 'stop_loss', 'take_profit']
+tags-is-dict=False summary-truthy=False
+validation error would be: memory response missing required fields
+PU-0149-OK
+exit=0
+END-MARKER-PU-0149

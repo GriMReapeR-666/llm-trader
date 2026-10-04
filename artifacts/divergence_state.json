@@ -1,0 +1,307 @@
+{
+  "last_check": "2026-09-29T02:35:03.942449+00:00",
+  "alerts": [
+    {
+      "timestamp": "2026-09-13T12:11:41.097145+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T12:12:38.047306+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T12:13:30.812543+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T12:35:57.833591+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T14:17:52.164262+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T15:40:02.865477+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T16:38:42.107952+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T17:23:47.604939+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T18:04:50.404742+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T18:45:01.612618+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T19:26:35.829392+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T20:08:39.027473+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T20:49:50.269260+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T21:39:36.921407+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T22:31:12.539273+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-13T23:21:56.435916+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-14T00:16:40.429286+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-14T01:12:57.432087+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-14T01:57:46.238285+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-14T02:41:38.509961+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-14T03:23:58.747059+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "expectancy_divergence=30.60%"
+    },
+    {
+      "timestamp": "2026-09-14T04:09:39.876613+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=133.33%"
+    },
+    {
+      "timestamp": "2026-09-14T04:53:48.306532+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=133.33%"
+    },
+    {
+      "timestamp": "2026-09-14T05:43:43.507901+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=133.33%"
+    },
+    {
+      "timestamp": "2026-09-14T06:39:04.649133+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=133.33%"
+    },
+    {
+      "timestamp": "2026-09-14T07:35:54.241939+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=133.33%"
+    },
+    {
+      "timestamp": "2026-09-14T08:38:51.845451+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=133.33%"
+    },
+    {
+      "timestamp": "2026-09-14T09:32:58.457268+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T10:39:03.979848+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T11:57:03.506163+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T13:36:04.500837+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T15:14:02.157120+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T16:42:48.077588+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T17:32:50.840104+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T18:33:54.837139+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T19:26:46.622296+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T20:16:55.175346+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T21:04:51.738530+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T21:52:36.832134+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T22:41:39.706989+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-14T23:25:40.414391+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-15T00:12:53.442680+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-15T01:03:54.584821+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-15T01:45:11.366829+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-15T03:13:41.479641+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-15T03:53:04.135776+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-15T04:38:03.498266+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-15T05:25:57.223960+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-15T06:14:57.948132+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=145.01%"
+    },
+    {
+      "timestamp": "2026-09-29T02:35:03.942449+00:00",
+      "symbol": "EURUSD",
+      "severity": "WARNING",
+      "reason": "win_rate_divergence=98.36%"
+    }
+  ],
+  "history": [],
+  "consecutive_failures": 0
+}

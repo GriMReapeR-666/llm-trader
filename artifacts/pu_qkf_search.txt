@@ -1,0 +1,27 @@
+clean slate: removed old search_index.json: True
+cold build+search 'volatility': 942.8 ms -> 158 files
+warm search 'volatility': 99.4 ms -> 158 files
+same results cold/warm: True
+prefix 'volat': 169 files
+prefix 'kelly': 14 files
+multi-token 'kelly criterion': 3 files
+incremental add detected in 230.3 ms: True
+removal detected: True
+
+correctness vs old scan:
+  'volatility': new=158 old=157 equal=False
+  'kelly criterion': new=3 old=3 equal=True
+  'hurst exponent': new=8 old=8 equal=True
+  'hidden markov': new=3 old=3 equal=True
+  'risk parity': new=8 old=4 equal=False
+  'walk forward': new=17 old=3 equal=False
+  'slippage': new=32 old=31 equal=False
+  'cointegration': new=37 old=37 equal=True
+  'regime': new=62 old=61 equal=False
+  'the': new=778 (AND semantics, old=776 substring)
+
+agent knowledge.search 'hurst': success=True n=8 in 94.5 ms
+chained knowledge.search hits: 3
+
+SEARCH-DONE
+END-MARKER-PU-0077

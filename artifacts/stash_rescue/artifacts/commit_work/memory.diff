@@ -1,0 +1,251 @@
+diff --git a/brain/memory.py b/brain/memory.py
+index 63c47c8..455227c 100644
+--- a/brain/memory.py
++++ b/brain/memory.py
+@@ -6,6 +6,15 @@ accumulating unbounded history.  When the buffer grows beyond ``max_messages``,
+ older entries are compressed into a structured summary while the raw trace
+ remains in L0 (SQLite append-only).
+ 
++**Compact context mode (R1, payload-flow audit 2026-09-29).**  Legacy mode
++replays every prior cycle's full ~30K market-data user payload plus its
++assistant turn, so real prompts average ~2.4× the 60K-char sanitizer budget
++and mostly contain stale fallback HOLDs.  When ``LLM_TRADER_COMPACT_CONTEXT``
++is truthy (``1``/``true``/``yes``), the buffer keeps only the last
++``LLM_TRADER_CONTEXT_HISTORY_WINDOW`` decision cycles (default 1 → 2 messages:
++one user+assistant pair) and folds evicted cycles into ≤300-char summaries.
++Both env vars are read at instantiation; default off = unchanged behavior.
++
+ Design principles (from spec):
+ - Capital preservation is the primary objective.
+ - Memory can explain or adjust an LLM hypothesis, but it can never place
+@@ -24,6 +33,7 @@ from __future__ import annotations
+ 
+ import json
+ import logging
++import os
+ import time
+ from collections import deque
+ from dataclasses import dataclass, field
+@@ -32,6 +42,25 @@ from typing import Any, Dict, List, Optional
+ 
+ logger = logging.getLogger(__name__)
+ 
++_TRUTHY = {"1", "true", "yes"}
++
++
++def _env_enabled(name: str) -> bool:
++    return os.getenv(name, "").strip().lower() in _TRUTHY
++
++
++def _env_int(name: str, default: int) -> int:
++    try:
++        value = int(os.getenv(name, "").strip() or default)
++    except (TypeError, ValueError):
++        return default
++    return max(0, value)
++
++
++def compact_context_enabled() -> bool:
++    """R1 opt-in flag (payload-flow audit): rolling-window + summaries mode."""
++    return _env_enabled("LLM_TRADER_COMPACT_CONTEXT")
++
+ 
+ @dataclass
+ class ContextMessage:
+@@ -83,6 +112,10 @@ class ContextBuffer:
+         messages = buf.get_messages()
+         # → [{"role": "system", "content": "..."}, {"role": "user", ...}, ...]
+ 
++        # Compact mode (LLM_TRADER_COMPACT_CONTEXT=1): same API, but only the
++        # last decision cycles are replayed and evicted cycles become short
++        # "Previous context:" summaries.
++
+         # Persist to disk
+         buf.save("brain/context_buffer.json")
+ 
+@@ -97,6 +130,13 @@ class ContextBuffer:
+         self._messages: deque[ContextMessage] = deque(maxlen=max_messages)
+         self._summaries: List[str] = []
+         self._total_tokens_estimate: int = 0
++        # R1 compact mode (opt-in via LLM_TRADER_COMPACT_CONTEXT): history
++        # window is expressed in whole decision cycles (one user+assistant
++        # pair per cycle), so 2 * window messages survive.
++        self.compact = compact_context_enabled()
++        self.history_window = max(1, _env_int("LLM_TRADER_CONTEXT_HISTORY_WINDOW", 1))
++        self.summary_char_limit = max(80, _env_int("LLM_TRADER_CONTEXT_SUMMARY_CHARS", 300))
++        self.summary_retention = max(2, _env_int("LLM_TRADER_CONTEXT_SUMMARY_RETENTION", 4))
+ 
+     # ── Orchestrator API ────────────────────────────────────────────
+ 
+@@ -104,9 +144,15 @@ class ContextBuffer:
+         """Set the system prompt.  Always included as first message."""
+         self._system_prompt = system_prompt
+ 
+-    def add_message(self, role: str, content: str) -> None:
++    def add_message(
++        self,
++        role: str,
++        content: str,
++        metadata: Optional[Dict[str, Any]] = None,
++        pinned: bool = False,
++    ) -> None:
+         """Add a message to the buffer.  Orchestrator-facing alias for ``add()``."""
+-        self.add(role, content)
++        self.add(role, content, metadata=metadata, pinned=pinned)
+ 
+     def get_messages(self, include_summaries: bool = True,
+                      trade_memory: Any = None, lesson_limit: int = 6) -> List[Dict[str, Any]]:
+@@ -155,6 +201,121 @@ class ContextBuffer:
+ 
+         return result
+ 
++    def discard_failed_cycle(self) -> None:
++        """R3 (payload-flow audit 2026-09-29): replace the just-added failed
++        decision cycle with a short summary note.
++
++        The orchestrator calls this right after appending a deterministic
++        fallback (or otherwise failed) assistant reply, so the full
++        market-data user payload is never replayed in later prompts — its
++        information content after a failed call is a HOLD note, not a
++        decision.  The note is retained as a ``[cycle-failed]`` summary, so
++        nothing is silently dropped (spec: unresolved errors are never
++        silently discarded).  Works in both legacy and compact modes; in
++        compact mode it also prevents the failed pair from consuming the
++        rolling window."""
++        user_idx = next(
++            (i for i in range(len(self._messages) - 1, -1, -1)
++             if self._messages[i].role == "user"),
++            None,
++        )
++        if user_idx is None:
++            return
++        evicted = [user_idx]
++        if (
++            user_idx + 1 < len(self._messages)
++            and self._messages[user_idx + 1].role == "assistant"
++        ):
++            evicted.append(user_idx + 1)
++        assistant_msg = (
++            self._messages[user_idx + 1] if len(evicted) == 2 else None
++        )
++        fallback = bool(
++            assistant_msg and assistant_msg.metadata.get("deterministic_fallback")
++        )
++        summary = self._cycle_summary(
++            self._messages[user_idx].content,
++            assistant_msg.content if assistant_msg else "",
++        )
++        if fallback:
++            summary = f"[cycle-failed] {summary}"
++        for idx in sorted(evicted, reverse=True):
++            del self._messages[idx]
++        self._summaries.append(summary)
++        if len(self._summaries) > self.summary_retention:
++            self._summaries[:] = self._summaries[-self.summary_retention:]
++        # Legacy overflow compressor still guards pathological growth.
++        if len(self._messages) >= self.max_messages:
++            self._compress()
++
++    # ── R1 compact-mode helpers ─────────────────────────────────────
++
++    def _cycle_summary(self, user_content: str, assistant_content: str) -> str:
++        """Fold one decision cycle (user payload + assistant reply) into a
++        short summary line.  Best-effort: extracts the assistant action and
++        keeps a head snippet of the user payload."""
++        head = " ".join(user_content.split())
++        if not head:
++            head = "(empty market-data payload)"
++        head = head[:120]
++        action = ""
++        if assistant_content:
++            try:
++                parsed = json.loads(assistant_content)
++                if isinstance(parsed, dict):
++                    action = str(parsed.get("action") or parsed.get("decision") or "").strip()
++            except (json.JSONDecodeError, ValueError):
++                action = ""
++        if not action:
++            action = " ".join(assistant_content.split())[:40]
++        return f"[cycle] {head}... action={action or 'n/a'}"[: self.summary_char_limit]
++
++    def _enforce_compact_window(self) -> None:
++        """Compact mode: keep only the last ``history_window`` decision cycles
++        in the live window and fold evicted cycles into short summaries.
++
++        A cycle is the (user, assistant) pair appended by the orchestrator
++        each decision.  Cycles whose assistant reply carries
++        ``deterministic_fallback`` metadata are recorded as failures in the
++        summary — they carry no decision information and must not consume
++        the rolling window.  Pinned messages (risk decisions, unresolved
++        errors) are never evicted, per the TRADING_MEMORY_SPEC guarantee.
++        Legacy (compact=False) buffers are untouched."""
++        if not self.compact:
++            return
++        max_messages = self.history_window * 2
++        while len(self._messages) > max_messages:
++            user_msg = next(
++                (m for m in self._messages if m.role == "user" and not m.pinned),
++                None,
++            )
++            if user_msg is None:
++                # Only pinned users remain — nothing may be evicted.
++                break
++            idx = self._messages.index(user_msg)
++            assistant_msg = (
++                self._messages[idx + 1]
++                if idx + 1 < len(self._messages) and self._messages[idx + 1].role == "assistant"
++                else None
++            )
++            fallback = bool(assistant_msg and assistant_msg.metadata.get("deterministic_fallback"))
++            summary = self._cycle_summary(
++                user_msg.content,
++                assistant_msg.content if assistant_msg else "",
++            )
++            if fallback:
++                summary = f"[cycle-failed] {summary}"
++            self._summaries.append(summary)
++            for msg in (user_msg, assistant_msg):
++                if msg is not None and msg in self._messages:
++                    self._messages.remove(msg)
++            if len(self._messages) <= max_messages:
++                break
++
++        # Never let summaries grow unbounded either.
++        if len(self._summaries) > self.summary_retention:
++            self._summaries[:] = self._summaries[-self.summary_retention:]
++
+     # ── Internal API ────────────────────────────────────────────────
+ 
+     def add(
+@@ -176,8 +337,15 @@ class ContextBuffer:
+             pinned=pinned,
+         )
+ 
+-        # If at capacity, compress oldest non-pinned messages
+-        if len(self._messages) >= self.max_messages:
++        if self.compact:
++            # R1: trim to the rolling decision-cycle window first, then let
++            # the legacy overflow compressor handle pathological cases (e.g.
++            # assistant turns without a user partner).
++            self._enforce_compact_window()
++            if len(self._messages) >= self.max_messages:
++                self._compress()
++        elif len(self._messages) >= self.max_messages:
++            # If at capacity, compress oldest non-pinned messages
+             self._compress()
+ 
+         self._messages.append(msg)
+@@ -288,6 +456,13 @@ class ContextBuffer:
+                 buf._messages.append(ContextMessage.from_dict(msg_dict))
+             buf._summaries = data.get("summaries", [])
+             buf._total_tokens_estimate = data.get("total_tokens_estimate", 0)
++            if buf.compact:
++                # A legacy buffer saved with the full replay window can exceed
++                # the compact window; trim immediately (evicted cycles are
++                # folded into summaries) and cap restored summaries.
++                buf._enforce_compact_window()
++                if len(buf._summaries) > buf.summary_retention:
++                    buf._summaries[:] = buf._summaries[-buf.summary_retention:]
+             logger.info("ContextBuffer restored from %s (%d messages)", path, len(buf._messages))
+             return buf
+         except (json.JSONDecodeError, KeyError) as exc:

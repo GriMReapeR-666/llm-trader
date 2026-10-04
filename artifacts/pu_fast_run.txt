@@ -1,0 +1,13 @@
+[FAST] probes only: pytest + E2E battery skipped
+
+[PASS] pytest suite: SKIPPED (--fast)
+[PASS] E2E validation battery: SKIPPED (--fast)
+[PASS] transcribe-stage probe: OK (0.5s, exit=0)
+[PASS]   transcribe probe: GREEN — 17 pass / 0 fail
+[PASS] download-stage probe: OK (0.3s, exit=0)
+[PASS]   download probe: GREEN — 12 pass / 0 fail
+
+Verdict: GREEN
+SMOKE-VERDICT: GREEN
+Report: C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\artifacts\qkf_smoke_report.txt
+END-MARKER-PU-0090

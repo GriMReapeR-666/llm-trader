@@ -1,0 +1,17 @@
+{
+  "start_equity": 100000.0,
+  "weekly_start_equity": 100000.0,
+  "weekly_recovered_r": 0.0,
+  "weekly_circuit_step_down": false,
+  "date": "2026-10-03",
+  "week": "2026-W40",
+  "trade_timestamps": [],
+  "last_trade_time": {},
+  "peak_equity": 100000.0,
+  "consecutive_losses": 0,
+  "consecutive_wins": 0,
+  "trade_r_history": [],
+  "permanent_halt": false,
+  "initial_balance": 10000.0,
+  "flatten_reason": null
+}

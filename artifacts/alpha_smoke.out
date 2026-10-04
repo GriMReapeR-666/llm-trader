@@ -1,0 +1,5 @@
+DATA: rows=1500 cols=['open', 'high', 'low', 'close', 'tick_volume', 'spread', 'real_volume']
+
+===== SMOKE RESULT =====
+duration: 87.1s
+discovered_alphas: 10

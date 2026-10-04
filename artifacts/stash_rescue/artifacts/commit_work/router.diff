@@ -1,0 +1,296 @@
+diff --git a/data/llm_router.py b/data/llm_router.py
+index c7b71a5..a1b5af0 100644
+--- a/data/llm_router.py
++++ b/data/llm_router.py
+@@ -10,8 +10,9 @@ import time
+ import logging
+ import random
+ import json
++import re
+ from typing import List, Dict, Any, Optional, Callable
+-from datetime import datetime, timedelta
++from datetime import datetime, timedelta, timezone
+ from collections import deque
+ 
+ logger = logging.getLogger("LLMRouter")
+@@ -55,6 +56,72 @@ class RateLimiter:
+         return True
+ 
+ 
++def parse_rate_limit_reset(exc: Any) -> Optional[float]:
++    """Best-effort extraction of a quota-reset timestamp from a 429 error.
++
++    Returns an absolute epoch timestamp (float seconds) or ``None`` when no
++    reset information can be recovered. Understood signals, in order of
++    trust:
++      * ``Retry-After`` header (relative seconds)
++      * ``X-RateLimit-Reset`` header as epoch ms, epoch s, or relative s
++      * ISO-8601 timestamp embedded in the stringified error body
++    Header source: an exception-attached response (the OpenAI SDK exposes
++    ``exc.response.headers``), else the error text as a last resort so
++    aggregated error strings still yield a usable reset.
++    """
++    headers = {}
++    resp = getattr(exc, "response", None)
++    raw_headers = getattr(resp, "headers", None)
++    if raw_headers is not None:
++        try:
++            headers = {str(k).lower(): str(v) for k, v in dict(raw_headers).items()}
++        except Exception:
++            headers = {}
++    text = str(exc or "")
++
++    def _lookup(name: str) -> Optional[str]:
++        value = headers.get(name)
++        if value is None:
++            match = re.search(
++                name + r'["\':=\\s]+([0-9]+(?:\.[0-9]+)?)', text, re.IGNORECASE)
++            value = match.group(1) if match else None
++        return value
++
++    retry_after = _lookup("retry-after")
++    if retry_after is not None:
++        try:
++            return time.time() + float(retry_after)
++        except (TypeError, ValueError):
++            pass
++
++    reset = _lookup("x-ratelimit-reset")
++    if reset is not None:
++        try:
++            value = float(reset)
++        except (TypeError, ValueError):
++            value = None
++        if value is not None:
++            if value > 1e11:      # epoch milliseconds
++                return value / 1000.0
++            if value > 1e9:       # epoch seconds
++                return value
++            return time.time() + value  # relative seconds
++
++    iso = re.search(
++        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?",
++        text,
++    )
++    if iso:
++        try:
++            parsed = datetime.fromisoformat(iso.group(0).replace("Z", "+00:00"))
++            if parsed.tzinfo is None:
++                parsed = parsed.replace(tzinfo=timezone.utc)
++            return parsed.timestamp()
++        except ValueError:
++            pass
++    return None
++
++
+ class BaseLLMProvider:
+     """Base class for LLM providers"""
+     provider_name: str = "base"
+@@ -79,12 +146,28 @@ class BaseLLMProvider:
+         self.max_consecutive_failures = kwargs.get("max_consecutive_failures", 3)
+         self.circuit_cooldown_seconds = kwargs.get("circuit_cooldown_seconds", 300.0)
+         self.circuit_open_until = 0.0
++        # Quota-pause: on a 429 carrying a reset timestamp, park the provider
++        # until the reset instead of burning sleep-retries every decision.
++        self.quota_paused_until = 0.0
++        self.quota_pause_margin_seconds = kwargs.get(
++            "quota_pause_margin_seconds",
++            float(os.getenv("LLM_ROUTER_QUOTA_PAUSE_MARGIN", "30")),
++        )
++        self.quota_pause_max_seconds = kwargs.get(
++            "quota_pause_max_seconds",
++            float(os.getenv("LLM_ROUTER_QUOTA_PAUSE_MAX", "86400")),
++        )
++        self.quota_pause_min_seconds = kwargs.get(
++            "quota_pause_min_seconds",
++            float(os.getenv("LLM_ROUTER_QUOTA_PAUSE_MIN", "60")),
++        )
+ 
+     def is_circuit_open(self) -> bool:
+         return time.time() < self.circuit_open_until
+ 
+     def _record_success(self):
+         self.consecutive_failures = 0
++        self.quota_paused_until = 0.0
+ 
+     def _record_failure(self):
+         self.consecutive_failures += 1
+@@ -92,6 +175,31 @@ class BaseLLMProvider:
+             self.circuit_open_until = time.time() + self.circuit_cooldown_seconds
+             logger.warning(f"⚡ Circuit breaker TRIPPED for provider '{self.provider_name}' until {self.circuit_open_until}")
+ 
++    def _is_quota_paused(self) -> bool:
++        return time.time() < self.quota_paused_until
++
++    def _pause_until_reset(self, reset_ts: float) -> None:
++        """Park the provider until a 429 quota reset (+ safety margin).
++
++        Duration is clamped: a stale (past) reset pauses for zero seconds,
++        and the total pause never exceeds ``quota_pause_max_seconds`` so a
++        bogus header cannot take a provider out for days.
++        """
++        now = time.time()
++        duration = min(
++            max(0.0, reset_ts + self.quota_pause_margin_seconds - now),
++            self.quota_pause_max_seconds,
++        )
++        self.quota_paused_until = now + duration
++        if duration > 0:
++            logger.warning(
++                "Provider '%s' quota exhausted; pausing until quota reset "
++                "(%.0fs, until %s)",
++                self.provider_name,
++                duration,
++                time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(self.quota_paused_until)),
++            )
++
+     def _get_next_key(self) -> Optional[str]:
+         if not self.api_keys:
+             return None
+@@ -102,9 +210,38 @@ class BaseLLMProvider:
+     def generate(self, messages: list, model: str, **kwargs) -> str:
+         raise NotImplementedError
+ 
++    @staticmethod
++    def _extract_message(completion: Any, provider_name: str):
++        """Unwrap an OpenAI-SDK completion, treating a null/empty choices
++        list as a provider failure instead of a crash.
++
++        OpenRouter and similar aggregators return HTTP 200 with
++        ``choices=null`` when the upstream model fails. Indexing
++        ``completion.choices[0]`` there raised ``'NoneType' object is not
++        subscriptable``, which masked the real upstream error and burned a
++        provider slot. Raising here routes the failure through
++        ``_retry_with_backoff`` -> circuit breaker -> router failover.
++        """
++        choices = getattr(completion, "choices", None)
++        if not choices:
++            upstream = getattr(completion, "error", None)
++            detail = ""
++            if isinstance(upstream, dict):
++                detail = str(upstream.get("message") or upstream)
++            elif upstream is not None:
++                detail = str(upstream)
++            raise ValueError(
++                f"{provider_name}: upstream returned HTTP 200 with no choices"
++                + (f": {detail[:200]}" if detail else " (upstream model failure)"))
++        return choices[0].message
++
+     def _retry_with_backoff(self, request_fn: Callable, **kwargs) -> str:
+         if self.is_circuit_open():
+             return f"Error: Provider {self.provider_name} circuit open (cooling down)"
++        if self._is_quota_paused():
++            remaining = int(self.quota_paused_until - time.time())
++            return (f"Error: Provider {self.provider_name} paused until quota reset "
++                    f"(~{remaining}s remaining)")
+         last_error = None
+         for attempt in range(self.max_retries):
+             try:
+@@ -120,6 +257,16 @@ class BaseLLMProvider:
+                 is_rate_limit = "429" in error_str or "rate limit" in error_str
+                 is_server_error = "500" in error_str or "502" in error_str or "503" in error_str
+ 
++                if is_rate_limit:
++                    reset_ts = parse_rate_limit_reset(e)
++                    if (reset_ts is not None
++                            and reset_ts - time.time() > self.quota_pause_min_seconds):
++                        self._pause_until_reset(reset_ts)
++                        self._record_failure()
++                        remaining = int(self.quota_paused_until - time.time())
++                        return (f"Error: {self.provider_name} quota exhausted (429); "
++                                f"paused until quota reset (~{remaining}s remaining)")
++
+                 if (is_rate_limit or is_server_error) and attempt < self.max_retries - 1:
+                     delay = self.base_delay * (2 ** attempt) + random.uniform(0, 1)
+                     logger.warning(f"Provider {self.provider_name} error ({'429' if is_rate_limit else '5xx'}). Retrying in {delay:.1f}s... (Attempt {attempt+1}/{self.max_retries})")
+@@ -166,9 +313,8 @@ class OpenRouterProvider(BaseLLMProvider):
+                 if kwargs.get("tool_choice"):
+                     call_kwargs["tool_choice"] = kwargs["tool_choice"]
+             completion = client.chat.completions.create(**call_kwargs)
+-            msg = completion.choices[0].message
+             # Return raw completion object for tool-call support
+-            return msg
++            return self._extract_message(completion, self.provider_name)
+ 
+         return self._retry_with_backoff(request)
+ 
+@@ -209,7 +355,7 @@ class TokenRouterProvider(BaseLLMProvider):
+                 if kwargs.get("tool_choice"):
+                     call_kwargs["tool_choice"] = kwargs["tool_choice"]
+             completion = client.chat.completions.create(**call_kwargs)
+-            return completion.choices[0].message
++            return self._extract_message(completion, self.provider_name)
+ 
+         return self._retry_with_backoff(request)
+ 
+@@ -251,7 +397,7 @@ class RoutesMeProvider(BaseLLMProvider):
+                 if kwargs.get("tool_choice"):
+                     call_kwargs["tool_choice"] = kwargs["tool_choice"]
+             completion = client.chat.completions.create(**call_kwargs)
+-            return completion.choices[0].message
++            return self._extract_message(completion, self.provider_name)
+ 
+         return self._retry_with_backoff(request)
+ 
+@@ -292,7 +438,7 @@ class CerebrasProvider(BaseLLMProvider):
+                 if kwargs.get("tool_choice"):
+                     call_kwargs["tool_choice"] = kwargs["tool_choice"]
+             completion = client.chat.completions.create(**call_kwargs)
+-            return completion.choices[0].message
++            return self._extract_message(completion, self.provider_name)
+ 
+         return self._retry_with_backoff(request)
+ 
+@@ -335,7 +481,7 @@ class NvidiaNIMProvider(BaseLLMProvider):
+                 if kwargs.get("tool_choice"):
+                     call_kwargs["tool_choice"] = kwargs["tool_choice"]
+             completion = client.chat.completions.create(**call_kwargs)
+-            return completion.choices[0].message
++            return self._extract_message(completion, self.provider_name)
+ 
+         return self._retry_with_backoff(request)
+ 
+@@ -401,7 +547,14 @@ class LLMRouter:
+                     "allow_failover": os.getenv("LLM_TRADER_ALLOW_PROVIDER_FAILOVER", "false").lower() in {"1", "true", "yes"},
+                 },
+             },
+-            "global_fallback_order": ["routesme", "openrouter", "tokenrouter", "cerebras", "nvidia_nim"],
++            "global_fallback_order": [
++                p.strip()
++                for p in os.getenv(
++                    "LLM_ROUTER_FALLBACK_ORDER",
++                    "nvidia_nim,cerebras,openrouter,tokenrouter,routesme",
++                ).split(",")
++                if p.strip()
++            ],
+         }
+         return config
+ 
+@@ -572,6 +725,11 @@ class LLMRouter:
+                 continue
+ 
+             provider = self.providers[prov]
++            if getattr(provider, "_is_quota_paused", None) and provider._is_quota_paused():
++                remaining = int(getattr(provider, "quota_paused_until", 0) - time.time())
++                errors.append(
++                    f"{prov}: paused until quota reset (~{remaining}s remaining); skipped")
++                continue
+             model_for_provider = provider_models.get(prov, model or agent_cfg.get("model", ""))
+             try:
+                 result = provider.generate(messages, model_for_provider, **kwargs)
+@@ -713,9 +871,14 @@ class LLMRouter:
+         return {
+             "providers": {
+                 name: {
+-                    "status": "ONLINE",
++                    "status": (
++                        "PAUSED_QUOTA"
++                        if getattr(p, "_is_quota_paused", None) and p._is_quota_paused()
++                        else "ONLINE"
++                    ),
+                     "keys": len(p.api_keys),
+                     "rpm": p.rate_limiter.rpm,
++                    "quota_paused_until": getattr(p, "quota_paused_until", 0.0),
+                 }
+                 for name, p in self.providers.items()
+             },

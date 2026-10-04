@@ -1,0 +1,2005 @@
+{
+  "fired_alerts": [
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:31:54.384095+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:33:03.988603+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:34:01.655008+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:34:54.895616+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:35:57.305557+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:37:27.903356+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:39:03.461750+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:40:33.857827+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:41:33.825800+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:42:29.361486+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:43:31.968942+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:44:30.986840+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:46:26.482957+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:47:21.295689+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:48:21.042134+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:49:28.739726+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:50:31.417284+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:51:55.579355+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:52:49.399655+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:53:54.231140+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:54:55.720351+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:56:01.846544+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:57:00.417849+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T11:58:00.750653+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:09:21.630777+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:10:25.098181+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:11:22.685135+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:12:01.354920+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:13:06.439160+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:14:02.501742+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:15:21.567095+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:16:48.604899+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:17:54.272446+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:19:02.425558+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:21:11.567657+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:23:13.241433+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:24:51.350712+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:27:24.485463+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:29:09.965159+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:31:32.569348+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:32:51.474162+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:33:49.948289+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:34:58.736070+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:54:44.581225+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:55:43.920657+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:56:41.691909+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:57:38.109302+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:58:31.759185+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T12:59:22.983360+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:00:00.660487+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:07:13.454950+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:08:27.002187+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:09:32.338911+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:10:32.254221+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:11:32.533136+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:12:38.808251+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:13:39.472709+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:14:47.426513+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:17:08.094239+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:19:42.948386+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:24:02.758321+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:26:11.078642+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:27:43.241785+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:29:36.562928+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:33:05.541432+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:34:20.131012+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:37:09.675449+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:38:10.235439+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:39:07.915946+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T13:40:07.819049+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:14:04.883545+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:17:09.937817+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:19:12.014160+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:22:01.581245+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:24:33.179308+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:27:44.300858+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:28:23.189871+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:33:46.745516+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:33:55.009415+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:35:52.853096+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:38:04.624735+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:41:46.202167+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:44:26.440599+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:46:48.868110+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:48:38.664104+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:51:25.185606+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:53:08.837180+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:55:17.748091+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:56:30.146085+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:57:47.190118+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T14:59:19.970396+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:01:06.816269+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:04:53.506858+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:07:16.974419+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:09:56.386893+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:11:24.809135+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:13:23.090886+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:14:24.222173+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:15:26.562365+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:16:37.308138+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:17:42.127865+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:18:40.326086+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:19:37.929918+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:20:48.100537+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:21:55.194933+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:22:55.873395+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:23:57.231159+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:25:26.979897+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:26:56.108476+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:28:49.287913+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:31:16.153827+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:32:40.104210+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:33:41.552213+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:34:49.493326+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:36:13.040437+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:37:14.206239+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T15:38:19.089012+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T17:36:16.869678+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T18:26:43.608652+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:00:54.552653+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:10:31.653279+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:13:17.569025+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:20:40.433530+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:23:20.816333+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:26:46.846763+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:36:09.794744+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:38:59.753890+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:42:25.598965+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:45:58.165281+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:53:11.972053+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:56:00.129625+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T19:59:30.325780+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:10:00.270930+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:12:44.955749+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:16:00.603091+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:23:23.865410+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:26:16.539245+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:29:23.320013+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:36:39.317562+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:39:29.294061+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:42:51.528940+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:50:04.796717+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:52:47.736586+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:56:17.173887+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T20:59:41.389899+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:03:18.233132+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:07:52.881536+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:11:32.851590+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:15:05.764053+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:19:32.938111+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:22:39.354524+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:25:48.441164+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:29:02.566704+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:32:14.192392+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:35:28.395911+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:38:37.167930+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:41:40.664462+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:44:56.999155+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:48:17.184801+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:51:33.748261+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:54:40.882086+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T21:57:49.141364+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:01:18.253096+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:05:45.528747+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:09:08.588944+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:12:15.647681+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:15:28.923370+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:18:49.326804+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:22:06.581023+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:25:22.884979+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:28:34.894244+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:31:43.020466+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:35:25.242039+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:39:04.941375+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:42:25.142630+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:45:42.792377+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:48:51.586401+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:52:04.989714+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:55:16.413865+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T22:58:25.987179+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:01:38.217077+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:06:09.600072+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:09:46.277349+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:13:17.369114+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:14:56.304343+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:18:22.442679+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:21:54.995401+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:25:19.422470+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:28:42.557769+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:32:02.445936+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:35:13.915229+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:38:29.030370+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:41:48.226012+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:45:08.428077+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:48:30.003216+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:51:38.847944+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:54:50.892349+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-25T23:58:11.569249+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-26T00:01:31.937313+00:00"
+    },
+    {
+      "rule": "low_win_rate",
+      "severity": "WARNING",
+      "description": "Rolling win rate below 40%",
+      "metric": "rolling_win_rate",
+      "value": 0.0,
+      "threshold": 0.4,
+      "operator": "<",
+      "timestamp": "2026-09-26T05:08:30.323485+00:00"
+    }
+  ],
+  "suppressed_until": {}
+}

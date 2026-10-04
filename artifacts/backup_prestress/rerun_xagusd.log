@@ -1,0 +1,68 @@
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_ensemble.py:375: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+DSR GATE REJECT: alpha_harness_ic_weighted (Sharpe=0.199, DSR=0.0000 < 0.95, n_trials=8624)
+DSR GATE REJECT: alpha_harness_equal_weight (Sharpe=0.140, DSR=0.0000 < 0.95, n_trials=8625)
+Loading 100000 real MT5 bars: XAGUSD M15 (fail-closed)...
+  Bars: 100000
+  Source: mt5:XAGUSD:M15
+  Price range: 17.57800 - 120.88000
+
+Running backtest harness...
+================================================================================
+  ALPHA ENSEMBLE BACKTEST HARNESS - IC-WEIGHTED vs EQUAL-WEIGHT
+================================================================================
+
+Metric                    IC-Weighted   Equal-Weight       Buy&Hold   Winner
+--------------------------------------------------------------------------------
+Total Return %                   0.48           0.37         218.74  [IC] IC
+Sharpe Ratio                  -6.4652        -5.8860         0.8034  [EQ] EQ
+Sortino Ratio                 -3.1223        -3.4249         0.0000  [IC] IC
+Calmar Ratio                   0.0810         0.0511         0.0000  [IC] IC
+Max Drawdown %                   1.43           1.74          54.64  [IC] IC
+Win Rate %                       25.0           29.0          100.0  [EQ] EQ
+Profit Factor                  1.4896         1.2428         0.0000  [IC] IC
+Total Trades                       16             31              1  [EQ] EQ
+Expectancy %                   0.0299         0.0119         0.0000  [IC] IC
+--------------------------------------------------------------------------------
+
+VERDICT: IC-weighted wins 6/9 metrics (67%)
+  -> IC-weighted ensemble outperforms
+
+REGIME ANALYSIS:
+  Trending bars: 49990  |  Ranging bars: 50010
+  Regime         IC-Weighted Sharpe    Equal-Weight Sharpe
+  Trending                  +0.5964                +0.5964
+  Ranging                   -0.5537                -0.5537
+
+================================================================================
+ALPHA ENSEMBLE QUALITY COMPARISON
+================================================================================
+
+Alpha            IC_Wt   Eq_Wt   IC_Mean    IC_IR    IC+%
+--------------------------------------------------------------------------------
+alpha_P01        0.167   0.167   -0.1440   -1.219  11.0%
+alpha_P02        0.167   0.167   -0.1397   -1.161  12.1%
+alpha_P03        0.167   0.167   -0.1340   -1.090  13.2%
+alpha_P04        0.167   0.167   -0.1406   -1.172  11.3%
+alpha_P05        0.167   0.167   -0.0175   -0.140  44.2%
+alpha_P06        0.167   0.167   -0.0158   -0.126  45.3%
+--------------------------------------------------------------------------------
+OVERALL                          -0.0986                 
+Alphas used: IC=0  Eq=0
+================================================================================
+
+ROBUSTNESS STRESS PASSES:
+  [FAIL] cost_stress        costs x2.0 (commission+slippage)             Sharpe 0.20 -> 0.19 — NOT ROBUST
+         Traded Sharpe 0.19 <= 0.50 floor — edge does not survive doubled costs
+  [PASS] liquidity_stress   liquidity x0.5 (halved ADV, degraded fills)  Sharpe 0.20 -> 0.19
+         Traded Sharpe retention 95% (>= 50% required), return 0.45%
+
+TRADE DETAILS:
+  ic_weighted      trades=  16  wins=   4  losses=  12  final=$  100,478.28
+  equal_weight     trades=  31  wins=   9  losses=  22  final=$  100,367.54
+  buy_and_hold     trades=   1  wins=   0  losses=   0  final=$  318,739.68
+================================================================================
+
+JSON report saved: artifacts/stress_persistence_xagusd_m15.json
+data_source: mt5:XAGUSD:M15
+HTML report saved: artifacts/stress_persistence_xagusd_m15.html

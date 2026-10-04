@@ -1,0 +1,135 @@
+diff --git a/intelligence/local_llm_memory.py b/intelligence/local_llm_memory.py
+index 90e3f48..aeaaca3 100644
+--- a/intelligence/local_llm_memory.py
++++ b/intelligence/local_llm_memory.py
+@@ -24,7 +24,7 @@ def process_outbox(operations, memory, llm, model: str, *, run_id: str = "", lim
+     Each item has already been written to SQLite. LLM failures leave it queued
+     for retry, while a deterministic fallback preserves an auditable summary.
+     """
+-    processed = failed = blocked = 0
++    processed = failed = blocked = fallback_saved = outage_failed = 0
+     prompt_hashes = []
+     response_hashes = []
+     response_chars = 0
+@@ -45,6 +45,7 @@ def process_outbox(operations, memory, llm, model: str, *, run_id: str = "", lim
+             "insufficient evidence.\nRECORD:\n" + json.dumps({"kind": row["kind"], "source_id": row["source_id"], "payload": payload}, default=str)
+         )
+         prompt_hashes.append(hashlib.sha256(prompt.encode("utf-8")).hexdigest())
++        item_outage = False
+         try:
+             raw = llm.generate([
+                 {"role": "system", "content": "You summarize verified trading records. Output strict JSON only."},
+@@ -52,6 +53,18 @@ def process_outbox(operations, memory, llm, model: str, *, run_id: str = "", lim
+             ], model=model)
+             text = raw if isinstance(raw, str) else str(raw)
+             text = text.strip()
++            # A deterministic HOLD or provider error string is the router's
++            # fail-closed contract, not a model reply. Parsing it as JSON
++            # used to yield 'memory response missing required fields' and an
++            # endless retry loop during provider outages (source_ids 37-39,
++            # five boots in a row). Classify it truthfully instead.
++            if text.startswith("Error:") or '"deterministic_fallback": true' in text:
++                item_outage = True
++                raise ValueError(
++                    "provider outage: "
++                    + ("deterministic HOLD received" if "deterministic_fallback" in text
++                       else "provider error string received")
++                    + " instead of a distillation reply")
+             response_hashes.append(hashlib.sha256(text.encode("utf-8")).hexdigest())
+             response_chars += len(text)
+             if text.startswith("```"):
+@@ -61,9 +74,23 @@ def process_outbox(operations, memory, llm, model: str, *, run_id: str = "", lim
+                 raise ValueError("memory response missing required fields")
+         except Exception as exc:
+             # Preserve local evidence and retry later; do not discard the item.
+-            operations.complete_memory(row["id"], str(exc))
++            resulting_status = operations.complete_memory(row["id"], str(exc))
+             operations.event("memory", "distillation_failed", {"source_id": row["source_id"], "error": str(exc)}, run_id=run_id, severity="WARNING")
+-            failed += 1
++            if resulting_status == "FAILED":
++                # Retry budget exhausted: the documented deterministic fallback
++                # preserves an auditable summary instead of parking a dead row.
++                memory.save_narrative(fallback["tags"], json.dumps(fallback, default=str))
++                memory.save_verified_memory(row["source_id"], row["kind"], fallback["tags"],
++                                            fallback["summary"], fallback.get("lesson", ""), payload,
++                                            confidence=1.0, status="CANDIDATE")
++                operations.event("memory", "distillation_fallback_used",
++                                 {"source_id": row["source_id"], "kind": row["kind"]},
++                                 run_id=run_id, severity="WARNING")
++                fallback_saved += 1
++            elif item_outage:
++                outage_failed += 1
++            else:
++                failed += 1
+             continue
+         distilled["source_id"] = row["source_id"]
+         distilled["verified_kind"] = row["kind"]
+@@ -78,10 +105,11 @@ def process_outbox(operations, memory, llm, model: str, *, run_id: str = "", lim
+     # aggregate hashes because one reserved memory request can summarize a
+     # bounded batch of verified outbox records.
+     combine = lambda values: hashlib.sha256("|".join(values).encode("utf-8")).hexdigest() if values else ""
+-    if failed and processed:
++    failures = failed + outage_failed + fallback_saved
++    if failures and processed:
+         parse_status = "PARTIAL_FAILURE"
+-    elif failed:
+-        parse_status = "FAILURE"
++    elif failures:
++        parse_status = "PROVIDER_OUTAGE" if outage_failed == failures else "FAILURE"
+     elif processed:
+         parse_status = "BATCH_SUCCESS"
+     elif blocked:
+@@ -89,9 +117,10 @@ def process_outbox(operations, memory, llm, model: str, *, run_id: str = "", lim
+     else:
+         parse_status = "NO_ITEMS"
+     return {"processed": processed, "failed": failed, "blocked": blocked,
++            "fallback_saved": fallback_saved, "outage_failed": outage_failed,
+             "pending": len(operations.pending_memory(limit)),
+             "prompt_hash": combine(prompt_hashes),
+             "response_hash": combine(response_hashes),
+-            "attempt_count": processed + failed,
++            "attempt_count": processed + failed + outage_failed + fallback_saved,
+             "parse_status": parse_status,
+             "response_chars": response_chars}
+diff --git a/operations/agent_operations.py b/operations/agent_operations.py
+index 83222a0..31f854a 100644
+--- a/operations/agent_operations.py
++++ b/operations/agent_operations.py
+@@ -1449,20 +1449,26 @@ class AgentOperations:
+         with self._con() as con:
+             return [dict(r) for r in con.execute("SELECT * FROM memory_outbox WHERE status='PENDING' AND next_attempt_at <= ? ORDER BY id LIMIT ?", (utcnow(), limit)).fetchall()]
+ 
+-    def complete_memory(self, message_id: int, error: str = "") -> None:
++    def complete_memory(self, message_id: int, error: str = "") -> str:
++        """Record a distillation attempt outcome; returns the row's new status
++        (``SENT``/``PENDING``/``FAILED``) so callers can distinguish a retry
++        from permanent parking without re-querying."""
+         with self._con() as con:
+             if not error:
+                 con.execute("UPDATE memory_outbox SET status='SENT',sent_at=?,error=NULL WHERE id=?", (utcnow(), message_id))
+-            else:
+-                # Bounded retry with backoff; a permanently failing record is
+-                # parked as FAILED instead of retrying forever every 5 minutes.
+-                retry = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+-                con.execute(
+-                    """UPDATE memory_outbox SET attempts=attempts+1,
+-                       status=CASE WHEN attempts+1>=8 THEN 'FAILED' ELSE 'PENDING' END,
+-                       next_attempt_at=?,error=? WHERE id=?""",
+-                    (retry, error[:2000], message_id),
+-                )
++                return "SENT"
++            # Bounded retry with backoff; a permanently failing record is
++            # parked as FAILED instead of retrying forever every 5 minutes.
++            retry = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
++            con.execute(
++                """UPDATE memory_outbox SET attempts=attempts+1,
++                   status=CASE WHEN attempts+1>=8 THEN 'FAILED' ELSE 'PENDING' END,
++                   next_attempt_at=?,error=? WHERE id=?""",
++                (retry, error[:2000], message_id),
++            )
++            row = con.execute(
++                "SELECT status FROM memory_outbox WHERE id=?", (message_id,)).fetchone()
++            return str(row["status"]) if row is not None else "PENDING"
+ 
+     def block_memory(self, message_id: int, reason: str) -> None:
+         """Quarantine an unverified memory source; it must never retry into context."""

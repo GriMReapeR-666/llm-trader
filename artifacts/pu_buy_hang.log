@@ -1,0 +1,68 @@
+Timeout (0:01:30)!
+Thread 0x00006fd8 (most recent call first):
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 359 in wait
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\queue.py", line 202 in get
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\ui\web_dashboard_adapter.py", line 24 in _worker
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 994 in run
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1043 in _bootstrap_inner
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1014 in _bootstrap
+
+Thread 0x0000670c (most recent call first):
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\nn\modules\linear.py", line 134 in forward
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\nn\modules\module.py", line 1790 in _call_impl
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\nn\modules\module.py", line 1779 in _wrapped_call_impl
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\vendor\kronos_official\model\module.py", line 281 in forward
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\nn\modules\module.py", line 1790 in _call_impl
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\nn\modules\module.py", line 1779 in _wrapped_call_impl
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\vendor\kronos_official\model\module.py", line 481 in forward
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\nn\modules\module.py", line 1790 in _call_impl
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\nn\modules\module.py", line 1779 in _wrapped_call_impl
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\vendor\kronos_official\model\kronos.py", line 303 in decode_s1
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\vendor\kronos_official\model\kronos.py", line 436 in auto_regressive_inference
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\vendor\kronos_official\model\kronos.py", line 514 in generate
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\vendor\kronos_official\model\kronos.py", line 553 in predict
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\kronos_bridge.py", line 832 in _predict_neural_multi_dim
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\kronos_bridge.py", line 727 in predict_multi_dim
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\kronos_bridge.py", line 876 in get_advanced_volatility
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\kronos_trading_integrator.py", line 175 in get_volatility_term_structure
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\kronos_trading_integrator.py", line 244 in advisory_bundle
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\intelligence\llm_orchestrator.py", line 2144 in _kronos_advisory_snapshot
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\intelligence\llm_orchestrator.py", line 7699 in execute_cycle
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\harness\pipeline_v2.py", line 360 in _run_staged_pass
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\harness\pipeline_v2.py", line 369 in _stage_cycle_context
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\tests\test_pipeline_v2_e3.py", line 328 in _run_mode
+  File "C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\tests\test_pipeline_v2_e3.py", line 377 in test_golden_replay_identical_intents
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\python.py", line 157 in pytest_pyfunc_call
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\python.py", line 1671 in runtest
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\runner.py", line 178 in pytest_runtest_call
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\runner.py", line 246 in <lambda>
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\runner.py", line 344 in from_call
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\runner.py", line 245 in call_and_report
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\runner.py", line 136 in runtestprotocol
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\runner.py", line 117 in pytest_runtest_protocol
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\main.py", line 367 in pytest_runtestloop
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\main.py", line 343 in _main
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\main.py", line 289 in wrap_session
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\main.py", line 336 in pytest_cmdline_main
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\config\__init__.py", line 175 in main
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\config\__init__.py", line 201 in console_main
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\pytest\__main__.py", line 9 in <module>
+  File "<frozen runpy>", line 88 in _run_code
+  File "<frozen runpy>", line 198 in _run_module_as_main
+.                                                                        [100%]
+1 passed, 6 deselected in 122.51s (0:02:02)

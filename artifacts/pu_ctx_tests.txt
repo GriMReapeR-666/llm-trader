@@ -1,0 +1,30 @@
+bringing up nodes...
+bringing up nodes...
+
+.............FF                                                          [100%]
+================================== FAILURES ===================================
+____________________ test_compact_mode_history_window_two _____________________
+[gw1] win32 -- Python 3.13.5 C:\Users\User\AppData\Local\Programs\Python\Python313\python.exe
+tests\test_context_buffer_compact.py:137: in test_compact_mode_history_window_two
+    assert "cycle-0" not in contents and "cycle-1" not in contents
+E   assert ('cycle-0' not in 'SYS\nPrevio...ence": 0.42}'
+E     
+E     'cycle-0' is contained here:
+E       ata JSON: cycle-0 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx... action=HOLD | [cycle] Market Data JSON: cycle-1 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx... action=HOLD
+E       Market Data JSON: cycle-2 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...
+E     
+E     ...Full output truncated (4 lines hidden), use '-vv' to show)
+_____________ test_compact_mode_pinned_user_survives_compression ______________
+[gw1] win32 -- Python 3.13.5 C:\Users\User\AppData\Local\Programs\Python\Python313\python.exe
+tests\test_context_buffer_compact.py:172: in test_compact_mode_pinned_user_survives_compression
+    assert user_turns == [_payload(0), _payload(1)]
+E   AssertionError: assert ['Market Data...xxxxxxxxxxxx'] == ['Market Data...xxxxxxxxxxxx']
+E     
+E     At index 0 diff: [0m[33m'[39;49;00m[33mMarket Data JSON: cycle-1 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...
+E     
+E     ...Full output truncated (3 lines hidden), use '-vv' to show
+=========================== short test summary info ===========================
+FAILED tests/test_context_buffer_compact.py::test_compact_mode_history_window_two
+FAILED tests/test_context_buffer_compact.py::test_compact_mode_pinned_user_survives_compression
+exit=1
+END-MARKER-PU-0099

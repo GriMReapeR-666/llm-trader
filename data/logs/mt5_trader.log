@@ -1,0 +1,7 @@
+2026-08-22 12:58:54,910 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-08-22 12:58:54,911 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-08-22 12:58:54,911 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-08-22 12:58:54,911 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-08-22 12:58:54,919 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-08-22 12:58:54,920 INFO TradeManager: Loaded active conditions for 1 symbols
+2026-08-22 12:58:54,923 INFO TradeManager: Loaded state: 1 scaled-out, 0 pyramided

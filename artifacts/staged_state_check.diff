@@ -1,0 +1,2132 @@
+diff --git a/intelligence/llm_orchestrator.py b/intelligence/llm_orchestrator.py
+index b4fbc9e..f9531f4 100644
+--- a/intelligence/llm_orchestrator.py
++++ b/intelligence/llm_orchestrator.py
+@@ -1311,6 +1311,10 @@ class LLMOrchestrator:
+             } if isinstance(toon.get("macro_state_vector"), dict) else {
+                 "status": "UNAVAILABLE", "execution_authority": False,
+             },
++            "laya_decision_bundle": toon.get("laya_decision_bundle") or {
++                "status": "UNAVAILABLE", "reason": "not_attached",
++                "execution_authority": False, "source": "laya_decision_bundle",
++            },
+             "macro_opportunity_bus": {
+                 k: (toon.get("macro_opportunity_bus") or {}).get(k)
+                 for k in ("status", "published", "skipped", "candidate_ids", "execution_authority", "source_filter")
+@@ -2864,8 +2868,86 @@ class LLMOrchestrator:
+             result["error"] = str(exc)[:200]
+             return result
+ 
++    # ------------------------------------------------------------------
++    # Live-trading lockout (2026-09-28): absence of --paper is not an
++    # operator decision, so live order placement additionally requires an
++    # explicit env confirmation: REQUIRE_LIVE_CONFIRMATION in
++    # {1,true,yes,on} AND LIVE_CONFIRMATION_TOKEN set to the exact token
++    # below (a two-step "type the sentence" acknowledgment). The gate sits
++    # at the START of _build_execution_plan's live branch — before ANY
++    # live-broker call (quote fetch, margin, policy load) — and raises the
++    # same ValueError the pre-submit path already converts into an auditable
++    # HOLD + REJECTED lifecycle row. Emergency exits / risk-reducing actions
++    # live outside this file and are NOT gated: the lockout blocks NEW risk
++    # only.
++    # ------------------------------------------------------------------
++    LIVE_CONFIRMATION_ENV = "REQUIRE_LIVE_CONFIRMATION"
++    _LIVE_CONFIRMATION_VALUES = frozenset({"1", "true", "yes", "on"})
++    LIVE_CONFIRMATION_TOKEN_ENV = "LIVE_CONFIRMATION_TOKEN"
++    LIVE_CONFIRMATION_TOKEN_VALUE = "I_UNDERSTAND_LIVE_ORDERS_WILL_BE_PLACED"
++
++    def _live_orders_authorized(self) -> Tuple[bool, str]:
++        """Operator intent gate for live order placement (env-level).
++
++        Returns (True, "") only when BOTH the confirmation flag is enabled
++        AND the acknowledgment token matches exactly. Fail-closed: unset,
++        malformed, or partially-configured environments are all lockouts.
++        Read at call time so an operator can flip it without a restart.
++        """
++        raw = str(os.getenv(self.LIVE_CONFIRMATION_ENV, "") or "").strip().lower()
++        if raw not in self._LIVE_CONFIRMATION_VALUES:
++            return False, (
++                f"{self.LIVE_CONFIRMATION_ENV} is not enabled (set it to one of "
++                f"{sorted(self._LIVE_CONFIRMATION_VALUES)} to confirm live trading)")
++        token = str(os.getenv(self.LIVE_CONFIRMATION_TOKEN_ENV, "") or "").strip()
++        if token != self.LIVE_CONFIRMATION_TOKEN_VALUE:
++            # SECURITY: the reason must NOT contain the literal token — it is
++            # persisted into journal/lifecycle rows and operator logs. Point
++            # at the constant instead of quoting it.
++            return False, (
++                f"{self.LIVE_CONFIRMATION_ENV} is enabled but "
++                f"{self.LIVE_CONFIRMATION_TOKEN_ENV} is missing or incorrect "
++                "(set it to the exact acknowledgment sentence documented in "
++                "LIVE_CONFIRMATION_TOKEN_VALUE, intelligence/llm_orchestrator.py)")
++        return True, ""
++
++    @staticmethod
++    def _live_order_lockout_notice(reason: str) -> Dict[str, Any]:
++        """Audit payload for a lockout rejection (journal + lifecycle row)."""
++        return {
++            "reason": str(reason)[:300],
++            "env_flag": LLMOrchestrator.LIVE_CONFIRMATION_ENV,
++            "token_env": LLMOrchestrator.LIVE_CONFIRMATION_TOKEN_ENV,
++            "execution_authority": False,
++            "paper_mode": True,
++        }
++
+     def _build_execution_plan(self, proposal: TradeProposal, toon: Dict[str, Any], paper_mode: bool, volume: float):
+         """Revalidate the broker quote and freeze a pending-entry plan before send."""
++        if not paper_mode:
++            # Live-trading lockout: the env gate fires BEFORE any live-broker
++            # call. The ValueError is converted by the pre-submit caller into
++            # an auditable HOLD/REJECTED and the cycle continues in safety.
++            authorized, lockout_reason = self._live_orders_authorized()
++            if not authorized:
++                notice = self._live_order_lockout_notice(lockout_reason)
++                try:
++                    self.store.log_lifecycle_event(
++                        None, proposal.setup_key(), "REJECTED",
++                        "live_order_lockout", notice)
++                except Exception as lifecycle_exc:
++                    logging.getLogger("LLMOrchestrator").debug(
++                        "live lockout lifecycle row failed: %s", lifecycle_exc)
++                try:
++                    self.operations.event(
++                        "RiskController", "live_order_lockout", notice,
++                        run_id=self.run_id, severity="WARNING")
++                except Exception as event_exc:
++                    logging.getLogger("LLMOrchestrator").debug(
++                        "live lockout event failed: %s", event_exc)
++                logging.getLogger("LLMOrchestrator").warning(
++                    "LIVE ORDER LOCKOUT engaged: %s", lockout_reason)
++                raise ValueError(f"live order lockout: {lockout_reason}")
+         indicators = toon.get("indicators", {})
+         point_features = toon.get("feature_snapshot", {}).get("values", {})
+         atr = point_features.get("atr_14", (indicators.get("atr_14") or [0])[-2] if len(indicators.get("atr_14") or []) >= 2 else 0)
+@@ -5106,6 +5188,179 @@ class LLMOrchestrator:
+         if _err:
+             _log.warning("schedule batch failed: %s", _err[0])
+ 
++    def _fast_lane_order(
++            self, claimed_batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
++        """Dispatch order for a claimed wave: cheapest cadence first.
++
++        The wave deadline (``_SCHEDULE_TIMEOUT``) defers whatever is still
++        undispatched when it trips, so dispatch order decides WHICH claims
++        eat the deferral. Claim order can list heavy, slow-cadence handlers
++        ahead of the 60s fast lanes (the profiler's CLAIM_ORDER_TAIL), and a
++        deadline hit then defers exactly the schedules that lose the most
++        catch-up time per missed turn. Ordering the wave ascending by
++        registry interval (fallback: handler budget, then claim order — the
++        sort is stable) puts the fast lanes at the front, where the deadline
++        cannot cut them off. Pure reordering of the dispatch queue: claims,
++        leases, and due points are untouched, and the batch-end release is
++        set-based, so bookkeeping stays order-independent.
++        """
++        if len(claimed_batch) < 2:
++            return list(claimed_batch)
++        intervals: Dict[str, float] = {}
++        try:
++            intervals = {
++                str(item.get("schedule_name")):
++                    float(item.get("interval_seconds") or 0)
++                for item in (self.operations.list_schedules() or [])
++                if item.get("schedule_name")
++            }
++        except Exception:
++            intervals = {}
++        budgets = self._SCHEDULE_HANDLER_BUDGETS
++        default_budget = float(self._SCHEDULE_DEFAULT_HANDLER_BUDGET)
++
++        def _lane(item: Dict[str, Any], idx: int) -> Tuple[float, float, int]:
++            name = str(item.get("schedule_name") or "")
++            interval = intervals.get(name) or 0.0
++            if interval <= 0:
++                # Unregistered/malformed rows ride the handler-budget lane
++                # instead of jumping the queue ahead of known cadences.
++                interval = float(budgets.get(name, default_budget))
++            return (interval, float(budgets.get(name, default_budget)), idx)
++
++        return [item for _, item in
++                sorted(enumerate(claimed_batch),
++                       key=lambda pair: _lane(pair[1], pair[0]))]
++
++    # ------------------------------------------------------------------
++    # Laya DecisionBundle → cycle prompts (2026-09-28): the MacroAnalyst
++    # graph node publishes its typed-decision bundle (regime D3, liquidity
++    # D4, arbitration D8, kill switch D9, narrative decay D12, …) to the
++    # shared ui_state; project a compact advisory view onto the cycle toon
++    # so the scalp/swing candle engines see macro state DIRECTLY instead of
++    # inferring it from causal edges. Read-only mirror of advisory context:
++    # never grants order permission (execution_authority stays False), never
++    # gates risk (RiskController keeps its own blackout/kill-switch gates),
++    # and every failure path degrades to "UNAVAILABLE" without breaking the
++    # cycle.
++    # ------------------------------------------------------------------
++    _BUNDLE_DECISION_IDS = (
++        "D1_economic_surprise", "D2_blackout_gate", "D3_macro_regime",
++        "D4_liquidity_stance", "D5a_escalation_ladder", "D8_opportunity_arbitration",
++        "D9_emergency_kill_switch", "D12_narrative_decay",
++    )
++    _BUNDLE_MAX_HEAD_PROB_ENTRIES = 4
++
++    @classmethod
++    def _project_decision_bundle(cls, bundle_dict: Any) -> Optional[Dict[str, Any]]:
++        """Compact advisory projection of a DecisionBundle.to_dict() payload.
++
++        Emits per-head selected_option + top-k probability entries + confidence,
++        plus the bundle-level arbitration verdict and risk multiplier. All
++        string values are hard-truncated to keep the prompt budget tight.
++        Returns None when the payload is missing/malformed.
++        """
++        if not isinstance(bundle_dict, dict):
++            return None
++        decisions_in = bundle_dict.get("decisions")
++        if not isinstance(decisions_in, dict):
++            return None
++        heads: Dict[str, Any] = {}
++        for qid in cls._BUNDLE_DECISION_IDS:
++            rec = decisions_in.get(qid)
++            if not isinstance(rec, dict):
++                continue
++            probs_raw = rec.get("probabilities")
++            probs: Dict[str, float] = {}
++            if isinstance(probs_raw, dict):
++                try:
++                    pairs = sorted(
++                        ((str(k), float(v)) for k, v in probs_raw.items()
++                         if isinstance(v, (int, float))),
++                        key=lambda kv: kv[1], reverse=True,
++                    )[:cls._BUNDLE_MAX_HEAD_PROB_ENTRIES]
++                    probs = {k: round(v, 4) for k, v in pairs}
++                except Exception:
++                    probs = {}
++            try:
++                conf = float(rec.get("confidence") or rec.get("entropy") or 0.0)
++            except (TypeError, ValueError):
++                conf = 0.0
++            heads[qid] = {
++                "selected_option": str(rec.get("selected_option") or "")[:60],
++                "probabilities": probs,
++                "confidence": round(conf, 4),
++                "is_veto": bool(rec.get("is_veto")),
++            }
++        if not heads:
++            return None
++        try:
++            risk_mult = float(bundle_dict.get("risk_multiplier") or 0.0)
++        except (TypeError, ValueError):
++            risk_mult = 0.0
++        return {
++            "bundle_id": str(bundle_dict.get("bundle_id") or "")[:40],
++            "bundle_timestamp": str(bundle_dict.get("timestamp") or "")[:32],
++            "heads": heads,
++            "arbitration_verdict": str(bundle_dict.get("arbitration_verdict") or "")[:40],
++            "risk_multiplier": risk_mult,
++            "veto_enforced": bool(bundle_dict.get("veto_enforced")),
++            "execution_authority": False,
++            "source": "laya_decision_bundle",
++        }
++
++    @classmethod
++    def _attach_decision_bundle_advisory(cls, toon: Dict[str, Any]) -> None:
++        """Attach the Laya bundle advisory to the cycle toon (fail-soft).
++
++        Staleness policy: the bundle is a per-cycle artifact; one older than
++        10 minutes is treated as stale and surfaced as UNAVAILABLE rather
++        than presented as current macro state.
++        """
++        UNAVAILABLE = {
++            "status": "UNAVAILABLE", "reason": "no bundle published this session",
++            "execution_authority": False, "source": "laya_decision_bundle",
++        }
++        try:
++            from core.shared_state import ui_state
++        except Exception:
++            toon["laya_decision_bundle"] = dict(UNAVAILABLE, reason="shared_state_unavailable")
++            return
++        try:
++            bundle = getattr(ui_state, "last_decision_bundle", None)
++        except Exception:
++            toon["laya_decision_bundle"] = dict(UNAVAILABLE, reason="ui_state_unavailable")
++            return
++        if not isinstance(bundle, dict) or not bundle.get("decisions"):
++            toon["laya_decision_bundle"] = UNAVAILABLE
++            return
++        try:
++            from datetime import datetime as _dt
++            ts_raw = str(bundle.get("timestamp") or "")
++            if not ts_raw:
++                raise ValueError("missing timestamp")
++            ts = _dt.fromisoformat(ts_raw.replace("Z", "+00:00"))
++            if ts.tzinfo is None:
++                # Producers stamp UTC; a naive stamp is interpreted as UTC.
++                ts = ts.replace(tzinfo=timezone.utc)
++            age_s = (datetime.now(timezone.utc) - ts).total_seconds()
++        except Exception:
++            age_s = None
++        if age_s is not None and age_s > 600:
++            toon["laya_decision_bundle"] = {
++                "status": "UNAVAILABLE", "reason": "stale_bundle",
++                "bundle_age_s": int(age_s), "bundle_id": str(bundle.get("bundle_id") or "")[:40],
++                "execution_authority": False, "source": "laya_decision_bundle",
++            }
++            return
++        projection = cls._project_decision_bundle(bundle)
++        if projection is None:
++            toon["laya_decision_bundle"] = dict(UNAVAILABLE, reason="malformed_bundle")
++            return
++        projection["bundle_age_s"] = int(age_s) if age_s is not None else None
++        projection["status"] = "AVAILABLE"
++        toon["laya_decision_bundle"] = projection
++
+     def _process_due_schedules(self, symbol: str, paper_mode: bool) -> None:
+         """Run restart-safe maintenance schedules on every pulse.
+ 
+@@ -5124,6 +5379,12 @@ class LLMOrchestrator:
+         handlers are deferred — their pre-claim due points restored so the
+         next wave re-claims them.
+ 
++        Dispatch is fast-lane ordered (2026-09-28): the claimed wave runs
++        shortest-cadence-first (registry interval, then handler budget, then
++        claim order), so a wave-deadline hit defers the SLOWEST-cadence
++        handlers — never the cheap 60s schedules that lose the most catch-up
++        time per deferral (the 2026-09-26 audit's CLAIM_ORDER_TAIL).
++
+         Per-handler overruns are persisted as ``schedule_handler_overrun``
+         operational events — recorded at the next loop turn and at batch end
+         (so a wave-ending overrun is not silently dropped) — and rolled up
+@@ -5147,6 +5408,9 @@ class LLMOrchestrator:
+         # at an abandonment point is the whole claim minus what actually
+         # dispatched.
+         claimed_batch = list(self.operations.claim_due_schedules())
++        # Fast lane: dispatch cheapest-cadence claims first so a wave-deadline
++        # deferral lands on the slow cadences, not the 60s handlers.
++        claimed_batch = self._fast_lane_order(claimed_batch)
+         claimed_names = [str(item["schedule_name"]) for item in claimed_batch]
+         dispatched_names: List[str] = []
+ 
+@@ -5331,68 +5595,137 @@ class LLMOrchestrator:
+                                                   {"error": str(exc)[:300]}, run_id=self.run_id,
+                                                   correlation_id=schedule_name, severity="WARNING")
+                     status = "AVAILABLE" if event_rows else ("UNAVAILABLE" if error else "EMPTY")
+-                    # Also refresh FRED/NewsAPI/optional providers into graph on the monitor pulse.
+-                    try:
+-                        manager = getattr(self.data_provider, "api_manager", None)
+-                        fred = {}
+-                        api_news = []
+-                        hot_topics = []
+-                        if manager is not None:
+-                            try:
+-                                fred = manager.get_fred_data(catalog_fred_series()) or {}
+-                            except Exception:
++                    # Sub-cadence gate (2026-09-28): the heavy pipeline block
++                    # (FRED + news + hot topics + graph ingest + realtime
++                    # news) cost 60-281s per dispatch in the 09-27 live
++                    # session (37 overruns, all dispatches) because it polls
++                    # sources FASTER than they update (NewsAPI free tier
++                    # refreshes per 15min, FRED per day) against a 229k-row
++                    # macro graph. Calendar fetch + ingest above stay on the
++                    # 60s cadence (blackout gating freshness); the heavy
++                    # block runs every EVENT_MONITOR_FULL_PIPELINE_MIN_S
++                    # (default 300s). Budget raise is not an option: the
++                    # applier caps at interval/2 = 30s < 60s (AT_CAP).
++                    _em_full_every_s = float(os.getenv(
++                        "EVENT_MONITOR_FULL_PIPELINE_MIN_S", "300"))
++                    _em_now = time.time()
++                    _em_last = float(getattr(self, "_event_monitor_last_full_ts", 0.0) or 0.0)
++                    _em_run_full = (_em_now - _em_last) >= _em_full_every_s
++                    # Alternating-window split (2026-09-28 NEXT LEVER, default
++                    # OFF): EVENT_MONITOR_SPLIT_WINDOWS=1 halves the heavy
++                    # block - even windows run the graph pipeline (FRED + news
++                    # + hot topics + ingest), odd windows run realtime-news+RSS
++                    # - so a full pass costs ~half and each window lands inside
++                    # the 60s budget. _event_monitor_window_no advances ONLY
++                    # when a window ran, so a failed/deferred window retries
++                    # its parity; on restart the counter resets and the first
++                    # window is the pipeline half (mirrors the stamp reset).
++                    _em_split = os.getenv("EVENT_MONITOR_SPLIT_WINDOWS", "") in {
++                        "1", "true", "yes", "on"}
++                    _em_rn_window = False
++                    if _em_run_full:
++                        _em_window_no = int(getattr(self, "_event_monitor_window_no", 0) or 0)
++                        _em_rn_window = bool(_em_split and _em_window_no % 2 == 1)
++                    if _em_run_full:
++                        try:
++                            manager = getattr(self.data_provider, "api_manager", None)
++                            if not _em_rn_window:
+                                 fred = {}
+-                            try:
+-                                hot_topics = manager.get_hot_topics(limit=5) or []
+-                            except Exception:
+-                                hot_topics = []
+-                            try:
+-                                api_news = manager.get_news(
+-                                    self._get_symbol_keywords(symbol), page_size=5,
+-                                ) or []
+-                            except Exception:
+                                 api_news = []
+-                        pipeline = process_cycle_data_sources(
+-                            macro_graph=self.macro_graph,
+-                            journal_path=str(getattr(self.store, "path", None) or "trading_state.db"),
+-                            symbol=symbol,
+-                            calendar_events=event_rows,
+-                            api_news=api_news,
+-                            hot_topics=hot_topics,
+-                            macro_data=fred,
+-                            api_manager=manager,
+-                            # Optional providers (SeekingAlpha, OpenBB, Portfolio123)
+-                            # make external HTTP calls that can block for 60+s on
+-                            # retries/backoff.  Skip them in paper mode so the
+-                            # maintenance pulse never hangs on unauthenticated feeds.
+-                            include_optional_providers=not paper_mode,
+-                        )
+-                        extract_llm = getattr(self, "llm", None)
+-                        extract_claims = os.getenv("TRADING_REALTIME_NEWS_EXTRACT", "false").lower() in {
+-                            "1", "true", "yes",
+-                        }
+-                        realtime_news = run_realtime_news_ingest(
+-                            graph=self.macro_graph,
+-                            api_manager=manager,
+-                            memory=self.trade_memory,
+-                            llm=extract_llm if extract_claims else None,
+-                            symbol=symbol,
+-                            keywords=self._get_symbol_keywords(symbol),
+-                            # RSS feeds make blocking HTTP calls that can stall
+-                            # the maintenance pulse.  Skip in paper mode where
+-                            # external news has no execution value.
+-                            include_rss=not paper_mode,
+-                            extract_claims=extract_claims,
+-                        )
+-                    except Exception as pipe_exc:
++                                hot_topics = []
++                                if manager is not None:
++                                    try:
++                                        fred = manager.get_fred_data(catalog_fred_series()) or {}
++                                    except Exception:
++                                        fred = {}
++                                    try:
++                                        hot_topics = manager.get_hot_topics(limit=5) or []
++                                    except Exception:
++                                        hot_topics = []
++                                    try:
++                                        api_news = manager.get_news(
++                                            self._get_symbol_keywords(symbol), page_size=5,
++                                        ) or []
++                                    except Exception:
++                                        api_news = []
++                                pipeline = process_cycle_data_sources(
++                                    macro_graph=self.macro_graph,
++                                    journal_path=str(getattr(self.store, "path", None) or "trading_state.db"),
++                                    symbol=symbol,
++                                    calendar_events=event_rows,
++                                    api_news=api_news,
++                                    hot_topics=hot_topics,
++                                    macro_data=fred,
++                                    api_manager=manager,
++                                    # Optional providers (SeekingAlpha, OpenBB, Portfolio123)
++                                    # make external HTTP calls that can block for 60+s on
++                                    # retries/backoff.  Skip them in paper mode so the
++                                    # maintenance pulse never hangs on unauthenticated feeds.
++                                    include_optional_providers=not paper_mode,
++                                )
++                            extract_llm = getattr(self, "llm", None)
++                            extract_claims = os.getenv("TRADING_REALTIME_NEWS_EXTRACT", "false").lower() in {
++                                "1", "true", "yes",
++                            }
++                            if _em_split and not _em_rn_window:
++                                realtime_news = {
++                                    "status": "DEFERRED",
++                                    "pipeline_mode": "realtime_deferred",
++                                    "reason": "split_windows",
++                                    "execution_authority": False,
++                                }
++                            else:
++                                realtime_news = run_realtime_news_ingest(
++                                    graph=self.macro_graph,
++                                    api_manager=manager,
++                                    memory=self.trade_memory,
++                                    llm=extract_llm if extract_claims else None,
++                                    symbol=symbol,
++                                    keywords=self._get_symbol_keywords(symbol),
++                                    # RSS feeds make blocking HTTP calls that can stall
++                                    # the maintenance pulse.  Skip in paper mode where
++                                    # external news has no execution value.
++                                    include_rss=not paper_mode,
++                                    extract_claims=extract_claims,
++                                )
++                                if _em_split and isinstance(realtime_news, dict):
++                                    realtime_news.setdefault("pipeline_mode", "realtime_window")
++                                    realtime_news.setdefault("split_windows", True)
++                            # Stamp ONLY on a full pass that returned (a network
++                            # error leaves it unstamped so the next dispatch
++                            # retries the heavy block instead of waiting).
++                            self._event_monitor_last_full_ts = _em_now
++                            if _em_split:
++                                self._event_monitor_window_no = _em_window_no + 1
++                        except Exception as pipe_exc:
++                            pipeline = {
++                                "status": "ERROR",
++                                "error": str(pipe_exc)[:300],
++                                "execution_authority": False,
++                            }
++                            realtime_news = {
++                                "status": "ERROR",
++                                "error": str(pipe_exc)[:300],
++                                "execution_authority": False,
++                            }
++                        else:
++                            pipeline["pipeline_mode"] = (
++                                "realtime_window" if _em_rn_window
++                                else ("pipeline_window" if _em_split else "full"))
++                            pipeline["split_windows"] = bool(_em_split)
++                            pipeline["full_every_s"] = _em_full_every_s
++                    else:
++                        _em_wait = max(0.0, _em_full_every_s - (_em_now - _em_last))
+                         pipeline = {
+-                            "status": "ERROR",
+-                            "error": str(pipe_exc)[:300],
++                            "status": "DEFERRED", "pipeline_mode": "calendar_only",
++                            "reason": "sub_cadence_sources_poll_faster_than_they_update",
++                            "next_full_in_s": round(_em_wait, 1),
++                            "full_every_s": _em_full_every_s,
+                             "execution_authority": False,
+                         }
+                         realtime_news = {
+-                            "status": "ERROR",
+-                            "error": str(pipe_exc)[:300],
++                            "status": "DEFERRED", "pipeline_mode": "calendar_only",
++                            "reason": "sub_cadence",
+                             "execution_authority": False,
+                         }
+                 except Exception as exc:
+@@ -7157,6 +7490,15 @@ class LLMOrchestrator:
+                 "error": str(msv_exc)[:300],
+                 "execution_authority": False,
+             }
++        # Laya DecisionBundle advisory: regime/liquidity/kill-switch context
++        # from the MacroAnalyst graph node, projected onto the cycle prompt.
++        try:
++            self._attach_decision_bundle_advisory(toon)
++        except Exception as bundle_exc:  # noqa: BLE001 - advisory must never break the cycle
++            toon["laya_decision_bundle"] = {
++                "status": "ERROR", "error": str(bundle_exc)[:300],
++                "execution_authority": False, "source": "laya_decision_bundle",
++            }
+         # One auditable CycleBrief per pulse (never grants order permission).
+         try:
+             try:
+diff --git a/tests/test_scheduler_pulse.py b/tests/test_scheduler_pulse.py
+index 3590c16..f491dce 100644
+--- a/tests/test_scheduler_pulse.py
++++ b/tests/test_scheduler_pulse.py
+@@ -406,12 +406,14 @@ def test_last_handler_overrun_is_recorded_at_batch_end(monkeypatch):
+             _time_mod.sleep(0.8)   # budget below is 0.5s (guard floor)
+         return True
+ 
++    # Fast lane: equal budget lanes keep claim order, so slow_last still
++    # dispatches LAST and its overrun is caught at batch end.
+     instance = _bounded_instance(
+         monkeypatch,
+         [{"schedule_name": "fast_first", "payload": {}},
+          {"schedule_name": "slow_last", "payload": {}}],
+         handler)
+-    instance._SCHEDULE_HANDLER_BUDGETS = {"slow_last": 0.5}
++    instance._SCHEDULE_HANDLER_BUDGETS = {"fast_first": 0.5, "slow_last": 0.5}
+ 
+     instance._process_due_schedules("XAUUSD", True)
+     assert handled == ["fast_first", "slow_last"], \
+@@ -462,13 +464,16 @@ def test_wave_deadline_defers_remainder_with_skip_event_and_restore(monkeypatch)
+             _time_mod.sleep(0.8)
+         return True
+ 
++    # Fast lane: the hog budget is set EQUAL to the default (45s) so the
++    # sort keeps claim order — the wave deadline, not the budget, does the
++    # cutting here.
+     instance = _bounded_instance(
+         monkeypatch,
+         [{"schedule_name": "first", "payload": {}},
+          {"schedule_name": "hog", "payload": {}},
+          {"schedule_name": "deferred", "payload": {}}],
+         handler)
+-    instance._SCHEDULE_HANDLER_BUDGETS = {"hog": 5.0}   # hog does NOT trip
++    instance._SCHEDULE_HANDLER_BUDGETS = {"hog": 45.0}  # == default: equal lane
+     instance._SCHEDULE_TIMEOUT = 0.4                    # wave deadline
+ 
+     instance._process_due_schedules("XAUUSD", True)
+@@ -494,6 +499,8 @@ def test_wave_within_deadline_records_no_skip_event(monkeypatch):
+             _time_mod.sleep(0.8)
+         return True
+ 
++    # Fast lane: the 0.5s budget sorts slow ahead of after's default-45s
++    # budget lane — the wave continues past the overrun either way.
+     instance = _bounded_instance(
+         monkeypatch,
+         [{"schedule_name": "slow", "payload": {}},
+@@ -506,6 +513,277 @@ def test_wave_within_deadline_records_no_skip_event(monkeypatch):
+     assert instance.operations.releases == []
+ 
+ 
++def test_fast_lane_dispatches_short_interval_schedules_before_the_deadline(monkeypatch):
++    """FAST-LANE (2026-09-28): dispatch order is shortest-cadence-first, so a
++    wave-deadline hit defers the slowest cadence — never the 60s fast lanes.
++    The claim order below is the historical heavy-first order: without the
++    fast lane the 0.8s hog exhausts the deadline and BOTH 60s schedules are
++    deferred; with it they dispatch before the deadline can bite."""
++    handled = []
++
++    def handler(name):
++        handled.append(name)
++        if name == "hog_900":
++            _time_mod.sleep(0.8)
++        return True
++
++    instance = _watchdog_instance(
++        monkeypatch,
++        [{"schedule_name": "hog_900", "payload": {}},
++         {"schedule_name": "fast_a", "payload": {}},
++         {"schedule_name": "fast_b", "payload": {}},
++         {"schedule_name": "heavy_last", "payload": {}}],
++        registry=[
++            {"schedule_name": "hog_900", "interval_seconds": 900, "enabled": 1},
++            {"schedule_name": "fast_a", "interval_seconds": 60, "enabled": 1},
++            {"schedule_name": "fast_b", "interval_seconds": 60, "enabled": 1},
++            {"schedule_name": "heavy_last", "interval_seconds": 86400, "enabled": 1},
++        ],
++        handler_fn=handler)
++    instance._SCHEDULE_HANDLER_BUDGETS = {"hog_900": 5.0}   # hog does NOT trip
++    instance._SCHEDULE_TIMEOUT = 0.4
++
++    instance._process_due_schedules("XAUUSD", True)
++    # Fast lanes dispatched first (claim order is the tiebreak inside the
++    # 60s lane), then the 15-min hog; the deadline cut the daily schedule.
++    assert handled == ["fast_a", "fast_b", "hog_900"], \
++        f"fast lanes must dispatch before the deadline, got {handled}"
++    skips = _events_of(instance, "schedule_skipped")
++    assert len(skips) == 1
++    assert skips[0][0][2]["schedules"] == ["heavy_last"]
++    assert skips[0][0][2]["dispatched"] == 3
++    assert skips[0][0][2]["reason"] == "wave_deadline"
++    # Dispatch order changed, claim semantics did not: exactly the deferred
++    # heavy claim is released, every dispatched claim completed inline.
++    assert [r["schedule_name"] for r in instance.operations.releases[0]] == ["heavy_last"]
++    assert {c[0] for c in instance.operations.completions} == \
++        {"fast_a", "fast_b", "hog_900"}
++
++
++def test_event_monitor_heavy_pipeline_runs_sub_cadence(monkeypatch):
++    """The heavy pipeline block (FRED/news/hot-topics/graph ingest/realtime)
++    runs on a sub-cadence inside event_monitor: the first dispatch runs it
++    (pipeline_mode=full), the next dispatch inside the window defers it
++    (calendar_only payload), and the heavy functions are reached through the
++    orchestrator module globals so failures there never stall the wave."""
++    import sys as _sys
++
++    # The orchestrator module binds these names at import time; the test
++    # process imports it as "llm_orchestrator" (top-level aliasing of the
++    # intelligence/ module).
++    import llm_orchestrator as orch_mod
++    assert orch_mod is not None, "orchestrator module must be importable for patching"
++
++    calls = []
++
++    def _fake_pipeline(**kwargs):
++        calls.append("pipeline")
++        return {"status": "PROCESSED"}
++
++    def _fake_rn(**kwargs):
++        calls.append("rn")
++        return {"status": "PROCESSED"}
++
++    monkeypatch.setattr(orch_mod, "process_cycle_data_sources", _fake_pipeline)
++    monkeypatch.setattr(orch_mod, "run_realtime_news_ingest", _fake_rn)
++
++    def _mk(last_ts):
++        # handler_fn's return value IS try_handle's return: the executor
++        # registry short-circuits the legacy elif chain when True. False lets
++        # the event_monitor body — and its sub-cadence gate — execute.
++        inst = _watchdog_instance(
++            monkeypatch,
++            [{"schedule_name": "event_monitor", "payload": {}}],
++            registry=[], handler_fn=lambda name: False)
++        inst._event_monitor_last_full_ts = last_ts
++        inst.store = _Store()
++        inst.data_provider = type("P", (), {"calendar": None, "api_manager": None,
++                                             "client": None})()
++        inst.macro_graph = None
++        inst.client = None
++        inst.trade_memory = None
++        return inst
++
++    # First dispatch: stamp=0 -> the heavy block RUNS.
++    inst = _mk(0.0)
++    inst._process_due_schedules("EURUSD", True)
++    assert calls == ["pipeline", "rn"], "first pass must run the heavy block"
++    state = inst.store.states.get("event_monitor:EURUSD") or {}
++    assert (state.get("data_source_pipeline") or {}).get("pipeline_mode") == "full"
++    assert inst._event_monitor_last_full_ts > 0.0, "successful full pass must stamp"
++
++    # Second dispatch inside the window: heavy block DEFERRED (calendar-only).
++    calls.clear()
++    inst2 = _mk(inst._event_monitor_last_full_ts)
++    inst2._process_due_schedules("EURUSD", True)
++    assert calls == [], "second pass inside the window must defer the heavy block"
++    pipe2 = (inst2.store.states.get("event_monitor:EURUSD") or {}).get(
++        "data_source_pipeline") or {}
++    assert pipe2.get("pipeline_mode") == "calendar_only"
++    assert pipe2.get("status") == "DEFERRED"
++    assert pipe2.get("execution_authority") is False
++    # The stamp must be carried over untouched by the deferred dispatch.
++    assert inst2._event_monitor_last_full_ts == inst._event_monitor_last_full_ts
++
++
++def test_event_monitor_split_windows_alternate(monkeypatch):
++    """EVENT_MONITOR_SPLIT_WINDOWS=1 halves the heavy block into alternating
++    windows: even windows run the graph pipeline half (realtime-news
++    deferred), odd windows run realtime-news (pipeline deferred). Each window
++    still stamps and advances the counter, so the halves alternate A/B/A."""
++    import sys as _sys
++
++    monkeypatch.setenv("EVENT_MONITOR_SPLIT_WINDOWS", "1")
++    import llm_orchestrator as orch_mod
++    assert orch_mod is not None, "orchestrator module must be importable for patching"
++
++    calls = []
++
++    def _fake_pipeline(**kwargs):
++        calls.append("pipeline")
++        return {"status": "PROCESSED"}
++
++    def _fake_rn(**kwargs):
++        calls.append("rn")
++        return {"status": "PROCESSED"}
++
++    monkeypatch.setattr(orch_mod, "process_cycle_data_sources", _fake_pipeline)
++    monkeypatch.setattr(orch_mod, "run_realtime_news_ingest", _fake_rn)
++
++    def _mk(last_ts, window_no=0):
++        # handler_fn returns False so the event_monitor body executes.
++        inst = _watchdog_instance(
++            monkeypatch,
++            [{"schedule_name": "event_monitor", "payload": {}}],
++            registry=[], handler_fn=lambda name: False)
++        inst._event_monitor_last_full_ts = last_ts
++        inst._event_monitor_window_no = window_no
++        inst.store = _Store()
++        inst.data_provider = type("P", (), {"calendar": None, "api_manager": None,
++                                            "client": None})()
++        inst.macro_graph = None
++        inst.client = None
++        inst.trade_memory = None
++        return inst
++
++    # Window 0 (even): the PIPELINE half runs, realtime-news is deferred.
++    inst = _mk(0.0)
++    inst._process_due_schedules("EURUSD", True)
++    assert calls == ["pipeline"], "even window must run the pipeline half only"
++    state = inst.store.states.get("event_monitor:EURUSD") or {}
++    pipe = state.get("data_source_pipeline") or {}
++    assert pipe.get("pipeline_mode") == "pipeline_window"
++    assert pipe.get("split_windows") is True
++    rn = state.get("realtime_news_ingest") or {}
++    assert rn.get("status") == "DEFERRED" and rn.get("reason") == "split_windows"
++    assert inst._event_monitor_last_full_ts > 0.0, "window ran, so it must stamp"
++    assert inst._event_monitor_window_no == 1
++
++    # Window 1 (odd): the REALTIME-NEWS half runs, pipeline deferred.
++    # last_ts stepped back 400s to simulate the elapsed 300s window.
++    calls.clear()
++    inst2 = _mk(inst._event_monitor_last_full_ts - 400.0, window_no=1)
++    inst2._process_due_schedules("EURUSD", True)
++    assert calls == ["rn"], "odd window must run realtime-news only"
++    state2 = inst2.store.states.get("event_monitor:EURUSD") or {}
++    pipe2 = state2.get("data_source_pipeline") or {}
++    assert pipe2.get("pipeline_mode") == "realtime_window"
++    assert pipe2.get("split_windows") is True
++    rn2 = state2.get("realtime_news_ingest") or {}
++    assert rn2.get("pipeline_mode") == "realtime_window"
++    assert inst2._event_monitor_window_no == 2
++
++    # Back to even: pipeline half again (A/B/A alternation).
++    calls.clear()
++    inst3 = _mk(inst2._event_monitor_last_full_ts - 400.0, window_no=2)
++    inst3._process_due_schedules("EURUSD", True)
++    assert calls == ["pipeline"]
++
++
++def test_event_monitor_split_window_failure_retries_same_parity(monkeypatch):
++    """A failed window must NOT advance the window counter (nor stamp), so
++    the next dispatch retries the SAME parity instead of silently skipping
++    that half of the heavy block."""
++    import sys as _sys
++
++    monkeypatch.setenv("EVENT_MONITOR_SPLIT_WINDOWS", "1")
++    import llm_orchestrator as orch_mod
++    assert orch_mod is not None, "orchestrator module must be importable for patching"
++
++    calls = []
++
++    def _fake_pipeline(**kwargs):
++        calls.append("pipeline")
++        raise RuntimeError("boom")
++
++    def _fake_rn(**kwargs):
++        calls.append("rn")
++        return {"status": "PROCESSED"}
++
++    monkeypatch.setattr(orch_mod, "process_cycle_data_sources", _fake_pipeline)
++    monkeypatch.setattr(orch_mod, "run_realtime_news_ingest", _fake_rn)
++
++    def _mk(last_ts, window_no=0):
++        inst = _watchdog_instance(
++            monkeypatch,
++            [{"schedule_name": "event_monitor", "payload": {}}],
++            registry=[], handler_fn=lambda name: False)
++        inst._event_monitor_last_full_ts = last_ts
++        inst._event_monitor_window_no = window_no
++        inst.store = _Store()
++        inst.data_provider = type("P", (), {"calendar": None, "api_manager": None,
++                                            "client": None})()
++        inst.macro_graph = None
++        inst.client = None
++        inst.trade_memory = None
++        return inst
++
++    # Window 0 (even) raises inside the pipeline half: ERROR payload, and
++    # neither the stamp nor the window counter may advance.
++    inst = _mk(0.0, window_no=0)
++    inst._process_due_schedules("EURUSD", True)
++    assert calls == ["pipeline"]
++    state = inst.store.states.get("event_monitor:EURUSD") or {}
++    pipe = state.get("data_source_pipeline") or {}
++    assert pipe.get("status") == "ERROR" and "boom" in str(pipe.get("error"))
++    assert inst._event_monitor_last_full_ts == 0.0
++    assert getattr(inst, "_event_monitor_window_no", 0) == 0
++
++    # Retry re-runs the SAME (pipeline) parity.
++    calls.clear()
++    inst2 = _mk(0.0, window_no=0)
++    inst2._process_due_schedules("EURUSD", True)
++    assert calls == ["pipeline"], "retry must re-run the same parity"
++
++
++def test_fast_lane_budget_fallback_and_claim_order_tiebreak(monkeypatch):
++    """Schedules missing from the registry ride the handler-budget lane
++    (still ahead of known slow cadences), and equal lanes keep claim order."""
++    handled = []
++
++    def handler(name):
++        handled.append(name)
++        return True
++
++    instance = _watchdog_instance(
++        monkeypatch,
++        [{"schedule_name": "orphan_daily", "payload": {}},
++         {"schedule_name": "b_quick", "payload": {}},
++         {"schedule_name": "a_quick", "payload": {}}],
++        registry=[
++            {"schedule_name": "orphan_daily", "interval_seconds": 86400, "enabled": 1},
++        ],
++        handler_fn=handler)
++    instance._SCHEDULE_HANDLER_BUDGETS = {"b_quick": 5.0, "a_quick": 5.0}
++
++    instance._process_due_schedules("XAUUSD", True)
++    # Registry-missed orphans fall back to the default-budget lane (45s) and
++    # still beat the registered daily cadence; equal lanes keep claim order.
++    assert handled == ["b_quick", "a_quick", "orphan_daily"]
++    assert _events_of(instance, "schedule_skipped") == []
++    assert instance.operations.releases == []
++
++
+ # ---------------------------------------------------------------------------
+ # Session-skip watchdog: claimed-but-undispatched schedules must be visible
+ # (2026-09-26 audit: position_reconcile starved a whole session because every
+@@ -593,7 +871,8 @@ def test_wave_deadline_defers_multiple_schedules_and_releases_all(monkeypatch):
+          {"schedule_name": "deferred_a", "payload": {}},
+          {"schedule_name": "deferred_b", "payload": {}}],
+         handler)
+-    instance._SCHEDULE_HANDLER_BUDGETS = {"hog": 5.0}
++    # Fast lane: hog's budget == default so equal lanes keep claim order.
++    instance._SCHEDULE_HANDLER_BUDGETS = {"hog": 45.0}
+     instance._SCHEDULE_TIMEOUT = 0.4
+ 
+     instance._process_due_schedules("XAUUSD", True)
+@@ -855,7 +1134,7 @@ def test_full_dispatch_and_last_handler_trip_complete_every_claim(monkeypatch):
+         [{"schedule_name": "a", "payload": {}},
+          {"schedule_name": "b", "payload": {}}],
+         registry=[], handler_fn=trip_last)
+-    tripper._SCHEDULE_HANDLER_BUDGETS = {"b": 0.5}
++    tripper._SCHEDULE_HANDLER_BUDGETS = {"a": 0.5, "b": 0.5}  # equal lanes keep claim order
+     tripper._process_due_schedules("XAUUSD", True)
+     assert tripper.operations.releases == []
+     assert {c[0] for c in tripper.operations.completions} == {"a", "b"}
+@@ -904,6 +1183,10 @@ def test_multi_overrun_wave_resolves_every_claim(monkeypatch):
+             _time_mod.sleep(0.5)
+         return True
+ 
++    # Fast lane: unregistered names dispatch by handler-budget lane — the
++    # wave order is slow_a, slow_b, slow_c (0.2s lanes), then fast_1..3 and
++    # the deferred_* tail (default-45s lanes). The 0.6s deadline cuts after
++    # the second 0.5s slow handler.
+     all_names = ["fast_1", "slow_a", "fast_2", "slow_b", "fast_3",
+                  "slow_c", "deferred_1", "deferred_2"]
+     instance = _watchdog_instance(
+@@ -921,9 +1204,11 @@ def test_multi_overrun_wave_resolves_every_claim(monkeypatch):
+     released = {r["schedule_name"]
+                 for call in instance.operations.releases for r in call}
+ 
+-    # 1) The wave dispatches a prefix of the claim order: the deadline
++    # 1) The wave dispatches a prefix of the FAST-LANE order: the deadline
+     #    defers the tail, nothing in the middle is skipped silently.
+-    assert handled and all_names[:len(handled)] == handled
++    fast_lane_order = ["slow_a", "slow_b", "slow_c", "fast_1", "fast_2",
++                       "fast_3", "deferred_1", "deferred_2"]
++    assert handled and fast_lane_order[:len(handled)] == handled
+     # 2) Every claim resolved exactly once: completed XOR released —
+     #    no dangling claims, no double resolution.
+     assert completed | released == claimed, "dangling claim(s) left unresolved"
+ intelligence/llm_orchestrator.py | 454 ++++++++++++++++++++++++++++++++++-----
+ tests/test_scheduler_pulse.py    | 297 ++++++++++++++++++++++++-
+ 2 files changed, 689 insertions(+), 62 deletions(-)
+ M .env.example
+ M SESSION_NOTES.md
+ M START_DECK.bat
+ M START_TRADING.bat
+ M alpha_dashboard.html
+ M artifacts/compliance_dashboard_verify.html
+ D "artifacts/economic dynamics.txt"
+ M artifacts/grpo_proposer.json
+ D artifacts/high_impact_events.csv
+ D artifacts/learned_case_studies.json
+ M artifacts/ppo_position_mgmt.json
+ D artifacts/ppo_smoke.json
+ D artifacts/sample_calendar_events.csv
+ M artifacts/scheduler_tuning_report.json
+ D artifacts/test_data_source_live_integration_report.json
+ D artifacts/test_rl_integration.json
+ M compliance_dashboard.html
+ M core/alpha_decay_monitor.py
+ M core/alpha_ensemble.py
+ M core/alpha_rotation.py
+ M core/auto_quant_tools.py
+ D core/equity_tracker.py
+ M core/execution_safety_supervisor.py
+ M core/harness/live_trading_plugin.py
+ M core/harness/pipeline_v2.py
+ M core/harness/plugins.py
+ M core/harness/workflows.py
+ M core/metrics.py
+ M core/news_indicator_fetcher.py
+ M core/order_execution.py
+ M core/quantitative_metrics_service.py
+ M core/risk_manager.py
+ M core/secure_store.py
+ M core/trading_safety.py
+ M data/alternative_data_provider.py
+ M data/api_manager.py
+ M data/data_quality.py
+ M data/data_source_pipeline.py
+ M data/exness_provider.py
+ M data/forexfactory_provider.py
+ M data/llm_router.py
+ M data/market_data_provider.py
+ M data/openbb_data_bridge.py
+ M data/openbb_provider_registry.py
+ M data/realtime_news_ingest.py
+ M data/seeking_alpha_provider.py
+ M data/yahoo_finance_provider.py
+ M data/zero_lag_macro_provider.py
+ M graphify-out/.graphify_labels.json
+ M graphify-out/.graphify_labels.json.sig
+ M graphify-out/GRAPH_REPORT.md
+ M graphify-out/cache/last_query_stamp
+ M graphify-out/cache/stat-index.json
+ M graphify-out/graph.html
+ M graphify-out/graph.json
+ M graphify-out/manifest.json
+ M gui/components/BrainView.tsx
+ M intelligence/__init__.py
+ M intelligence/autonomous_causal_engine.py
+ M intelligence/brain_observability.py
+ M intelligence/case_study_matcher.py
+ M intelligence/causal_setup_map.py
+ M intelligence/economic_dynamics_catalog.py
+ M intelligence/economic_dynamics_measure.py
+ M intelligence/economic_dynamics_seed.py
+ M intelligence/graph_engine_facade.py
+ M intelligence/graph_nodes.py
+MM intelligence/llm_orchestrator.py
+ M intelligence/macro_extraction.py
+ M intelligence/macro_graph.py
+ M intelligence/opportunity_bus.py
+ M intelligence/trading_memory.py
+ M mt5_trader.py
+ M operations/__init__.py
+ M operations/account_growth.py
+ M operations/agent_contracts.py
+ M operations/agent_scheduler.py
+ M operations/agents/research_agent.py
+ M operations/alert_outbox.py
+ M operations/alert_rules.py
+ M operations/degradation_detector.py
+ M operations/executors.py
+ M operations/journal_audit.py
+ D operations/launch_trading.py
+ M operations/macro_evidence_backfill.py
+ M operations/meta_improvement_orchestrator.py
+ M operations/research_influence_gate.py
+ M operations/reward_attribution.py
+ D operations/session_manager.py
+ M operations/strategy_evaluation.py
+ M operations/strategy_lifecycle.py
+ M pytest.ini
+ M research/__init__.py
+ M research/alpha_miner/ga_engine.py
+ M research/alpha_miner/ic_evaluator.py
+ M research/alpha_miner/pca_projector.py
+ M research/alpha_miner/pipeline.py
+ M research/auto_promotion.py
+ M research/baseline_research.py
+ M research/contextual_bandit.py
+ M research/continuous_backtest_pipeline.py
+ M research/edge_lifecycle.py
+ M research/full_pipeline_backtest.py
+ M research/historical_regime_replay.py
+ M research/historical_regimes.py
+ M research/kronos_bridge.py
+ M research/meta_rl_trainer.py
+ M research/model_family_gate.py
+ M research/news_gate_backtest.py
+ M research/ppo_trainer.py
+ M research/profitability_foundation.py
+ M research/promotion_package.py
+ M research/research_sprint_planner.py
+ M research/research_stress.py
+ M research/research_validation.py
+ M research/rl_trainer.py
+ M research/sample_gate.py
+ M research/setup_registry.py
+ M research/strategy_accuracy.py
+ M research/supervised_training.py
+ M scripts/ponytail_audit.py
+ M scripts/run_session_followups.py
+ M self_improvement_state_memory.json
+ M strategy_registry.json
+ D test_cycle.py
+ D test_debug.py
+ D test_engine2.py
+ D test_engine3.py
+ D test_engine4.py
+ D test_engine5.py
+ D test_engine6.py
+ D test_engine7.py
+ D test_engine8.py
+ D test_fallback.py
+ D test_fallback2.py
+ D test_minimal.py
+ M tests/conftest.py
+ M tests/test_agent_personas.py
+ M tests/test_alert_outbox.py
+ M tests/test_alpha_decay_monitor.py
+ M tests/test_alpha_miner.py
+ M tests/test_alpha_rotation.py
+ M tests/test_autonomous_gates.py
+ M tests/test_calendar_integration.py
+ M tests/test_compliance_wiring.py
+ M tests/test_cross_market_benchmark.py
+ M tests/test_data_ingestion_hardening.py
+ M tests/test_data_quality.py
+ M tests/test_data_source_pipeline.py
+ M tests/test_full_pipeline_backtest.py
+ M tests/test_graph_engine_facade.py
+ M tests/test_gui_api_graph.py
+ M tests/test_llm_router_policy.py
+ M tests/test_macro_evidence_backfill.py
+ M tests/test_market_data_fail_closed.py
+ M tests/test_multimodal_analysis.py
+ M tests/test_p06_twinalgo.py
+ M tests/test_pipeline_v2.py
+ M tests/test_research_validation.py
+ M tests/test_risk_management_hardening.py
+M  tests/test_scheduler_pulse.py
+ M tests/test_section_c_hardening.py
+ M tests/test_strategy_lifecycle_engine.py
+ M tui_opentui/src/components/BrailleRadarChart.tsx
+ M tui_opentui/src/components/CommandPalette.tsx
+ M tui_opentui/src/components/ContinuousRetrainingMatrix.tsx
+ M tui_opentui/src/components/LiveModeBanner.tsx
+ M tui_opentui/src/components/MultiTestBarChart.tsx
+ M tui_opentui/src/components/OrchestrationHealthMatrix.tsx
+ M tui_opentui/src/screens/CockpitScreen.tsx
+ M tui_opentui/src/screens/GraphScreen.tsx
+ M tui_opentui/src/screens/OrchestrationScreen.tsx
+ M tui_opentui/src/screens/StrategyObservatoryScreen.tsx
+ M tui_opentui/src/screens/TasksScreen.tsx
+ M tui_opentui/src/store.ts
+ M tui_opentui/src/transport/live.ts
+ M tui_opentui/src/types.ts
+ M ui/compliance_dashboard.py
+ M ui/gui_api.py
+ M ui/live_journal_reader.py
+ M ui/web_dashboard_adapter.py
+ M "\316\266_code_versions.json"
+?? --db
+?? .cursor/
+?? .freebuff/
+?? .graphifyignore
+?? approvals_outbox.jsonl
+?? artifacts/active_narrative.json
+?? artifacts/alpha_smoke.err
+?? artifacts/alpha_smoke.out
+?? artifacts/arb_tests.out
+?? artifacts/arb_tests2.out
+?? artifacts/backtest_results/
+?? artifacts/bench_laya_deterministic.py
+?? artifacts/bench_laya_real.py
+?? artifacts/bench_triage_stepA.json
+?? artifacts/capstone/
+?? artifacts/cftc_cot_cache.json
+?? artifacts/cftc_cot_cache_history.json
+?? artifacts/circuit_breaker_action.json
+?? artifacts/d9_escalation_safety_report.json
+?? artifacts/d9_false_positive_report.json
+?? artifacts/d9_kill_switch_latch.json
+?? artifacts/dk_check.txt
+?? artifacts/em_tests.out
+?? artifacts/em_tests2.out
+?? artifacts/em_tests3.out
+?? artifacts/em_tests4.out
+?? artifacts/evidence_batch.txt
+?? artifacts/ex_tests.out
+?? artifacts/fastlane_ops_test.out
+?? artifacts/fastlane_pulse_test.out
+?? artifacts/final_check.txt
+?? artifacts/final_regression.txt
+?? artifacts/final_sweep.txt
+?? artifacts/followup_noflags_20260928.out
+?? artifacts/followup_run_20260928T0200Z.out
+?? artifacts/followup_run_20260928T0210Z.out
+?? artifacts/followup_watcher_20260928T0136Z.err
+?? artifacts/gate_reevaluation.json
+?? artifacts/gate_suites.txt
+?? artifacts/latest_session_log.txt
+?? artifacts/laya_bundle_b1.out
+?? artifacts/laya_bundle_b2.out
+?? artifacts/laya_bundle_b3.out
+?? artifacts/laya_bundle_b4.out
+?? artifacts/laya_bundle_b5.out
+?? artifacts/laya_bundle_b6.out
+?? artifacts/laya_bundle_tests.out
+?? artifacts/laya_bundle_tests2.out
+?? artifacts/laya_extreme_bench_log.txt
+?? artifacts/laya_extreme_benchmark_report.json
+?? artifacts/laya_parity_report.json
+?? artifacts/laya_parity_rows.jsonl
+?? artifacts/laya_parity_run.txt
+?? artifacts/laya_tests.out
+?? artifacts/laya_tests2.out
+?? artifacts/laya_tests3.out
+?? artifacts/laya_tests4.out
+?? artifacts/laya_tests5.out
+?? artifacts/laya_tests6.out
+?? artifacts/lifecycle_evidence_annotation.json
+?? artifacts/llm_trade_verify.err
+?? artifacts/lockout_pulse.out
+?? artifacts/lockout_tests.out
+?? artifacts/lockout_tests2.out
+?? artifacts/lockout_tests3.out
+?? artifacts/macro_cognitive_dashboard.html
+?? artifacts/macro_correct_bench_crash.txt
+?? artifacts/macro_correct_bench_log.txt
+?? artifacts/macro_correct_benchmark_report.json
+?? artifacts/mcb_err.txt
+?? artifacts/mcb_out.txt
+?? artifacts/mcb_resume_ckpt.json
+?? artifacts/meta_rl_position_mgmt.json
+?? artifacts/meta_rl_position_mgmt_report.json
+?? artifacts/mined_alphas.json
+?? artifacts/mp.txt
+?? artifacts/mp2.txt
+?? artifacts/parity_regen.txt
+?? artifacts/ppo_position_mgmt_report.json
+?? artifacts/probe2.txt
+?? artifacts/probe_event_monitor_steps.json
+?? artifacts/probe_event_monitor_steps.py
+?? artifacts/probe_mod.out
+?? artifacts/probe_out.txt
+?? artifacts/pu_orch.diff
+?? artifacts/pu_orch_filtered.patch
+?? artifacts/pu_orch_full.diff
+?? artifacts/pu_pregate.out
+?? artifacts/pu_pulse.diff
+?? artifacts/pu_remainder.diff
+?? artifacts/pu_staged_review.diff
+?? artifacts/pu_suite2.out
+?? artifacts/pu_suite3.out
+?? artifacts/regression_192.txt
+?? artifacts/regression_extra.txt
+?? artifacts/regression_final.txt
+?? artifacts/report_minspan_025.out
+?? artifacts/review_batch.txt
+?? artifacts/rt_fix.txt
+?? artifacts/sched_batch.txt
+?? artifacts/scheduler_tuning_report_20260927T130201Z.json
+?? artifacts/scheduler_tuning_report_20260927T130202Z.json
+?? artifacts/scheduler_tuning_report_20260927T130203Z.json
+?? artifacts/scheduler_tuning_report_20260927T130204Z.json
+?? artifacts/scheduler_tuning_report_20260927T130205Z.json
+?? artifacts/scheduler_tuning_report_20260927T160534Z.json
+?? artifacts/scheduler_tuning_report_20260927T171014Z.json
+?? artifacts/scheduler_tuning_report_20260928T013202Z.json
+?? artifacts/scheduler_tuning_report_20260928T013203Z.json
+?? artifacts/scheduler_tuning_report_20260928T013236Z.json
+?? artifacts/scheduler_tuning_report_20260928T013237Z.json
+?? artifacts/scheduler_tuning_report_20260928T013238Z.json
+?? artifacts/scheduler_tuning_report_20260928T051859Z.json
+?? artifacts/scheduler_tuning_report_20260928T051900Z.json
+?? artifacts/scheduler_tuning_report_20260928T051939Z.json
+?? artifacts/scheduler_tuning_report_20260928T051940Z.json
+?? artifacts/scheduler_tuning_report_20260928T051941Z.json
+?? artifacts/scheduler_tuning_report_20260928T065751Z.json
+?? artifacts/scheduler_tuning_report_20260928T070620Z.json
+?? artifacts/scheduler_tuning_report_20260928T070704Z.json
+?? artifacts/scheduler_tuning_report_20260928T070705Z.json
+?? artifacts/scheduler_tuning_report_20260928T070706Z.json
+?? artifacts/scheduler_tuning_report_20260928T073006Z.json
+?? artifacts/scheduler_tuning_report_20260928T075730Z.json
+?? artifacts/scheduler_tuning_report_20260928T094711Z.json
+?? artifacts/scheduler_tuning_report_20260928T095046Z.json
+?? artifacts/scheduler_tuning_report_20260928T095047Z.json
+?? artifacts/scheduler_tuning_report_20260928T095048Z.json
+?? artifacts/scheduler_tuning_report_20260928T095049Z.json
+?? artifacts/session_20260927T1731Z.err
+?? artifacts/session_20260928T0057Z.err
+?? artifacts/session_20260928T0116Z.err
+?? artifacts/session_20260928T0134Z.err
+?? artifacts/session_20260928T0235Z.err
+?? artifacts/session_followup_20260927T174548Z.json
+?? artifacts/session_followup_20260927T180313Z.json
+?? artifacts/session_followup_20260928T020312Z.json
+?? artifacts/session_followup_20260928T021104Z.json
+?? artifacts/session_followup_20260928T022518Z.json
+?? artifacts/sieve_login.out
+?? artifacts/staged_state_check.diff
+?? artifacts/strategy_metrics.json
+?? artifacts/strategy_trial_ledger.db-shm
+?? artifacts/strategy_trial_ledger.db-wal
+?? artifacts/strategy_trial_ledger.db.lock
+?? artifacts/tmp_verify/
+?? artifacts/training/
+?? artifacts/triage_disagreement_seeds.json
+?? artifacts/trial_ledger.db.lock
+?? artifacts/watch2h_20260928T0233Z.err
+?? artifacts/watch2h_20260928T0543Z.err
+?? artifacts/watch_2h_duty.py
+?? artifacts/watch_guarded_boot.out
+?? artifacts/watch_guarded_boot.py
+?? artifacts/watchdog_batch.txt
+?? core/adv_tracker.py
+?? core/automated_training_manager.py
+?? core/benchmark_suite.py
+?? core/capstone_validator.py
+?? core/demo_trading_orchestrator.py
+?? core/distributed_lock.py
+?? core/flue_thresholds.pyc
+?? core/live_training_infrastructure.py
+?? core/llm_decision_logger.py
+?? core/model_staleness_tracker.py
+?? core/progressive_gates.py
+?? core/regime_alpha_selector.py
+?? core/scenario_generator.py
+?? core/sieve_client.py
+?? core/strategy_trial_ledger.pyc
+?? core/trial_ledger.pyc
+?? data/kill_switch_latch.py
+?? data/news_triage.py
+?? data_fetcher.py
+?? docs/AUTONOMOUS_TRADING_SYSTEM_MASTER_ARCHITECTURE.md
+?? docs/CODEBASE_DEEP_DIVE.md
+?? docs/CONSOLIDATED_SOURCE_OF_TRUTH.md
+?? docs/SYSTEM_SOURCE_OF_TRUTH_PRD.html
+?? docs/_prd_build/
+?? docs/diagrams/
+?? graphify-out/2026-09-22/
+?? graphify-out/2026-09-23/
+?? graphify-out/2026-09-24/
+?? graphify-out/2026-09-25/
+?? graphify-out/2026-09-26/
+?? graphify-out/2026-09-27/
+?? graphify-out/2026-09-28/
+?? graphify-out/cache/ast/v0.9.54-s2/002f0c9aa3191722b8bff8ff70d72de57564fffd6dca311f21435edce287037f.json
+?? graphify-out/cache/ast/v0.9.54-s2/00ee68a9b7beda5b59dd2f16dc2ad542aa7e49af4109e9637db348e353695807.json
+?? graphify-out/cache/ast/v0.9.54-s2/0103ddb3836acbdc0e2f15e1386fa109edd6ad3222542cf89eff6e63bb185a0b.json
+?? graphify-out/cache/ast/v0.9.54-s2/011c7eec3fa771cc5612cf9ecde4d85d2706361950d3c34a9da15d7a1e8e2cb4.json
+?? graphify-out/cache/ast/v0.9.54-s2/01849b16d46232ab7a4cdb5bb0e46f6d0103c461e1a20eadf7bde072787feb6e.json
+?? graphify-out/cache/ast/v0.9.54-s2/021321d1f0a6e9b79175adde218cfd6812d2c06c00904591646252d91924aebf.json
+?? graphify-out/cache/ast/v0.9.54-s2/02150ac9ba0a897c409d62ff2c10ca5fb545253a7941f626cca8a25857bbae7f.json
+?? graphify-out/cache/ast/v0.9.54-s2/02736bc3ca806b757a1d67be88e1654de734e4264184c1ec22ca86cb304fc28e.json
+?? graphify-out/cache/ast/v0.9.54-s2/027ea45143a01538f7d947d896597d78b9f83de076fdc4874393dd1e83194f93.json
+?? graphify-out/cache/ast/v0.9.54-s2/02ee315418c92b5e7220360d39b9100a974f5b5019c1ce3ab1707a13c2c5b297.json
+?? graphify-out/cache/ast/v0.9.54-s2/03725683c762a52bd5ce3e0e27bf5103207b90a065b75470a18541b590e5a0d8.json
+?? graphify-out/cache/ast/v0.9.54-s2/038218898f1410f48027c2b4c93384a17c9cd31d214424884bb5a523fcf14367.json
+?? graphify-out/cache/ast/v0.9.54-s2/04494ca439a6726749dfa3a1f2c262bb7c8dd253ece90040e88e3c11f833a6a8.json
+?? graphify-out/cache/ast/v0.9.54-s2/05abab744dabd69eb3dda8eba8fb30c00ef03a9509b9bf94397cceacef9e1b99.json
+?? graphify-out/cache/ast/v0.9.54-s2/06958c8b07f0489481db6be9201d7e5caa317770ee06c917a91cb538eafe8eb0.json
+?? graphify-out/cache/ast/v0.9.54-s2/07076f31a850305fc9f73085d06d82ef283bb403677d2e87724b598602ab9b45.json
+?? graphify-out/cache/ast/v0.9.54-s2/07860fee46ad64a4b37cc0bbed158cb8df3528c245876f43150375f7f9d68306.json
+?? graphify-out/cache/ast/v0.9.54-s2/078c9b3a2296546217f8b475bba39bc9bc23e79e6a2974b769841052c744d91c.json
+?? graphify-out/cache/ast/v0.9.54-s2/07b03cc33336dfb2f74eb086661bbc7c0680441a3cfd25f1d3f6a1d858d7ebac.json
+?? graphify-out/cache/ast/v0.9.54-s2/082042cb2333be295d89a97abc9b6b8e22e1d949f175f2bfe9f985c079e7279a.json
+?? graphify-out/cache/ast/v0.9.54-s2/0904503958aa80d306012e0b255334ab50e6a80d4e7ec97c5dfe53a4004f0658.json
+?? graphify-out/cache/ast/v0.9.54-s2/0924c72bfaaf36944feb4004910b8b336e9e8a484078ed87ccce449e87abe620.json
+?? graphify-out/cache/ast/v0.9.54-s2/09591a3ef6920b9309f337432f6540e1feb04df47b34d11677e86a574bee890b.json
+?? graphify-out/cache/ast/v0.9.54-s2/097ede3a3a96efeb329aeaed0c9c639e0e0a6d34830662039dc090dd835cd1aa.json
+?? graphify-out/cache/ast/v0.9.54-s2/09ebf9d2c1f7bfdde472e049f00e674b983c15b225de8afc4ddea1cd8e7c8889.json
+?? graphify-out/cache/ast/v0.9.54-s2/0a46b3b3b5759717caa5861aa497af60c4655afbc123304c6adc5b3a091e582f.json
+?? graphify-out/cache/ast/v0.9.54-s2/0a665093ce67545fb19f83b6c32551f472afa7b72b68414303b128021b1133f3.json
+?? graphify-out/cache/ast/v0.9.54-s2/0b3f7bb75d8cac5969173c3c66aa8ec23a932542b509cc721a890ca794271b38.json
+?? graphify-out/cache/ast/v0.9.54-s2/0b4911fb299f6da7fc5078813f001905586889c3a4989aba58329aca226081da.json
+?? graphify-out/cache/ast/v0.9.54-s2/0b9c3e9818e685cc7e01da313ebb5643c86c64e5b7462d9dce8e099dacd31a89.json
+?? graphify-out/cache/ast/v0.9.54-s2/0bad96d6c3465400aebb322440542fd3a6a333002af3aa874382149e51839cca.json
+?? graphify-out/cache/ast/v0.9.54-s2/0bb72e720f43cfdd9b867f075f34f9a207c81707ab220afea76613ff461a4981.json
+?? graphify-out/cache/ast/v0.9.54-s2/0c61f6e5a542b57d87c9932d97ce5026828598d089654d32fa526847e61f821f.json
+?? graphify-out/cache/ast/v0.9.54-s2/0ca446cdc25dcb2125eaf99109d0becc29da2d5bb59c8903cc1abf291681a445.json
+?? graphify-out/cache/ast/v0.9.54-s2/0cacd5a439a4b454980079f5803e1af8f2565fd94a96b34de1ed4788f2a29e14.json
+?? graphify-out/cache/ast/v0.9.54-s2/0cf256a7759eea32567b9560a26d25cc3f0353860b5f84d7020daa8d24338682.json
+?? graphify-out/cache/ast/v0.9.54-s2/0d7c4ab90a130157f8d55393c40ffcd13726b943d375a5d9b9a9131c09e22852.json
+?? graphify-out/cache/ast/v0.9.54-s2/0d8854b757495ec2b3fcb07a820b78aa291f3d7b76b985fbb71ea6da3924b076.json
+?? graphify-out/cache/ast/v0.9.54-s2/0db2d8eca30e518fcfb0e6a353d5235bb5659de110371261cbcb073b7e5469d8.json
+?? graphify-out/cache/ast/v0.9.54-s2/0db7ba79517aa557a456065ff0ca90414f8928679fc22064124f22fb0cef6263.json
+?? graphify-out/cache/ast/v0.9.54-s2/0e1d00855bcb1ae356266710e0160906e49d07c199a9017d55d3b22aa04cdf93.json
+?? graphify-out/cache/ast/v0.9.54-s2/0eaebf2d0976c087916005a31e7966e02368501b581c1b53928486339210752d.json
+?? graphify-out/cache/ast/v0.9.54-s2/0f8dce1e4948ecd9281da9600dbbe288fa89ed761a24eff9c7badc667d3f901a.json
+?? graphify-out/cache/ast/v0.9.54-s2/0f905792ddd9127842aea6cd6ee2cad45921f050de5224a094f7c4a18a7e12c6.json
+?? graphify-out/cache/ast/v0.9.54-s2/1060509c5539031423ad8f4b195883a99bface512f9e459c4dc9c045d7af4ef4.json
+?? graphify-out/cache/ast/v0.9.54-s2/106dbf9a8bfef28f8fd380ce1673e43f502f80c08712fe057332d00794d82c8a.json
+?? graphify-out/cache/ast/v0.9.54-s2/10b0b1c2de6fd7254e3f48f8635eff406ff0ef6705335f2f15870d62c323330d.json
+?? graphify-out/cache/ast/v0.9.54-s2/1131ebbe4833f856f998330bc111cb0792d45242167f0caceb7efd4628f3fbbb.json
+?? graphify-out/cache/ast/v0.9.54-s2/11d50d9ae68bb66f210ec58e96fd15ee0d8ecee15e447979f9f946202463ee82.json
+?? graphify-out/cache/ast/v0.9.54-s2/123c0b392d3d72188b62d98ad8979ad0a9d875051486f450beed3cf5c3668a19.json
+?? graphify-out/cache/ast/v0.9.54-s2/12512e03bbbe425274ee1146d499ebb0c56f624c9c3107f117cae253286ec427.json
+?? graphify-out/cache/ast/v0.9.54-s2/1382f5b9f55b7f7952f19deeff4380ac691bb3b82dc41dc55b126500a61afbcf.json
+?? graphify-out/cache/ast/v0.9.54-s2/1383aa8c5fba5a10fabdcbc6e2171dba090079bbf9baccaac1962e23a5064242.json
+?? graphify-out/cache/ast/v0.9.54-s2/138bc3aee4b5ae46d662a7aa2174127ce16beb4274bd489ef99251e6a529764c.json
+?? graphify-out/cache/ast/v0.9.54-s2/13be85227878e65a7faf414662026d6b84a666b8604666245d7ab66f52da2c7c.json
+?? graphify-out/cache/ast/v0.9.54-s2/14147d0a431b44a58f0e8284b216ea6a215e506586e35d32cad94ada1d5c6fff.json
+?? graphify-out/cache/ast/v0.9.54-s2/1475ef65df8fb79a03ef9cc60d01704482b518c7acf54641c28a72efbbe7f06e.json
+?? graphify-out/cache/ast/v0.9.54-s2/150cd86fb572079af06af15d30849685ae70c3910f2345a8d1936c6a385408ff.json
+?? graphify-out/cache/ast/v0.9.54-s2/154662922dfe5ad75e4812a5a172cf5d248e067c344b13ddde581e616eddacd6.json
+?? graphify-out/cache/ast/v0.9.54-s2/1568146e5b3dd064273db32cf81946c1578154689767993cb99be780fb2ae46c.json
+?? graphify-out/cache/ast/v0.9.54-s2/164d49ccfbb45e96b9e04a26b4193ea435baa8e99dffe8779eb955ff4b2450a0.json
+?? graphify-out/cache/ast/v0.9.54-s2/16915f0ec838c77c7f5e112bd6c67fcbb51c1c5ffb22911b795b3bd818f0a223.json
+?? graphify-out/cache/ast/v0.9.54-s2/16a34717e34ab1beb3a94aade29d65489addbf11d36d7488931c8d91ffb60c5f.json
+?? graphify-out/cache/ast/v0.9.54-s2/16ff42a23886d83c353ca5f8a291cb44d6f2289a8e0cc502586e7ffff5100630.json
+?? graphify-out/cache/ast/v0.9.54-s2/1717f3eba077242442aee1815affa4fd505d603e782d18377a11cbb264b003bc.json
+?? graphify-out/cache/ast/v0.9.54-s2/17524199de147897eb25a930bc5d44f9fddc885fc3253532209ee0630fde148a.json
+?? graphify-out/cache/ast/v0.9.54-s2/175f6861687c751398f56c4e4243d2ce065a0426d2e8193bd11c9911a8be4301.json
+?? graphify-out/cache/ast/v0.9.54-s2/180d93d3ca22831701eed2aca49e2fc6e00f7f19cb7785b77d783ed7ef4de20f.json
+?? graphify-out/cache/ast/v0.9.54-s2/188145a343cc3793023628200fdc8047e1d0958816bdd288c4b2abf2f51c652f.json
+?? graphify-out/cache/ast/v0.9.54-s2/18a048d70b5abb1054a23800fd36bafdfbad88174d9e91cdcf7860c31220116d.json
+?? graphify-out/cache/ast/v0.9.54-s2/18f2da48a13849b8bd5b04fb0ca4d60d57e17b594f9057ee9391feb816b769c7.json
+?? graphify-out/cache/ast/v0.9.54-s2/1942c1447d9abe4871a29a088b48288d6d70629e06889fc59b881830e037149e.json
+?? graphify-out/cache/ast/v0.9.54-s2/19cee736dd5fbe35f8df42b9881fae5ebb56f0c31722a47f14e21c9f00d0f786.json
+?? graphify-out/cache/ast/v0.9.54-s2/19f1c80b8af2a1c22937d3379f0ff246e33ef518721850bc6b8d787e437bc61e.json
+?? graphify-out/cache/ast/v0.9.54-s2/1a18d13f02f3b401e0a983de5b07ea4883ac2f74dc39b1d07fba207eaf4cd6ea.json
+?? graphify-out/cache/ast/v0.9.54-s2/1a5b9a31922be075255a8edc2f39c9522a6119b8b3c48341f5324599ce6e5888.json
+?? graphify-out/cache/ast/v0.9.54-s2/1a8b6203d8e24b1f626bc3b5a7032ce2f2fac7eb0e83fe658c0fa97391303f9e.json
+?? graphify-out/cache/ast/v0.9.54-s2/1a9ae6f899f51bcc010b3d4f675c49a777c93ef82bb28f9c22e7e379682deb72.json
+?? graphify-out/cache/ast/v0.9.54-s2/1aba662d9804a4f3d81b01911136e0fa659e08c20320c42efb8ec027b84a91aa.json
+?? graphify-out/cache/ast/v0.9.54-s2/1ac77c2fbe0da64330c5f1f01e23142d96118ccbbf7a1e50a5dcf60e182ce487.json
+?? graphify-out/cache/ast/v0.9.54-s2/1b093a812e6bac6c78114eea76f76f06720bb496c2ee0fa17da1777cdbe3d81b.json
+?? graphify-out/cache/ast/v0.9.54-s2/1b7f108817f738d849232253a998b4c2810189c44fffa92af1f16ce739bc2c2e.json
+?? graphify-out/cache/ast/v0.9.54-s2/1b9795fb5b884a72fabb4cfa21019eee718942a5f30b51c6c1d74000908eb481.json
+?? graphify-out/cache/ast/v0.9.54-s2/1ba327628da584a14bc807cc87360d4bb92faff565fe5604e7bca9d07a50a37e.json
+?? graphify-out/cache/ast/v0.9.54-s2/1bebf3034de84d1018caab9fdd216e9d442b9392be236e5da16103d28b047c0b.json
+?? graphify-out/cache/ast/v0.9.54-s2/1c145fadd57b0cce047a55a318a88c82c8e65a60d0618933b38f4059c92ad72e.json
+?? graphify-out/cache/ast/v0.9.54-s2/1c555544867d964742797ea4804c5c6c40f3a18338d76177b1e4057a651a8307.json
+?? graphify-out/cache/ast/v0.9.54-s2/1c8bcaa214fdbb125f778c29e21a70d499c2cbb5f6c7aa6d0ccdf119dbd0e277.json
+?? graphify-out/cache/ast/v0.9.54-s2/1c9f32a9da3d56c58cdf136ae8ae3c3b1ced39464662fbcbf29e41966e68c4c9.json
+?? graphify-out/cache/ast/v0.9.54-s2/1cf4a77ead9819ae81b0a3572838e64ce94a847ebd1550b0db563893abc78900.json
+?? graphify-out/cache/ast/v0.9.54-s2/1d097b917b2f71ebafb57a99abb14b8d0b2a582b076767ab7dcdebca5ea93582.json
+?? graphify-out/cache/ast/v0.9.54-s2/1dc04b0cfd5f981fef69fad77c85c11d331d0d81744df44d26aa46d72300676b.json
+?? graphify-out/cache/ast/v0.9.54-s2/1df33d709c39e8820f4a6b621d00e6cc1435a757d37d0d82fcb554aed92d3eee.json
+?? graphify-out/cache/ast/v0.9.54-s2/1e64f6f278e1732d88dcae81ac2d35aef9ec0a821a1ce734f4c95b1f7fa71d65.json
+?? graphify-out/cache/ast/v0.9.54-s2/1f2145135663ec5d11758366d56ddd895d835a433d2df8186b131ba9d7307fb9.json
+?? graphify-out/cache/ast/v0.9.54-s2/1f22382dc7a779cd15dbc88f9d99c4742113e42d33bb9ec5f5160f9a28041c27.json
+?? graphify-out/cache/ast/v0.9.54-s2/1f664999f90ef1bd26eb9dd623547cc1bdb7e78453f815613601cef559cb9ed2.json
+?? graphify-out/cache/ast/v0.9.54-s2/1f8fb82b99f70405cc5042272ff93ed20028a437a6d7e007fd4a509e70acd8c5.json
+?? graphify-out/cache/ast/v0.9.54-s2/1f9de7be08700bcb6f607e2f6ba210f8f38ba275c3335220cd850ae4305cd555.json
+?? graphify-out/cache/ast/v0.9.54-s2/1fe214f0f8c3551a0d493dfe2fb09d765285ea537e63ae18bb52f794513fe0ad.json
+?? graphify-out/cache/ast/v0.9.54-s2/1fea8485ee98168e15ec014f917c6fe0b42da98626534a47bd46222bf8ede5b0.json
+?? graphify-out/cache/ast/v0.9.54-s2/1ff0eddd4ba55bbe7e60d7e949c5bac0e715fceab985d9d1e84a2e9fffec8c24.json
+?? graphify-out/cache/ast/v0.9.54-s2/1ff54cb8a0eb9677e75a871f1104369333ea07bc46815b3434f938d753f44336.json
+?? graphify-out/cache/ast/v0.9.54-s2/2024873235ada5e3f8f7dfbf8b6b2fa9eac99caee38a05f4f3acebc77ef127cb.json
+?? graphify-out/cache/ast/v0.9.54-s2/20b95d7b9e071fd34a8bb1e8a0a0b76d4b4b4362abc35c0036e66dcffb0f699a.json
+?? graphify-out/cache/ast/v0.9.54-s2/20f0d8a3395c910d07c0abfd3f94889c85eeb815afcc8a8764b4ae96a467dcb7.json
+?? graphify-out/cache/ast/v0.9.54-s2/20f170b24f88e5ce03027c623c32d2d29938592c5d3fe8a39b144ba068cc6f46.json
+?? graphify-out/cache/ast/v0.9.54-s2/21376757592259a63b68b4328a4f0a635393350ae0dff24995ec8b5698cd029c.json
+?? graphify-out/cache/ast/v0.9.54-s2/214f9406a69b8585bfddcea01d1cad531696e037c997135f542af2358073363a.json
+?? graphify-out/cache/ast/v0.9.54-s2/2163130a05c44bd8f0ac80980cd9a3423a140d8767fd41caa70e4314f7f6872d.json
+?? graphify-out/cache/ast/v0.9.54-s2/217035ef89a9ca5d153a4bce94c20d99f8512d57ade5d1257731ae0636154f3b.json
+?? graphify-out/cache/ast/v0.9.54-s2/21ee8287c0ea296b627cfc49c3348270f874a27affe51c9a61b8b21f38808e03.json
+?? graphify-out/cache/ast/v0.9.54-s2/220f6984a561ef1493236b0d742529b2ff54fd6c3a0b9301101ec1625a7619e5.json
+?? graphify-out/cache/ast/v0.9.54-s2/2236c4870f221118a4b97bd0a516efe4b4df3df71545654ea00213ba75098f28.json
+?? graphify-out/cache/ast/v0.9.54-s2/22c278fb5ef7c6bf163cd5f824b00aff6e3fa99bebc3463c286cf10ef5752fa3.json
+?? graphify-out/cache/ast/v0.9.54-s2/235da3c2e52af965d0be9cf869bf1af849058ad5569f22d51140100f851aeab2.json
+?? graphify-out/cache/ast/v0.9.54-s2/2372d46d586b49be46874cfcef601b4d5f529e72be8f62291141c5bac9f3a3f6.json
+?? graphify-out/cache/ast/v0.9.54-s2/2380670658dabad268c1674908ce141f25921df5d948ed000144dfa92bc44dc3.json
+?? graphify-out/cache/ast/v0.9.54-s2/2389e654f95acd12d53c18fb155260e1e7eb7f7efdd00af9eaad0a0ef89e8220.json
+?? graphify-out/cache/ast/v0.9.54-s2/23b37d4998e85566afd1073a92f4d04cd84221ffb1baf2279d5e4efb09dd6835.json
+?? graphify-out/cache/ast/v0.9.54-s2/23b8737f552573afd4ea0adb782e7f6afbde5922e32ed618ec3eee4553e1c0e2.json
+?? graphify-out/cache/ast/v0.9.54-s2/2429853dd344e2042fcea93cfbe9c75e7c57df5a0d9522d7f568f11cd67ead22.json
+?? graphify-out/cache/ast/v0.9.54-s2/249de1bc6a58967b563704a56df1ee5bbdbccf254efbdff7879ecaca1a4cf8bc.json
+?? graphify-out/cache/ast/v0.9.54-s2/24d51dfed5a99124f66acfb7638ab404c6cf776e54994642ac88f97135400bcf.json
+?? graphify-out/cache/ast/v0.9.54-s2/251e30dc2ccad6c4e4bc02b20d1e4a44105ab789aba35928c4c66c98a4dcfe38.json
+?? graphify-out/cache/ast/v0.9.54-s2/256575b06330b8577b14ea7999694bdda656b5688332bf036adde8b4d7528608.json
+?? graphify-out/cache/ast/v0.9.54-s2/257d172167e9da6cd8dece4a9395c29597eb07d19a688fec0cc697a75f2afc1e.json
+?? graphify-out/cache/ast/v0.9.54-s2/2660e12c64667caaa03ce929adb3f88c21e7053e7f343acbcf0001d24f011b5f.json
+?? graphify-out/cache/ast/v0.9.54-s2/267758e39c4ad95a1e4d47af5edba855ecb47f6f32d1b946445dfa2b8c498a84.json
+?? graphify-out/cache/ast/v0.9.54-s2/2736d63be0dbfe159d82cebef5602237eb4fc9d1877431c65426b96681758adc.json
+?? graphify-out/cache/ast/v0.9.54-s2/2777278e14f69c9868bd2637dbf1eaa29b536f186dae12f5707231bb32c5789f.json
+?? graphify-out/cache/ast/v0.9.54-s2/2797765d4d73e40489805dc8df3e8688376562b89733200df17c8161bf5adeda.json
+?? graphify-out/cache/ast/v0.9.54-s2/2817b3fef6a94934e143041116abe4ea3cdfb30bde4719b91aec5b57ca09a34a.json
+?? graphify-out/cache/ast/v0.9.54-s2/284e59f8b02d65ebcfc99529283214cb7c142bfa7a4da24bfb2fcab6a40b82a7.json
+?? graphify-out/cache/ast/v0.9.54-s2/285b72159fa499f432f6a5002ec7ef98cef96a5c09b2c231ef4b386e666cda26.json
+?? graphify-out/cache/ast/v0.9.54-s2/2927026e51f4320769e810a25e3919ef7e96869739b962fa389687aac596ea78.json
+?? graphify-out/cache/ast/v0.9.54-s2/297c6d2a95f913b3f53672ee8dcb3700aa24374953191c465454a1bbb8206905.json
+?? graphify-out/cache/ast/v0.9.54-s2/29dfe2bf171cdcf04b4454490f4a9d867cb7aa7e799ae8ee5c35658508a056e3.json
+?? graphify-out/cache/ast/v0.9.54-s2/2a199c9b76235da897c652612358cf05f2d380293346b6a7dc204181f7ec0850.json
+?? graphify-out/cache/ast/v0.9.54-s2/2a83e2b8900785fdbd9850a23274c840993c008e038dcb011e7f02fb0d854602.json
+?? graphify-out/cache/ast/v0.9.54-s2/2a9abdd26cb4c1ab0c5257ea122dcb314bf0397e3c84948aa5702bd26bb49d86.json
+?? graphify-out/cache/ast/v0.9.54-s2/2ae3a2b6dc9a694cb45e1d9070655f36f4700c16a061d849f0a30f81e23eafd7.json
+?? graphify-out/cache/ast/v0.9.54-s2/2b8806fd44231dc511d897c0f5d48a33caaa5c60cd93e10120a9983ec9de0381.json
+?? graphify-out/cache/ast/v0.9.54-s2/2bee1520335deb68f816c058a1df33d002014767fad3e58f7179bbc1fec16e42.json
+?? graphify-out/cache/ast/v0.9.54-s2/2cedb75fb487bd754865b74bcd7b3a272ddb5531cc4668293818fea0c5a1b65e.json
+?? graphify-out/cache/ast/v0.9.54-s2/2d141d4b7dbeb9dbb48ca94bc1a45c332fd4b7acef864a0f4b0a96d37c2c2936.json
+?? graphify-out/cache/ast/v0.9.54-s2/2d6b0741ea3ac386263d3d42bee133071806f637bdb104a38cc613b252b2e212.json
+?? graphify-out/cache/ast/v0.9.54-s2/2d7f25e932347041f7986d56a25985d99f52ffdb5156451412f36ea8e5e91379.json
+?? graphify-out/cache/ast/v0.9.54-s2/2dbf7a675dceaced85a529f97be445788352431f1d0e712d08a26161ddc55a62.json
+?? graphify-out/cache/ast/v0.9.54-s2/2dc8e34e31a0894ef05994baa7f7bdfa2d00a6172fbc0b46cafc800065465b27.json
+?? graphify-out/cache/ast/v0.9.54-s2/2dfe3430ce09e86a3f8655456527f97ea3d3e494472982093be9a289533a90af.json
+?? graphify-out/cache/ast/v0.9.54-s2/2e053e15143d692437d46fdf645c5b96f51ca6d3b029c4ba128fe5aa941703dc.json
+?? graphify-out/cache/ast/v0.9.54-s2/2e16b86ab0a10df6d385c672fc1c187d2e975a36616d73772c05348a399cf4d7.json
+?? graphify-out/cache/ast/v0.9.54-s2/3074b4023a0d2009e16d7400554e81b3454f4e241cffe33f8d067a459242842f.json
+?? graphify-out/cache/ast/v0.9.54-s2/3089846da27758eb8e7827dabe2aefda9082f61280dc39e481829a60f85cd27b.json
+?? graphify-out/cache/ast/v0.9.54-s2/309c56b8a1521be55a2aa43d69cd80d4ae5c09e59259a46ad62a54c158cb4bd8.json
+?? graphify-out/cache/ast/v0.9.54-s2/31eb35e4aa85a6a19f008d7057010b85eb9059d769acc08660ed5ae7ee01f28c.json
+?? graphify-out/cache/ast/v0.9.54-s2/320d4b4d4a4d5574be3db4dae2fe3ea8f1c08747777cf780fba8ec4674e2881f.json
+?? graphify-out/cache/ast/v0.9.54-s2/321f5ea41eecb29af94e9f03d9621ba17217d9c5516c3de9e187315bfd4561ba.json
+?? graphify-out/cache/ast/v0.9.54-s2/322a75f577756cd99502f1570564768414d5e15e4841ba8dc16ce3ed41233ec5.json
+?? graphify-out/cache/ast/v0.9.54-s2/325876a382c2db5e8ae725fd1135ae48caaba9a5d0ceaf1729d0dcb0b3ba59b4.json
+?? graphify-out/cache/ast/v0.9.54-s2/32aefd0bb5f21c85c96570dc1cf75abbe31036691ad052652291e869e46b9fd2.json
+?? graphify-out/cache/ast/v0.9.54-s2/32bd68923215ff2cce228fae9cc9de8a424fbc3d26ac7397378927710e4cc882.json
+?? graphify-out/cache/ast/v0.9.54-s2/33224226cc31823b11d6ba5dc4e1458b20349cd1dc8e91ce725f7fa51b166c49.json
+?? graphify-out/cache/ast/v0.9.54-s2/33255ac1e62d01c2e1f056631ae3fab3e91a1933583efd2ef0418e352a26d010.json
+?? graphify-out/cache/ast/v0.9.54-s2/335c97825edefef12415f842ccde1777ef19404c54d6db212984e3a08dabb3fb.json
+?? graphify-out/cache/ast/v0.9.54-s2/3395eaa2b231371016a041245dcadfe6bd5ffffba7716b75e865c826222accc6.json
+?? graphify-out/cache/ast/v0.9.54-s2/343042e8bfbe68d4f2e6e09bf6333245505214e6cd5f9c63fc3105431ec6fad6.json
+?? graphify-out/cache/ast/v0.9.54-s2/344992f4f8f1f16c60bb37bb2225c53b4ab8cc8c82f2b1f1b9c4748ef58252c9.json
+?? graphify-out/cache/ast/v0.9.54-s2/34a1f902fc57954accdb5d70830bee05f7145040f2b547fe3d522d19ad1d8fe6.json
+?? graphify-out/cache/ast/v0.9.54-s2/34da16e6a6d3a742effba027aca4c30a4632d927b9781a20f3bea2a52b691a01.json
+?? graphify-out/cache/ast/v0.9.54-s2/355a404a9d739ddda212142f051a6eaaea46eb341cb5bcfd40c7a0b06de6790e.json
+?? graphify-out/cache/ast/v0.9.54-s2/35c0a23fd5f6b0ee8755c984bf245cea1c361ea04b23ec9b37e89e43c67c0b4e.json
+?? graphify-out/cache/ast/v0.9.54-s2/36296a33c1c1f5bc1d06415c0aa65df7746e67f21ab3330c79e7a92398f947ce.json
+?? graphify-out/cache/ast/v0.9.54-s2/3654a49a0314f956972c32aa82491a51b17c5ce35725c7cbc38c99e7ea8e8f47.json
+?? graphify-out/cache/ast/v0.9.54-s2/3699966fcf58979ef278b7faa102f6da1817fce433cee95876c736c4f0e908a0.json
+?? graphify-out/cache/ast/v0.9.54-s2/36cc07b3650636f2b852d552d163b17d480366847e124896bba814f8fae6f5c2.json
+?? graphify-out/cache/ast/v0.9.54-s2/374b2c61f36e8c07e298c323033a62a5417e041569e532986bc3bb9433251684.json
+?? graphify-out/cache/ast/v0.9.54-s2/379379f10aab31aed49ca51423c124ab51423c1379d04f1cc59731fcc39119dc.json
+?? graphify-out/cache/ast/v0.9.54-s2/37d07f2437b3ce5cac5b3b6654f64e50d4f5cda2a0db473edf8aa8e52e315d3c.json
+?? graphify-out/cache/ast/v0.9.54-s2/380d343aa7f7c2e5828e618e4a99aaa12024468c6c867cb0e4d1ab7268149fd5.json
+?? graphify-out/cache/ast/v0.9.54-s2/3827ac80e5c02ac77fc7441e01440136398acc4e27f40d917d1b171e18b6427b.json
+?? graphify-out/cache/ast/v0.9.54-s2/3841197982a17e440602fd7da6a2df38c6390e87654249dadfa0698339d58808.json
+?? graphify-out/cache/ast/v0.9.54-s2/388498212fcaf5c83a95d15c6c21ad3e37678d290b18dc92fe3e71984a1ab0c0.json
+?? graphify-out/cache/ast/v0.9.54-s2/393b20e59e27ac0dbf0595d35c54b8a730fded8c7fcdea58fc582c9af854befb.json
+?? graphify-out/cache/ast/v0.9.54-s2/3a87ad55edd26420c37ee1078429002ad58f2528ae5511b56aae89db28ba86f5.json
+?? graphify-out/cache/ast/v0.9.54-s2/3b04f8f4104ad2144b4c46903215041e8a46135a3cf34ed0f2c31ba9c62e2cbe.json
+?? graphify-out/cache/ast/v0.9.54-s2/3b96b149cffa36e4c123ae0275c4c3b316a1b2041bdb7841c30ef81dc05ba414.json
+?? graphify-out/cache/ast/v0.9.54-s2/3beef3a066bd3c28881a1e2559774c45423f6cdafccdd629cfac1c7690eeed4e.json
+?? graphify-out/cache/ast/v0.9.54-s2/3c6fe5757f97849f0ffe4217d1f9bea725c3dc7bd0a6db248082b01c8b084949.json
+?? graphify-out/cache/ast/v0.9.54-s2/3c9cef03d23e1bb90932f8e72f9e448621452c9db004b96dfbaca8f02cefade5.json
+?? graphify-out/cache/ast/v0.9.54-s2/3cd21259c334c40a088b6d9196d3b43911645c4065b36b42d4167c0a41bbe226.json
+?? graphify-out/cache/ast/v0.9.54-s2/3cfb5640e3114934b0edf1c592d26243cac443ed1ff3af23b56ee7e708bbbae3.json
+?? graphify-out/cache/ast/v0.9.54-s2/3dac04b7ebe06fc2e6343b60828e8745b6679de736cd1ee502de1e7f479814eb.json
+?? graphify-out/cache/ast/v0.9.54-s2/3dbc46a7f54fb47b243976480a127b6cbf5145ef41f7c61d3f86d4878eece69b.json
+?? graphify-out/cache/ast/v0.9.54-s2/3e45927401962513c712a0dd1983aa3b1628d6f82232e35beb82889d4b19020e.json
+?? graphify-out/cache/ast/v0.9.54-s2/3ebd87194d2767b76bfef73af53fbf2c81cd0ec0e54081096873f365806d5269.json
+?? graphify-out/cache/ast/v0.9.54-s2/3eed59501ff8e13acbec5d96eb513a6b82c166a7ecf8491a862027c827c41c41.json
+?? graphify-out/cache/ast/v0.9.54-s2/3f3affe5dcaf50c34206d702452934ecbaca789d2caf4a1c3ba12f63e453d946.json
+?? graphify-out/cache/ast/v0.9.54-s2/3f63e55aa1308764261fd22a7fbd41d2924490da92b7ddea95753665b27a93ad.json
+?? graphify-out/cache/ast/v0.9.54-s2/3f75183a9fd7716fc1a80710f08f528764b4b6a2840031d223f23a9b20b19f18.json
+?? graphify-out/cache/ast/v0.9.54-s2/3f753683377675f9d2e2212ee5d3d484a8c98c33f827cb48d090af018cf69163.json
+?? graphify-out/cache/ast/v0.9.54-s2/3fcc9542a280f926cb64925063f7b5d309e53c706a9114d2fac97effd9176f82.json
+?? graphify-out/cache/ast/v0.9.54-s2/4039d3fd73e8f4da573c86808e3e2cd9984731ea19474513246e7b9d55872fca.json
+?? graphify-out/cache/ast/v0.9.54-s2/403cfab316156d3955c941ff7c7a4daff8c060c05f468670293c93eff5bc9aa0.json
+?? graphify-out/cache/ast/v0.9.54-s2/40779087a7a92278513780915787f4fcaa850f83404c3651234ed46141660f8b.json
+?? graphify-out/cache/ast/v0.9.54-s2/409c9b334f3d49fcbea6202ac36167e9d591ea1b8553198b3529dff80c1835d5.json
+?? graphify-out/cache/ast/v0.9.54-s2/40e800d2293892c10b0f6877700ac2c0650882d7a1f4a6e0f7034d55e0b3018b.json
+?? graphify-out/cache/ast/v0.9.54-s2/4153f508ea04f08621dbabab4b3bf9fbdea48c2731f46ce08093d1c3eef9fdb1.json
+?? graphify-out/cache/ast/v0.9.54-s2/41944febc0671d249a2b11e381e76eeebcfd36628b2845bf01238ffc3060ca64.json
+?? graphify-out/cache/ast/v0.9.54-s2/4229a697096ae3bcf20b559b81e0f52ac41b59b57790790efcc91e86b19df995.json
+?? graphify-out/cache/ast/v0.9.54-s2/42be56652ddf17faa88ead5f14e186cdea11011911d50b625932f23c794dd9bd.json
+?? graphify-out/cache/ast/v0.9.54-s2/42c534d9745febd0788e05f4daa4b497a06abec356189da06f92d8d56aa2711a.json
+?? graphify-out/cache/ast/v0.9.54-s2/4335f14608c7586fe4709cd5ec08e1ed083a6959e7f79a35b024883d15873055.json
+?? graphify-out/cache/ast/v0.9.54-s2/44339e1f9561f7183db6cd0fd83f3e5e3684f1a4da65ecc888498eb5bb5f6a19.json
+?? graphify-out/cache/ast/v0.9.54-s2/44c4c5a8da536a61c53703a26c0408c8d5c7017cd71f06096a10b514d2ab2682.json
+?? graphify-out/cache/ast/v0.9.54-s2/44fe5a600442e874bb5466301388d5fe56a69b5f4925eb1a6a4861b4ae1001bb.json
+?? graphify-out/cache/ast/v0.9.54-s2/45231027d06376687b68b35338369e8dfdffefe496f3b9dd04d1e084d78cea36.json
+?? graphify-out/cache/ast/v0.9.54-s2/4563792ef9f788ef3583b851814c8a5cdae9637d9cb1fd63aa818a3273e85688.json
+?? graphify-out/cache/ast/v0.9.54-s2/4575379633377acae1cc3484f2d9cc9fd9bbb7499daaaa1d7c86ce0337f0fc2c.json
+?? graphify-out/cache/ast/v0.9.54-s2/45a3fff3a171d83837f47d5652ad5970141228971be4f540f77971c05a5e8234.json
+?? graphify-out/cache/ast/v0.9.54-s2/460e7dc23a8c09a34332a4723949b9d2b5e73df79494e7cab72432bb29c81890.json
+?? graphify-out/cache/ast/v0.9.54-s2/462bbeff61bf3f30f0f11d8fb6a1a98846db106dd98cda306416ab47891afb5e.json
+?? graphify-out/cache/ast/v0.9.54-s2/46e0200346c73eab3d30082814adc5a3bab8f05a9d61ce2a7b55c14397e693ab.json
+?? graphify-out/cache/ast/v0.9.54-s2/4707a3d35e2e2c57fa4535736aa86f9e39e199e74f2254cf28ac6653d3d8a71c.json
+?? graphify-out/cache/ast/v0.9.54-s2/475aa4992c080a3482c27af066a4c16834775052643ebbd96afe46e3412317bc.json
+?? graphify-out/cache/ast/v0.9.54-s2/4763da92afb49fa71d4f774213dd34a968cf69f5e3328fac5ebe4bd63a5c20a3.json
+?? graphify-out/cache/ast/v0.9.54-s2/476685f1695260d309a0acd95176b718cc2da4dd083a9319c76c991728861319.json
+?? graphify-out/cache/ast/v0.9.54-s2/47a8a1d284a29ca51add15c98bac811e55f98c31c3c3aa5c95686cc04b539285.json
+?? graphify-out/cache/ast/v0.9.54-s2/47b3449ea9d62a3b6cb2f452b69d63cb64236f343bde225cd674b89f79cdf6d3.json
+?? graphify-out/cache/ast/v0.9.54-s2/49d80d6dca7b004d644d6c4125e83d7ecb777edfa8084fb54c490f3758fd5c9a.json
+?? graphify-out/cache/ast/v0.9.54-s2/49e35a82f56ba754017f0ab6601d5b4ef2810fc5d37853c8e2fdd3aa3088586e.json
+?? graphify-out/cache/ast/v0.9.54-s2/4a5d23ad44166a582bee396ea88e7c494526a06ef09012655e0382e2a5dea556.json
+?? graphify-out/cache/ast/v0.9.54-s2/4ac43cef4f24f19a560037242265a0cab8cc1614a6d9bfd0ad4303bba5803fe8.json
+?? graphify-out/cache/ast/v0.9.54-s2/4af9e2b610e381c65555bd7d4d3c7fa8f36f897fba24cb9305f002931530bed5.json
+?? graphify-out/cache/ast/v0.9.54-s2/4b25a1463f940e33e1d840da179de163649be499f3c0c6c1094b50203b5e71d0.json
+?? graphify-out/cache/ast/v0.9.54-s2/4b355cfcafe0bce29f20608840dba40cfacad39607413d7bd7b1b926ab2a6ada.json
+?? graphify-out/cache/ast/v0.9.54-s2/4b5fcad10c16ea1dd4be940ca14f0a4b36cc8f0038df26e4e44b146828e71708.json
+?? graphify-out/cache/ast/v0.9.54-s2/4b669847d21770c33d06ffc561ffa5d8282b840d5cc6a7175d157e38587cbde1.json
+?? graphify-out/cache/ast/v0.9.54-s2/4b67a965981057f3b228a5f169e17ce7781c85189910842a3e2af0e2796a4e25.json
+?? graphify-out/cache/ast/v0.9.54-s2/4b86a96021b293e9527714b9b74f528c3e7b1fd649c0e5d7aa5937880b862dec.json
+?? graphify-out/cache/ast/v0.9.54-s2/4bcdf275c65cb397d8f57983e7c9b065bbf694cd6925e73305a37e273d783eb8.json
+?? graphify-out/cache/ast/v0.9.54-s2/4c29d360f96596dffc326b5a4affc1c961a1d4e44cc113a93283c75b93ffb760.json
+?? graphify-out/cache/ast/v0.9.54-s2/4c4fe92ca1380109e261ced1dcd1141b2c033a05f2823acb6aca69d668415ef4.json
+?? graphify-out/cache/ast/v0.9.54-s2/4d09d987ccd8aaf686d7ea89529997a5097407239f5ff5150e50856c7c150aa7.json
+?? graphify-out/cache/ast/v0.9.54-s2/4d5c03edea416943ed3dc8543fa5b58777e7acf23ab96b8d7575e083842ff693.json
+?? graphify-out/cache/ast/v0.9.54-s2/4d672228200462586b32bcde34c754b3a74b56d3df8a686261a8dfa8340ac5f8.json
+?? graphify-out/cache/ast/v0.9.54-s2/4d90194f36c005646807e83910f01f4945345c12ab45cc272afacc4cfab313f2.json
+?? graphify-out/cache/ast/v0.9.54-s2/4dcd4a3aa62b4347f7e4fb89bcd3bd59a5b04eae33133b6ba413a579a50b8ca9.json
+?? graphify-out/cache/ast/v0.9.54-s2/4e15dced31305a254b97c68cac74649c91f5858d8e6b1ce144ca8d3e53a1f7fc.json
+?? graphify-out/cache/ast/v0.9.54-s2/4e596bd4e72bd638884308536212c6f57f37ace8c4c850c7ff75a19690b968a4.json
+?? graphify-out/cache/ast/v0.9.54-s2/4e5df21e3f28163b322dc837c7bed25409d5a0f440e6c32aacefc860410cd7bb.json
+?? graphify-out/cache/ast/v0.9.54-s2/4f219daaa3cb25dbf5966774c737157007c2b892be189e03ef382d9613bbd2bb.json
+?? graphify-out/cache/ast/v0.9.54-s2/4f8b1a4eb07b429262fc15102b1c1f80b44093f9a198001dcecb39cbb3f2b6d0.json
+?? graphify-out/cache/ast/v0.9.54-s2/4fe5a6b5eb16074555812d46faa5583bb68ab0c895cf31cf5e0b55441febd1c9.json
+?? graphify-out/cache/ast/v0.9.54-s2/4fee29c8e5b8c0c9f9234f1e0a72440704dc40cac5846839616d8e7f43ec89cb.json
+?? graphify-out/cache/ast/v0.9.54-s2/500172ef11b5df7009dea923169879f1af55ac7ccac2945fa4a93e93c1c7e588.json
+?? graphify-out/cache/ast/v0.9.54-s2/50036b7b61acded5d287e54488c8d6a97ab3e161eca9faee492f7eeb9005c93e.json
+?? graphify-out/cache/ast/v0.9.54-s2/50a35c19235325503e885fd5627814b9579a67c3605b3feac99861b29327a3e5.json
+?? graphify-out/cache/ast/v0.9.54-s2/50ce096ba57a3a0fb26c1bacc7caa8282a0a3fac40c4cb68a2e574c60821f252.json
+?? graphify-out/cache/ast/v0.9.54-s2/511a0341cb560dd465ef5cd35712c2d08d65d8259b2e4dddbc700034babfb90e.json
+?? graphify-out/cache/ast/v0.9.54-s2/512bb8b61a866e14500886fbcff7cbe260dee82ee79b4819b8358a314cadaa38.json
+?? graphify-out/cache/ast/v0.9.54-s2/5177f3a10722972fb9ffda67738b9f9686d0d830e89a285d9bc9364b3878bbe9.json
+?? graphify-out/cache/ast/v0.9.54-s2/51e4436204c2e1323d291b2e542c16754652b0e5034a9d6b3b117cf6ac6e3d45.json
+?? graphify-out/cache/ast/v0.9.54-s2/5241e510dddfc447657ddbac14e150bfcec0497b4e1e76673fbc83e92a89958c.json
+?? graphify-out/cache/ast/v0.9.54-s2/524d702c6a9c92407d9f04740e651a74df6c8d75d68e9bf8b7c2d949685c9aa9.json
+?? graphify-out/cache/ast/v0.9.54-s2/526d0feedbf940e892d791dbc323f8363c2f3d50290ff1c007470fb378438480.json
+?? graphify-out/cache/ast/v0.9.54-s2/5283a98b0724db6a3327feaa124f21d17312a7ca4fa51503cc820ed73d5c0c02.json
+?? graphify-out/cache/ast/v0.9.54-s2/5373db753418a0c398925cde9f5240bb24a346c7f0946447df4112eaa7fa42f4.json
+?? graphify-out/cache/ast/v0.9.54-s2/538379547c33d497e42b834819e3e29b881ec998d06e6cfb9343d257280f2d7e.json
+?? graphify-out/cache/ast/v0.9.54-s2/53aa9986ede37160320bbefe6494be1bd3e7590f3d1e89a2118422a8b767dd1b.json
+?? graphify-out/cache/ast/v0.9.54-s2/53c75e59e867b3241c978c3ed35b4b40c24be1f8f5699743768e958baad813b2.json
+?? graphify-out/cache/ast/v0.9.54-s2/53e59015221c18922789d0aae68d11d94e2feaf8f14732ec39b6a3bfe4a9dac2.json
+?? graphify-out/cache/ast/v0.9.54-s2/542ee22d4349441e058962dc9aa9d82b6c898df6bf8a9737c080a9e2244f24a5.json
+?? graphify-out/cache/ast/v0.9.54-s2/54807aee2716c0439f16151dfacb1fc7a49f19393648c30c2136fa2657525f9e.json
+?? graphify-out/cache/ast/v0.9.54-s2/5489a0affa8e2035a1997749c1564397a6b59b6fe18fec2ec0a9d536d3b7593a.json
+?? graphify-out/cache/ast/v0.9.54-s2/54f5cbf15eeed453c54d22906fea4cc0bec77b857d3df60f22f4203c25c6eb28.json
+?? graphify-out/cache/ast/v0.9.54-s2/5527f230abae55968b7523eac745598ff236036d92a60a9dddbf3e1ec3d30ad1.json
+?? graphify-out/cache/ast/v0.9.54-s2/5596f8df0d0a46e33dcb2702e1c1a4b5b24a9bc85b63d9bf4e8a8c621989e9a4.json
+?? graphify-out/cache/ast/v0.9.54-s2/55caf4111fda96fff479e3b4bb6fd97e2813e8ae6f103d2fcbf7a3e74b8aa4f8.json
+?? graphify-out/cache/ast/v0.9.54-s2/55d9dae1caef7f6486dff28b3ce8008028e608b3ce22bfa08048d97cc5a25b7f.json
+?? graphify-out/cache/ast/v0.9.54-s2/566ed1b3ccb9f547247c871308c61703b98cb72d47f89fe0c9405e5822375b97.json
+?? graphify-out/cache/ast/v0.9.54-s2/56955183f3c887f0c93b5126bf78d23fb46cf9cc9a66e0c4b15fe13d3936fe19.json
+?? graphify-out/cache/ast/v0.9.54-s2/56c0ce1dd6d8dbe0f00da6eef946d08b43db4fbc76b64c95131cb2888e0eecba.json
+?? graphify-out/cache/ast/v0.9.54-s2/56cbe3e27ec7c3ee71d477bde6dbb3d059930b59a60b9347cfd839128899d864.json
+?? graphify-out/cache/ast/v0.9.54-s2/5762093745d56e00d54329c1e3e1b809a32cb48b3767a7ab413592295e63742d.json
+?? graphify-out/cache/ast/v0.9.54-s2/57aa6695abb04eaf1bb218ea4d71ea9f526a6222321ead850d4a3dc6d4a677ab.json
+?? graphify-out/cache/ast/v0.9.54-s2/583535ce177f7a209c0e6ea827cf4c5629876923959593033d10f4ac848d57e7.json
+?? graphify-out/cache/ast/v0.9.54-s2/5849f91120db566fa380654ceeb4d975d2d5c5b6d3cd7a91e4a9ffde09f8a17d.json
+?? graphify-out/cache/ast/v0.9.54-s2/5859d9c0a84c797921fa8d8174622b3ef8de3ea39068d35f8b13fe45a927702f.json
+?? graphify-out/cache/ast/v0.9.54-s2/58601cb7d004fa410f9dfad4da22313ef1da9c624c407c9b7e60f7b12b3c153b.json
+?? graphify-out/cache/ast/v0.9.54-s2/58739d875ad48bb484a3f7b7b5e27c9701dd7fde961280e68314149012865e19.json
+?? graphify-out/cache/ast/v0.9.54-s2/58df5e80650ebd0a891c938d36aef8fb8f2fcb1a7363fd282f150974d74d77ae.json
+?? graphify-out/cache/ast/v0.9.54-s2/58eed2be22b5ef3dbb8753b4696ced1f49d9c7deafbde20404f216caba277556.json
+?? graphify-out/cache/ast/v0.9.54-s2/5941d556f9313692ffea86871286a3fc160e08f8302b0e2f327d7fc410360cbb.json
+?? graphify-out/cache/ast/v0.9.54-s2/599c72f9f44351b07ecb56dbd829227413734f3a1b2c8a06c2fd1cb0bb80677e.json
+?? graphify-out/cache/ast/v0.9.54-s2/59acd1e5f2f1c43ee0004cd8d8e177ac47c8fb7a4c20fc0e2852f78235e5947e.json
+?? graphify-out/cache/ast/v0.9.54-s2/5a251da260bcd538bbbacdd6ebf2122cf3172ed14c4b3ca568b9813f41656acb.json
+?? graphify-out/cache/ast/v0.9.54-s2/5a3b5761d0b5cb02ce29dea09f7fa1714ef43dfe1a12285de954e2ef9045d135.json
+?? graphify-out/cache/ast/v0.9.54-s2/5a62c59ce8ac368f1fc8c7ae5785e49d2108233a730421eab4dff64260006649.json
+?? graphify-out/cache/ast/v0.9.54-s2/5ae0e3f495043701f0a5b76d32672e5996267f40750083aeba177ed5d3ee1aa4.json
+?? graphify-out/cache/ast/v0.9.54-s2/5b5d619403bbfcb8bcec6bd9d606553276bfe398a0d2607a2b8f129a4d35bed8.json
+?? graphify-out/cache/ast/v0.9.54-s2/5c028a2f650ac49d06897a73a29091f67598ee579733449ff14862a87842a61d.json
+?? graphify-out/cache/ast/v0.9.54-s2/5c85cd481cf03f3bc34bffd14993d7eeb7a9741944e823536b8b50144002361c.json
+?? graphify-out/cache/ast/v0.9.54-s2/5caa26ae88a81022717c1ab45835ab0a669aabf4d606547b3418cfd5efd1e1e5.json
+?? graphify-out/cache/ast/v0.9.54-s2/5ce705711b650007dcf6034c057d88a566b06f003d730640a5e6225df4c9c971.json
+?? graphify-out/cache/ast/v0.9.54-s2/5d2b69eb1700537d462781ca4c9310b5cdf5dae338eeb103efdc364e4b4794d8.json
+?? graphify-out/cache/ast/v0.9.54-s2/5d48fcabf384db9bf1bb71e3e03686ce648fedd65924c01311a986a4c70aab01.json
+?? graphify-out/cache/ast/v0.9.54-s2/5e06ede290917b10ec6987626c8ee4401832462db6e2ea084cc2b52a8c5d3879.json
+?? graphify-out/cache/ast/v0.9.54-s2/5e82e1f86d820ef3a192aa3fb35e5227d4c20cad6d78170e5e06c0c8ba845efb.json
+?? graphify-out/cache/ast/v0.9.54-s2/5ecc1140cdfbada9df0077ac5566daf80d5c809f08711064de4830dbb633149f.json
+?? graphify-out/cache/ast/v0.9.54-s2/5f27b504be9464615b04039083f4c74dafcb8c48543808936bf14a8015a9d656.json
+?? graphify-out/cache/ast/v0.9.54-s2/5f2e91db522d564e255454ab92b33b42f1ac6ecb37bb3d0eda55d078c4f70fe2.json
+?? graphify-out/cache/ast/v0.9.54-s2/5f84c237e58ab197925fc6ab6d248c736fdd5330c6d684287dbbb9eb05543fe2.json
+?? graphify-out/cache/ast/v0.9.54-s2/5fd46d4840ae6ad0ae9236d752cfc4ee421585cf71eee15afa72afeb4310de96.json
+?? graphify-out/cache/ast/v0.9.54-s2/600a1e4a8fb40614cbb974bf6138c294fb2a3f4f3aa6830dbed263c832c3c51e.json
+?? graphify-out/cache/ast/v0.9.54-s2/607daae676b722969b1246f47a56784c6450ef24d0d41571880255d5e2c97bf2.json
+?? graphify-out/cache/ast/v0.9.54-s2/6117a3039182eeea16c71b0ba8a57df505e1b2ba2caa6527a023b39da2ddb229.json
+?? graphify-out/cache/ast/v0.9.54-s2/627682c31f293ffb8a474c582f24c6117abd6f22ec77ecbc7c078008c427c74a.json
+?? graphify-out/cache/ast/v0.9.54-s2/631298bd027dc8abd655fdd764d5b3a814cc6aa44b87104d904119aac4cd2e72.json
+?? graphify-out/cache/ast/v0.9.54-s2/63b2d4451f284c2f14fa23709ad632f2c20648a1aa0229cb683d33a22708103e.json
+?? graphify-out/cache/ast/v0.9.54-s2/63bad19ffba02f206dea26a2fb51fcd7104569fcad234e244e157083b2805699.json
+?? graphify-out/cache/ast/v0.9.54-s2/6498ad7f8e977612cdc0a732d49f1b3854748c6b3de5e876e1fade90390e0a45.json
+?? graphify-out/cache/ast/v0.9.54-s2/64a6576d17b3cf676977509fd68a572a1a79469a22956b92b6d7b0aa8ea4d1ba.json
+?? graphify-out/cache/ast/v0.9.54-s2/64aaae2f1a7c79ad95e865172fc090d79a0c4bc815cc90355d1f943ec78cb4cd.json
+?? graphify-out/cache/ast/v0.9.54-s2/64fe1372192b01ce3ab8ec74fa89c7c24dcec1c2df384f379e9cf32567ba4821.json
+?? graphify-out/cache/ast/v0.9.54-s2/655b7223a9f67e16ce51b27f3a4077b690dff3e997f7171d82481f3767fcbefa.json
+?? graphify-out/cache/ast/v0.9.54-s2/658c79d4c991bdbec7eeb5f0e87384cd74535844bdaabdefb5f5705940dc3e3e.json
+?? graphify-out/cache/ast/v0.9.54-s2/65957cd086bf14b37f360898ac8cb8014111930fc64e2dd6265f8b4505ce024a.json
+?? graphify-out/cache/ast/v0.9.54-s2/6598fca302d7659b4b6918a2bfa56373b444eba04268324be5be0f0155f17f7e.json
+?? graphify-out/cache/ast/v0.9.54-s2/6644d57a01bc799a94a7dad9012d49023b125fa6bff5b59857e4b9ec34962f49.json
+?? graphify-out/cache/ast/v0.9.54-s2/66f2ffee892a7d319a34810c53f884c76fe91d248c7f833e7c483c500515dca7.json
+?? graphify-out/cache/ast/v0.9.54-s2/682d48244f1fe7c300247b341175c9abd7b39da20ed3dabd85a14abb41229984.json
+?? graphify-out/cache/ast/v0.9.54-s2/683a5a019ca5cf165935096c148043249ffda7868090863344e6df5922fe27f5.json
+?? graphify-out/cache/ast/v0.9.54-s2/688b3813ff65320e7c1996a6ac90e44b583d7e2616b5e7d8bd54912963961266.json
+?? graphify-out/cache/ast/v0.9.54-s2/69d9877061a6804a487cf4d3db0e5ad2ceb72e4283f90e5a3f0582d5c72fb790.json
+?? graphify-out/cache/ast/v0.9.54-s2/6a6a9abc49bf32cc11c2ff6c1f887bd615d169d9c578587b4de49ddd438ba71e.json
+?? graphify-out/cache/ast/v0.9.54-s2/6a6d183e6f8434801f834afd0ecdaf519406d9e78fedc90a998461ebe870ea0d.json
+?? graphify-out/cache/ast/v0.9.54-s2/6a739927422b9fa0e9403a63d03cf51cfe45f2ffc24ae85253f31176288acb50.json
+?? graphify-out/cache/ast/v0.9.54-s2/6aa2b99754ac702b41c2c654f2f369981cd513420e0c312740f3d077da407ae6.json
+?? graphify-out/cache/ast/v0.9.54-s2/6b2c6c651f487417ad9b2d0a6cc7819604027d113d28d21c735f7c04409c636f.json
+?? graphify-out/cache/ast/v0.9.54-s2/6b3296a418b3779d2413b8c29270b7bbed25a3b0cf9cbffdd20e7eefced201aa.json
+?? graphify-out/cache/ast/v0.9.54-s2/6b34aaf63a6e434174858f342314d9940496e970f66d9da11e6e3475275fdf46.json
+?? graphify-out/cache/ast/v0.9.54-s2/6b3af57e120bacf750a1db390ec1cfc58c4c2ad2af790d782ad53970b6ea6fb2.json
+?? graphify-out/cache/ast/v0.9.54-s2/6b3f40e7c8a5a45fc805b28c3845abf5b8c16078ba3c68fff7a55e313d63b7ad.json
+?? graphify-out/cache/ast/v0.9.54-s2/6b7d1cee57186a7057525719c2a14995d7795ac5a45d87a01870793d6d2caa55.json
+?? graphify-out/cache/ast/v0.9.54-s2/6b8334f59af04e9b02cbd8f4c134212a5fe4278e0230f70b43ce837ce793f7e2.json
+?? graphify-out/cache/ast/v0.9.54-s2/6c03b2a9acf369129620eed98236eea470254295c28ff2abbefee44aa919f258.json
+?? graphify-out/cache/ast/v0.9.54-s2/6c2a5c828af05c5e7a98f5cc779e11301545312a87378b26c38135822d893d65.json
+?? graphify-out/cache/ast/v0.9.54-s2/6c495ec1be1176e0949a0e8d0c04e87c2daab84124d31b35e785bd0a5f6efc24.json
+?? graphify-out/cache/ast/v0.9.54-s2/6c802281864f0a5cdbba02b368e2fce762fd731d3c8f6086e970093b909aec40.json
+?? graphify-out/cache/ast/v0.9.54-s2/6d7c6403ff9c2064959febaeb1fa12d7d1d0845ed5205e3e2151782ba563efc1.json
+?? graphify-out/cache/ast/v0.9.54-s2/6d9807547475dbeb1a55d767504e8f2ec9a10943f58593f1a468fde5cd72a9a1.json
+?? graphify-out/cache/ast/v0.9.54-s2/6da4723f159fc4eec6fcdb0b9b82f8d46ae0f7578ec1109e5191e368b5f09e4d.json
+?? graphify-out/cache/ast/v0.9.54-s2/6df00bca225f527812d91e5d101e9edfb2a0953eea6f1cb89faef0896b82a96e.json
+?? graphify-out/cache/ast/v0.9.54-s2/6e3d3b2da86ec5d80007e91fb3abff4623775b61681e5eeaf436efed30a7440c.json
+?? graphify-out/cache/ast/v0.9.54-s2/6ec03a790196c4eee1613467b38efd04e99ca3bcde87adeff1e41c7f8b38ea23.json
+?? graphify-out/cache/ast/v0.9.54-s2/6f8e701546a7ee0cb090bea045a2c7c1645ae6de53dfaa9a6bdf1520991e252d.json
+?? graphify-out/cache/ast/v0.9.54-s2/6fbbccf6fe7a6aca1af9b9a97b5cde76070cb422ed8d2a9ebcf9bcf8139258c3.json
+?? graphify-out/cache/ast/v0.9.54-s2/7003a3262b73883d5952a5683a167f6a9771a50feb6fd6dde4fbedb403dc26bc.json
+?? graphify-out/cache/ast/v0.9.54-s2/7077402e764b7d9e460365b6a7185e4d8184c854413b36aa13e1b11be2560725.json
+?? graphify-out/cache/ast/v0.9.54-s2/708446f43d631f752bbba59b732de771fd144894ab4b66efdaa1ef618db6f1c9.json
+?? graphify-out/cache/ast/v0.9.54-s2/709f3c6d1efcd5a3ce6321dda5d9df212281f5c4a8fa1546085d1e40ad6f6098.json
+?? graphify-out/cache/ast/v0.9.54-s2/70ab9a6effbc64de6201923005178470d87d35b24deddaf9ba7632c016c08814.json
+?? graphify-out/cache/ast/v0.9.54-s2/70b018c387c91a4340ee08b56c98d5120fdc8be235c97629fce08b9e858f140e.json
+?? graphify-out/cache/ast/v0.9.54-s2/70d38092d5009f36a33e1f99867aa25e46c3bf7053d69258a7d54dd7d3e79b25.json
+?? graphify-out/cache/ast/v0.9.54-s2/70d880e49c53aef1dcedcee8b8ff07c72852157f7951efff32ec133c4d65beb9.json
+?? graphify-out/cache/ast/v0.9.54-s2/70e989f0cd735f1c0e30f62207233c6028a967c6932cc9a39b177d31256d92f9.json
+?? graphify-out/cache/ast/v0.9.54-s2/713a6c79f1b86688524d9bc7bdc0cfca87a91c481cb6649bb401720318a10618.json
+?? graphify-out/cache/ast/v0.9.54-s2/71c570bff177a17b9fb7661d9dc8d364dec55225e6d2ee688109afeae8731fbd.json
+?? graphify-out/cache/ast/v0.9.54-s2/7202fcc2b38cfbad7a56bfef419ac7c19853252388f6958047f85069b4fc65d0.json
+?? graphify-out/cache/ast/v0.9.54-s2/72464637ee963c00ae8431852ba7534ece3c285a35ec66173b96a21cc7b575ca.json
+?? graphify-out/cache/ast/v0.9.54-s2/735aa13d930d0c3dd9f369ab65d7cddefe72815a3fbd863ca6cdb9ce9e4a6ec8.json
+?? graphify-out/cache/ast/v0.9.54-s2/73b0d621445a9eb17e67425dcebb67b52d9194f4fa39a1766fce44c0568912b0.json
+?? graphify-out/cache/ast/v0.9.54-s2/73fa7ec0c367b8cd898f1defc03e3602ae1d63de8d1b90a04d94244063d79357.json
+?? graphify-out/cache/ast/v0.9.54-s2/741e947e811f3266bbd67f51a4e398648a2abd4b00a165cfd249bb7c2342d94f.json
+?? graphify-out/cache/ast/v0.9.54-s2/74529f27f75d985134d4b1172b7e8b3098c8ab2ffa1a5af5f0dd8c9ec1462daf.json
+?? graphify-out/cache/ast/v0.9.54-s2/748a453f1afb96f5ced821a38447b3dd3c52a5b7a80eda07581ccc1eb0caf111.json
+?? graphify-out/cache/ast/v0.9.54-s2/74dc058d0c424b4b2b8d8e97d285904c3300f13323cbba1a40a92a1e6b690806.json
+?? graphify-out/cache/ast/v0.9.54-s2/751a7d2103bb1fdb9f06887780fc4ef970263748828b143e89056e189da1e67e.json
+?? graphify-out/cache/ast/v0.9.54-s2/7523bdba747a671ac0d74c198f9c625e2fd5ec1cafcd6b2e3200103ef13bb222.json
+?? graphify-out/cache/ast/v0.9.54-s2/75ba08fc1b1b8efe6529c6d787761fa5e21847c9a6846e83cbfbb5dfa58c3791.json
+?? graphify-out/cache/ast/v0.9.54-s2/75c0c03347317fd4fc16036090dfae2788319070a0d6ee5ed455b75d3e82a3bc.json
+?? graphify-out/cache/ast/v0.9.54-s2/75de6aa89864e14da46c9dff291fd498e05f638560cdafa414b904cfdc1892a9.json
+?? graphify-out/cache/ast/v0.9.54-s2/763e53a65becf0b91f23278f759956e99f85cd42ef0fb56cf2ba031796e1204b.json
+?? graphify-out/cache/ast/v0.9.54-s2/764ffe91d13e766c644b44baf6c9759f76000a62102c31aeeb74b240ce232df0.json
+?? graphify-out/cache/ast/v0.9.54-s2/76c31a712a675db646794d4ab506579193f7a2196589a3031f19ec3747f48477.json
+?? graphify-out/cache/ast/v0.9.54-s2/7738c01ab566cce3433b1937d2fd6a43c395c01e23c1dd165d468d8d13da3400.json
+?? graphify-out/cache/ast/v0.9.54-s2/7784f8eaa4b8ef27415ef30932f283e7e21c0c64a033649b846ee964c18cdfd9.json
+?? graphify-out/cache/ast/v0.9.54-s2/778de5821abc6ac27c1f61ea074ba1e017175c23cfc810456913e2d4e7b80734.json
+?? graphify-out/cache/ast/v0.9.54-s2/77db0a94263b10210a87d43050ae44488592cb9b7bead4989727daa34fe2af4a.json
+?? graphify-out/cache/ast/v0.9.54-s2/77e6ae08c1b7937397d06d281697960b3a92c883e3df34e5fc9fb10402db90c0.json
+?? graphify-out/cache/ast/v0.9.54-s2/781143481b01f5df5de2f4a0f572b3db5c7c70ae851a31c4784026c3260c999a.json
+?? graphify-out/cache/ast/v0.9.54-s2/791232f4e66cd8f9d52fd960812f4e7b76aa5c84131d137fea76c0b0c2bb36ae.json
+?? graphify-out/cache/ast/v0.9.54-s2/7966ab818e56bd52c54f0008440108c01f14a29f2a9a54d737fb56c352acee5d.json
+?? graphify-out/cache/ast/v0.9.54-s2/7a5aa0410a46ae615fd98e95ee9cded26ce861e392c80384c5ecc7d19c1964a3.json
+?? graphify-out/cache/ast/v0.9.54-s2/7ac8d3cb9adc87175576560b4e8d24329eb348f5dc33f08b21af91c79e6c7cae.json
+?? graphify-out/cache/ast/v0.9.54-s2/7b60cd8def30b926e033ae6899d8950152c4af63d16bd7b32bf4efa202909345.json
+?? graphify-out/cache/ast/v0.9.54-s2/7c1465054aa7f07531613cc93949a03617a35ff60e1e6dfcf40abbb6ff7ad445.json
+?? graphify-out/cache/ast/v0.9.54-s2/7c23ea531a2ac27aca17f6be7d72ff1c8c2e6862ba71ce19695eef053c50ea0d.json
+?? graphify-out/cache/ast/v0.9.54-s2/7c2eaf3b78cdd1d80621b8e2d1c9c23e0c08a4248df8d0f555ac3688bba89ca4.json
+?? graphify-out/cache/ast/v0.9.54-s2/7c775feb2ce2ddc1f49d7d67ee4dd57e0254d2d4e08d8235027e96f25bc7c4ca.json
+?? graphify-out/cache/ast/v0.9.54-s2/7d0437396c2e6e74bf2b2e2faa59239fd41b06ce439801f774d426691fa15847.json
+?? graphify-out/cache/ast/v0.9.54-s2/7df13a11b1087b36555d138ce0a2c010a8aa48bc0cd8f2b3d6a65f9cdc93d979.json
+?? graphify-out/cache/ast/v0.9.54-s2/7ed461dfb77b47a31b30a373cbe1ddbf6948056bb7b8967ca1d79c7f8b5f66c3.json
+?? graphify-out/cache/ast/v0.9.54-s2/7ef69d5e335e349dbe05bb5b17a7c2ca33295ed837aa268794a3692681cb0de5.json
+?? graphify-out/cache/ast/v0.9.54-s2/7f35b72efd3556b477be3d46786a5f7d4d3d6a789195e0321d6c09e434c3d742.json
+?? graphify-out/cache/ast/v0.9.54-s2/7f9984073420c69e5a4c44abddb92bda3381a964afb87a25204fd54a28a54da1.json
+?? graphify-out/cache/ast/v0.9.54-s2/7fb736af8b428d07c157c284402de9d819225dff12e75078aac9972949886763.json
+?? graphify-out/cache/ast/v0.9.54-s2/7fcfbfba946ab0e91e6ace41aa8f2111bca4b2ba4030052a414e8142f531f2bd.json
+?? graphify-out/cache/ast/v0.9.54-s2/808b7f6c1f243655bd4679338e280d05d3c9942d2280b09e191978f7e83d3bf4.json
+?? graphify-out/cache/ast/v0.9.54-s2/80bc919df27be8880eebf799331dfd16b0efcb2493e5a7cf425263595c8e8ef3.json
+?? graphify-out/cache/ast/v0.9.54-s2/80cf17cfb916d3f9f64fd0c9767f67ef33521697af13f6728d02123b01205139.json
+?? graphify-out/cache/ast/v0.9.54-s2/811b8f89e73239e70a2c0eb2a1e5b1bfaa580851bc9bcedfc9114e8d3c3a5057.json
+?? graphify-out/cache/ast/v0.9.54-s2/81354890a2f8aa026a8d1ea76d05464bcb01d6885998c3bde175f50917616cff.json
+?? graphify-out/cache/ast/v0.9.54-s2/81c9a25fddaffd8925b51e331b6c7f91dde46515163461990c0ab57187ccb51e.json
+?? graphify-out/cache/ast/v0.9.54-s2/823d744abdf2c63ed0bc59758bfcddb4ab87d962ca413c99b68f592d6293e3fc.json
+?? graphify-out/cache/ast/v0.9.54-s2/824cea9cdead07dbeecafe5eb76bb55915cc30a9a07e656cde5935705295055d.json
+?? graphify-out/cache/ast/v0.9.54-s2/826da23a6ccafe86cd0a443e3f5bdc244ec7dcfd9873ae5116da7d2204aca617.json
+?? graphify-out/cache/ast/v0.9.54-s2/828144b2d0605bff39f2fe83bcedf2f3d5486cb8ba16ae52ea2b51fc70090fb5.json
+?? graphify-out/cache/ast/v0.9.54-s2/829454ab897c834c50f480caac64c59cf7c2f847228a82839f6b3a6e54d9622d.json
+?? graphify-out/cache/ast/v0.9.54-s2/82c56f150442b160b37e955f71c20f77d57d89b7614428cd74a7938efb84c44d.json
+?? graphify-out/cache/ast/v0.9.54-s2/8336edcdc4478710b9e1de1be76278b47eab241f99a17533bf9e3568b282cde7.json
+?? graphify-out/cache/ast/v0.9.54-s2/83e90fd51babd0a422aa701f73b53d3fc86ea9f88e23a0b1e1d8b7d9ca9f9d58.json
+?? graphify-out/cache/ast/v0.9.54-s2/83f3a6fdd364f660ed9cf832df19307b1367d3178d715d33425722494c1fd038.json
+?? graphify-out/cache/ast/v0.9.54-s2/84359cf5e09161653ffbffb90182c535b06169b368a37629f9157912a2bc31d5.json
+?? graphify-out/cache/ast/v0.9.54-s2/84859e2b57c039f7178578539477b24e714119938ec41bf47ae8d5c4b003bd17.json
+?? graphify-out/cache/ast/v0.9.54-s2/84f7f1593ac283277779a804ebd54ec4879380732575c0c61bd20524f6ae7dbb.json
+?? graphify-out/cache/ast/v0.9.54-s2/85832e5a89ad84a6d5565a24d7e6ed06ae1b7d05b128096381768a66fe752c06.json
+?? graphify-out/cache/ast/v0.9.54-s2/8698914f36abbe4b1c4ccb03033bd3a5692952cb5520f05a8e39dc03bea93c18.json
+?? graphify-out/cache/ast/v0.9.54-s2/870a31cab09f22eaa25caadd09df43a64529cbf7c7ea3d22409745df2fce7882.json
+?? graphify-out/cache/ast/v0.9.54-s2/87222f42045c64f21d06c1bc0a3c3d5155729510e3f5270b2519493f15adfc38.json
+?? graphify-out/cache/ast/v0.9.54-s2/87484cc3acd9728ea9e897b2c3f82027a82b4c1f4cf1af08f1673de46dd9b929.json
+?? graphify-out/cache/ast/v0.9.54-s2/87ef5e9c501f983317e9687d71a40625f9b6ce26547e2c504414396d30a14e24.json
+?? graphify-out/cache/ast/v0.9.54-s2/88339ff481abc4c21994c01913628e5c06ddd41715124800d7ad81fe36944517.json
+?? graphify-out/cache/ast/v0.9.54-s2/88fa5a7fa0fc2ad3559b0b90a234f0aecbf6371b700ae6b85e0f28253d7480f2.json
+?? graphify-out/cache/ast/v0.9.54-s2/89a77067cbafbd03b4eaadbf46a30dd888922758c0750d70497a30e9f9766801.json
+?? graphify-out/cache/ast/v0.9.54-s2/89a7dd9cbc16e6777bca90f87fa0703468df58b9451d4e404b146ad83df721be.json
+?? graphify-out/cache/ast/v0.9.54-s2/89b746a71d784f0ab3bd25fecc86cc160e25cabbdf6ccecd2d007e1ab582d881.json
+?? graphify-out/cache/ast/v0.9.54-s2/89bbec3d7832093c7f684fd8316e26fde4e50f55403977774264b4ff4b893abf.json
+?? graphify-out/cache/ast/v0.9.54-s2/89cfdba0705a7f59b59eb0c617c45e545faf7f68334b52170027670ee65bf53f.json
+?? graphify-out/cache/ast/v0.9.54-s2/8a37ad29e729c600206c695ca3a776e1e3afe8afe50fee88409006212c6185e9.json
+?? graphify-out/cache/ast/v0.9.54-s2/8a56631d7deb49708f154b11883a8b65118e10a478f38b6b5b6a73454014e649.json
+?? graphify-out/cache/ast/v0.9.54-s2/8a751335355c843f623eca60d0bd03399af81e981fe3d5688a5a4c2e0a327f3c.json
+?? graphify-out/cache/ast/v0.9.54-s2/8a75ddd4e2fcacb5a8b4a485c930b7015f102a5ed764a88760d1b1181faca467.json
+?? graphify-out/cache/ast/v0.9.54-s2/8afd918daf58afc46e75365d682ebf6c59846fa016abe9728299325ffe72db0a.json
+?? graphify-out/cache/ast/v0.9.54-s2/8b2132cfdbf0cbb1b8e25b2af3b27ef7730b8dfc70f7c6fa10c04a796816f87f.json
+?? graphify-out/cache/ast/v0.9.54-s2/8bf3824691190f13d57b523cf6f8589ff808083778c4bde04dc2b74a0b425f0d.json
+?? graphify-out/cache/ast/v0.9.54-s2/8c6c35662d1ce30b545cf1b03707968b6170624af9932a058495592a529101d6.json
+?? graphify-out/cache/ast/v0.9.54-s2/8cda6d76d87b5795a1b153e0cc64962ce056f824227188a1e03568358731848c.json
+?? graphify-out/cache/ast/v0.9.54-s2/8cea780122e9201b88a6a6a66b10c3248899c95fe3732667da5a5307e004b9cc.json
+?? graphify-out/cache/ast/v0.9.54-s2/8d405f260a02db28fe40c8c3e04e060ff803fe5488a01283408765009f2debd5.json
+?? graphify-out/cache/ast/v0.9.54-s2/8d4aae1f4bf5e0f00748c6b520d13541047ae164f1db69edc34579362f7b4eb9.json
+?? graphify-out/cache/ast/v0.9.54-s2/8d693a67516d9d49db358d1effbd48b5f14319be3565501d0030c2a2a6b5b46a.json
+?? graphify-out/cache/ast/v0.9.54-s2/8dc7490adfe49311436037cc74635ab6f0c3ecd63eb23facae5806bdb14cd300.json
+?? graphify-out/cache/ast/v0.9.54-s2/8e6e78b0ec178e4508dd3b09b16e9c39c16c68ff33a3ceb377518cb2e833efba.json
+?? graphify-out/cache/ast/v0.9.54-s2/8f666d727cb35bd53746bd649795f0a8632f37b060ed9abe82339678b9c91b19.json
+?? graphify-out/cache/ast/v0.9.54-s2/8f90896a4e648d54f14a1066ab53d049cfffc595bdc2b254b3f69321f750190d.json
+?? graphify-out/cache/ast/v0.9.54-s2/8f91456a250b9758ada822e8681031b8ccfdbfffa23ab64ae6877edaa8411f0e.json
+?? graphify-out/cache/ast/v0.9.54-s2/8fae9c33c7f1e9af812318c68eb58ed593a5af6617a432a233e3fa22b3fdf6e1.json
+?? graphify-out/cache/ast/v0.9.54-s2/8ff9b43711252e9e6bdbc16741ed3c0f54ea38b17791fed5775a9166b419acad.json
+?? graphify-out/cache/ast/v0.9.54-s2/9072036bbd416b21d70751be7e4c1111459cdb0eded84b9702a6c8c47f29e548.json
+?? graphify-out/cache/ast/v0.9.54-s2/912034abce110cf40851e6a9a068d2cdafc82c2facee5353802f8f2c941a1bd9.json
+?? graphify-out/cache/ast/v0.9.54-s2/91b1fe2be8aa41e5498c9df8a9a2cafd66d7d46bee3300e0b2f6ee993da2599e.json
+?? graphify-out/cache/ast/v0.9.54-s2/91c22c6ecdcac565bda4d01722d7565fc452801b8d2a4b1ce4a4e0abd163dd99.json
+?? graphify-out/cache/ast/v0.9.54-s2/920149d2b64d83b8a4e23c2dd051edb4fc0676af170ed5f7ca85f8a0253b8101.json
+?? graphify-out/cache/ast/v0.9.54-s2/92409ca22cb0cacd251587e55a769b00e58fd933d99c5208511921a8ba8ad94d.json
+?? graphify-out/cache/ast/v0.9.54-s2/92637e124db04aab7007084399dc663041274017fbcd012a2aa2770c5a6003a3.json
+?? graphify-out/cache/ast/v0.9.54-s2/93acaadb44f941940f4de58d96ceb5faa59d3cb51421748920495627c2a6de99.json
+?? graphify-out/cache/ast/v0.9.54-s2/93b73ebdb537d31be676e9a148ba0aeac49ddd6390479175d625fb9522f82946.json
+?? graphify-out/cache/ast/v0.9.54-s2/941caff4d11e57c5036baab71b5885290436d3525ea55e32b38873eeb540ab1b.json
+?? graphify-out/cache/ast/v0.9.54-s2/9456d8d89ae61f137aa39747f8f50aa5ca03fc0a21a469dbbcd8466dbd7d2b4a.json
+?? graphify-out/cache/ast/v0.9.54-s2/94d007b3176736c853ecbf7573209978ece4d2fd5d47eb49e861f0ea4364e5d8.json
+?? graphify-out/cache/ast/v0.9.54-s2/94e32012d5c92a9ed3c7fdb46c405d8aac949b27e519e757a4c74f157cf58072.json
+?? graphify-out/cache/ast/v0.9.54-s2/955410069326ec14d0ebd0c329604611522c116abf6878d8b8190355e3b37ace.json
+?? graphify-out/cache/ast/v0.9.54-s2/95c5fce93f3ed1e433d65702b711cb2656cc9c5687cb762cf7fa5b9d0d6548e5.json
+?? graphify-out/cache/ast/v0.9.54-s2/964ea99e19fa122b1d980bd0565f331a308c62e85313095de0a557befb49f590.json
+?? graphify-out/cache/ast/v0.9.54-s2/9675d83c551544a68a57bbd7824506584e7e383efeb257a86735534ad45e0b77.json
+?? graphify-out/cache/ast/v0.9.54-s2/9712d566a95b17231f92bd750073f4d91cc9a4c73faa46379284cf8ea5b5df78.json
+?? graphify-out/cache/ast/v0.9.54-s2/972a7679b258d6a17f692dcdb6171c32bbaad340d3b2a11cbece7fde1ef50e87.json
+?? graphify-out/cache/ast/v0.9.54-s2/9773f83e7506c6baf89550709b8dc137b7ff3f0af4a80a87ca06ac48c2d8799a.json
+?? graphify-out/cache/ast/v0.9.54-s2/97b92ef8008b5798fb7453797907511f1d6c997347162dc78580bc3b887d4a4b.json
+?? graphify-out/cache/ast/v0.9.54-s2/9846d5ef3afc2243539ebeeb33f9aed47d911a35b7475c016fed508a8094d0de.json
+?? graphify-out/cache/ast/v0.9.54-s2/995382489b847dc6034ad55a6141ef701e6de47842a6dfca48fa31c6850c2707.json
+?? graphify-out/cache/ast/v0.9.54-s2/995dfd2666bc4ca7df2e3fd4bf7061f55ada56105c8106f568402561febfd29a.json
+?? graphify-out/cache/ast/v0.9.54-s2/9994511c8de6eee47ea0473d386f0179b841fba8baa4c59f1a88d4c58bef6cb3.json
+?? graphify-out/cache/ast/v0.9.54-s2/9a44eb349b9b4a49b49a1e86b20cc63a738d87991b0f0a0001e0e3fc23236b82.json
+?? graphify-out/cache/ast/v0.9.54-s2/9a6743e23bcb182aae7825a1e4729dce1b4320893c16c0d426444cb247a6a62c.json
+?? graphify-out/cache/ast/v0.9.54-s2/9b0625611beef121936a3256c52fbbd0b76ae183744ab30caaec901fefb9d473.json
+?? graphify-out/cache/ast/v0.9.54-s2/9b1d6ee2dbb59e616a8d79f4250535cc853348c104763dac906532172f572ad4.json
+?? graphify-out/cache/ast/v0.9.54-s2/9b48b68ee4252ee0b90cf22ce3ba766a859b0da047386031fcda07e275dc3856.json
+?? graphify-out/cache/ast/v0.9.54-s2/9c1971ab688891f05b9dea4f90049f455e04278d6b9735e5a34acea226ec4823.json
+?? graphify-out/cache/ast/v0.9.54-s2/9c295b447f4a34e86cabe59f2a0a9d3fe271c1c39c98d3f47b2036d09244206b.json
+?? graphify-out/cache/ast/v0.9.54-s2/9c3bbbe67149e4c581d756aab23ba4705c7913e52adea58dfc9482e84b829798.json
+?? graphify-out/cache/ast/v0.9.54-s2/9c448aaaba25e72d12d87f00df5027a1c4f8750111742ce129604a61b394df18.json
+?? graphify-out/cache/ast/v0.9.54-s2/9c65509bd8de8a9702ae5e9c1625f3d62d8efd4d1d436c209d19af5afda24bfd.json
+?? graphify-out/cache/ast/v0.9.54-s2/9c9aac8b19ef20e942aa44925f196e60b6a77178262159f0c14eee66cbf5a64d.json
+?? graphify-out/cache/ast/v0.9.54-s2/9d0671245073ee8778b2e63c2b28f3f63e893e148c29a1e887d391255bd5ed75.json
+?? graphify-out/cache/ast/v0.9.54-s2/9e09940490c4a06b011c261b0f1771de1476a2fc7257e0e684a71c0d496ee37b.json
+?? graphify-out/cache/ast/v0.9.54-s2/9e4d948d8ecd234791d939a3e3eb669677a217cf375964a0a92aabbeda3d3ae1.json
+?? graphify-out/cache/ast/v0.9.54-s2/9e5031779531fb1b94631c5145c9dba22e21f10e80b98c3647aa5635aa5f736c.json
+?? graphify-out/cache/ast/v0.9.54-s2/9eac54f3d8109634361c3a3b39aff94218229ee6d1aca6a60fca5eaf3fe72528.json
+?? graphify-out/cache/ast/v0.9.54-s2/9f3dcb3d9336c0e4ee3d589b8294bf69e90b544c22c868d4f00b83a4f77d28d6.json
+?? graphify-out/cache/ast/v0.9.54-s2/9f514e86a75363675834202fd3f9d1ac555d5eaeb27a3e7be68d39e7f80a35eb.json
+?? graphify-out/cache/ast/v0.9.54-s2/9f825ccbe0af59cc93ff5bf840ef17052abbf494f14fd5ccb64ad869fb48f915.json
+?? graphify-out/cache/ast/v0.9.54-s2/a01654e3a76a541919ac7a04cfb8695b6fcd3f592af86c84226bc0865887f9b2.json
+?? graphify-out/cache/ast/v0.9.54-s2/a026ab023393d00042f42a9e07412dac83ae794cfc6e48562404e9ffa2099db0.json
+?? graphify-out/cache/ast/v0.9.54-s2/a087e4a41bcf5b03b0cc6b05a2167e8c51e29d49e26ab9299340161cab9e1604.json
+?? graphify-out/cache/ast/v0.9.54-s2/a0ad3ca9d6e08b10245fec7dd0a1b0dcab44fa03aaa41372762250f4297672b7.json
+?? graphify-out/cache/ast/v0.9.54-s2/a1ab3c290f757d46bffd98c4c5fc7be70286e4ed7ef4ae505ca12656b024dbcd.json
+?? graphify-out/cache/ast/v0.9.54-s2/a1d46dbd3fa734df9aa310251c6426bc340f4c35cab9032aa8375b84bdb5159e.json
+?? graphify-out/cache/ast/v0.9.54-s2/a2727aa499d580f69002b5fce3610fb97d555e81b63f454bf7c533b6887b5c01.json
+?? graphify-out/cache/ast/v0.9.54-s2/a2b5039fe612c6c06ec7588e7ca3114eed64c35a4b08dec9b95b05795925214b.json
+?? graphify-out/cache/ast/v0.9.54-s2/a3388a297db2596fdbfc3b738e6a7b0da9b33de5f4c07568c8b9af4c67d676cf.json
+?? graphify-out/cache/ast/v0.9.54-s2/a34bd9230c588cb660e223433866714ff1139e65ad6e3b95b3034a2501046e79.json
+?? graphify-out/cache/ast/v0.9.54-s2/a3aaa883b814950b1cbacd5e99270b8310d6235010fc50b7c04a33794b937b3c.json
+?? graphify-out/cache/ast/v0.9.54-s2/a4588b56459019b4b829369c17cd0dae0f57ce6a13f3859a6fe1ceb15750237d.json
+?? graphify-out/cache/ast/v0.9.54-s2/a4991395f1c0c6eafadba608ba5bced89022b9534172c51c53ba8e5d53d4e36a.json
+?? graphify-out/cache/ast/v0.9.54-s2/a4d89e38efeb69c32a766bf1f5337c6219fee6420f950d5f7d83bca0bd082a18.json
+?? graphify-out/cache/ast/v0.9.54-s2/a5018c5f0c3fbd8f91afe2b7793299626d6cffd717274458bf8e28d2c3412923.json
+?? graphify-out/cache/ast/v0.9.54-s2/a596a79e327907ca91422099c1d00f3a96ab1063239ad7f4e5e543bfbf594e25.json
+?? graphify-out/cache/ast/v0.9.54-s2/a5a4335c8dceca0a4fec01af00ec0aaca49f1351cbf05a0e73e093c74dcd6926.json
+?? graphify-out/cache/ast/v0.9.54-s2/a63c5491625b752f93af0a5eefc2917f387e649f7f79f937f09dd3625adfcc93.json
+?? graphify-out/cache/ast/v0.9.54-s2/a640a28202febcd8fcba254b2eec32d1a45e7f25af7bafc9ec84da99e7d20dc7.json
+?? graphify-out/cache/ast/v0.9.54-s2/a6618568e82aa683924e3b5e8f5bba96ec9623cc6729f156965b238e5d31fc3e.json
+?? graphify-out/cache/ast/v0.9.54-s2/a678b79cd039fa73e5c1a13c7f527f5e84a2bf0e7ac2d26b277e1f1e26f0a349.json
+?? graphify-out/cache/ast/v0.9.54-s2/a680e7d04c155c32e9841ce0b2e1ae09a2f110914570e42cc1d61504be28434f.json
+?? graphify-out/cache/ast/v0.9.54-s2/a6cd1278243a9b3414f72b42a0d48ac6d38a6a6759404a781d46e6421060c17a.json
+?? graphify-out/cache/ast/v0.9.54-s2/a7110490eb22758c4f0057e672db6be91f7762003bd871bacdeb7b66017fbc42.json
+?? graphify-out/cache/ast/v0.9.54-s2/a7238a3d7539f59318dc0b0366c74497814ddd9dd366c2c71b8ecc7452c13976.json
+?? graphify-out/cache/ast/v0.9.54-s2/a7b03f5643638de7c746973dd226565bd6c20f3d1d54a728acf9281aee37866b.json
+?? graphify-out/cache/ast/v0.9.54-s2/a8177e3202858b08678e47a6a7f813e1717a24fd14169888dec2a1e1e6120ad6.json
+?? graphify-out/cache/ast/v0.9.54-s2/a84efdc7fef1d141744fe192e942f98f1808e987696633f3678656743eba0216.json
+?? graphify-out/cache/ast/v0.9.54-s2/a8857dd297eb256f71703b9d2828b9be69bbbc67204691e3d164b520bb90dc1e.json
+?? graphify-out/cache/ast/v0.9.54-s2/a8b13a6ab41dd393fd4df0f5d930768f293349ea4d58d4d68ad5ca5e6724a520.json
+?? graphify-out/cache/ast/v0.9.54-s2/a8fc3f094920f459f88a247d3a65b409bc0b531e36d6f03e312c1389e3810ffc.json
+?? graphify-out/cache/ast/v0.9.54-s2/a92b2bddc0c18d4e7de0855cfbcf84e373813a002a4ec33c5291dc0baa508726.json
+?? graphify-out/cache/ast/v0.9.54-s2/a933465c9434e3ae108cd1b6b011cd4a7299a1378822236eb1f51c0794eba35d.json
+?? graphify-out/cache/ast/v0.9.54-s2/a98e34d3194d811cf819fe205db402f8c91bd697cc32dbeab5af08052b87a5b1.json
+?? graphify-out/cache/ast/v0.9.54-s2/aa5fe50e013c9fc3ae05f2e0e21f5be189848dd46adc3295dfa1304ee3c161ae.json
+?? graphify-out/cache/ast/v0.9.54-s2/aae38b7e41ccdb3136210c32f3042ab4827e0f2c3e60d1c59102f2bf64cc3b0e.json
+?? graphify-out/cache/ast/v0.9.54-s2/ab1b95c11ca68c9d20d7383541b5b3c837d29aab3612dc611ab51efdf1144166.json
+?? graphify-out/cache/ast/v0.9.54-s2/ab723472e70a393939e9b2cfee7d6560134ce4eb5f8e636463ce8ac814b0aef0.json
+?? graphify-out/cache/ast/v0.9.54-s2/aba6992c13f54ad8900cf0e5e33d5ee9ac73ecaec3f834645dbae975c4d8412b.json
+?? graphify-out/cache/ast/v0.9.54-s2/abbdab583fbe8e0dc68230cc8b86858dc4c26112ac6e0c2e2e6eb4e22ede7808.json
+?? graphify-out/cache/ast/v0.9.54-s2/ac91cd31537de4d475f8bb4ffdde659620ae0ce7609b58ba75a83f4a50813cae.json
+?? graphify-out/cache/ast/v0.9.54-s2/ad1d180b6996060cf923924280a10cd9e991f7cff5673a12dd00cd80bd64689b.json
+?? graphify-out/cache/ast/v0.9.54-s2/ad6622f615958de70443872e88a7feb4c39197c087908f9a2900448894ba0bec.json
+?? graphify-out/cache/ast/v0.9.54-s2/adfccf5d33f83a6452e57d99bfc5d2940f25fe12fc841f3eb714ec1122900533.json
+?? graphify-out/cache/ast/v0.9.54-s2/ae66dcf733e8dcb5529620d0da60da3ecd171ceec2b96fc21576a50c26943b65.json
+?? graphify-out/cache/ast/v0.9.54-s2/aea8e9e91919cc286a751ea28ea257b58f7ee545ad56038105ed7cf586f119da.json
+?? graphify-out/cache/ast/v0.9.54-s2/b1471215f8bc72e562ce8a6bc292ee9105f63825ac52706b7c17a386f7b3b4b9.json
+?? graphify-out/cache/ast/v0.9.54-s2/b15f01d743acd18ace7de0411be4039913c720e2def52dfc48188eb72879d869.json
+?? graphify-out/cache/ast/v0.9.54-s2/b1a6292ed234383bd64ac593ba36d0da55772e6b2b4770878c63cf06815035c6.json
+?? graphify-out/cache/ast/v0.9.54-s2/b1bf4a2fec3a88ddc9932635fdf2b0ba0a78b9cc1519b10c634f36ba23cfa6bc.json
+?? graphify-out/cache/ast/v0.9.54-s2/b21d4d56d90a6130828824bb4c7dc79f79867fe54818bcb75f67a9bf774204c7.json
+?? graphify-out/cache/ast/v0.9.54-s2/b21e0ec8bb1f3bc0b505c7fe8a8fcd3544348ea603fdb629e27cf9e294a21090.json
+?? graphify-out/cache/ast/v0.9.54-s2/b241a1b1c0437769ac9d14bbffbfc712581bbf88180d1fe10fe5c17fdf423e7e.json
+?? graphify-out/cache/ast/v0.9.54-s2/b272def86fd125a2dd9a9b8df3c22a601c55dfff4c59a08d08e830e347ba69aa.json
+?? graphify-out/cache/ast/v0.9.54-s2/b2f7a04e6ab3e7853b56433beb7ba66a1e6092488194a5ffec92c72357607c76.json
+?? graphify-out/cache/ast/v0.9.54-s2/b304117e4e9f84173e90a56738056cc1dde821a9daef83819c37de6561526064.json
+?? graphify-out/cache/ast/v0.9.54-s2/b35e18636b7bd125c0db54b59e5872b74dcdbf4b2095045d573cbdb76c35980d.json
+?? graphify-out/cache/ast/v0.9.54-s2/b4068459b3213a9a9902a701d4e2f053faebf44abe1bc671509e60f938b553da.json
+?? graphify-out/cache/ast/v0.9.54-s2/b4abcf36bbe3ff43079048196824813c96b49bdfb16ab7deffde8f1980bc24d3.json
+?? graphify-out/cache/ast/v0.9.54-s2/b4f6c84d301d1c407a4174b956416a14403ce96fe6ce0d9228b3a5933bf849ea.json
+?? graphify-out/cache/ast/v0.9.54-s2/b5ab42ad5c3dccc6e356304215686769d235cacce4025d5a5e65bf1d1d448058.json
+?? graphify-out/cache/ast/v0.9.54-s2/b5e356533132a53ebbec384a5d718e8d143a5dc9f53ec3fc51f4dc18fd26f8e1.json
+?? graphify-out/cache/ast/v0.9.54-s2/b64dde01ff4f0741da69dbd890c50600183f177a9f362c321a9bc9d40e4ea1e1.json
+?? graphify-out/cache/ast/v0.9.54-s2/b6d93c8fa040414f7ff24885b120ecf0d35ad81e274710099dc3176576fdec59.json
+?? graphify-out/cache/ast/v0.9.54-s2/b723b343cc6b092f0c7038bfdee26d2a7616d96651304b07edc8ed741c5f41a7.json
+?? graphify-out/cache/ast/v0.9.54-s2/b7f9e70ed68dccbadd527a7671440fddfca1dc30cc8936085daa2d6b23d2289c.json
+?? graphify-out/cache/ast/v0.9.54-s2/b7ff160c89522c70dd60185e26eb999983bcf08ddf063a080fe767ffe7ee3dc9.json
+?? graphify-out/cache/ast/v0.9.54-s2/b816f2610501abbbb9967c95bc1c58ac376cf6e03b7bf4a88c5e0bf9a05b7e4b.json
+?? graphify-out/cache/ast/v0.9.54-s2/b8726c728b0b4e6553182946c53b3d715a38bf38a98c36525153ea7cfc927f17.json
+?? graphify-out/cache/ast/v0.9.54-s2/b915f989d6db1e2bed73ea55e70f02acd42d42881484abdcdb735946cfd55913.json
+?? graphify-out/cache/ast/v0.9.54-s2/b9cd557a665aca4275541e020a4c3ed075ef06b8c9b5cfde501420c83c4badb1.json
+?? graphify-out/cache/ast/v0.9.54-s2/b9cd55ce1e8bd0b378ca55e16d27e3aa0aba729b234b2b25e11c75656eca141f.json
+?? graphify-out/cache/ast/v0.9.54-s2/b9f7a1b21a6fb97e04a6f14e40a141dd9c0b0bd9ae08771923a90c93de44d4ec.json
+?? graphify-out/cache/ast/v0.9.54-s2/ba63a4aa17984f5cbb1f7c64260d5e87897cabe2c704f013b0723e62d4a50730.json
+?? graphify-out/cache/ast/v0.9.54-s2/bac497547e1a5f9b81e7ff9db56845818183ee70d633baf1af0804f211dd191d.json
+?? graphify-out/cache/ast/v0.9.54-s2/bbb33a3382798590dbe2033fe339e0e0bbbdd57384e8c38e6182d9ac8823723f.json
+?? graphify-out/cache/ast/v0.9.54-s2/bbed46a6394ec9cea653f52739e26f6c71e4f5d2d70df883a355d6d89dec15d5.json
+?? graphify-out/cache/ast/v0.9.54-s2/bc551ecf22989a42d8a74c9da7b6bb8515faa7e2f8df5a45cfbd2e179e160f2e.json
+?? graphify-out/cache/ast/v0.9.54-s2/bc6fba3b9944a45121cbf6ae446ad936d1e7d64598ca64b32158a5d4253350ee.json
+?? graphify-out/cache/ast/v0.9.54-s2/bc80b76eaefad822034eef42f43b7da03e9e59b58cc107d5fe9cac2c00d6879d.json
+?? graphify-out/cache/ast/v0.9.54-s2/bd5ea65508fc933180f3d12176a5d1d61d3d13d0ad14a4edfd02aed26742d41e.json
+?? graphify-out/cache/ast/v0.9.54-s2/bd97626df9849f7e573a130171726443fab3a905ede2573333011c9cf60d3420.json
+?? graphify-out/cache/ast/v0.9.54-s2/bd9785e762e4e71a205739a23248d9981ebcfcdd538327cede6bac004aeaeb72.json
+?? graphify-out/cache/ast/v0.9.54-s2/be48970c809e76284745c3f295d88daac66cd89a738a2fa20a696ac85b778f18.json
+?? graphify-out/cache/ast/v0.9.54-s2/be6bcbd0398ea77a6cfc1653da67df8efe1df624bf7aa4c867362973280ae8c8.json
+?? graphify-out/cache/ast/v0.9.54-s2/be7e0958dc5f934cd34ae198e8313c4edd6da0df9585411ac811bb8d872d7b06.json
+?? graphify-out/cache/ast/v0.9.54-s2/be9c65da28d19382bd6e45c462f00aac954c54f6b3de8810206fb4bb5fb2d99a.json
+?? graphify-out/cache/ast/v0.9.54-s2/bf625dbc071c6b85b0dd37ca3e83231be51eae0f5b0d85de00a66d080c401391.json
+?? graphify-out/cache/ast/v0.9.54-s2/bfd3c0455032979dfae789cc6f168bd8a2b82c76ac4b9e79b6a92e31968f0aa2.json
+?? graphify-out/cache/ast/v0.9.54-s2/c09a1bbbdac925748f6b9d8184281398e0eaee89d6bc2c0ff850adb3f44fae1e.json
+?? graphify-out/cache/ast/v0.9.54-s2/c143eb542fcbc71b6d83d77a74d52fec44c62bd6b5564c1e52c9375d0a138471.json
+?? graphify-out/cache/ast/v0.9.54-s2/c1b14fb1346de53f910b2dbf40c3291c5a4f359c5545365609c14cea226096b4.json
+?? graphify-out/cache/ast/v0.9.54-s2/c22182c52e52e5a47537fbd5b5ac6be04449b19b5164c4fdc51b9e3f7f5e4573.json
+?? graphify-out/cache/ast/v0.9.54-s2/c244516ba5698c517af84c01211b15435a3c1eeb0403a27b4768930934d8d191.json
+?? graphify-out/cache/ast/v0.9.54-s2/c267f2365adc0df5b39cb4722e7a7978e362ec286441a1b6f8ab42e22e89d981.json
+?? graphify-out/cache/ast/v0.9.54-s2/c288a2167d3efd3ba402e6a1441da9a57e918cc60cc48c3859a04742fdaf3223.json
+?? graphify-out/cache/ast/v0.9.54-s2/c2ad2b5cde53747a55f5fb034a19f6e323c9ecde31e294d8b9389f8c77e248d5.json
+?? graphify-out/cache/ast/v0.9.54-s2/c300b213e422375464a6f03eb81e4109c458b876ee9137b8fdea5ce17b793f39.json
+?? graphify-out/cache/ast/v0.9.54-s2/c34646988d829cdb8dbf1d42f438eb1e853a4c8e363a53ce001ebf659fd1d96b.json
+?? graphify-out/cache/ast/v0.9.54-s2/c38f7f62c099c76475df5680a1a72923a6b6edb00c93206499bcc84834415547.json
+?? graphify-out/cache/ast/v0.9.54-s2/c3bdef1c2129f3c8fff721f645bab85fff3b60813ce09aa799b454f0d9ed051a.json
+?? graphify-out/cache/ast/v0.9.54-s2/c431d53e0945e6cdef8e4282f261a2892454a36a64dd3df4e4d464f568bd7ab1.json
+?? graphify-out/cache/ast/v0.9.54-s2/c449df6db725f256461a8af9bed918ca3025e2b01b9804557a6a25a81690ce9c.json
+?? graphify-out/cache/ast/v0.9.54-s2/c462e1f9967b567eb5a5cbaa49add7f39ecc0de6685bcf02d614952af95518ba.json
+?? graphify-out/cache/ast/v0.9.54-s2/c4a1c4b4a1bffc54390f485105b33319030a92edce1e2e4a277b457d8d03ca99.json
+?? graphify-out/cache/ast/v0.9.54-s2/c4fce25bbbbe10cbeaadfe3fe5b309525fe6fa5a4e5f70c30d931bf0d9a575f4.json
+?? graphify-out/cache/ast/v0.9.54-s2/c56c29b465d8eb062116b315bbd13ed93552fde57f52ff6a66e570242ce73871.json
+?? graphify-out/cache/ast/v0.9.54-s2/c622bf8af88c52a4e7bcdf9dfc44ce8edd16586d428724ea8912bda165f92744.json
+?? graphify-out/cache/ast/v0.9.54-s2/c697a77fa8a11d55df9dea7e40ab08b985fc9c92cd29734997157654c2e8f532.json
+?? graphify-out/cache/ast/v0.9.54-s2/c6aa4945b7694db5f179a585e2dbafc2520035747f3a0a1689dd38548bc5d5a5.json
+?? graphify-out/cache/ast/v0.9.54-s2/c6aac76f557f8074c37d7d590bb4368297ad9c6bed887b31fcb7a0dc7d22a24d.json
+?? graphify-out/cache/ast/v0.9.54-s2/c74fc3527d73fdd8c75dab8226e3749b9e4a7374b6a77dd21ef51cc372458960.json
+?? graphify-out/cache/ast/v0.9.54-s2/c7801c9022495329915d27310f79779498b307cd1497ca363dd79bf1592f257b.json
+?? graphify-out/cache/ast/v0.9.54-s2/c78db951590f7dae084ca2ac129d57305a4ecc63cc07da7622b5b68c03099cba.json
+?? graphify-out/cache/ast/v0.9.54-s2/c804ab4fde384d71a845ba9c72546d5ac9c1117ee34dc2de0363668fe5a9dc40.json
+?? graphify-out/cache/ast/v0.9.54-s2/c8baee3d02bc32ea59576bd68b2c3632af9538b6e9c63ef2fc0f52959fcb80f1.json
+?? graphify-out/cache/ast/v0.9.54-s2/c8d71db99faabee8820dcc53d10caee89bdce4037d1a9e34e04edcb68698c25b.json
+?? graphify-out/cache/ast/v0.9.54-s2/c8eb150ed06e33cb10f9be5e478b0a444f3980c9e6f99c866c288e7debf150f4.json
+?? graphify-out/cache/ast/v0.9.54-s2/ca05340f78f034ac39dfde2fff83ccb29958333d59ac9acbe43708f42a37dfe1.json
+?? graphify-out/cache/ast/v0.9.54-s2/ca1d7a7ae160a00760bee564939ba2d1c340b655d9608c4ea310329f33659370.json
+?? graphify-out/cache/ast/v0.9.54-s2/cb2ac6525862cee915860af23f87efa3f59a86b98ba9bdad8c7fcbf3999d9df1.json
+?? graphify-out/cache/ast/v0.9.54-s2/cb2e5b3f722c32db30924061d5edd6d01801479bc7f7b47d243a3761cfbd375c.json
+?? graphify-out/cache/ast/v0.9.54-s2/cb5a8ac64fba88b9b486a10585694618822d70702b820fe40c04937a1bc51407.json
+?? graphify-out/cache/ast/v0.9.54-s2/cb62bf5b4c3df4186658d9b9f7ac14196e0f36e6647debaa811bf9189580e9ce.json
+?? graphify-out/cache/ast/v0.9.54-s2/cb859f08741d17735c7a7370abdcdbb3af62e443c18e2233a91708a4d415f847.json
+?? graphify-out/cache/ast/v0.9.54-s2/cb85ef63962d59664217d342e4b0cdeaa0e631030b79c6773bc9085f53d67f3b.json
+?? graphify-out/cache/ast/v0.9.54-s2/cbc588371098464894805dcc2e28b1eae2e3eababd8d46de28c586686253a2bb.json
+?? graphify-out/cache/ast/v0.9.54-s2/cbcf622f397c9e482209565cc8d959f1f99aa0064481b3f2b04410ec2abd3bbb.json
+?? graphify-out/cache/ast/v0.9.54-s2/cbe4c06687d905f401305de005e88fe0e41ac044adacd784985da599fbf95cee.json
+?? graphify-out/cache/ast/v0.9.54-s2/cd37f2ad27c68c28f48402d8daa98a5c8552b0de263fbd63067cd508c58d8033.json
+?? graphify-out/cache/ast/v0.9.54-s2/cd4ef1885c080556c96ca1a0da27f5579c383f082b406b340a33f7fcf666332a.json
+?? graphify-out/cache/ast/v0.9.54-s2/cd8502fff46953c0b73e5862cbedd0f27d992538be8fcda38aae9ed59c13b6c5.json
+?? graphify-out/cache/ast/v0.9.54-s2/cdd06e8522f5f64f6eaed8bc6bdf9610c1bf50e5b022ba8aa95d5bec77b2bd59.json
+?? graphify-out/cache/ast/v0.9.54-s2/ce698766fd814e5294b04175a09b537ccc0fb45273f76fa270ff77a848709c38.json
+?? graphify-out/cache/ast/v0.9.54-s2/ce90724cb425bbf68d3d1842851f9985d9f17fd4a8c44e77351db27038e3e373.json
+?? graphify-out/cache/ast/v0.9.54-s2/ceb9cb02fba6c1c3e70d855934f9f28955d5bcc7d0f359853b97e00859837df6.json
+?? graphify-out/cache/ast/v0.9.54-s2/cfab595c85e5ae903b8fe7c2a76d314f94f8553157c79e45c3f113d0392a7d5b.json
+?? graphify-out/cache/ast/v0.9.54-s2/cfdb380398a6c926e879ef8da0eeb7d6cca346d41ac555e8035ead89df55ba2a.json
+?? graphify-out/cache/ast/v0.9.54-s2/cff8839b42f287d24d555ae4a1e6aca6f3cd55bdb1c25d06c3d6cc35031e1a9a.json
+?? graphify-out/cache/ast/v0.9.54-s2/d02f3f0836468847ea8fc5a8bc92fa788de9bf6972e16129506e06fa6c65e16f.json
+?? graphify-out/cache/ast/v0.9.54-s2/d03a0586eb50b08afb6360aee1e60a274aec5a04ef742988d9077874511c937c.json
+?? graphify-out/cache/ast/v0.9.54-s2/d045f9d8aa0e71d2ddabb55dc6dcecebe5cdfd3cdddbb5c79afc1071393e0198.json
+?? graphify-out/cache/ast/v0.9.54-s2/d087b657284667f7aec7689f72c20249f9a3c88ccd1218dd34ac809ad17b6656.json
+?? graphify-out/cache/ast/v0.9.54-s2/d0dfe3ee2a22181d0cc4ef3efd8dd3959df8bc24dd2035c6c207a3bfbb399ad6.json
+?? graphify-out/cache/ast/v0.9.54-s2/d10a40d7e078655155dd0a22ae43ff44fd31dbc11de456f02f407ad009f0be35.json
+?? graphify-out/cache/ast/v0.9.54-s2/d1cb5e54c670d37a559c571177b12b87a60241ce5928c731d75a8de32ce2e5d4.json
+?? graphify-out/cache/ast/v0.9.54-s2/d1d0f21ddcdfe464c16f2e2081704cc4d30c61858648a34aab009c46d82475c4.json
+?? graphify-out/cache/ast/v0.9.54-s2/d1d22ea6d4014bc4ffa2c34119235db544cb612046e49c9198a0bedf8d2c803b.json
+?? graphify-out/cache/ast/v0.9.54-s2/d20d7ccb745c0a0923ff09011c8214f7ddc27ef478ee4218cd564850fd6ccb7a.json
+?? graphify-out/cache/ast/v0.9.54-s2/d2380622d0b51b5d0824299fb736e9069dec1b04bd2d944e46f794fdf67eb3d8.json
+?? graphify-out/cache/ast/v0.9.54-s2/d262c8d562cfd3aab3b35f12add2a82c5ef3743aa668d0c18317bb0b1e6a30a9.json
+?? graphify-out/cache/ast/v0.9.54-s2/d2d3ca31b82135b89fcb157ce6e16497e2f7d5e8a56c0d86023aa752b18e57c5.json
+?? graphify-out/cache/ast/v0.9.54-s2/d315444057c1462b1558881fb7b445e4692dd1fe613bdb0c7fe837580a5ff15c.json
+?? graphify-out/cache/ast/v0.9.54-s2/d35da99ab7f51ddefc670da89b907f41e70a6218dcb33a803ecc4ffcbc783113.json
+?? graphify-out/cache/ast/v0.9.54-s2/d38eb1ade4fb53546c41a835d9f4f1fee37e1c771b7e93d0b02c03e7528ed4dc.json
+?? graphify-out/cache/ast/v0.9.54-s2/d397367552d38b0b3c33ed50094ae7cb6b917b2a3e434f02d9a3f67f693af50c.json
+?? graphify-out/cache/ast/v0.9.54-s2/d45373da54065b0ec1c576ee5f6b37e8a55c3a70d5e72a399957a54e80ccff86.json
+?? graphify-out/cache/ast/v0.9.54-s2/d5be60a2556a7219e4748b8fb8e5cc76dc45025bdfa9aca48cc9740bc90cdce2.json
+?? graphify-out/cache/ast/v0.9.54-s2/d5c15beb404d8562cda83e2b4db24aba5606cac0b37774c407bcd397dc0b5a98.json
+?? graphify-out/cache/ast/v0.9.54-s2/d61190c35df52bd702670dce2bf148aa00b9580df63d53fc1929cbf4199ffde7.json
+?? graphify-out/cache/ast/v0.9.54-s2/d611b47978442631abf08393b261428d2d7ecac6457ffb72c3f8e2993e9c4390.json
+?? graphify-out/cache/ast/v0.9.54-s2/d629e4508cd260976086068747a49543092332dfe848fd0bcc23d21e5a080fd3.json
+?? graphify-out/cache/ast/v0.9.54-s2/d66bea73246b1c5cc3ff6d82741f5656e95f3f3fb51d501839a76e292d23ab02.json
+?? graphify-out/cache/ast/v0.9.54-s2/d6c859142d09ddb21105851ab2fd5668fd439e102e000c2413f4c80c82676227.json
+?? graphify-out/cache/ast/v0.9.54-s2/d75994ea542efa07947df50d5c1f578011c619983f3142f5f87e1d6095a70de7.json
+?? graphify-out/cache/ast/v0.9.54-s2/d7b36b1a0f0f127272ce6f18f83079d5a2764662173fabe58c81f49e08fbc363.json
+?? graphify-out/cache/ast/v0.9.54-s2/d83d5426990ed363132ca9dc289e3b686eaf833f7c9aa1bc3add8af62d8d899c.json
+?? graphify-out/cache/ast/v0.9.54-s2/d88f7810eef32cc9cd6a7f68a82460f815c2422d5d65b2f638621e9f21d97b73.json
+?? graphify-out/cache/ast/v0.9.54-s2/d95958f16346417e552cfcc78e89f15b94d1b553992d72bc742b997f0b24ebc9.json
+?? graphify-out/cache/ast/v0.9.54-s2/dac776f52597994b693d549655f37fa2612a7888fa0b750944cada298dfa58f5.json
+?? graphify-out/cache/ast/v0.9.54-s2/dae4d50063f78552ba53004e9764be0a890528509c1b48fc49cc9e7ec8071f39.json
+?? graphify-out/cache/ast/v0.9.54-s2/dbb470c3a2e2df36931347cf2ee5b4467badc01ba5f753be8acb4ee642732068.json
+?? graphify-out/cache/ast/v0.9.54-s2/dc2be3c548c5c364d89d21275f4697767742c5c1d068679ce17d72a17dc7ac44.json
+?? graphify-out/cache/ast/v0.9.54-s2/dc4b6e2d9b804ec34759637855c5460e8dab5ad84fddfded5fc18e0c1a5fc854.json
+?? graphify-out/cache/ast/v0.9.54-s2/dc6ba38f53cff9c6e8bc22501778cf3bdbbe9556424bf45cff8c4ae3446e6471.json
+?? graphify-out/cache/ast/v0.9.54-s2/dc79147b92ecd0d4c9a823aa09727895c2de8159f862956bbef3a272c443ce9e.json
+?? graphify-out/cache/ast/v0.9.54-s2/dca9db6dfcd83c4f6f5a6f66fa67cfde6e387d90184af3344a7f65aef8ba601b.json
+?? graphify-out/cache/ast/v0.9.54-s2/dcfc66dc52445e418a1b540031005374fad4c9e911f7c1e54072ecd3150a8bed.json
+?? graphify-out/cache/ast/v0.9.54-s2/dd2cf8a493b968039b3326e5ed2981c251a7c25ce3915e8d8713233280927709.json
+?? graphify-out/cache/ast/v0.9.54-s2/de603ae9da47f892da07d869a69cfac9d2775b5a7ea5ae2c59d17bfbc3491bb2.json
+?? graphify-out/cache/ast/v0.9.54-s2/df36f7c240c14a8144f3bee527c8d15a466dac52ee4560e8b34df7ce8e88024a.json
+?? graphify-out/cache/ast/v0.9.54-s2/df44927d1ce79580d36102c253c1eaa542f0f09771b95e8e8ac93c21ecd6f630.json
+?? graphify-out/cache/ast/v0.9.54-s2/dfd570f4a92b30faee738464137fabc27893b19baa0f2ed0e20144efa58cd4ad.json
+?? graphify-out/cache/ast/v0.9.54-s2/e0187351d421659a99d1948c6e6468ecea007d51b29bf447e1fd3917b3217a14.json
+?? graphify-out/cache/ast/v0.9.54-s2/e05889b9942d31150e8ee416ab2be1a9408b83fbaf81dea2082c232b2198d279.json
+?? graphify-out/cache/ast/v0.9.54-s2/e0653e3e1eaa32bc7cc4c5a62ccd4f6ce973fd6ec2a71b443a80bd263b397475.json
+?? graphify-out/cache/ast/v0.9.54-s2/e175447d55cc3837f4e5d1fa210e89aedd489299bc8562564c7e79465421ab3c.json
+?? graphify-out/cache/ast/v0.9.54-s2/e1d0d5dac1e6f59b75987da191cdcb93ef2533bb293bc31f196001e22c7cfd8c.json
+?? graphify-out/cache/ast/v0.9.54-s2/e26edcd9ca6623dbad2f2c402ad954675bf4273446213cebbc54b0a5e3ba64a7.json
+?? graphify-out/cache/ast/v0.9.54-s2/e28663ecee8b9e59f3025540bc4c019d94349aa910a203c2d653dbd0b324921c.json
+?? graphify-out/cache/ast/v0.9.54-s2/e287fbee9084fb7b2e408a2da5dfc08d16b523092dd4e38c17b5fb0dcb75e7f4.json
+?? graphify-out/cache/ast/v0.9.54-s2/e2db8484efaa2ee7eb1f9fd36b4d4efca29c946a1c3a6bdc3e6563e3c4912b89.json
+?? graphify-out/cache/ast/v0.9.54-s2/e2e9b5636d0f60a1f612351afb5eeab0284dcf6b464ec3687040f36825d8d28f.json
+?? graphify-out/cache/ast/v0.9.54-s2/e364bcd47fe50c958288a54b50c3e89b446a28cfada4b1fdba463e37c72e136d.json
+?? graphify-out/cache/ast/v0.9.54-s2/e37e2d287527c3f4f1ba2c51e041252ffbd87141f9adc55bc787da1617899979.json
+?? graphify-out/cache/ast/v0.9.54-s2/e3a40744e9b0a29f7e2a8c307799e739c6d1f0b262e9415062b7bc5e77ee391d.json
+?? graphify-out/cache/ast/v0.9.54-s2/e3d9fde77407b6fcd4e157b85f9b6ea3597d5b5224cb858f41ea17a73897742b.json
+?? graphify-out/cache/ast/v0.9.54-s2/e416ccc3e5e34bdf59c7c8aedbe490bc0af4d02d7c87a2c8ac0ef32ab9e1b384.json
+?? graphify-out/cache/ast/v0.9.54-s2/e4b5f93e405553fb6c824250131bcc9232b886e9dc88fd0c64fbb4473f535352.json
+?? graphify-out/cache/ast/v0.9.54-s2/e5027dfdcbb538044b97b9a5130527c59b8c1ee50a0979b9751fde59ec31315b.json
+?? graphify-out/cache/ast/v0.9.54-s2/e50b23910a15e09cbb716c169b34a7db904389cce047ad438278cef94db0fa3b.json
+?? graphify-out/cache/ast/v0.9.54-s2/e510c9fecfc6baee88d5628b64f69ea9b8d0cf0c88f527aafb02f9bf68166f88.json
+?? graphify-out/cache/ast/v0.9.54-s2/e58ec25604fd28b5e35ce7d7de65f51e9f11270eba727943c236ad326132e18d.json
+?? graphify-out/cache/ast/v0.9.54-s2/e59e1b96b5e4430339be6bcebcdbbe4db45d2cf6893cf944afb36dae283a73c6.json
+?? graphify-out/cache/ast/v0.9.54-s2/e5b6e6fc3333cde147b80171220e6396c46883593770a34b3bc02db8dac54e5f.json
+?? graphify-out/cache/ast/v0.9.54-s2/e606a4cfd8109e300b20d938c3658bac8175f3373d55ea5b724ef78eab7697cb.json
+?? graphify-out/cache/ast/v0.9.54-s2/e63e5b24ec9e2a82b191327e69172c3a5a1ddd1582ea5219879281b0adc148bf.json
+?? graphify-out/cache/ast/v0.9.54-s2/e654fac35ca2b5a43186778ccdc9b80b4a22469e22b39c93b8b8d85d34da4f81.json
+?? graphify-out/cache/ast/v0.9.54-s2/e6874ce272cac5e8c65eaaaca5a2e91e7f14d808526f12af4a67aba333ca376b.json
+?? graphify-out/cache/ast/v0.9.54-s2/e6eaa05f6c027214addcaa42f07cb05fee507348b3d3243f3d781251e29e134d.json
+?? graphify-out/cache/ast/v0.9.54-s2/e7056d921c12a6c88bdb9a47adc286ca83a3467ec2db15ff21bcda72354215d3.json
+?? graphify-out/cache/ast/v0.9.54-s2/e75fdb1db21667ff559b9f1965e31798fc6a4143ddcd0e329870508b42d5b14a.json
+?? graphify-out/cache/ast/v0.9.54-s2/e7bfbdee29c5d80451acdffc92e09ff439247da4f4d8a87c9aa93bc65ff24540.json
+?? graphify-out/cache/ast/v0.9.54-s2/e7f2384b466163c9402ec636eb38eabac8286a7a7186ba239f35ba010782b527.json
+?? graphify-out/cache/ast/v0.9.54-s2/e83242f637b27617d537a25b2ef805f11374a554a0ffb3cdcb8b362020b7c343.json
+?? graphify-out/cache/ast/v0.9.54-s2/e85a9e894358a94083ba77ae725e45cbb657288c629a5a2cdc4364b32996a5b7.json
+?? graphify-out/cache/ast/v0.9.54-s2/e85c37e542affe12c4fb9dc73f29cf0d3c89121810d38be3d3997d52b04fda4d.json
+?? graphify-out/cache/ast/v0.9.54-s2/e86e27c8ee6b0e45d0f6182151c4184dd6999492fbe129a3a6ab54fd0e8a6160.json
+?? graphify-out/cache/ast/v0.9.54-s2/e9089ae925549b2d415c4b43992c796343ec0e126cfdd5d53abc747bc8682a27.json
+?? graphify-out/cache/ast/v0.9.54-s2/e919f56f3bc5fb372c18b2d5ee6fde4e99d9f40069b8e11fa47b2319967a2f74.json
+?? graphify-out/cache/ast/v0.9.54-s2/e9a58b4551d05a2e59144f82e5308e2db4c396994315f013b3196fb764fbfb13.json
+?? graphify-out/cache/ast/v0.9.54-s2/e9e157d249b19454a337ed5de59b2e0404bec740b1ff95d1a684440db53c85de.json
+?? graphify-out/cache/ast/v0.9.54-s2/ea92c6ec09308af2625fb661d9b3c764175e9dba297a1d27a5723056e67afc40.json
+?? graphify-out/cache/ast/v0.9.54-s2/eb01bfb62282999689164366e627b2962c211466d004f6b5a01829c9ae2cb133.json
+?? graphify-out/cache/ast/v0.9.54-s2/eb195f4a217004cb775be240b44f2ce0204088ba7b3f6885edce230a8b28c6c8.json
+?? graphify-out/cache/ast/v0.9.54-s2/eb1e4459672d670988012dedab800d6ebf480a861465739ab26c683914afd762.json
+?? graphify-out/cache/ast/v0.9.54-s2/eb33bc4f92dbdc0536528f0c75aefc44e7308a0334d008cb7259e835134443f9.json
+?? graphify-out/cache/ast/v0.9.54-s2/eb4772b71f8beb525dd0ef4021de158c719c80ee53e1156eeb66342ac6e4e6c1.json
+?? graphify-out/cache/ast/v0.9.54-s2/eb9aa22f99593e65d1760ffc0714c8b987f47562237c7c89217998970430c588.json
+?? graphify-out/cache/ast/v0.9.54-s2/ec01498672d7b04913b6472e0c519d6387e7aef63a1bf26c7b79df60dd57e086.json
+?? graphify-out/cache/ast/v0.9.54-s2/ed328e72fe2d9cd8666dc8efb74fde00ebc9b09f5e25b00bb7c82ff5dfcdbaa7.json
+?? graphify-out/cache/ast/v0.9.54-s2/ed8211d15d9f19f136db3db0ab2bbef890d1ab845685a30a78b2d9016f357c24.json
+?? graphify-out/cache/ast/v0.9.54-s2/edcd54b6ccc693b721414c7786a8ccaff27b09163c50c1d88f9cdfd92d1f4ae5.json
+?? graphify-out/cache/ast/v0.9.54-s2/ee04bd320aef71a18d890a4a44c0ed1f98304ea77c2f6e4064d5ad0d50cc1651.json
+?? graphify-out/cache/ast/v0.9.54-s2/ee280cb211260dafae22f45ef120a07b021558c12f2a1e751e6ca3d4c64d4da0.json
+?? graphify-out/cache/ast/v0.9.54-s2/ee32a15a7c0038745d14f15dbde1aa6bdd88394779b3877894593070c55d0525.json
+?? graphify-out/cache/ast/v0.9.54-s2/ee4996f12203d04295a40e1a94a2ebfc966be1d82f2b2e3a9f2a56e7326b9d78.json
+?? graphify-out/cache/ast/v0.9.54-s2/ee987fea252e3a80b6c210a77b204901221ed03802e0cdd7b801e24d921d1e1b.json
+?? graphify-out/cache/ast/v0.9.54-s2/eeb68922ada0c6d50a0182fb52a24c5b9146e66c02f99e2632b80ad6817eca6e.json
+?? graphify-out/cache/ast/v0.9.54-s2/eee573a579aa40ba62b4c543371d226916cec0fd467b1a39d2a42474811cd899.json
+?? graphify-out/cache/ast/v0.9.54-s2/ef0960993d76ee6c278d4edc7f3e51f14d9e3e654cf655ecf428fea57f198bff.json
+?? graphify-out/cache/ast/v0.9.54-s2/eff95a050c0a8aaaff1ac084b735ace4390e5723e24f71994a37bb469dc76a44.json
+?? graphify-out/cache/ast/v0.9.54-s2/f059ec2ceaf60c7bbf656a28bb7baeb8f860a724b73b871afb880a1f89093934.json
+?? graphify-out/cache/ast/v0.9.54-s2/f06b3173995a536392f7cc189eb516cc526bdeb6db8d5dd6f5fdadea17c93f7f.json
+?? graphify-out/cache/ast/v0.9.54-s2/f18d32e5eb941ac836457782da7006800fc2055d9eb9b021168db93459f31ffc.json
+?? graphify-out/cache/ast/v0.9.54-s2/f1d7a61c35f3cec62573872b750c4ae7e2f94c7f25aec44cb7292796dd8a7fea.json
+?? graphify-out/cache/ast/v0.9.54-s2/f1fdca70e4797e287060b3c3b8a1cfc6c4d854dd74d66e28ff5e1f8b5a989ae9.json
+?? graphify-out/cache/ast/v0.9.54-s2/f23214d7d35b9a75b8c9ddf811bf9f59d705d16e763dccd511903eef012838b3.json
+?? graphify-out/cache/ast/v0.9.54-s2/f23834d316b850a18970b472612197ccbf3d466a60c8a197b0d691903e60e293.json
+?? graphify-out/cache/ast/v0.9.54-s2/f2624d64850f5a7eeb3c61a454e87eba4e5798c28a6141500261e3530cad73cc.json
+?? graphify-out/cache/ast/v0.9.54-s2/f280e843b4d9e8eb6333b433c52f1597f0826228e62936b1810c770699e6896c.json
+?? graphify-out/cache/ast/v0.9.54-s2/f2a428440281e2a7751c448880b485510126581e84f23c0d5e90ba12f86ce562.json
+?? graphify-out/cache/ast/v0.9.54-s2/f30c1343b3d3c99b5a6c079c4c1c0e6a4e7ff2c1906a214d4be9ed46f82181bc.json
+?? graphify-out/cache/ast/v0.9.54-s2/f32857efb5cf0d3f22e1e62f5f6c5483ef5382ac848bf5c0be346f66e9ee56e2.json
+?? graphify-out/cache/ast/v0.9.54-s2/f3349f1546b138b1b8f2a925047d61c2e8dc8bc3b32cabcb14e33707944089b7.json
+?? graphify-out/cache/ast/v0.9.54-s2/f35cd63daa358d9938adfdbeffd36640a87a9d33f34e072c4e264e095394428e.json
+?? graphify-out/cache/ast/v0.9.54-s2/f380cfcbbe7575b38aef1ae9aeaec688095987f11ef960f0f04e2f2477e3f589.json
+?? graphify-out/cache/ast/v0.9.54-s2/f3c2cc681ab62389bb6b884497f8e301ae82e332265c3053002bb42be9feef02.json
+?? graphify-out/cache/ast/v0.9.54-s2/f411e6a1092e6845f95600ca9e2f7b9ba0ca9a66cd659c05cb74c310a93ace7c.json
+?? graphify-out/cache/ast/v0.9.54-s2/f4152296ce668b0b88cb2131f82184b9e9d1a587ebf01207691349c3ea5282fb.json
+?? graphify-out/cache/ast/v0.9.54-s2/f537492610510a9fa9bd293e3b4bc8ba44f53879576710b7999daa506eca90ec.json
+?? graphify-out/cache/ast/v0.9.54-s2/f5bb24a06a5474433f50b886e87684fc22e8748114ea50e7fd88195cd35707be.json
+?? graphify-out/cache/ast/v0.9.54-s2/f5e08f346be6acf866d6ea89be75f9197c7f628e777fe6422db40fd8f0432a05.json
+?? graphify-out/cache/ast/v0.9.54-s2/f60b82730400bf01312784aad72a948f9d670640c32b512a0d6ba347217df4f7.json
+?? graphify-out/cache/ast/v0.9.54-s2/f67e2cd0bc41f3aa27a9fd5a12080662c4581718e1504df3cbcbd82340297828.json
+?? graphify-out/cache/ast/v0.9.54-s2/f6da37e7b1adeadac06c3d78f5aef6d9e0ac0877a6a0241c85b3a6f8c172b23b.json
+?? graphify-out/cache/ast/v0.9.54-s2/f718966a8069d8ef6d478ddc2f656ba6bfe5a865f72fd8ed7fd7c34de3ce82c1.json
+?? graphify-out/cache/ast/v0.9.54-s2/f761f77fd7bd2b2505446b2544c8823fc960eb14b3d5d5bdc6975276f68f733f.json
+?? graphify-out/cache/ast/v0.9.54-s2/f7ed64a4bb06ea57c1e6a2d728257e052b0303b4c4ec491cdc2298971dc117b2.json
+?? graphify-out/cache/ast/v0.9.54-s2/f8162581e746149fe330bb113943fd79ac32279599cb5a100b309d97b8d1bc35.json
+?? graphify-out/cache/ast/v0.9.54-s2/f86bc919c61ac90ca7ee3c55158455b232516c3a4e1d820f7c6280fee4474de6.json
+?? graphify-out/cache/ast/v0.9.54-s2/f8b4bef6438380320cb7de759b5580a5cf49650234d117e2f90d0032318093e7.json
+?? graphify-out/cache/ast/v0.9.54-s2/f8b9c6ac14fffafdc48a600f3434ae6583a72c123f04ac2b5cac0eff4fc8e89b.json
+?? graphify-out/cache/ast/v0.9.54-s2/f8ed89f74a5dc6479bb98b2a3290a5d18d41a15615a26e430e53fc09c2b1fa2a.json
+?? graphify-out/cache/ast/v0.9.54-s2/f92fd0724b0dc5c7cd85b0b5608325bc2f67815672667e2873120423aa4729ef.json
+?? graphify-out/cache/ast/v0.9.54-s2/fa6939f21ed0a1f660fcc49195c43963c8f545097f41dfa855292d9ebba28193.json
+?? graphify-out/cache/ast/v0.9.54-s2/fa9631cc0d16a5f05a0580a1116db08f1082514178215e3fb2a12fa86808120a.json
+?? graphify-out/cache/ast/v0.9.54-s2/fa96be0a68b0b5d38ab0707002268499b70bcd8fb318931b5b525cd00f77779e.json
+?? graphify-out/cache/ast/v0.9.54-s2/fb0e513c5d7e11ed9a3cbbcf6dd58cd13566a4e849961321decbeefcf7a22a1f.json
+?? graphify-out/cache/ast/v0.9.54-s2/fb8a013bfe5dd5db3f52090988c916946d468665f06b76999b0ab25bfee41895.json
+?? graphify-out/cache/ast/v0.9.54-s2/fbd9bafb0cabf72a3b460d641cd48caae7f726e0bb9b22b570ab42797ca6861f.json
+?? graphify-out/cache/ast/v0.9.54-s2/fbf67d46974433ed05171b950c999fe77ba0169e2f4ec2bcb49a7372f94d458f.json
+?? graphify-out/cache/ast/v0.9.54-s2/fc488d84817790716ec46a5f7fa25e84f4967b3023d7f0e3350f2512d6cc56a0.json
+?? graphify-out/cache/ast/v0.9.54-s2/fca6f76e6c31f9eb552778a367eb46c527a89da413530174962a329c6fc65c25.json
+?? graphify-out/cache/ast/v0.9.54-s2/fca91fc627f0eea9a02380e234f9bdf88ad30996d42186c511b2d8ed9f68afb5.json
+?? graphify-out/cache/ast/v0.9.54-s2/fd202a4fcdfe67d1765ef12d858511bb21af6758d9f67d17b4e0536e18b0f234.json
+?? graphify-out/cache/ast/v0.9.54-s2/fd9d0ef80d663de5cabb73aa2096b59308749e82c52d441db91aa9c49b36614d.json
+?? graphify-out/cache/ast/v0.9.54-s2/fe67155b4b6437a164a7b6fd0000bf635f59c5ee1c2dbdd66bb2c7317457773d.json
+?? graphify-out/cache/ast/v0.9.54-s2/feb8d3aeeb97ac0957431f32012fb3b4fc85d54e5bffd8b4a9ebadfcc9db069d.json
+?? graphify-out/cache/ast/v0.9.54-s2/ff77337673b583c40cd284a46adb25173816b076d719b88e6f0032a8b3a5a4bd.json
+?? graphify-out/cache/ast/v0.9.54-s2/ff91b36951d222b14eeeba3c743152bf47fb3545ed69f772431f46f5bff15311.json
+?? graphify-out/cache/stat-index._gk7wwfe.tmp
+?? intelligence/graphrag_reasoning.py
+?? intelligence/macro_fusion_gate.py
+?? intelligence/signal_arbitrator.py
+?? intelligence/universal_decision_engine.py
+?? operations/agents/alert_agent.py
+?? operations/agents/journal_agent.py
+?? operations/agents/ledger_agent.py
+?? operations/agents/sieve_agent.py
+?? operations/autonomous_pipeline.py
+?? operations/improvement_pipeline.py
+?? operations/learning_loop.py
+?? operations/ledger_housekeeping.py
+?? ops/watchdog/trading_watchdog.py
+?? research/_bench_wrapper.py
+?? research/_mcb_resume.py
+?? research/autonomous_web_researcher.py
+?? research/d9_escalation_latch_risk.py
+?? research/d9_false_positive_probe.py
+?? research/decision_models/
+?? research/hybrid_backtest_pipeline.py
+?? research/laya_checkpoint_parity.py
+?? research/learning/
+?? research/mt5_backtest_engine.py
+?? research/test_laya_extreme_benchmark.py
+?? research/test_macro_cognitive_suite.py
+?? research/test_macro_correct_benchmark.py
+?? research/triage_disagreement_seeder.py
+?? risk_state_demo.json
+?? scratch/analyze_pipeline_metrics.py
+?? scratch/check_journal_and_metrics.py
+?? scratch/scan_all_dbs.py
+?? scratch/test_cycle.py
+?? scratch/test_debug.py
+?? scratch/test_engine2.py
+?? scratch/test_engine3.py
+?? scratch/test_engine4.py
+?? scratch/test_engine5.py
+?? scratch/test_engine6.py
+?? scratch/test_engine7.py
+?? scratch/test_engine8.py
+?? scratch/test_fallback.py
+?? scratch/test_fallback2.py
+?? scratch/test_minimal.py
+?? scratch/test_self_improvement_pipeline.py
+?? scratch/verify_scalp_journaling_flow.py
+?? scripts/audit_prd_doc.py
+?? scripts/build_prd_doc.py
+?? scripts/sieve_login.py
+?? scripts/sieve_smoke.py
+?? state_manager.py
+?? tests/test_ambient_state_sandbox.py
+?? tests/test_backtest_cost_model_cpcv.py
+?? tests/test_d12_r1_questions.py
+?? tests/test_d5a_triage.py
+?? tests/test_d9_kill_switch_latch.py
+?? tests/test_d9_kill_switch_triage.py
+?? tests/test_decision_systems_adversarial.py
+?? tests/test_decision_systems_full.py
+?? tests/test_field_projection.py
+?? tests/test_improvement_verdicts.py
+?? tests/test_laya_bundle_prompt.py
+?? tests/test_live_order_lockout.py
+?? tests/test_news_evidence_routing.py
+?? tests/test_news_triage.py
+?? tests/test_pipeline_v2_e3.py
+?? tests/test_promotion_gate_journal.py
+?? tests/test_r1_mirroring.py
+?? tests/test_reflection_wiring.py
+?? tests/test_session_followups.py
+?? tests/test_sieve_client.py
+?? tests/test_signal_arbitrator.py
+?? tests/test_triage_ledger.py
+?? tests/test_triage_model_path.py
+?? tests/test_web_dashboard_rl_stats.py
+?? tests/test_yahoo_provider_outage_guard.py
+?? trading_safety.py
+?? tui_opentui/find_text_bugs.ts
+?? tui_opentui/src/_tmp_screen_proof.tsx
+?? tui_opentui/src/test_repro.tsx

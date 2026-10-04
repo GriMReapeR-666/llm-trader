@@ -1,0 +1,1456 @@
+{
+  "strategies": {},
+  "promotion_history": [
+    {
+      "timestamp": "2026-09-25T05:28:59.961393+00:00",
+      "strategy_key": "model_bocpd_changepoint",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T05:28:59.992741+00:00",
+      "strategy_key": "model_kalman_filter",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T05:29:00.042974+00:00",
+      "strategy_key": "rl_qlearning_v1",
+      "old_status": "CANDIDATE",
+      "new_status": "VALIDATING",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T05:29:00.072758+00:00",
+      "strategy_key": "sprt_hypothesis_gate",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T05:29:00.102623+00:00",
+      "strategy_key": "spx_volatility_skew",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T05:29:00.131143+00:00",
+      "strategy_key": "statarb_eur_chf",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.413734+00:00",
+      "strategy_key": "agent_execution_rl",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.446079+00:00",
+      "strategy_key": "agent_regime_supervisor",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.476741+00:00",
+      "strategy_key": "alpha_020f8f02",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.508017+00:00",
+      "strategy_key": "alpha_039c79b9",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.542678+00:00",
+      "strategy_key": "alpha_055_orderflow",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.577878+00:00",
+      "strategy_key": "alpha_098_copula",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.612743+00:00",
+      "strategy_key": "alpha_13ea254d",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.644817+00:00",
+      "strategy_key": "alpha_14c304fd",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.675758+00:00",
+      "strategy_key": "alpha_14d39f47",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.707121+00:00",
+      "strategy_key": "alpha_2fdc1a89",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.736626+00:00",
+      "strategy_key": "alpha_339ff1e4",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.767318+00:00",
+      "strategy_key": "alpha_35cbee37",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.802435+00:00",
+      "strategy_key": "alpha_3be65889",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.833647+00:00",
+      "strategy_key": "alpha_418ffe9f",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.866820+00:00",
+      "strategy_key": "alpha_469775a9",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.901860+00:00",
+      "strategy_key": "alpha_51e1046d",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.933644+00:00",
+      "strategy_key": "alpha_53767541",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.966233+00:00",
+      "strategy_key": "alpha_5535c389",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:01.999204+00:00",
+      "strategy_key": "alpha_562e93b3",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.035001+00:00",
+      "strategy_key": "alpha_6435dad6",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.074718+00:00",
+      "strategy_key": "alpha_6b5a91ce",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.110274+00:00",
+      "strategy_key": "alpha_6c437514",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.149612+00:00",
+      "strategy_key": "alpha_a270995e",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.182956+00:00",
+      "strategy_key": "alpha_a3615cbd",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.214790+00:00",
+      "strategy_key": "alpha_bc964ebf",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.245476+00:00",
+      "strategy_key": "alpha_cb505cf6",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.276588+00:00",
+      "strategy_key": "alpha_de89ade9",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.308728+00:00",
+      "strategy_key": "alpha_deaf6435",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.343582+00:00",
+      "strategy_key": "alpha_e19398ec",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.380333+00:00",
+      "strategy_key": "alpha_e7c078a4",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.419461+00:00",
+      "strategy_key": "alpha_f25aa19b",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.454470+00:00",
+      "strategy_key": "alpha_f7cf6f32",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.494498+00:00",
+      "strategy_key": "alpha_fa499065",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.528919+00:00",
+      "strategy_key": "alpha_fc3c147e",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.616346+00:00",
+      "strategy_key": "gold_momentum_h4",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.655604+00:00",
+      "strategy_key": "kronos_h1",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.734178+00:00",
+      "strategy_key": "macro_nfp_pullback",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.768937+00:00",
+      "strategy_key": "meanrev_bollinger",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.800571+00:00",
+      "strategy_key": "model_bocpd_changepoint",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.832015+00:00",
+      "strategy_key": "model_kalman_filter",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.883192+00:00",
+      "strategy_key": "rl_qlearning_v1",
+      "old_status": "VALIDATING",
+      "new_status": "PAPER_PROVEN",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.914810+00:00",
+      "strategy_key": "sprt_hypothesis_gate",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.955644+00:00",
+      "strategy_key": "spx_volatility_skew",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-25T13:18:02.990505+00:00",
+      "strategy_key": "statarb_eur_chf",
+      "old_status": "READY_FOR_DEPLOYMENT",
+      "new_status": "DEPLOYED",
+      "gates": {
+        "sample_size": {
+          "passed": true,
+          "count": 150,
+          "required": 100
+        },
+        "dsr": {
+          "passed": true,
+          "note": "DSR module unavailable: no such column: r_multiple"
+        },
+        "walkforward": {
+          "passed": true,
+          "note": "Walk-forward module unavailable: no such column: r_multiple"
+        },
+        "judge_rubric": {
+          "passed": true,
+          "note": "non_formula_strategy"
+        },
+        "openquant_admissibility": {
+          "passed": true,
+          "note": "no_benchmark_metrics_recorded"
+        }
+      }
+    }
+  ],
+  "last_check": "2026-09-25T13:18:02.995180+00:00"
+}

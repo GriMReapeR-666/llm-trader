@@ -1,0 +1,9 @@
+............................................................F.           [100%]
+================================== FAILURES ===================================
+_______ TestInferLayaDirection.test_case_insensitive_and_none_tolerant ________
+tests\test_signal_arbitrator.py:583: in test_case_insensitive_and_none_tolerant
+    assert _infer_laya_direction(None, "extreme_hawkish") == "SELL"
+E   AssertionError: assert None == 'SELL'
+E    +  where None = _infer_laya_direction(None, 'extreme_hawkish')
+=========================== short test summary info ===========================
+FAILED tests/test_signal_arbitrator.py::TestInferLayaDirection::test_case_insensitive_and_none_tolerant

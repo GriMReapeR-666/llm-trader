@@ -1,0 +1,7 @@
+real python: C:\Users\User\AppData\Local\Programs\Python\Python313\python.exe
+project:     C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\
+deck_seg.bat: 74 lines (truncated after compact block)
+run.bat written: 6 scenarios
+PU-0129-BUILD-OK
+exit=0
+END-MARKER-PU-0131

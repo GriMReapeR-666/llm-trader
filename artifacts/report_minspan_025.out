@@ -1,0 +1,56 @@
+journal: trading_state.db (read-only)
+now:     2026-09-28T02:15:08.554549+00:00
+journal span: 2026-08-06T13:06:06 .. 2026-09-28T01:34:59
+live session: not detected (open run since 2026-09-28T01:34:59, last event 2026-09-28T01:34:59; run_finished 2026-09-27T17:10:13)
+
+== duty cycle: all-time (includes trader-down hours; lower bound) ==
+  market_health: 11234 claims over 774.4h, interval 30s, duty 12%  <-- STARVED
+  event_monitor: 6132 claims over 774.4h, interval 60s, duty 13%  <-- STARVED
+  incident_sweep: 5983 claims over 774.3h, interval 60s, duty 13%  <-- STARVED
+  event_triage: 5982 claims over 774.3h, interval 60s, duty 13%  <-- STARVED
+  position_reconcile: 5721 claims over 756.7h, interval 60s, duty 13%  <-- STARVED
+  alloc_rebalance: 1354 claims over 774.0h, interval 300s, duty 15%  <-- STARVED
+  alert_dispatch: 518 claims over 42.4h, interval 60s, duty 20%  <-- STARVED
+  causal_edge_validate: 474 claims over 756.5h, interval 900s, duty 16%  <-- STARVED
+  sieve_poll: 282 claims over 13.4h, interval 60s, duty 35%  <-- STARVED
+  catalog_measurement_pass: 247 claims over 492.5h, interval 1800s, duty 25%  <-- STARVED
+  lifecycle_evaluation: 130 claims over 492.4h, interval 3600s, duty 26%  <-- STARVED
+  session_review: 126 claims over 492.0h, interval 3600s, duty 26%  <-- STARVED
+  macro_post_event_review: 126 claims over 492.0h, interval 3600s, duty 26%  <-- STARVED
+  macro_event_evidence: 28 claims over 6.8h, interval 900s, duty 102%
+  journal_maintenance: 12 claims over 42.0h, interval 3600s, duty 29%  <-- STARVED
+  daily_review: 8 claims over 486.1h, interval 86400s, duty 39%  <-- STARVED
+  self_improvement: 7 claims over 455.0h, interval 86400s, duty 37%  <-- STARVED
+  historical_regime_research: 7 claims over 455.0h, interval 86400s, duty 37%  <-- STARVED
+  economic_dynamics_seed: 7 claims over 455.0h, interval 86400s, duty 37%  <-- STARVED
+  ledger_housekeeping: 3 claims over 71.3h, interval 86400s, duty 101%
+  weekly_research: 1 claims over 0.0h, interval 604800s, span too short for ratio
+  outbox_archive: 1 claims over 0.0h, interval 86400s, span too short for ratio
+  monthly_memory_archive: 1 claims over 0.0h, interval 2592000s, span too short for ratio
+  candidate_sprint: 1 claims over 0.0h, interval 604800s, span too short for ratio
+
+== duty cycle: last session (since run_started 2026-09-28T01:34:59) ==
+
+== claim-time-restore comparison (last session vs pre-fix baseline) ==
+  no post-fix session ratios yet (session shorter than the span floor, or no schedule_due since the restore). Re-run after a live session, or pass --min-span-hours 0.25 for early checks.
+
+== handler overrun telemetry ==
+  event_monitor: 37 overruns, budget 60.0s, elapsed p50 79.6s / p95 125.6s, worst over by 221.6s -> suggested 60.0s
+  journal_maintenance: 2 overruns, budget 45.0s, elapsed p50 48.7s / p95 51.3s, worst over by 6.3s -> suggested 77.0s
+
+== budget-raise verdict ==
+  RAISE: none — no schedule trips often and severely enough
+  WATCH (keep budget):
+    event_monitor: 37 overruns — only 0.60% trip rate
+    journal_maintenance: 2 overruns — insufficient dispatch baseline
+  (apply edits to _SCHEDULE_HANDLER_BUDGETS in intelligence/llm_orchestrator.py)
+
+== session-skip watchdog telemetry ==
+  no schedule_session_skip events yet
+
+== claimed-but-abandoned batches (schedule_skipped) ==
+  position_reconcile: abandoned in 1 batches (wave_deadline x1)
+  deferral reasons across 1 batches: wave_deadline: 1
+  (1 batches scanned)
+
+saved: artifacts\scheduler_tuning_report.json

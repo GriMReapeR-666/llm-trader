@@ -1,0 +1,120 @@
+INFO MarketData: MT5 server-timezone offset detected: +10800s (UTC+3)
+INFO research.alpha_miner.exploration_grid: Built exploration grid with 660 cells
+INFO research.alpha_miner.alpha101_knowledge_base: Alpha101KnowledgeBase loaded 29 records
+INFO research.alpha_miner.pipeline: ======================================================================
+INFO research.alpha_miner.pipeline: ALPHA MINING PIPELINE - Starting
+INFO research.alpha_miner.pipeline: ======================================================================
+INFO research.alpha_miner.pipeline: 
+Phase 1: Hierarchical GA Evolution
+INFO research.alpha_miner.ga_engine: Initializing population of 30 expressions...
+INFO research.alpha_miner.ga_engine: Generation 1/3
+INFO research.alpha_miner.ga_engine:   Avg IC: -0.0359, Max IC: 0.1179, Significant: 13, Diversity: 1.00
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pca_projector.py:98: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  behavior_df = behavior_df.fillna(method='ffill').fillna(method='bfill')
+INFO research.alpha_miner.ga_engine:   Increasing max depth to 2
+INFO research.alpha_miner.ga_engine: Generation 2/3
+INFO research.alpha_miner.ga_engine:   Avg IC: 0.0079, Max IC: 0.1179, Significant: 8, Diversity: 0.62
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pca_projector.py:98: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  behavior_df = behavior_df.fillna(method='ffill').fillna(method='bfill')
+INFO research.alpha_miner.ga_engine:   Increasing max depth to 3
+INFO research.alpha_miner.ga_engine: Generation 3/3
+INFO research.alpha_miner.ga_engine:   Avg IC: 0.0407, Max IC: 0.1179, Significant: 12, Diversity: 0.38
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pca_projector.py:98: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  behavior_df = behavior_df.fillna(method='ffill').fillna(method='bfill')
+INFO research.alpha_miner.ga_engine: Evolution completed in 82.4s
+INFO research.alpha_miner.ga_engine: Best IC: 0.1179
+INFO research.alpha_miner.ga_engine: Significant alphas: 12
+INFO research.alpha_miner.pipeline: 
+Phase 2: PCA Grid Selection & Diversity
+INFO research.alpha_miner.pipeline: 
+Phase 2.1: Deterministic Judge Rubric Pre-Filter (Vu et al. 2026)
+INFO research.alpha_miner.pipeline: 
+Phase 2.5: Horizon-Aware Alpha Evaluation
+INFO research.alpha_miner.pipeline:   Horizon filter: 12 -> 12 alphas (0 misleading)
+INFO research.alpha_miner.pipeline: 
+Phase 3: Failure-Aware Repair
+INFO research.alpha_miner.pipeline: 
+Phase 3.5: Regime Detection & Liquidity Screening
+INFO research.alpha_miner.pipeline:   Regime: ranging (confidence=0.50, trend=0.01)
+INFO research.alpha_miner.pipeline:   Liquidity: score=0.26, liquid=False, slippage=100.0bps
+INFO research.alpha_miner.pipeline: 
+Phase 4: Strategy Registration
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_5535c389 (Alpha-1)
+INFO research.alpha_miner.pipeline:   Registered: alpha_5535c389 (IC=-0.1274)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_51e1046d (Alpha-2)
+INFO research.alpha_miner.pipeline:   Registered: alpha_51e1046d (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_cb505cf6 (Alpha-3)
+INFO research.alpha_miner.pipeline:   Registered: alpha_cb505cf6 (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_fa499065 (Alpha-4)
+INFO research.alpha_miner.pipeline:   Registered: alpha_fa499065 (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_14c304fd (Alpha-5)
+INFO research.alpha_miner.pipeline:   Registered: alpha_14c304fd (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_e19398ec (Alpha-6)
+INFO research.alpha_miner.pipeline:   Registered: alpha_e19398ec (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_020f8f02 (Alpha-7)
+INFO research.alpha_miner.pipeline:   Registered: alpha_020f8f02 (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_f7cf6f32 (Alpha-8)
+INFO research.alpha_miner.pipeline:   Registered: alpha_f7cf6f32 (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_f25aa19b (Alpha-9)
+INFO research.alpha_miner.pipeline:   Registered: alpha_f25aa19b (IC=0.1179)
+INFO research.alpha_miner.strategy_bridge: Registered alpha strategy: alpha_e7c078a4 (Alpha-10)
+INFO research.alpha_miner.pipeline:   Registered: alpha_e7c078a4 (IC=0.0975)
+INFO research.alpha_miner.pipeline: 
+Phase 5: MegaAlpha Portfolio Construction
+INFO research.alpha_miner.pipeline:   MegaAlpha composite shape: (1500,)
+INFO research.alpha_miner.pipeline: 
+Phase 6: Optimal Strategy Statistics
+WARNING research.alpha_miner.pipeline: Optimal statistics computation failed: too many values to unpack (expected 2)
+INFO research.alpha_miner.pipeline: 
+Phase 7: Microstructure Signal Analysis
+INFO research.alpha_miner.pipeline:   FVG: 50 gaps detected (strong=1, moderate=12, weak=37, avg_degree=0.000676)
+INFO research.alpha_miner.pipeline:   KAT: 0 absorption events (bull=0, bear=0, state=none)
+INFO research.alpha_miner.pipeline:   Spoofing: 0 events (bullish=0, bearish=0, avg_score=0.00)
+INFO research.alpha_miner.pipeline:   RL Agent: SELL (confidence=0.00, size=0.00)
+INFO research.alpha_miner.pipeline: 
+Phase 8: Pairs Trading & Breakout Detection
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pairs_trader.py:147: CollinearityWarning: y0 and y1 are (almost) perfectly colinear.Cointegration test is not reliable in this case.
+  _, adf_stat, _ = coint(s1, s2)
+C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\statsmodels\regression\linear_model.py:1782: RuntimeWarning: invalid value encountered in scalar divide
+  return 1 - self.ssr/self.centered_tss
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pairs_trader.py:147: CollinearityWarning: y0 and y1 are (almost) perfectly colinear.Cointegration test is not reliable in this case.
+  _, adf_stat, _ = coint(s1, s2)
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pairs_trader.py:147: CollinearityWarning: y0 and y1 are (almost) perfectly colinear.Cointegration test is not reliable in this case.
+  _, adf_stat, _ = coint(s1, s2)
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\research\alpha_miner\pairs_trader.py:147: CollinearityWarning: y0 and y1 are (almost) perfectly colinear.Cointegration test is not reliable in this case.
+  _, adf_stat, _ = coint(s1, s2)
+INFO research.alpha_miner.pipeline:   Pairs: 0 cointegrated pairs found, 0 signals generated
+INFO research.alpha_miner.pipeline:   Breakout: 1 breakouts (bull=0, bear=1, avg_vol_ratio=4.58)
+INFO research.alpha_miner.pipeline: 
+Phase 9: Walk-Forward Validation
+INFO research.alpha_miner.pipeline:   Walk-Forward: 4 folds, 3 profitable, avg_sharpe=0.56, robustness=0.75
+INFO research.alpha_miner.pipeline: 
+======================================================================
+INFO research.alpha_miner.pipeline: ALPHA MINING PIPELINE - Complete
+INFO research.alpha_miner.pipeline: ======================================================================
+INFO research.alpha_miner.pipeline: Total expressions evaluated: 30
+INFO research.alpha_miner.pipeline: Significant alphas found: 12
+INFO research.alpha_miner.pipeline: Best IC: 0.1179
+INFO research.alpha_miner.pipeline: Pipeline duration: 105.9s
+DATA: rows=1500 cols=['open', 'high', 'low', 'close', 'tick_volume', 'spread', 'real_volume']
+
+===== SMOKE RESULT =====
+duration: 106.0s
+discovered_alphas: 10
+to_dict: {'n_discovered_alphas': 10, 'significant_alphas_count': 12, 'best_ic': np.float64(0.117876), 'avg_ic': np.float64(0.04073), 'total_expressions_evaluated': 30, 'pipeline_duration': 105.93}
+walk_forward_result: {'total_folds': 4, 'profitable_folds': 3, 'avg_test_sharpe': 0.5605, 'avg_test_return_pct': 0.66, 'avg_test_max_dd_pct': 0.81, 'robustness_score': 0.75, 'folds': [{'fold_id': 0, 'train_range': '0-500', 'test_range': '500-750', 'train_sharpe': -0.1322, 'test_sharpe': 1.1193, 'test_return_pct': 1.29, 'test_max_dd_pct': 0.6, 'n_trades': 0}, {'fold_id': 1, 'train_range': '250-750', 'test_range': '750-1000', 'train_sharpe': 0.402, 'test_sharpe': -1.3183, 'test_return_pct': -0.97, 'test_max_dd_pct': 1.63, 'n_trades': 0}, {'fold_id': 2, 'train_range': '500-1000', 'test_range': '1000-1250', 'train_sharpe': 1.1723, 'test_sharpe': 0.3191, 'test_return_pct': 0.25, 'test_max_dd_pct': 0.69, 'n_trades': 0}, {'fold_id': 3, 'train_range': '750-1250', 'test_range': '1250-1500', 'train_sharpe': 0.4647, 'test_sharpe': 2.122, 'test_return_pct': 2.07, 'test_max_dd_pct': 0.3, 'n_trades': 0}]}
+pairs_result: {'pairs_found': 0, 'n_signals': 0, 'optimized_params': None, 'cointegrated_pairs': [], 'spread_stats': {}, 'signals': []}
+breakout_result: {'total_breakouts': 1, 'bullish_count': 0, 'bearish_count': 1, 'avg_volume_ratio': 4.5829, 'avg_confidence': 0.3693, 'signals': [{'bar_index': 1146, 'direction': 'bearish', 'volume_ratio': np.float64(4.5829), 'price_breakout_pct': np.float64(0.2695), 'volume_lookback': 5, 'spike_count': 1, 'confidence': np.float64(0.3693)}]}
+optimal_stats: None
+--- discovered alphas ---
+   {'expression': 'cs_rank(high)'}
+   {'expression': 'negate(close)'}
+   {'expression': 'negate(close)'}
+   {'expression': 'negate(close)'}
+   {'expression': 'negate(close)'}
+   {'expression': 'negate(close)'}
+   {'expression': 'negate(close)'}
+   {'expression': 'negate(close)'}
+   {'expression': 'negate(close)'}
+   {'expression': 'negate(open)'}
+SMOKE_OK

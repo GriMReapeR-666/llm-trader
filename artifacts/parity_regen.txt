@@ -1,0 +1,103 @@
+checkpoint unavailable — regenerating report from completed JSONL rows only
+corpus: 6 unique articles (incl. spoofs)
+{
+  "checkpoint": "models/laya",
+  "articles": 6,
+  "gate_counts": {
+    "TAG": 4,
+    "INGEST": 2
+  },
+  "mode": "laya_checkpoint",
+  "verdict_sources": {
+    "laya": 6
+  },
+  "latency_ms": {
+    "mean": 146146.0,
+    "p50": 145871.07,
+    "max": 200492.69
+  },
+  "answer_types": {
+    "D0_1_source_credibility:str": 6,
+    "D0_2_duplicate_detection:str": 6,
+    "D0_3_fact_vs_opinion:str": 6,
+    "D5a_escalation_ladder:str": 6,
+    "D9_emergency_kill_switch:str": 6,
+    "R1_headline_event_routing:str": 6
+  },
+  "answer_vocab": {
+    "D0_1_source_credibility": {
+      "ontology_criteria": 6
+    },
+    "D0_2_duplicate_detection": {
+      "ontology_criteria": 6
+    },
+    "D0_3_fact_vs_opinion": {
+      "gate_enum": 6
+    },
+    "D5a_escalation_ladder": {
+      "gate_enum": 6
+    },
+    "D9_emergency_kill_switch": {
+      "unknown": 6
+    },
+    "R1_headline_event_routing": {
+      "gate_enum": 6
+    }
+  },
+  "post_validation_outcomes": {
+    "D0_1_source_credibility:deferred_or_floored": 6,
+    "D0_2_duplicate_detection:deferred_or_floored": 6,
+    "D0_3_fact_vs_opinion:deferred_or_floored": 4,
+    "D5a_escalation_ladder:model_accepted": 6,
+    "D9_emergency_kill_switch:abstain": 5,
+    "R1_headline_event_routing:deferred_or_floored": 4,
+    "D0_3_fact_vs_opinion:model_accepted": 2,
+    "R1_headline_event_routing:model_accepted": 1,
+    "D9_emergency_kill_switch:deferred_or_floored": 1,
+    "R1_headline_event_routing:parity": 1
+  },
+  "probability_shape_issues": [
+    "D0_1_source_credibility:NoneType:None",
+    "D0_2_duplicate_detection:NoneType:None",
+    "D0_3_fact_vs_opinion:NoneType:None",
+    "D5a_escalation_ladder:NoneType:None",
+    "D9_emergency_kill_switch:NoneType:None",
+    "R1_headline_event_routing:NoneType:None",
+    "D0_1_source_credibility:NoneType:None",
+    "D0_2_duplicate_detection:NoneType:None",
+    "D0_3_fact_vs_opinion:NoneType:None",
+    "D5a_escalation_ladder:NoneType:None",
+    "D9_emergency_kill_switch:NoneType:None",
+    "R1_headline_event_routing:NoneType:None"
+  ],
+  "confidence_shape_issues": [
+    "D0_1_source_credibility:None",
+    "D0_2_duplicate_detection:None",
+    "D0_3_fact_vs_opinion:None",
+    "D5a_escalation_ladder:None",
+    "D9_emergency_kill_switch:None",
+    "R1_headline_event_routing:None",
+    "D0_1_source_credibility:None",
+    "D0_2_duplicate_detection:None",
+    "D0_3_fact_vs_opinion:None",
+    "D5a_escalation_ladder:None",
+    "D9_emergency_kill_switch:None",
+    "R1_headline_event_routing:None"
+  ],
+  "raw_example_answers": {
+    "D0_1_source_credibility": "WIRE_SERVICE",
+    "D0_2_duplicate_detection": "FRESH_EVENT",
+    "D0_3_fact_vs_opinion": "VERIFIED_FACT",
+    "D5a_escalation_ladder": "PROXY_CLASH",
+    "D9_emergency_kill_switch": "",
+    "R1_headline_event_routing": "EVENT_GEO_SHOCK"
+  },
+  "divergences_from_stub_assumptions": [
+    "Latency: real checkpoint costs ~146s/article (code comment claims ~19s) \u2014 per-article live triage on CPU is operationally infeasible for a real feed; the stub's 1.0ms hides this entirely.",
+    "D9_emergency_kill_switch is a noul question: the adapter returns a BOOL (probe: answer=False, probs={'false':0.899,'true':0.101}); str(False or '') serializes to '' in laya_answers, so the live model never escalates D9 (abstain). Stub emits enum strings ('EMERGENCY_HALT_ACTIVE') \u2014 not shape-faithful.",
+    "D0_1_source_credibility: real model answers use ontology-criteria vocabulary disjoint from the gate enum \u2014 every answer defers to deterministic (model path inert on this question).",
+    "D0_2_duplicate_detection: real model answers use ontology-criteria vocabulary disjoint from the gate enum \u2014 every answer defers to deterministic (model path inert on this question).",
+    "Real model produced at least one accepted override \u2014 the stub's parity assumption (always mirroring det) hides live disagreement texture.",
+    "to_dict() omits laya_probabilities/laya_confidences/deterministic_labels entirely \u2014 dict consumers (sweep aggregation, cycle summaries) cannot see model uncertainty; only the verdict OBJECT carries them."
+  ]
+}

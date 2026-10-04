@@ -1,0 +1,21 @@
+{
+  "symbol": "XAUUSD",
+  "rewards": {
+    "qlearn": 0,
+    "ppo": -0.4,
+    "meta": 0,
+    "grpo": 0
+  },
+  "oos": {
+    "sharpe": -0.519,
+    "win_rate": 0.494,
+    "profit_factor": 0.931,
+    "wfe": -51925035.088
+  },
+  "scenarios": {
+    "passed": 18,
+    "total": 19
+  },
+  "gate_passed": false,
+  "duration": 0.2
+}

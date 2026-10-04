@@ -1,0 +1,58 @@
+BeyondPromptingAdapter llm_fn -> llm_router wiring — verification evidence
+2026-09-27 | all changes uncommitted
+
+WHAT CHANGED
+------------
+research/beyond_prompting_adapter.py:
+1. self.llm_fn now defaults to core.alpha_discovery._router_llm_generate
+   (the same adapter AlphaDiscovery uses), so BOTH LLM surfaces of the
+   agentic loop — hypothesis generation AND factor proposals — serve from
+   every configured provider (openrouter, tokenrouter, cerebras, nvidia_nim).
+   Explicit llm_fn still overrides.
+2. Import decoupling: alpha_decay_monitor was split out of the all-or-nothing
+   try-block. Previously its fragile bare intra-package import silently
+   disabled the engine AND (new) the router default in contexts without
+   core/ on sys.path. Reproduced before the fix:
+     "decay monitor import FAILS: ModuleNotFoundError No module named
+      'state_persistence'" -> module-level AlphaDiscoveryEngine is None: True
+                                                    _router_llm_fn is None: True
+
+LIVE PROBE (production constructor, no explicit llm_fn)
+--------------------------------------------------------
+llm_fn is router adapter: True
+
+Probe A (default primary=openrouter):
+  stderr: Provider openrouter error (429). Retrying in 2.3s... (Attempt 1/3)
+          Provider openrouter error (429). Retrying in 4.4s... (Attempt 2/3)
+  -> openrouter free-tier daily quota exhausted (resets 00:00 UTC);
+     adapter degraded to static hypothesis template (by design).
+
+Probe B (ALPHA_LLM_PROVIDER=cerebras, same adapter):
+  Router failover walked the full chain and returned the aggregated errors:
+    cerebras:    404 model_archived_error — 'gemma-4-31b' archived
+                 (FIX: set LLM_ROUTER_MODEL_CEREBRAS=<current model> in .env)
+    openrouter:  429 free-models-per-day (limit 50, remaining 0)
+    tokenrouter: 401 Missing Authentication header (key/config smell)
+    nvidia_nim:  Request timed out
+  -> 'All LLM providers failed for agent alpha_discovery; returning
+     deterministic HOLD' -> template fallback engaged (by design).
+
+UNIT TESTS
+----------
+tests/test_beyond_prompting_routing.py — 7 passed:
+  default_llm_fn_is_router_adapter
+  hypothesis_uses_llm_fn_without_explicit_injection
+  router_failure_degrades_to_template
+  explicit_llm_fn_still_wins
+  run_iteration_routes_factors_through_engine_default
+  production_constructor_gets_router_default
+  alignment_score_unchanged
+Regression: tests/test_alpha_discovery.py + test_zeta_alpha_discovery_wiring.py
+— 36 passed.
+
+NOTE: earlier in this session the OpenRouter path was verified fully live
+(see artifacts/alpha_discovery_live_smoke.txt: real LLM response, 3/3
+FactorMiner candidates parsed, 1/3 sandbox-validated). Today's later probes
+hit the daily free-tier quota consumed by that verification; the routing,
+failover, and fallback behavior above is the code under test working as
+designed. The same adapter is exercised end-to-end by the smoke script.

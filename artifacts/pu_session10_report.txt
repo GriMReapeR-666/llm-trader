@@ -1,0 +1,47 @@
+{
+  "report": "PU-0150",
+  "window_start": "2026-10-02T07:55:32.753437+00:00",
+  "llm_requests": [],
+  "trader_summary": {
+    "n": 0,
+    "errors": 0,
+    "successes": 0,
+    "error_rate": null,
+    "baseline_error_rate": 0.579
+  },
+  "by_strategy": {},
+  "errors_detail": [],
+  "prompt_join": [],
+  "prompt_stats": {
+    "n": 0
+  },
+  "memory_summary": {
+    "n": 0,
+    "errors": 0,
+    "parse_status_counts": {},
+    "error_strings": []
+  },
+  "operational_event_counts": {
+    "schedule_handler_overrun": 25
+  },
+  "memory_outbox_status": {
+    "FAILED": 6,
+    "SENT": 14
+  },
+  "ablation": {
+    "modes": [
+      "no_llm"
+    ],
+    "boot_marker_at": "2026-10-02T08:08:11.015982+00:00",
+    "events": {
+      "ablation_news_gate_bypassed": 0,
+      "ablation_macro_context_stripped": 0,
+      "task_released": 112
+    },
+    "decision_reason_counts": {
+      "ablation no_llm: LLM component removed for measurement run": 17
+    },
+    "ablated_no_llm_holds": 16
+  }
+}
+PU-0150-OK

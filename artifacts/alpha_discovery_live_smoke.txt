@@ -1,0 +1,32 @@
+AlphaDiscovery live smoke — OpenRouter path verification (2026-09-27)
+Captured verbatim from: python -X utf8 scripts/alpha_discovery_live_smoke.py
+
+provider keys present: ['OPENROUTER_API_KEY', 'TOKENROUTER_KEY', 'CEREBRAS_API_KEY']
+router providers initialized: ['openrouter', 'tokenrouter', 'cerebras', 'nvidia_nim']
+alpha_discovery primary provider: openrouter
+market data: 1050 train / 450 test bars
+
+--- one live generation call via _router_llm_generate (primary=openrouter) ---
+LLM response: 424 chars
+parsed FactorMiner candidates: 3
+  [momentum] signed_power(delta(close, 1), 2) * ts_argmax(volume, 20)
+  [mean_reversion] scale(log_safe(delta(open, 1)), 1) * ts_rank(high, 20)
+  [reversal] ts_argmin(low, 10) - ts_argmax(high, 10)
+
+sandbox results (smoke thresholds: expression evaluates, metrics compute):
+  REJECTED  ic_ir=-0.2674 signed_power(delta(close, 1), 2) * ts_argmax(volume, 20) — Overfitting: train IC=-0.0583, test IC=-0.0528
+  REJECTED  ic_ir=+0.4158 scale(log_safe(delta(open, 1)), 1) * ts_rank(high, 20) — Overfitting: train IC=0.0869, test IC=-0.0327
+  VALIDATED ic_ir=+0.4566 ts_argmin(low, 10) - ts_argmax(high, 10)
+
+mechanism tier: 1/3 candidates parsed AND validated through the sealed sandbox
+production tier: 1/3 candidates meet IC_IR >= 0.15
+
+RESULT: PASS — OpenRouter-generated FactorMiner candidates parsed
+and validated in the sealed sandbox (live LLM path verified).
+
+Notes:
+- Two OpenRouter 429s were retried transparently by llm_router (retry/backoff
+  working as designed); no fallback to static candidates occurred.
+- Data: synthetic random walk (seed 42, 1500 bars) — no real market signal;
+  the production-tier IC_IR result on live EURUSD bars will differ.
+- The smoke never prints or stores key material; it only reports key presence.

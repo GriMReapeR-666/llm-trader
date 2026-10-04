@@ -1,0 +1,9 @@
+2026-10-01T18:27:32+00:00 armed: bar 1.50GB, window 16.0h, poll 30s, free 1.47GB, ablation=no_llm (loops=24, waits for session-9 waiter exit + report)
+2026-10-02T07:32:00+00:00 armed: bar 1.50GB, window 16.0h, poll 30s, free 0.98GB, ablation=no_llm (loops=24, waits for session-9 slot: report or proven wind-down)
+2026-10-02T07:32:00+00:00 session-9 slot free (waiter exited; report NOT present) - preflight loop
+2026-10-02T07:55:32+00:00 PREFLIGHT PASS: 1.53GB >= 1.50GB and fresh M15 candle - launching ABLATION boot (PU_ABLATION=no_llm)
+2026-10-02T07:55:32+00:00 boot spawned (pid 13292); meta written; watcher exits
+2026-10-03T05:00:46+00:00 armed: bar 1.50GB, window 16.0h, poll 30s, free 0.63GB, ablation=no_llm (loops=24, waits for session-9 slot: report or proven wind-down) | schedule: 2026-10-03 offset 1 from anchor 2026-10-02 -> arm 'with_llm' (this chassis: 'no_llm')
+2026-10-03T05:00:46+00:00 SKIP - schedule: today 2026-10-03 is arm 'with_llm' but this chassis runs 'no_llm' - yielding to the paired chassis
+2026-10-03T05:56:29+00:00 armed: bar 1.50GB, window 16.0h, poll 30s, free 1.32GB, ablation=no_llm (loops=24, waits for session-9 slot: report or proven wind-down) | schedule: 2026-10-03 offset 1 from anchor 2026-10-02 -> arm 'with_llm' (this chassis: 'no_llm')
+2026-10-03T05:56:29+00:00 SKIP - schedule: today 2026-10-03 is arm 'with_llm' but this chassis runs 'no_llm' - yielding to the paired chassis

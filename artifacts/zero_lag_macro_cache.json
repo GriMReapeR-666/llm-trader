@@ -1,0 +1,22 @@
+{
+  "timestamp_utc": "2026-10-03T08:56:43.754686+00:00",
+  "net_liquidity_usd_billions": 6168.5,
+  "net_liquidity_bias": "EXPANSIONARY",
+  "daily_cpi_mom_nowcast": 0.22,
+  "daily_cpi_yoy_nowcast": 2.85,
+  "industrial_grid_load_index": 101.4,
+  "maritime_chokepoint_index": 98.2,
+  "satellite_crop_health_score": 74.5,
+  "labor_hiring_velocity": -1.2,
+  "synthetic_spreads": {
+    "synthetic_ammonia_cost_ton": 166.67,
+    "corn_soy_price_ratio": 2.568,
+    "corn_soy_regime": "SOY_FAVORED",
+    "crack_spread_321_bbl": 64.65,
+    "soybean_crush_spread_bu": -520.357,
+    "spark_spread_mwh": 23.75,
+    "ethanol_blend_margin_gal": -175.768
+  },
+  "data_latency_status": "ZERO_LAG (0-24h Physical Proxies)",
+  "execution_authority": false
+}

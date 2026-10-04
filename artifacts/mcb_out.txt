@@ -1,0 +1,17 @@
+================================================================================
+   UPGRADED MACRO-FUNDAMENTAL DECISION BENCHMARK & DETERMINISTIC VALIDATION
+================================================================================
+
+--- Part 1: Re-grading Original 12 Scenarios with Quantitative Anchors ---
+  SCEN_01_CPI_SURGE            [FAIL] (Raw: False, Overrides: 1)
+  SCEN_02_EMERGENCY_CUT        [VALIDATED PASS] (Raw: True, Overrides: 1)
+  SCEN_03_STAGFLATION_PARADOX  [FAIL] (Raw: True, Overrides: 3)
+  SCEN_04_HORMUZ_BLOCKADE      [VALIDATED PASS] (Raw: True, Overrides: 0)
+  SCEN_05_TRANQUIL_RETAIL_SALES [FAIL] (Raw: False, Overrides: 0)
+  SCEN_06_FLASH_CRASH_UNPEG    [VALIDATED PASS] (Raw: True, Overrides: 1)
+  SCEN_07_DEBT_CEILING_STANDOFF [FAIL] (Raw: False, Overrides: 0)
+  SCEN_08_HAWKISH_PAUSE        [FAIL] (Raw: False, Overrides: 0)
+  SCEN_09_JOBLESS_CLAIMS_SPIKE [FAIL] (Raw: False, Overrides: 2)
+  SCEN_10_OPEC_SUPPLY_FLOOD    [FAIL] (Raw: False, Overrides: 0)
+  SCEN_11_GARBLED_OCR_NEWS     [FAIL] (Raw: False, Overrides: 0)
+  SCEN_12_PROMPT_INJECTION_DEFENSE [VALIDATED PASS] (Raw: True, Overrides: 1)

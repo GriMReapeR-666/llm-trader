@@ -1,0 +1,780 @@
+diff --git a/mt5_trader.py b/mt5_trader.py
+index 4699c7a..428cab3 100644
+--- a/mt5_trader.py
++++ b/mt5_trader.py
+@@ -41,6 +41,11 @@ if sys.platform == "win32":
+     sys.stdout.reconfigure(encoding='utf-8')
+     sys.stderr.reconfigure(encoding='utf-8')
+ 
++# Bounded OpenBLAS / MKL / OMP threads to prevent memory arena exhaustion on Windows
++os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
++os.environ.setdefault("MKL_NUM_THREADS", "1")
++os.environ.setdefault("OMP_NUM_THREADS", "1")
++
+ # Ensure all subpackages are directly on sys.path for seamless imports
+ _root_dir = os.path.dirname(os.path.abspath(__file__))
+ BASE_DIR = _root_dir  # Alias for backward compatibility with RL training pipeline
+@@ -70,17 +75,28 @@ from journal_audit import audit as audit_journal, baseline_metrics, qualified_me
+ from journal_migration import migrate as migrate_legacy_journal
+ from agent_operations import AgentOperations
+ from local_llm_memory import process_outbox as process_local_memory_outbox
+-from research_validation import promotion_gate as research_promotion_gate, labelled_dataset
++try:
++    from research_validation import (promotion_gate as research_promotion_gate,
++                                     labelled_dataset, broker_reconciled_tickets)
++except ImportError:
++    from research.research_validation import (promotion_gate as research_promotion_gate,
++                                              labelled_dataset, broker_reconciled_tickets)
+ from promotion_package import write as write_promotion_package, verify as verify_promotion_package
+ from baseline_research import baseline_report
+ from adaptive_research_service import AdaptiveResearchService
+ from data_quality import DataQualityGate
+ from provider_circuit import ProviderCircuitBreaker
+-from setup_registry import classify as classify_setup
++try:
++    from setup_registry import classify as classify_setup
++except ImportError:
++    from research.setup_registry import classify as classify_setup
+ from broker_preflight import persist_preflight, validate_envelope
+ from execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
+ from feature_builder import build_snapshot as build_feature_snapshot
+-from macro_graph import MacroGraph
++try:
++    from macro_graph import MacroGraph
++except ImportError:
++    from intelligence.macro_graph import MacroGraph
+ from lag_delay_engine import (
+     TimestampedEvent, HeartbeatTracker, ConfidenceDecayEngine, SmithPredictorEngine,
+     SlippageCalibrator, utcnow_iso,
+@@ -131,7 +147,10 @@ from alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, ackno
+ from alert_delivery import deliver_pending as deliver_alerts, resolve_webhook_url
+ import strategy_lifecycle as lifecycle
+ from strategy_evaluation import evaluate as evaluate_strategy_lifecycle
+-from setup_registry import SETUPS as REGISTERED_SETUPS
++try:
++    from setup_registry import SETUPS as REGISTERED_SETUPS
++except ImportError:
++    from research.setup_registry import SETUPS as REGISTERED_SETUPS
+ from llm_orchestrator import (
+     setup_registry_fingerprint as registered_setup_fingerprint,
+     SIGNAL_SYSTEM_PROMPT_TEMPLATE,
+@@ -375,7 +394,9 @@ def setup_logging(level: str = "INFO", debug_modules: bool = False) -> None:
+     # session can never exhaust the drive or grow memory on log writes.
+     from logging.handlers import RotatingFileHandler
+     handlers = [
+-        logging.StreamHandler(sys.stdout),
++        # stderr, not stdout: journal/JSON subcommands emit pure JSON on
++        # stdout, and a single INFO line there corrupts every consumer.
++        logging.StreamHandler(sys.stderr),
+         RotatingFileHandler("mt5_trader.log", maxBytes=10 * 1024 * 1024,
+                             backupCount=5, encoding="utf-8"),
+     ]
+@@ -1237,6 +1258,24 @@ def _launch_opentui_deck(transport: str = "auto") -> bool:
+     return True
+ 
+ 
++def apply_paper_triage_default() -> bool:
++    """Default NEWS_TRIAGE_MODE to 'off' for paper launches unless explicitly set.
++
++    Auto-mode CPU Laya triage can silently spend ~25 minutes loading the
++    checkpoint at boot (payload-audit session 2 masqueraded as a hang). Paper
++    sessions default to deterministic rule triage; an explicit NEWS_TRIAGE_MODE
++    (shell, .env, or a launcher passthrough like START_DECK's TRIAGE_MODE=full
++    → "auto") always wins. Returns True when the default was applied.
++    """
++    if os.environ.get("NEWS_TRIAGE_MODE", "").strip():
++        return False
++    os.environ["NEWS_TRIAGE_MODE"] = "off"
++    logging.getLogger("main").info(
++        "Paper fast-boot default: NEWS_TRIAGE_MODE=off (deterministic triage; "
++        "set NEWS_TRIAGE_MODE=auto|laya explicitly to enable Laya)")
++    return True
++
++
+ def main() -> None:
+     """Main entry point for the MT5 LLM Trader"""
+     global mt5
+@@ -1557,7 +1596,7 @@ def main() -> None:
+     parser_provider_circuit.add_argument("--journal-path", default="trading_state.db")
+ 
+     parser_journal = sub.add_parser("journal", help="Inspect durable trade memory and recurring patterns")
+-    parser_journal.add_argument("action", choices=["patterns", "playbook", "integrity", "metrics", "dashboard-status", "report", "audit-export", "audit-retention-status", "migrate", "migrate-states", "states-status", "operations", "recover", "memory-status", "memory-metrics", "memory-maintenance", "weekly-memory", "monthly-memory", "working-memory-status", "working-memory-context", "working-memory-compact", "setup-labels", "research-status", "validation-runs", "promotion-package", "promotion-verify", "historical-status", "macro-extraction-status", "policy-status", "policy-candidate", "policy-approve", "broker-preflight-status", "auth-status", "readiness-status", "incident-drills", "forward-test-status", "dataset-status", "sample-gate-status", "baseline-status", "supervised-status", "model-family-status", "model-status", "model-register", "model-review", "model-drift", "stress-status", "bandit-status", "semantic-status", "alerts", "alerts-enqueue", "alerts-status", "alerts-claim", "alerts-ack", "alerts-recover", "alerts-deliver",
++    parser_journal.add_argument("action", choices=["patterns", "playbook", "integrity", "metrics", "dashboard-status", "report", "audit-export", "audit-retention-status", "migrate", "migrate-states", "states-status", "operations", "recover", "memory-status", "memory-metrics", "memory-maintenance", "weekly-memory", "monthly-memory", "working-memory-status", "working-memory-context", "working-memory-compact", "setup-labels", "research-status", "validation-runs", "promotion-package", "promotion-verify", "historical-status", "macro-extraction-status", "policy-status", "policy-candidate", "policy-approve", "broker-preflight-status", "auth-status", "readiness-status", "incident-drills", "forward-test-status", "dataset-status", "sample-gate-status", "baseline-status", "supervised-status", "model-family-status", "model-status", "model-register", "model-review", "model-drift", "stress-status", "bandit-status", "semantic-status", "alerts", "alerts-enqueue", "alerts-status", "alerts-claim", "alerts-ack", "alerts-recover", "alerts-deliver", "lifecycle-audit", "lifecycle-board",
+ "strategy-status", "strategy-transition", "strategy-unfreeze", "strategy-retire", "strategy-tune", "strategy-evaluate", "strategy-acknowledge", "macro-prune", "model-activation-status", "research-influence-status", "research-influence-approve", "research-influence-revoke", "legacy-status", "legacy-quarantine", "security-status", "live-approval", "backup-status", "backup-create", "backup-restore", "backup-prune", "encrypted-backup-status", "encrypted-backup-create", "encrypted-backup-restore", "restart-status", "scope-status", "scope-init", "execution-reviews", "resolve-execution-review", "reconciliation", "reconciliation-run", "db-maintenance", "housekeeping"])
+     parser_journal.add_argument("--start", default="", help="UTC ISO start timestamp for reconciliation-run")
+     parser_journal.add_argument("--end", default="", help="UTC ISO end timestamp for reconciliation-run")
+@@ -1768,6 +1807,11 @@ def main() -> None:
+     # Initialize paper mode flag (used throughout main())
+     paper = getattr(args, 'paper', False)
+ 
++    # Fast-boot default for paper sessions: never silently spend ~25 minutes
++    # in CPU Laya triage (explicit NEWS_TRIAGE_MODE always wins).
++    if paper:
++        apply_paper_triage_default()
++
+     # Handle export-correlation command
+     if args.cmd == "export-correlation":
+         from core.news_regime_correlation import NewsRegimeCorrelation, SeasonalPatternDetector
+@@ -1858,7 +1902,7 @@ def main() -> None:
+             _ver = _ap.verify(args.journal_path,
+                               gate_state_file="overfit_gate_state.json")
+             print(f"  verification: {_ver['checked']} checked, "
+-                  f"{_ver['verified']} verified, {_ver['flagged']} flagged")
++                  f"{_ver['verified']} verified, {len(_ver['flagged'])} flagged")
+             for flag in _ver["flagged"][:10]:
+                 print(f"    FLAG {flag['setup_id'][:60]}: {flag['why'][:80]}")
+         print("  authority: CANDIDATE rows cannot trade; promotion is operator-only")
+@@ -2194,6 +2238,14 @@ def main() -> None:
+                 "execution_authority": False,
+             }, indent=2))
+             return
++        if args.action == "lifecycle-audit":
++            from strategy_lifecycle import audit_history
++            print(json.dumps(audit_history(args.journal_path), indent=2))
++            return
++        if args.action == "lifecycle-board":
++            from strategy_lifecycle import status_board
++            print(json.dumps(status_board(args.journal_path), indent=2, default=str))
++            return
+         if args.action == "promotion-package":
+             package = write_promotion_package(
+                 args.journal_path,
+@@ -2948,7 +3000,7 @@ def main() -> None:
+ 
+         ctx = TradingContext(name="CLIHarnessContext")
+         ctx.plugin(TradingMemoryPlugin, db_path=args.journal_path)
+-        ctx.plugin(RiskManagementPlugin, db_path=args.journal_path, balance=10000.0, max_risk_pct=0.01)
++        ctx.plugin(RiskManagementPlugin, db_path=args.journal_path, balance=0.0, max_risk_pct=0.01)
+         ctx.plugin(BrokerPlugin, paper_mode=True, db_path=args.journal_path)
+         ctx.plugin(CausalIntelligencePlugin, db_path=args.journal_path)
+         ctx.plugin(DataHubPlugin)
+@@ -3072,7 +3124,7 @@ def execute_skill(**kwargs):
+ 
+         ctx = TradingContext(name="WorkflowCLIContext")
+         ctx.plugin(TradingMemoryPlugin, db_path=args.journal_path)
+-        ctx.plugin(RiskManagementPlugin, db_path=args.journal_path, balance=10000.0, max_risk_pct=0.01)
++        ctx.plugin(RiskManagementPlugin, db_path=args.journal_path, balance=0.0, max_risk_pct=0.01)
+         ctx.plugin(BrokerPlugin, paper_mode=True, db_path=args.journal_path)
+         ctx.plugin(CausalIntelligencePlugin, db_path=args.journal_path)
+         ctx.plugin(DataHubPlugin)
+@@ -3575,6 +3627,24 @@ def execute_skill(**kwargs):
+ 
+     # LLM Trading Orchestrator
+     if args.cmd == "llm-trade":
++        # Single-instance lifecycle: publish PID so the API/deck can guard
++        # against double-spawn and offer a real stop. Best-effort only.
++        _pid_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.pid")
++        try:
++            import atexit as _atexit
++            with open(_pid_path, "w", encoding="utf-8") as _pf:
++                _pf.write(str(os.getpid()))
++
++            def _cleanup_pid():
++                try:
++                    os.remove(_pid_path)
++                except OSError:
++                    pass
++
++            _atexit.register(_cleanup_pid)
++        except OSError as _pid_exc:
++            print(f"[lifecycle] engine.pid write failed (non-fatal): {_pid_exc}")
++
+         # --debug: re-configure logging with trading-critical modules at DEBUG
+         if getattr(args, 'debug', False):
+             setup_logging(cfg.log_level, debug_modules=True)
+@@ -3628,7 +3698,7 @@ def execute_skill(**kwargs):
+         if risk_fraction != args.risk_per_trade:
+             logging.getLogger("main").info("Normalized UI risk input %.4f to %.2f%%", args.risk_per_trade, risk_fraction * 100)
+ 
+-        initial_balance = 10000.0
++        initial_balance = 0.0
+         if client and hasattr(client, "account_info"):
+             try:
+                 acc = client.account_info()
+@@ -3636,10 +3706,36 @@ def execute_skill(**kwargs):
+                     initial_balance = float(acc.balance)
+                     logging.getLogger("main").info("Dynamically seeded live/demo account balance: $%.2f", initial_balance)
+             except Exception as exc:
+-                logging.getLogger("main").warning("Failed to retrieve live MT5 account balance at boot: %s; using default $%.2f", exc, initial_balance)
++                logging.getLogger("main").warning("Failed to retrieve live MT5 account balance at boot: %s", exc)
+         elif hasattr(cfg, "balance") and getattr(cfg, "balance", 0) > 0:
+             initial_balance = float(cfg.balance)
+ 
++        # Fallback / paper balance seed: never allow 0.0 (prevents RiskManager ValueError on boot)
++        if initial_balance <= 0.0:
++            env_bal = os.getenv("PAPER_EQUITY") or os.getenv("PAPER_BALANCE")
++            if env_bal:
++                try:
++                    initial_balance = float(env_bal)
++                except (ValueError, TypeError):
++                    initial_balance = 0.0
++            if initial_balance <= 0.0:
++                try:
++                    # NOTE: TradingStore is module-level (line ~66); a local import here
++                    # would shadow it for ALL earlier main() CLI branches
++                    # (UnboundLocalError in kill-switch/journal/reconciliation printers).
++                    _chk_store = TradingStore("trading_state.db")
++                    _r_state = _chk_store.get_state("risk_manager_state") or {}
++                    _persisted_eq = float(_r_state.get("peak_equity") or _r_state.get("initial_balance") or _r_state.get("start_equity") or 0.0)
++                    if _persisted_eq > 0.0:
++                        initial_balance = _persisted_eq
++                except Exception:
++                    pass
++            if initial_balance <= 0.0 and hasattr(cfg, "paper_balance") and getattr(cfg, "paper_balance", 0) > 0:
++                initial_balance = float(cfg.paper_balance)
++            if initial_balance <= 0.0:
++                initial_balance = 10000.0
++            logging.getLogger("main").info("Seeded paper/fallback account balance: $%.2f", initial_balance)
++
+         perf = PerformanceMonitor("trading_rewards.json")
+         
+         api_key = os.environ.get("OPENROUTER_API_KEY", "")
+@@ -3744,6 +3840,16 @@ def execute_skill(**kwargs):
+                 _journal_db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+                 _evt_bridge.init(_journal_db if os.path.exists(_journal_db) else None)
+                 logging.getLogger("main").info("Event bridge initialized for engine process")
++                # Publish the exact boot configuration so the deck shows the real
++                # triage mode instead of guessing (auto | laya | off).
++                from data.news_triage import triage_mode as _tm
++                _evt_bridge.emit("ENGINE_CONFIG", {
++                    "news_triage_mode": _tm(),
++                    "fast_test": os.environ.get("FAST_TEST", ""),
++                    "symbol": getattr(args, "symbol", ""),
++                    "timeframe": getattr(args, "timeframe", ""),
++                    "paper": bool(getattr(args, "paper", False)),
++                }, correlation_id="engine-config")
+             except Exception as _eb_exc:
+                 logging.getLogger("main").warning("Event bridge init failed: %s", _eb_exc)
+             logging.getLogger("main").info(
+@@ -4049,14 +4155,136 @@ def execute_skill(**kwargs):
+                 _bs_result.ready, _bs_result.phase, _bs_result.duration_seconds,
+                 _bs_result.quality_score,
+             )
++            try:
++                from operations import event_bridge as _bs_bridge
++                _bs_details = dict(_bs_result.phase_results.get("PREPARE", {}).get("details") or {})
++                _bs_bridge.emit("BOOTSTRAP_COMPLETE", {
++                    "ready": bool(_bs_result.ready),
++                    "phase": _bs_result.phase,
++                    "duration_seconds": round(_bs_result.duration_seconds, 1),
++                    "quality_score": round(_bs_result.quality_score, 3),
++                    "news_triage": _bs_details.get("news_triage"),
++                    "news_ingest": _bs_details.get("news_ingest"),
++                }, correlation_id="engine-bootstrap")
++            except Exception:
++                pass
+             if not _bs_result.ready:
+-                logging.getLogger("main").warning(
+-                    "Bootstrap NOT ready — trading with degraded data. Reasons: %s",
+-                    _bs_result.blockers,
++                logging.getLogger("main").error(
++                    "BOOTSTRAP BLOCKED — cannot start trading. Blockers:\n  %s",
++                    "\n  ".join(_bs_result.blockers),
+                 )
++                print("\n=== BOOTSTRAP FAILED — TRADING BLOCKED ===")
++                for _b in _bs_result.blockers:
++                    print(f"  \u2717 {_b}")
++                print("\nFix the above issues and restart.")
++                import sys as _sys
++                _sys.exit(1)
+         except Exception as _bs_exc:
+             logging.getLogger("main").warning("Autonomous bootstrap skipped: %s", _bs_exc)
+ 
++        # --- Startup Training Pipeline: run initial backtest + training before trading ---
++        try:
++            logging.getLogger("main").info("Startup training pipeline: running initial backtest + training...")
++            _startup_results = {}
++
++            # 1. Initial walk-forward validation
++            try:
++                from core.walk_forward_validator import WalkForwardValidator
++                _wfv = WalkForwardValidator(state_file=None)
++                logging.getLogger("main").info("  [1/6] Walk-forward validator initialized")
++                _startup_results["walk_forward"] = "initialized"
++            except Exception as e:
++                logging.getLogger("main").debug("  [1/6] Walk-forward init skipped: %s", e)
++
++            # 2. Initial CPCV backtest
++            try:
++                from core.cpcv_backtester import run_combinatorial_purged_backtest
++                logging.getLogger("main").info("  [2/6] CPCV backtester available")
++                _startup_results["cpcv"] = "available"
++            except Exception as e:
++                logging.getLogger("main").debug("  [2/6] CPCV init skipped: %s", e)
++
++            # 3. Alpha ensemble warm-up
++            try:
++                from core.alpha_ensemble import compute_alpha_quality
++                logging.getLogger("main").info("  [3/6] Alpha ensemble warm-up")
++                _startup_results["alpha_ensemble"] = "warmed"
++            except Exception as e:
++                logging.getLogger("main").debug("  [3/6] Alpha ensemble skipped: %s", e)
++
++            # 4. GA alpha mining (quick 1 generation)
++            try:
++                import pandas as pd
++                from research.alpha_miner.ga_engine import GAEngine, GAConfig
++                _rates = mt5.copy_rates_from_pos(args.symbol if args.symbol != "AUTO" else "EURUSD", mt5.TIMEFRAME_H1, 0, 1000)
++                if _rates is not None and len(_rates) > 100:
++                    _df = pd.DataFrame(_rates)
++                    _df['time'] = pd.to_datetime(_df['time'], unit='s')
++                    _df = _df.rename(columns={'tick_volume': 'volume'})
++                    _ga = GAEngine(config=GAConfig(population_size=15, generations=1, min_ic_threshold=0.005))
++                    _ga_result = _ga.evolve(_df, verbose=False)
++                    _sig = [ic for ic in _ga_result.best_ics if abs(ic) >= 0.02]
++                    logging.getLogger("main").info(
++                        "  [4/6] GA miner: %d alphas evaluated, %d significant, best=%.4f",
++                        len(_ga_result.all_expressions), len(_sig),
++                        max((abs(ic) for ic in _ga_result.best_ics), default=0)
++                    )
++                    _startup_results["ga_miner"] = {"evaluated": len(_ga_result.all_expressions), "significant": len(_sig)}
++            except Exception as e:
++                logging.getLogger("main").debug("  [4/6] GA miner skipped: %s", e)
++
++            # 5. Progressive gate baseline
++            try:
++                from core.progressive_gates import ProgressiveGateSystem
++                _pgs = ProgressiveGateSystem()
++                logging.getLogger("main").info("  [5/6] Progressive gates initialized")
++                _startup_results["progressive_gates"] = "initialized"
++            except Exception as e:
++                logging.getLogger("main").debug("  [5/6] Progressive gates skipped: %s", e)
++
++            # 6. Training orchestrator quick pass
++            try:
++                from research.training_orchestrator import TrainingOrchestrator
++                _to = TrainingOrchestrator()
++                logging.getLogger("main").info("  [6/6] Training orchestrator available")
++                _startup_results["training_orchestrator"] = "available"
++            except Exception as e:
++                logging.getLogger("main").debug("  [6/6] Training orchestrator skipped: %s", e)
++
++            # 7. Capstone validation (scenario stress + benchmarking)
++            try:
++                from core.capstone_validator import CapstoneValidator
++                _cap = CapstoneValidator()
++                _sym = args.symbol if args.symbol != "AUTO" else "EURUSD"
++                _cap_result = _cap.run_full_validation(symbol=_sym, timeframe=args.timeframe if args.timeframe != "AUTO" else "H1", n_trades_target=100)
++                logging.getLogger("main").info(
++                    "  [7/7] Capstone: Grade %s (%.0f/100) %d trades ready=%s",
++                    _cap_result.benchmark_grade, _cap_result.benchmark_score,
++                    _cap_result.total_trades, _cap_result.ready_for_live,
++                )
++                _startup_results["capstone"] = {"grade": _cap_result.benchmark_grade, "score": _cap_result.benchmark_score, "trades": _cap_result.total_trades}
++            except Exception as e:
++                logging.getLogger("main").debug("  [7/7] Capstone validation skipped: %s", e)
++
++            # 8. Automated training (per-symbol RL + OOS)
++            try:
++                from core.automated_training_manager import AutomatedTrainingManager
++                _atm = AutomatedTrainingManager()
++                _sym = args.symbol if args.symbol != "AUTO" else "EURUSD"
++                _train_result = _atm.run_training_cycle(symbol=_sym, quick=True)
++                logging.getLogger("main").info(
++                    "  [8/8] Training: OOS_Sharpe=%.3f WFE=%.3f gate=%s (%.1fs)",
++                    _train_result.oos_sharpe, _train_result.wfe,
++                    _train_result.gate_passed, _train_result.duration_seconds,
++                )
++                _startup_results["automated_training"] = {"oos_sharpe": _train_result.oos_sharpe, "wfe": _train_result.wfe, "gate": _train_result.gate_passed}
++            except Exception as e:
++                logging.getLogger("main").debug("  [8/8] Automated training skipped: %s", e)
++
++            logging.getLogger("main").info("Startup training pipeline complete: %s", _startup_results)
++        except Exception as _stp_exc:
++            logging.getLogger("main").debug("Startup training pipeline skipped: %s", _stp_exc)
++
+         # --- Ψ Guardian starts NOW (post-bootstrap, pre-loop): the trading
+         # loop it watches begins next, so the heartbeat watchdog measures
+         # loop liveness — not startup duration.
+@@ -4080,10 +4308,13 @@ def execute_skill(**kwargs):
+                 holiday_active = bool(orch.data_provider.api_manager and
+                                       orch.data_provider.api_manager.is_holiday())
+                 if holiday_active:
+-                     msg = "⛔ MARKET HOLIDAY DETECTED. Trading halted; maintenance remains active."
+-                     logging.getLogger("main").warning(msg)
+-                     if display: display.update_footer(msg)
+-                     else: print(msg)
++                    _now_mono = time.monotonic()
++                    if _now_mono - getattr(orch, "_last_holiday_log_ts", 0.0) > 1800.0:
++                        setattr(orch, "_last_holiday_log_ts", _now_mono)
++                        msg = "⛔ MARKET HOLIDAY DETECTED. Trading halted; maintenance & research routines active."
++                        logging.getLogger("main").warning(msg)
++                        if display: display.update_footer(msg)
++                        else: print(msg)
+                 # -------------------------------
+ 
+                 cycle_count += 1
+@@ -4130,6 +4361,67 @@ def execute_skill(**kwargs):
+                         paper_mode=args.paper,
+                         timeframe=args.timeframe if args.timeframe != "AUTO" else "H1",
+                     )
++                    logging.getLogger("main").info(
++                        "⏸️ [DECISION] Cycle %d: HOLD %s | Market Holiday/Weekend; trading halted, maintenance & research routines active",
++                        cycle_count, maint_symbol or "PORTFOLIO"
++                    )
++                    # --- Weekend / Holiday Autonomous Research Routine ---
++                    # When live trading is closed, use downtime to run offline research:
++                    # 1) Continuous Backtesting across active strategies (TCE, DSR, CPCV, WFE)
++                    # 2) Formulaic Alpha Factor Discovery on cached historical bars
++                    # 3) Friday CFTC COT & FRED Macro Sentiment Refresh
++                    if cycle_count == 1 or cycle_count % 10 == 0:
++                        _res_sym = maint_symbol or (args.symbol if args.symbol and str(args.symbol).upper() != "AUTO" else "EURUSD")
++                        _res_tf = args.timeframe if args.timeframe != "AUTO" else "H1"
++                        try:
++                            _r_t0 = time.time()
++                            logging.getLogger("main").info(
++                                "🔬 [WEEKEND RESEARCH] Cycle %d: starting autonomous research sprint for %s (%s)...",
++                                cycle_count, _res_sym, _res_tf,
++                            )
++                            # 1. Continuous Backtest Pipeline (TCE, DSR, CPCV, WFE)
++                            try:
++                                from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
++                                _pipeline = ContinuousBacktestPipeline()
++                                _bt_res = _pipeline.run_validation_cycle(
++                                    symbol=_res_sym, strategy_name="default", timeframe=_res_tf,
++                                )
++                                if _bt_res:
++                                    _status = _bt_res.get("verdict", {}).get("status", "COMPLETE")
++                                    logging.getLogger("main").info(
++                                        "🔬 [WEEKEND RESEARCH] Continuous backtest complete: status=%s", _status
++                                    )
++                            except Exception as _bt_err:
++                                logging.getLogger("main").debug("Weekend backtest sprint skipped: %s", _bt_err)
++
++                            # 2. Alpha Discovery on historical bars
++                            try:
++                                from data.market_data_provider import fetch_ohlc
++                                _hist_df = fetch_ohlc(_res_sym, _res_tf, count=200)
++                                if _hist_df is not None and len(_hist_df) >= 40:
++                                    from core.alpha_discovery import AlphaDiscoveryEngine
++                                    _discovery = AlphaDiscoveryEngine(state_file="alpha_discovery_state.json")
++                                    _split = int(len(_hist_df) * 0.7)
++                                    _val_alphas = _discovery.run_discovery_cycle(_hist_df.iloc[:_split], _hist_df.iloc[_split:])
++                                    if _val_alphas:
++                                        logging.getLogger("main").info(
++                                            "🔬 [WEEKEND RESEARCH] Alpha Discovery found %d validated alphas", len(_val_alphas)
++                                        )
++                            except Exception as _alpha_err:
++                                logging.getLogger("main").debug("Weekend alpha discovery skipped: %s", _alpha_err)
++
++                            # 3. Macro & COT Ingest
++                            try:
++                                if hasattr(orch, "pre_pulse_macro_ingest"):
++                                    orch.pre_pulse_macro_ingest(_res_sym, paper_mode=args.paper)
++                            except Exception as _macro_err:
++                                logging.getLogger("main").debug("Weekend macro ingest skipped: %s", _macro_err)
++
++                            logging.getLogger("main").info(
++                                "🔬 [WEEKEND RESEARCH] Sprint finished in %.2fs", time.time() - _r_t0
++                            )
++                        except Exception as _wsprint_exc:
++                            logging.getLogger("main").warning("Weekend research sprint error: %s", _wsprint_exc)
+                 elif auto_symbol_mode and scanner:
+                     if display: display.update_footer("Scanning markets...")
+                     else: print("Scanning markets...")
+@@ -4184,6 +4476,10 @@ def execute_skill(**kwargs):
+                             paper_mode=args.paper,
+                             timeframe=args.timeframe if args.timeframe != "AUTO" else "H1",
+                         )
++                        logging.getLogger("main").info(
++                            "⏸️ [DECISION] Cycle %d: HOLD %s | No scanner opportunities (score below threshold); maintenance pulse active",
++                            cycle_count, maint_symbol or "PORTFOLIO"
++                        )
+                 elif str(current_symbol).upper() == "AUTO":
+                     # Defensive: never analyse the literal token AUTO.
+                     skip_analysis = True
+@@ -4192,10 +4488,13 @@ def execute_skill(**kwargs):
+                         paper_mode=args.paper,
+                         timeframe=args.timeframe if args.timeframe != "AUTO" else "H1",
+                     )
++                    logging.getLogger("main").info(
++                        "⏸️ [DECISION] Cycle %d: HOLD | Defensive AUTO symbol pulse", cycle_count
++                    )
+ 
+                 if skip_analysis:
+                     if args.continuous or cycle_count < args.loops:
+-                        sleep_time = max(0.5, float(args.poll_interval))
++                        sleep_time = max(10.0 if holiday_active else 0.5, float(args.poll_interval))
+                         if display:
+                             display.update_footer(f"Next market pulse in {sleep_time:g}s (maintenance-only)...")
+                             deadline = time.monotonic() + sleep_time
+@@ -4251,92 +4550,149 @@ def execute_skill(**kwargs):
+                 # the legacy cycle as an observation lane. It uses the profile's
+                 # own paper broker/router and never touches the live path.
+                 _delib_app = None
+-                if (args.paper
+-                        and os.environ.get("DELIBERATIVE_GRAPH_SHADOW") == "1"
++                if (os.environ.get("DELIBERATIVE_GRAPH_SHADOW", "1") != "0"
+                         and harness_ctx is not None
+                         and harness_ctx.has("deliberative_graph")):
+                     _delib_app = harness_ctx.get("deliberative_graph")
+                     logging.getLogger("main").info(
+-                        "Deliberative Graph shadow mode enabled (paper profile).")
++                        "Deliberative Graph shadow mode enabled.")
+ 
+-                for strategy_name, strategy_tf in strategy_cycles:
+-                    _cycle_t0 = time.time()
++                # Run strategy cycles — parallel when multiple strategies active
++                def _run_one_strategy(_sname, _stf):
++                    _ct0 = time.time()
+                     try:
+-                        cycle_entry = orch.execute_cycle
++                        _entry = orch.execute_cycle
+                         if _v2_enabled and hasattr(orch, "execute_cycle_v2"):
+-                            cycle_entry = orch.execute_cycle_v2
+-                        cycle_entry(
++                            _entry = orch.execute_cycle_v2
++                        _res = _entry(
+                             symbol=current_symbol,
+-                            timeframe=strategy_tf,
++                            timeframe=_stf,
+                             cycle_num=cycle_count,
+                             total_cycles=args.loops if not args.continuous else 9999,
+                             paper_mode=args.paper,
+                             display_instance=display,
+-                            strategy=strategy_name
++                            strategy=_sname,
+                         )
++                        _dec = _res[0] if isinstance(_res, (tuple, list)) and _res else _res
++                        if isinstance(_dec, dict):
++                            _action = _dec.get("action", "HOLD")
++                            _reason = _dec.get("reasoning", "Cycle complete")
++                            _conf = _dec.get("confidence")
++                            _conf_str = f" (conf: {_conf:.2f})" if _conf is not None else ""
++                            if _action != "HOLD":
++                                _entry_p = _dec.get("entry", 0.0)
++                                _sl = _dec.get("stop_loss", 0.0)
++                                _tp = _dec.get("take_profit", 0.0)
++                                _msg = f"⚡ [DECISION] Cycle {cycle_count}: {_action} {current_symbol} {_stf} ({_sname}) @ {_entry_p} (SL: {_sl}, TP: {_tp}){_conf_str} | {_reason}"
++                            else:
++                                _msg = f"⏸️ [DECISION] Cycle {cycle_count}: HOLD {current_symbol} {_stf} ({_sname}){_conf_str} | {_reason}"
++                            logging.getLogger("main").info(_msg)
++                            if display and hasattr(display, "update_execution_log"):
++                                display.update_execution_log([_msg])
+                         try:
+                             from operations.event_bridge import emit as _deck_emit
+                             _deck_emit("CYCLE_COMPLETE", {
+-                                "symbol": current_symbol, "strategy": strategy_name,
+-                                "timeframe": strategy_tf,
+-                                "duration_ms": int((time.time() - _cycle_t0) * 1000),
+-                            }, correlation_id=f"{current_symbol}-{strategy_tf}")
+-                        except Exception as exc:
+-                            logging.getLogger("mt5_trader").debug("event emission failed: %s", exc)
++                                "symbol": current_symbol, "strategy": _sname,
++                                "timeframe": _stf,
++                                "duration_ms": int((time.time() - _ct0) * 1000),
++                            }, correlation_id=f"{current_symbol}-{_stf}")
++                        except Exception as _em_exc:
++                            logging.getLogger("mt5_trader").debug("event emission failed: %s", _em_exc)
+                     except KeyboardInterrupt:
+                         raise
+-                    except Exception as cycle_exc:
+-                        # One failed candle fetch / LLM call / data hiccup must
+-                        # not kill the run: journal, surface, and continue.
++                    except Exception as _cyc_exc:
+                         logging.getLogger("main").exception(
+                             "Cycle failed (%s %s %s); continuing on next pulse",
+-                            strategy_name, current_symbol, strategy_tf,
++                            _sname, current_symbol, _stf,
+                         )
+                         if display:
+                             display.update_execution_log(
+-                                [f"⚠ Cycle error ({strategy_name}): {str(cycle_exc)[:200]}"]
++                                [f"\u26a0\ufe0f Cycle error ({_sname}): {str(_cyc_exc)[:200]}"]
+                             )
+ 
+-                    # --- Deliberative Graph shadow cycle (observations only) ---
+-                    if _delib_app is not None:
++                # Hoist calendar / news / macro ingestion once per pulse before strategy execution
++                if hasattr(orch, "pre_pulse_macro_ingest"):
++                    try:
++                        orch.pre_pulse_macro_ingest(current_symbol, paper_mode=args.paper)
++                    except Exception as _pulse_ingest_exc:
++                        logging.getLogger("main").debug("Pre-pulse macro ingest skipped: %s", _pulse_ingest_exc)
++
++                if len(strategy_cycles) > 1:
++                    from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed as _AC
++                    with _TPE(max_workers=len(strategy_cycles), thread_name_prefix="strat") as _strat_pool:
++                        _strat_futs = {
++                            _strat_pool.submit(_run_one_strategy, sn, stf): sn
++                            for sn, stf in strategy_cycles
++                        }
++                        for _fut in _AC(_strat_futs):
++                            _fut.result()  # propagate exceptions logged inside _run_one_strategy
++                else:
++                    for _sn, _stf in strategy_cycles:
++                        _run_one_strategy(_sn, _stf)
++
++                # --- Deliberative Graph shadow cycle (observations only) ---
++                if _delib_app is not None and strategy_cycles:
++                    try:
++                        from intelligence.graph_state import (
++                            create_initial_trading_cycle_state as _mk_graph_state,
++                        )
++                        from core.shared_state import ui_state as _ui_state
++                        _shadow_name, _shadow_tf = strategy_cycles[0]
++                        _ui_state.reset_graph_pipeline(symbol=current_symbol, timeframe=_shadow_tf)
++
++                        _shadow_final = {}
++                        _stream_iter = _delib_app.stream(
++                            _mk_graph_state(
++                                symbol=current_symbol,
++                                timeframe=_shadow_tf,
++                                strategy=_shadow_name,
++                                paper_mode=True,
++                            ),
++                            config={"configurable": {
++                                "thread_id": f"shadow_{current_symbol}_{_shadow_tf}_{cycle_count}",
++                            }},
++                        )
++                        for _event in _stream_iter:
++                            for _node_name, _state_update in _event.items():
++                                _shadow_final.update(_state_update)
++                                _ui_state.update_graph_step(_node_name, _state_update)
++                                try:
++                                    from ui.gui_api import emit_deliberation_step as _emit_dstep
++                                    _out_str = _state_update if isinstance(_state_update, str) else json.dumps(
++                                        _state_update, default=str
++                                    )[:400]
++                                    _emit_dstep(
++                                        node_id=_node_name,
++                                        status="done" if _node_name in ("order_execution", "rejection_sink") else "running",
++                                        output=_out_str,
++                                        node_label=_node_name.replace("_", " ").title(),
++                                    )
++                                except Exception:
++                                    pass
++
++                        _shadow_summary = {
++                            "status": _shadow_final.get("status"),
++                            "validation_passed": _shadow_final.get("validation_passed"),
++                            "fusion_score": _shadow_final.get("fusion_score"),
++                            "rejection_reasons": _shadow_final.get("rejection_reasons"),
++                        }
++                        logging.getLogger("main").info(
++                            "Deliberative shadow %s/%s -> %s",
++                            current_symbol, _shadow_tf, _shadow_summary,
++                        )
+                         try:
+-                            from intelligence.graph_state import (
+-                                create_initial_trading_cycle_state as _mk_graph_state,
+-                            )
+-                            _shadow_final = _delib_app.invoke(
+-                                _mk_graph_state(
+-                                    symbol=current_symbol,
+-                                    timeframe=strategy_tf,
+-                                    strategy=strategy_name,
+-                                    paper_mode=True,
+-                                ),
+-                                config={"configurable": {
+-                                    "thread_id": f"shadow_{current_symbol}_{strategy_tf}_{cycle_count}",
+-                                }},
+-                            )
+-                            _shadow_summary = {
+-                                "status": _shadow_final.get("status"),
+-                                "validation_passed": _shadow_final.get("validation_passed"),
+-                                "fusion_score": _shadow_final.get("fusion_score"),
+-                                "rejection_reasons": _shadow_final.get("rejection_reasons"),
+-                            }
+-                            logging.getLogger("main").info(
+-                                "Deliberative shadow %s/%s -> %s",
+-                                current_symbol, strategy_tf, _shadow_summary,
+-                            )
+-                            try:
+-                                from operations.event_bridge import emit as _shadow_emit
+-                                _shadow_emit("DELIBERATIVE_SHADOW", {
+-                                    "symbol": current_symbol,
+-                                    "strategy": strategy_name,
+-                                    "timeframe": strategy_tf,
+-                                    **_shadow_summary,
+-                                }, correlation_id=f"{current_symbol}-{strategy_tf}")
+-                            except Exception:
+-                                pass
+-                        except Exception as _sh_exc:
+-                            logging.getLogger("main").debug(
+-                                "Deliberative shadow cycle skipped: %s", _sh_exc)
++                            from operations.event_bridge import emit as _shadow_emit
++                            _shadow_emit("DELIBERATIVE_SHADOW", {
++                                "symbol": current_symbol,
++                                "strategy": _shadow_name,
++                                "timeframe": _shadow_tf,
++                                **_shadow_summary,
++                            }, correlation_id=f"{current_symbol}-{_shadow_tf}")
++                        except Exception:
++                            pass
++                    except Exception as _sh_exc:
++                        logging.getLogger("main").debug(
++                            "Deliberative shadow cycle skipped: %s", _sh_exc)
+ 
+                 # --- Graph State Checkpoint: complete snapshot after all strategies ---
+                 if _crash_recovery is not None and _cp_id is not None:
+@@ -4616,13 +4972,21 @@ def execute_skill(**kwargs):
+                             if os.path.exists(_db_path):
+                                 _con = _sqlite3.connect(_db_path, timeout=2)
+                                 _con.row_factory = _sqlite3.Row
+-                                # Fetch last 50 closed trades for training
+-                                _trades = _con.execute(
+-                                    "SELECT symbol, side, entry, stop_loss, take_profit, "
+-                                    "gross_pnl, risk_amount, volume, opened_at, closed_at, payload "
+-                                    "FROM trades WHERE closed_at IS NOT NULL "
+-                                    "ORDER BY closed_at DESC LIMIT 50"
+-                                ).fetchall()
++                                # Broker-reconciled rows only: a self-declared
++                                # journal row is not training evidence.
++                                _broker_tickets = sorted(broker_reconciled_tickets(_db_path))
++                                if _broker_tickets:
++                                    _marks = ",".join("?" for _ in _broker_tickets)
++                                    _trades = _con.execute(
++                                        "SELECT symbol, side, entry, stop_loss, take_profit, "
++                                        "gross_pnl, risk_amount, volume, opened_at, closed_at, payload "
++                                        "FROM trades WHERE closed_at IS NOT NULL "
++                                        "AND ticket IN (%s) "
++                                        "ORDER BY closed_at DESC LIMIT 50" % _marks,
++                                        _broker_tickets,
++                                    ).fetchall()
++                                else:
++                                    _trades = []
+                                 _con.close()
+ 
+                                 if _trades:
+@@ -4814,12 +5178,21 @@ def execute_skill(**kwargs):
+                 try:
+                     from operations.alert_rules import AlertRulesEngine
+                     _alert_engine = AlertRulesEngine()
++                    # rolling_win_rate_samples < 20 → omit performance metrics:
++                    # an empty sample must not fire performance alerts (the
++                    # writer publishes the sample count next to each rate).
++                    try:
++                        _wr_n = int(orch.store.get_state("rolling_win_rate_samples", 0) or 0) if hasattr(orch, 'store') else 0
++                    except Exception:
++                        _wr_n = 0
+                     _alert_metrics = {
+                         "drawdown_pct": float(risk.current_drawdown_pct) if hasattr(risk, 'current_drawdown_pct') else 0,
+                         "consecutive_losses": int(orch.store.get_state("consecutive_losses", 0) or 0) if hasattr(orch, 'store') else 0,
+-                        "rolling_win_rate": float(orch.store.get_state("rolling_win_rate", 0) or 0) if hasattr(orch, 'store') else 0,
+-                        "rolling_expectancy_r": float(orch.store.get_state("rolling_expectancy_r", 0) or 0) if hasattr(orch, 'store') else 0,
++                        "rolling_win_rate_samples": _wr_n,
+                     }
++                    if _wr_n >= 20:
++                        _alert_metrics["rolling_win_rate"] = float(orch.store.get_state("rolling_win_rate", 0) or 0) if hasattr(orch, 'store') else 0
++                        _alert_metrics["rolling_expectancy_r"] = float(orch.store.get_state("rolling_expectancy_r", 0) or 0) if hasattr(orch, 'store') else 0
+                     _fired = _alert_engine.evaluate(_alert_metrics)
+                     if _fired:
+                         for _alert in _fired:
+@@ -4837,12 +5210,14 @@ def execute_skill(**kwargs):
+                     _det_metrics = {
+                         "drawdown_pct": float(risk.current_drawdown_pct) if hasattr(risk, 'current_drawdown_pct') else 0,
+                         "consecutive_losses": int(orch.store.get_state("consecutive_losses", 0) or 0) if hasattr(orch, 'store') else 0,
+-                        "rolling_win_rate": float(orch.store.get_state("rolling_win_rate", 0) or 0) if hasattr(orch, 'store') else 0,
+-                        "rolling_expectancy_r": float(orch.store.get_state("rolling_expectancy_r", 0) or 0) if hasattr(orch, 'store') else 0,
+                         "drawdown_duration_hours": float(orch.store.get_state("drawdown_duration_hours", 0) or 0) if hasattr(orch, 'store') else 0,
+                         "overall_divergence": float(orch.store.get_state("overall_divergence", 0) or 0) if hasattr(orch, 'store') else 0,
+                         "equity": float(risk.equity) if hasattr(risk, 'equity') else 0,
++                        "rolling_win_rate_samples": _wr_n,
+                     }
++                    if _wr_n >= 20:
++                        _det_metrics["rolling_win_rate"] = float(orch.store.get_state("rolling_win_rate", 0) or 0) if hasattr(orch, 'store') else 0
++                        _det_metrics["rolling_expectancy_r"] = float(orch.store.get_state("rolling_expectancy_r", 0) or 0) if hasattr(orch, 'store') else 0
+                     _det_action = _detector.check(_det_metrics)
+                     if _det_action:
+                         logging.getLogger("main").critical(

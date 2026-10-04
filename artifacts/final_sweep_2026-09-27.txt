@@ -1,0 +1,30 @@
+Full 17-suite verification sweep — 2026-09-27
+(successor to artifacts/final_sweep.txt; covers the 2026-09-26/27 arc:
+ macro evidence stage+backfill, edge reinforcement, telemetry, cadence restore,
+ wave dispatcher, dashboard sections, alpha router wiring, live smoke support)
+
+OK             28 tests  tests/test_agent_operations.py
+OK             25 tests  tests/test_scheduler_pulse.py
+OK             28 tests  tests/test_alpha_discovery.py
+OK              8 tests  tests/test_zeta_alpha_discovery_wiring.py
+OK              9 tests  tests/test_edge_reinforcement.py
+OK              6 tests  tests/test_autonomous_causal_engine.py
+OK              3 tests  tests/test_edge_replay_floors.py
+OK              9 tests  tests/test_macro_evidence_backfill.py
+OK              3 tests  tests/test_macro_graph_hardening.py
+OK             10 tests  tests/test_macro_graph_history.py
+OK              4 tests  tests/test_trading_memory_input_safety.py
+OK              2 tests  tests/test_memory_point_in_time.py
+OK              1 tests  tests/test_atomic_fact_governance.py
+OK              2 tests  tests/test_atomic_fact_provenance.py
+OK             32 tests  tests/test_compliance_wiring.py
+OK             12 tests  tests/test_state_persistence.py
+OK              8 tests  tests/test_economic_dynamics_gaps.py
+
+total collected: 190
+combined run exit code: 0 (pytest -q -n0 -p no:warnings; dots = passes)
+
+=== verbatim combined run ===
+........................................................................ [ 37%]
+........................................................................ [ 75%]
+..............................................                           [100%]

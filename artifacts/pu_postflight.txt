@@ -1,0 +1,17 @@
+cb1e933 feat(scheduler): add self-verification smoke suite for schedules, journal, autonomy
+ artifacts/scheduler_smoke_report.json |  33 +++
+ artifacts/scheduler_smoke_report.txt  |  13 ++
+ scripts/scheduler_smoke.py            | 413 ++++++++++++++++++++++++++++++++++
+ tests/test_scheduler_smoke.py         | 288 ++++++++++++++++++++++++
+ 4 files changed, 747 insertions(+)
+3a0bdad feat(launch): opt-in QKF smoke preflight gate for START_DECK
+ START_DECK.bat | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+=== remaining bat diffs (user's uncommitted work) ===
+ M START_DECK.bat
+ M START_TRADING.bat
+START_DECK.bat:1
+START_TRADING.bat:0
+15
+user-lines-still-present=0
+END-MARKER-PU-0117

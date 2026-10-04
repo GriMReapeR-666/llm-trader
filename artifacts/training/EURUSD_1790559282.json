@@ -1,0 +1,21 @@
+{
+  "symbol": "EURUSD",
+  "rewards": {
+    "qlearn": 0,
+    "ppo": -0.4,
+    "meta": 0,
+    "grpo": 0.0003
+  },
+  "oos": {
+    "sharpe": 0.064,
+    "win_rate": 0.503,
+    "profit_factor": 1.009,
+    "wfe": 0.641
+  },
+  "scenarios": {
+    "passed": 17,
+    "total": 19
+  },
+  "gate_passed": false,
+  "duration": 3.3
+}

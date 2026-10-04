@@ -1,0 +1,30 @@
+PASS h_green: rc=0 expect=True forbid=True
+   | [HEADLESS AUTO-MODE] Launching EURUSD AUTO (Paper Mode, Continuous)
+   | [PREFLIGHT] QKF smoke probes running (set SMOKE_PREFLIGHT=0 to skip)...
+   | [FAST] probes only: pytest + E2E battery skipped
+   | SMOKE-VERDICT: GREEN
+   | [PREFLIGHT] QKF smoke GREEN.
+   | HARNESS-LAUNCHED
+PASS h_abort: rc=0 expect=True forbid=True
+   | [HEADLESS AUTO-MODE] Launching EURUSD AUTO (Paper Mode, Continuous)
+   | [PREFLIGHT] QKF smoke probes running (set SMOKE_PREFLIGHT=0 to skip)...
+   | [FAST] probes only: pytest + E2E battery skipped
+   | SMOKE-VERDICT: RED
+   | [PREFLIGHT] QKF smoke RED - aborting launch. Report: artifacts\qkf_smoke_report.txt
+PASS h_skip: rc=0 expect=True forbid=True
+   | [HEADLESS AUTO-MODE] Launching EURUSD AUTO (Paper Mode, Continuous)
+   | HARNESS-LAUNCHED
+PASS h_explicit_cmd: rc=0 expect=True forbid=True
+   | HARNESS-EXPLICIT-COMMAND
+PASS d_green: rc=0 expect=True forbid=True
+   | [FAST] probes only: pytest + E2E battery skipped
+   | SMOKE-VERDICT: GREEN
+   | HARNESS-LAUNCHED
+PASS d_abort: rc=0 expect=True forbid=True
+   | [FAST] probes only: pytest + E2E battery skipped
+   | SMOKE-VERDICT: RED
+   | HARNESS-ABORTED
+PASS d_skip: rc=0 expect=True forbid=True
+   | HARNESS-LAUNCHED
+HARNESS: 7/7 scenarios pass
+END-MARKER-PU-0091

@@ -1,0 +1,32 @@
+
+prompt#0: 12 messages
+  [0] system       2043 chars | You are a World-Class Hedge Fund Trader & Risk Manager (Macro/Quant). Your goal is to analyze the provided Mar
+  [1] system       1205 chars | Previous context: [USER] Market Data JSON: {"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"cur
+  [2] assistant    1127 chars | {"action": "HOLD", "decision": "HOLD", "confidence": 0.0, "deterministic_fallback": true, "reasoning": "Determ
+  [3] user        28812 chars | Market Data JSON:\n{"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"current_price":1.13717,"ohlc
+  [4] assistant     564 chars | {"action": "HOLD", "decision": "HOLD", "confidence": 0.0, "deterministic_fallback": true, "reasoning": "Determ
+  [5] user        31115 chars | Market Data JSON:\n{"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"current_price":1.13715,"ohlc
+  [6] assistant     574 chars | {"action": "HOLD", "decision": "HOLD", "confidence": 0.0, "deterministic_fallback": true, "reasoning": "Determ
+  [7] user        28754 chars | Market Data JSON:\n{"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"current_price":1.13707,"ohlc
+  [8] assistant     564 chars | {"action": "HOLD", "decision": "HOLD", "confidence": 0.0, "deterministic_fallback": true, "reasoning": "Determ
+  [9] user        31101 chars | Market Data JSON:\n{"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"current_price":1.13713,"ohlc
+  [10] assistant     635 chars | {"action": "HOLD", "decision": "HOLD", "confidence": 0.0, "deterministic_fallback": true, "reasoning": "Determ
+  [11] user        31121 chars | Market Data JSON:\n{"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"current_price":1.13732,"ohlc
+
+prompt#1: 10 messages
+  [0] system       2043 chars | You are a World-Class Hedge Fund Trader & Risk Manager (Macro/Quant). Your goal is to analyze the provided Mar
+  [1] system       1205 chars | Previous context: [USER] Market Data JSON: {"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"cur
+  [2] assistant    1127 chars | {"action": "HOLD", "decision": "HOLD", "confidence": 0.0, "deterministic_fallback": true, "reasoning": "Determ
+  [3] user        28812 chars | Market Data JSON:\n{"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"current_price":1.13717,"ohlc
+  [4] assistant     564 chars | {"action": "HOLD", "decision": "HOLD", "confidence": 0.0, "deterministic_fallback": true, "reasoning": "Determ
+  [5] user        31115 chars | Market Data JSON:\n{"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"current_price":1.13715,"ohlc
+  [6] assistant     574 chars | {"action": "HOLD", "decision": "HOLD", "confidence": 0.0, "deterministic_fallback": true, "reasoning": "Determ
+  [7] user        28754 chars | Market Data JSON:\n{"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"current_price":1.13707,"ohlc
+  [8] assistant     564 chars | {"action": "HOLD", "decision": "HOLD", "confidence": 0.0, "deterministic_fallback": true, "reasoning": "Determ
+  [9] user        31101 chars | Market Data JSON:\n{"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"current_price":1.13713,"ohlc
+
+largest message: 31121 chars; '{"account"' at 18
+context around the match:
+Market Data JSON:\n{"account":{},"recent_performance":[],"multi_timeframe":{"D1":{"current_price":1.13732,"ohlc_last_3":[{"time":"2026-09-23T21:00:00Z","open":1.13808,"high":1.13991,"low":1.13592,"close":1.13802,"tick_volume":210868,"spread":0,"real_volume":0,"rsi_14":27.16598,"macd_line":-0.00421,"macd_signal":-0.00163,"macd_hist":-0.00258,"macd_histogram":-0.00258,"ema_50":1.15205,"atr_14":0.00483},{"time":"2026-0
+PROBE-DONE
+END-MARKER-PU-0097

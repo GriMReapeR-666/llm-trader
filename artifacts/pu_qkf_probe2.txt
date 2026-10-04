@@ -1,0 +1,40 @@
+
+=== PLAIN IMPORT of quant_framework.modules ===
+plain-import registry tool count: 0
+names: []
+
+=== EXPLICIT SUBMODULE IMPORT ===
+imported regime_detection OK
+imported strategy_development OK
+imported portfolio_management OK
+imported order_execution OK
+imported quant_utilities OK
+registry tool count after explicit import: 0
+
+=== AGENT BRIDGE (does QuantAgent see module tools?) ===
+agent tool names: None
+module-registry tools visible to agent: NONE
+
+=== DATA: raw_downloads ===
+entries: 3
+  - https___www.youtube.com_channel_UCLHvJ1KNGE1s-A3ODiSgplw
+  - https___www.youtube.com_playlist_list=PLD7IrLyN7uvIdAtZPBikfIaUNmFWe4pdz
+  - https___www.youtube.com_user_quantinsti
+
+=== DATA: knowledge_base + index.json ===
+total kb files: 950
+   . -> 1
+   01_Regime_Detection -> 47
+   02_Strategy_Development -> 83
+   03_Portfolio_Management -> 58
+   04_Order_Execution -> 39
+   05_Quant_Utilities -> 195
+   99_Archive_Unsorted -> 527
+index.json type: dict len: 6
+sample keys: ['01_Regime_Detection', '02_Strategy_Development', '03_Portfolio_Management', '04_Order_Execution', '05_Quant_Utilities', '99_Archive_Unsorted']
+   01_Regime_Detection -> ['data\\knowledge_base\\01_Regime_Detection\\0KRzDyEqIVY_Quant Radio Centaur Trading vs AI Only Models in Regime Shifts.txt', 'data\\knowledge_base\\0
+   02_Strategy_Development -> ['data\\knowledge_base\\02_Strategy_Development\\0DI5bkBeQwQ_Quant Radio Scaled PCA for Factor Investing.txt', 'data\\knowledge_base\\02_Strategy_Deve
+   03_Portfolio_Management -> ['data\\knowledge_base\\03_Portfolio_Management\\-0j5Vw7d7ro_Quant Radio Practical Beta Hedging Implementation.txt', 'data\\knowledge_base\\03_Portfol
+
+PROBE2-DONE
+END-MARKER-PU-0064

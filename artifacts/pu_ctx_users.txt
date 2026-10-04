@@ -1,0 +1,2 @@
+/usr/bin/bash: line 1: rg: command not found
+rg-exit=127

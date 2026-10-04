@@ -1,0 +1,4 @@
+wrote artifacts/pu_deck_preflight.patch: 25 body lines, old=9 new=25
+PU-0112-OK
+exit=0
+END-MARKER-PU-0112

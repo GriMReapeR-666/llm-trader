@@ -1,0 +1,352 @@
+diff --git a/tests/test_scheduler_pulse.py b/tests/test_scheduler_pulse.py
+index 3590c16..f491dce 100644
+--- a/tests/test_scheduler_pulse.py
++++ b/tests/test_scheduler_pulse.py
+@@ -407,4 +407,6 @@ def test_last_handler_overrun_is_recorded_at_batch_end(monkeypatch):
+         return True
+ 
++    # Fast lane: equal budget lanes keep claim order, so slow_last still
++    # dispatches LAST and its overrun is caught at batch end.
+     instance = _bounded_instance(
+         monkeypatch,
+@@ -412,5 +414,5 @@ def test_last_handler_overrun_is_recorded_at_batch_end(monkeypatch):
+          {"schedule_name": "slow_last", "payload": {}}],
+         handler)
+-    instance._SCHEDULE_HANDLER_BUDGETS = {"slow_last": 0.5}
++    instance._SCHEDULE_HANDLER_BUDGETS = {"fast_first": 0.5, "slow_last": 0.5}
+ 
+     instance._process_due_schedules("XAUUSD", True)
+@@ -463,4 +465,7 @@ def test_wave_deadline_defers_remainder_with_skip_event_and_restore(monkeypatch)
+         return True
+ 
++    # Fast lane: the hog budget is set EQUAL to the default (45s) so the
++    # sort keeps claim order — the wave deadline, not the budget, does the
++    # cutting here.
+     instance = _bounded_instance(
+         monkeypatch,
+@@ -469,5 +474,5 @@ def test_wave_deadline_defers_remainder_with_skip_event_and_restore(monkeypatch)
+          {"schedule_name": "deferred", "payload": {}}],
+         handler)
+-    instance._SCHEDULE_HANDLER_BUDGETS = {"hog": 5.0}   # hog does NOT trip
++    instance._SCHEDULE_HANDLER_BUDGETS = {"hog": 45.0}  # == default: equal lane
+     instance._SCHEDULE_TIMEOUT = 0.4                    # wave deadline
+ 
+@@ -495,4 +500,6 @@ def test_wave_within_deadline_records_no_skip_event(monkeypatch):
+         return True
+ 
++    # Fast lane: the 0.5s budget sorts slow ahead of after's default-45s
++    # budget lane — the wave continues past the overrun either way.
+     instance = _bounded_instance(
+         monkeypatch,
+@@ -507,4 +514,275 @@ def test_wave_within_deadline_records_no_skip_event(monkeypatch):
+ 
+ 
++def test_fast_lane_dispatches_short_interval_schedules_before_the_deadline(monkeypatch):
++    """FAST-LANE (2026-09-28): dispatch order is shortest-cadence-first, so a
++    wave-deadline hit defers the slowest cadence — never the 60s fast lanes.
++    The claim order below is the historical heavy-first order: without the
++    fast lane the 0.8s hog exhausts the deadline and BOTH 60s schedules are
++    deferred; with it they dispatch before the deadline can bite."""
++    handled = []
++
++    def handler(name):
++        handled.append(name)
++        if name == "hog_900":
++            _time_mod.sleep(0.8)
++        return True
++
++    instance = _watchdog_instance(
++        monkeypatch,
++        [{"schedule_name": "hog_900", "payload": {}},
++         {"schedule_name": "fast_a", "payload": {}},
++         {"schedule_name": "fast_b", "payload": {}},
++         {"schedule_name": "heavy_last", "payload": {}}],
++        registry=[
++            {"schedule_name": "hog_900", "interval_seconds": 900, "enabled": 1},
++            {"schedule_name": "fast_a", "interval_seconds": 60, "enabled": 1},
++            {"schedule_name": "fast_b", "interval_seconds": 60, "enabled": 1},
++            {"schedule_name": "heavy_last", "interval_seconds": 86400, "enabled": 1},
++        ],
++        handler_fn=handler)
++    instance._SCHEDULE_HANDLER_BUDGETS = {"hog_900": 5.0}   # hog does NOT trip
++    instance._SCHEDULE_TIMEOUT = 0.4
++
++    instance._process_due_schedules("XAUUSD", True)
++    # Fast lanes dispatched first (claim order is the tiebreak inside the
++    # 60s lane), then the 15-min hog; the deadline cut the daily schedule.
++    assert handled == ["fast_a", "fast_b", "hog_900"], \
++        f"fast lanes must dispatch before the deadline, got {handled}"
++    skips = _events_of(instance, "schedule_skipped")
++    assert len(skips) == 1
++    assert skips[0][0][2]["schedules"] == ["heavy_last"]
++    assert skips[0][0][2]["dispatched"] == 3
++    assert skips[0][0][2]["reason"] == "wave_deadline"
++    # Dispatch order changed, claim semantics did not: exactly the deferred
++    # heavy claim is released, every dispatched claim completed inline.
++    assert [r["schedule_name"] for r in instance.operations.releases[0]] == ["heavy_last"]
++    assert {c[0] for c in instance.operations.completions} == \
++        {"fast_a", "fast_b", "hog_900"}
++
++
++def test_event_monitor_heavy_pipeline_runs_sub_cadence(monkeypatch):
++    """The heavy pipeline block (FRED/news/hot-topics/graph ingest/realtime)
++    runs on a sub-cadence inside event_monitor: the first dispatch runs it
++    (pipeline_mode=full), the next dispatch inside the window defers it
++    (calendar_only payload), and the heavy functions are reached through the
++    orchestrator module globals so failures there never stall the wave."""
++    import sys as _sys
++
++    # The orchestrator module binds these names at import time; the test
++    # process imports it as "llm_orchestrator" (top-level aliasing of the
++    # intelligence/ module).
++    import llm_orchestrator as orch_mod
++    assert orch_mod is not None, "orchestrator module must be importable for patching"
++
++    calls = []
++
++    def _fake_pipeline(**kwargs):
++        calls.append("pipeline")
++        return {"status": "PROCESSED"}
++
++    def _fake_rn(**kwargs):
++        calls.append("rn")
++        return {"status": "PROCESSED"}
++
++    monkeypatch.setattr(orch_mod, "process_cycle_data_sources", _fake_pipeline)
++    monkeypatch.setattr(orch_mod, "run_realtime_news_ingest", _fake_rn)
++
++    def _mk(last_ts):
++        # handler_fn's return value IS try_handle's return: the executor
++        # registry short-circuits the legacy elif chain when True. False lets
++        # the event_monitor body — and its sub-cadence gate — execute.
++        inst = _watchdog_instance(
++            monkeypatch,
++            [{"schedule_name": "event_monitor", "payload": {}}],
++            registry=[], handler_fn=lambda name: False)
++        inst._event_monitor_last_full_ts = last_ts
++        inst.store = _Store()
++        inst.data_provider = type("P", (), {"calendar": None, "api_manager": None,
++                                             "client": None})()
++        inst.macro_graph = None
++        inst.client = None
++        inst.trade_memory = None
++        return inst
++
++    # First dispatch: stamp=0 -> the heavy block RUNS.
++    inst = _mk(0.0)
++    inst._process_due_schedules("EURUSD", True)
++    assert calls == ["pipeline", "rn"], "first pass must run the heavy block"
++    state = inst.store.states.get("event_monitor:EURUSD") or {}
++    assert (state.get("data_source_pipeline") or {}).get("pipeline_mode") == "full"
++    assert inst._event_monitor_last_full_ts > 0.0, "successful full pass must stamp"
++
++    # Second dispatch inside the window: heavy block DEFERRED (calendar-only).
++    calls.clear()
++    inst2 = _mk(inst._event_monitor_last_full_ts)
++    inst2._process_due_schedules("EURUSD", True)
++    assert calls == [], "second pass inside the window must defer the heavy block"
++    pipe2 = (inst2.store.states.get("event_monitor:EURUSD") or {}).get(
++        "data_source_pipeline") or {}
++    assert pipe2.get("pipeline_mode") == "calendar_only"
++    assert pipe2.get("status") == "DEFERRED"
++    assert pipe2.get("execution_authority") is False
++    # The stamp must be carried over untouched by the deferred dispatch.
++    assert inst2._event_monitor_last_full_ts == inst._event_monitor_last_full_ts
++
++
++def test_event_monitor_split_windows_alternate(monkeypatch):
++    """EVENT_MONITOR_SPLIT_WINDOWS=1 halves the heavy block into alternating
++    windows: even windows run the graph pipeline half (realtime-news
++    deferred), odd windows run realtime-news (pipeline deferred). Each window
++    still stamps and advances the counter, so the halves alternate A/B/A."""
++    import sys as _sys
++
++    monkeypatch.setenv("EVENT_MONITOR_SPLIT_WINDOWS", "1")
++    import llm_orchestrator as orch_mod
++    assert orch_mod is not None, "orchestrator module must be importable for patching"
++
++    calls = []
++
++    def _fake_pipeline(**kwargs):
++        calls.append("pipeline")
++        return {"status": "PROCESSED"}
++
++    def _fake_rn(**kwargs):
++        calls.append("rn")
++        return {"status": "PROCESSED"}
++
++    monkeypatch.setattr(orch_mod, "process_cycle_data_sources", _fake_pipeline)
++    monkeypatch.setattr(orch_mod, "run_realtime_news_ingest", _fake_rn)
++
++    def _mk(last_ts, window_no=0):
++        # handler_fn returns False so the event_monitor body executes.
++        inst = _watchdog_instance(
++            monkeypatch,
++            [{"schedule_name": "event_monitor", "payload": {}}],
++            registry=[], handler_fn=lambda name: False)
++        inst._event_monitor_last_full_ts = last_ts
++        inst._event_monitor_window_no = window_no
++        inst.store = _Store()
++        inst.data_provider = type("P", (), {"calendar": None, "api_manager": None,
++                                            "client": None})()
++        inst.macro_graph = None
++        inst.client = None
++        inst.trade_memory = None
++        return inst
++
++    # Window 0 (even): the PIPELINE half runs, realtime-news is deferred.
++    inst = _mk(0.0)
++    inst._process_due_schedules("EURUSD", True)
++    assert calls == ["pipeline"], "even window must run the pipeline half only"
++    state = inst.store.states.get("event_monitor:EURUSD") or {}
++    pipe = state.get("data_source_pipeline") or {}
++    assert pipe.get("pipeline_mode") == "pipeline_window"
++    assert pipe.get("split_windows") is True
++    rn = state.get("realtime_news_ingest") or {}
++    assert rn.get("status") == "DEFERRED" and rn.get("reason") == "split_windows"
++    assert inst._event_monitor_last_full_ts > 0.0, "window ran, so it must stamp"
++    assert inst._event_monitor_window_no == 1
++
++    # Window 1 (odd): the REALTIME-NEWS half runs, pipeline deferred.
++    # last_ts stepped back 400s to simulate the elapsed 300s window.
++    calls.clear()
++    inst2 = _mk(inst._event_monitor_last_full_ts - 400.0, window_no=1)
++    inst2._process_due_schedules("EURUSD", True)
++    assert calls == ["rn"], "odd window must run realtime-news only"
++    state2 = inst2.store.states.get("event_monitor:EURUSD") or {}
++    pipe2 = state2.get("data_source_pipeline") or {}
++    assert pipe2.get("pipeline_mode") == "realtime_window"
++    assert pipe2.get("split_windows") is True
++    rn2 = state2.get("realtime_news_ingest") or {}
++    assert rn2.get("pipeline_mode") == "realtime_window"
++    assert inst2._event_monitor_window_no == 2
++
++    # Back to even: pipeline half again (A/B/A alternation).
++    calls.clear()
++    inst3 = _mk(inst2._event_monitor_last_full_ts - 400.0, window_no=2)
++    inst3._process_due_schedules("EURUSD", True)
++    assert calls == ["pipeline"]
++
++
++def test_event_monitor_split_window_failure_retries_same_parity(monkeypatch):
++    """A failed window must NOT advance the window counter (nor stamp), so
++    the next dispatch retries the SAME parity instead of silently skipping
++    that half of the heavy block."""
++    import sys as _sys
++
++    monkeypatch.setenv("EVENT_MONITOR_SPLIT_WINDOWS", "1")
++    import llm_orchestrator as orch_mod
++    assert orch_mod is not None, "orchestrator module must be importable for patching"
++
++    calls = []
++
++    def _fake_pipeline(**kwargs):
++        calls.append("pipeline")
++        raise RuntimeError("boom")
++
++    def _fake_rn(**kwargs):
++        calls.append("rn")
++        return {"status": "PROCESSED"}
++
++    monkeypatch.setattr(orch_mod, "process_cycle_data_sources", _fake_pipeline)
++    monkeypatch.setattr(orch_mod, "run_realtime_news_ingest", _fake_rn)
++
++    def _mk(last_ts, window_no=0):
++        inst = _watchdog_instance(
++            monkeypatch,
++            [{"schedule_name": "event_monitor", "payload": {}}],
++            registry=[], handler_fn=lambda name: False)
++        inst._event_monitor_last_full_ts = last_ts
++        inst._event_monitor_window_no = window_no
++        inst.store = _Store()
++        inst.data_provider = type("P", (), {"calendar": None, "api_manager": None,
++                                            "client": None})()
++        inst.macro_graph = None
++        inst.client = None
++        inst.trade_memory = None
++        return inst
++
++    # Window 0 (even) raises inside the pipeline half: ERROR payload, and
++    # neither the stamp nor the window counter may advance.
++    inst = _mk(0.0, window_no=0)
++    inst._process_due_schedules("EURUSD", True)
++    assert calls == ["pipeline"]
++    state = inst.store.states.get("event_monitor:EURUSD") or {}
++    pipe = state.get("data_source_pipeline") or {}
++    assert pipe.get("status") == "ERROR" and "boom" in str(pipe.get("error"))
++    assert inst._event_monitor_last_full_ts == 0.0
++    assert getattr(inst, "_event_monitor_window_no", 0) == 0
++
++    # Retry re-runs the SAME (pipeline) parity.
++    calls.clear()
++    inst2 = _mk(0.0, window_no=0)
++    inst2._process_due_schedules("EURUSD", True)
++    assert calls == ["pipeline"], "retry must re-run the same parity"
++
++
++def test_fast_lane_budget_fallback_and_claim_order_tiebreak(monkeypatch):
++    """Schedules missing from the registry ride the handler-budget lane
++    (still ahead of known slow cadences), and equal lanes keep claim order."""
++    handled = []
++
++    def handler(name):
++        handled.append(name)
++        return True
++
++    instance = _watchdog_instance(
++        monkeypatch,
++        [{"schedule_name": "orphan_daily", "payload": {}},
++         {"schedule_name": "b_quick", "payload": {}},
++         {"schedule_name": "a_quick", "payload": {}}],
++        registry=[
++            {"schedule_name": "orphan_daily", "interval_seconds": 86400, "enabled": 1},
++        ],
++        handler_fn=handler)
++    instance._SCHEDULE_HANDLER_BUDGETS = {"b_quick": 5.0, "a_quick": 5.0}
++
++    instance._process_due_schedules("XAUUSD", True)
++    # Registry-missed orphans fall back to the default-budget lane (45s) and
++    # still beat the registered daily cadence; equal lanes keep claim order.
++    assert handled == ["b_quick", "a_quick", "orphan_daily"]
++    assert _events_of(instance, "schedule_skipped") == []
++    assert instance.operations.releases == []
++
++
+ # ---------------------------------------------------------------------------
+ # Session-skip watchdog: claimed-but-undispatched schedules must be visible
+@@ -594,5 +872,6 @@ def test_wave_deadline_defers_multiple_schedules_and_releases_all(monkeypatch):
+          {"schedule_name": "deferred_b", "payload": {}}],
+         handler)
+-    instance._SCHEDULE_HANDLER_BUDGETS = {"hog": 5.0}
++    # Fast lane: hog's budget == default so equal lanes keep claim order.
++    instance._SCHEDULE_HANDLER_BUDGETS = {"hog": 45.0}
+     instance._SCHEDULE_TIMEOUT = 0.4
+ 
+@@ -856,5 +1135,5 @@ def test_full_dispatch_and_last_handler_trip_complete_every_claim(monkeypatch):
+          {"schedule_name": "b", "payload": {}}],
+         registry=[], handler_fn=trip_last)
+-    tripper._SCHEDULE_HANDLER_BUDGETS = {"b": 0.5}
++    tripper._SCHEDULE_HANDLER_BUDGETS = {"a": 0.5, "b": 0.5}  # equal lanes keep claim order
+     tripper._process_due_schedules("XAUUSD", True)
+     assert tripper.operations.releases == []
+@@ -905,4 +1184,8 @@ def test_multi_overrun_wave_resolves_every_claim(monkeypatch):
+         return True
+ 
++    # Fast lane: unregistered names dispatch by handler-budget lane — the
++    # wave order is slow_a, slow_b, slow_c (0.2s lanes), then fast_1..3 and
++    # the deferred_* tail (default-45s lanes). The 0.6s deadline cuts after
++    # the second 0.5s slow handler.
+     all_names = ["fast_1", "slow_a", "fast_2", "slow_b", "fast_3",
+                  "slow_c", "deferred_1", "deferred_2"]
+@@ -922,7 +1205,9 @@ def test_multi_overrun_wave_resolves_every_claim(monkeypatch):
+                 for call in instance.operations.releases for r in call}
+ 
+-    # 1) The wave dispatches a prefix of the claim order: the deadline
++    # 1) The wave dispatches a prefix of the FAST-LANE order: the deadline
+     #    defers the tail, nothing in the middle is skipped silently.
+-    assert handled and all_names[:len(handled)] == handled
++    fast_lane_order = ["slow_a", "slow_b", "slow_c", "fast_1", "fast_2",
++                       "fast_3", "deferred_1", "deferred_2"]
++    assert handled and fast_lane_order[:len(handled)] == handled
+     # 2) Every claim resolved exactly once: completed XOR released —
+     #    no dangling claims, no double resolution.

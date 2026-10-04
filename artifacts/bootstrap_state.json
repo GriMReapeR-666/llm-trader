@@ -1,0 +1,15 @@
+{
+  "last_bootstrap": 1791017916.7556922,
+  "quality_score": 0.6,
+  "phases": {
+    "VALIDATE": {
+      "passed": true,
+      "duration": 6.640743017196655
+    },
+    "PREPARE": {
+      "passed": true,
+      "duration": 11.911659479141235
+    }
+  },
+  "execution_authority": false
+}

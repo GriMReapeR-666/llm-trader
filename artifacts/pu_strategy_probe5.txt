@@ -1,0 +1,135 @@
+agent_runs cols: ['run_id', 'agent', 'started_at', 'heartbeat_at', 'status', 'config_hash', 'code_version', 'payload']
+
+agent_schedules cols: ['schedule_name', 'agent', 'interval_seconds', 'next_run_at', 'last_run_at', 'enabled', 'payload', 'claimed_at', 'claim_expires_at']
+
+=== agent_runs recent 8 ===
+[
+ {
+  "run_id": "055778a7-8286-44f9-ab93-96bb6483f738",
+  "agent": "trader",
+  "started_at": "2026-09-28T10:29:17.196480+00:00",
+  "heartbeat_at": "2026-09-28T11:27:35.552846+00:00",
+  "status": "RUNNING",
+  "config_hash": "",
+  "code_version": "",
+  "payload": "{\"symbol\": \"EURUSD\", \"timeframe\": \"M15\", \"phase\": \"market_pulse\"}"
+ },
+ {
+  "run_id": "059b05b4-1784-449c-ae4d-ebc0199fddb8",
+  "agent": "trader",
+  "started_at": "2026-09-28T07:21:18.187266+00:00",
+  "heartbeat_at": "2026-09-28T07:30:03.779889+00:00",
+  "status": "STOPPED",
+  "config_hash": "",
+  "code_version": "",
+  "payload": "{\"strategy\": \"scalp\", \"symbol\": \"EURUSD\", \"timeframe\": \"M5\", \"reason\": \"main_loop_exit\"}"
+ },
+ {
+  "run_id": "ce4f1493-d08e-4e22-b74a-88dff40b044d",
+  "agent": "trader",
+  "started_at": "2026-09-28T06:50:16.677111+00:00",
+  "heartbeat_at": "2026-09-28T06:57:49.147295+00:00",
+  "status": "STOPPED",
+  "config_hash": "",
+  "code_version": "",
+  "payload": "{\"strategy\": \"scalp\", \"symbol\": \"EURUSD\", \"timeframe\": \"M5\", \"reason\": \"main_loop_exit\"}"
+ },
+ {
+  "run_id": "ca9fc6fe-2122-4747-90a6-d9f633bba97f",
+  "agent": "trader",
+  "started_at": "2026-09-28T01:34:59.829421+00:00",
+  "heartbeat_at": "2026-09-28T06:50:16.423928+00:00",
+  "status": "STALE_RECOVERED",
+  "config_hash": "",
+  "code_version": "",
+  "payload": "{\"symbol\": \"EURUSD\", \"timeframe\": \"H1\", \"phase\": \"market_pulse\"}"
+ },
+ {
+  "run_id": "ab196b02-3da8-4d16-86c0-fc73c286c636",
+  "agent": "trader",
+  "started_at": "2026-09-28T01:16:52.167452+00:00",
+  "heartbeat_at": "2026-09-28T01:34:59.638319+00:00",
+  "status": "STALE_RECOVERED",
+  "config_hash": "",
+  "code_version": "",
+  "payload": "{\"symbol\": \"EURUSD\", \"timeframe\": \"H1\", \"phase\": \"market_pulse\"}"
+ },
+ {
+  "run_id": "222800e4-1e7b-4130-a23f-245a95b290da",
+  "agent": "trader",
+  "started_at": "2026-09-28T00:58:31.126921+00:00",
+  "heartbeat_at": "2026-09-28T01:16:51.977508+00:00",
+  "status": "STALE_RECOVERED",
+  "config_hash": "",
+  "code_version": "",
+  "payload": "{\"symbol\": \"EURUSD\", \"timeframe\": \"M15\", \"phase\": \"market_pulse\"}"
+ },
+ {
+  "run_id": "5f66fd28-25f0-4c4f-ad69-20813d8ebd3c",
+  "agent": "trader",
+  "started_at": "2026-09-27T17:35:49.990948+00:00",
+  "heartbeat_at": "2026-09-28T00:58:30.948971+00:00",
+  "status": "STALE_RECOVERED",
+  "config_hash": "",
+  "code_version": "",
+  "payload": "{\"symbol\": \"EURUSD\", \"timeframe\": \"H1\", \"phase\": \"market_pulse\"}"
+ },
+ {
+  "run_id": "b37fa8cc-30de-40e5-937b-4ff4d13f840e",
+  "agent": "trader",
+  "started_at": "2026-09-27T17:04:32.550669+00:00",
+  "heartbeat_at": "2026-09-27T17:10:13.568047+00:00",
+  "status": "STOPPED",
+  "config_hash": "",
+  "code_version": "",
+  "payload": "{\"symbol\": \"EURUSD\", \"timeframe\": \"M5\", \"phase\": \"maintenance_pulse\", \"strategy\": \"scalp\", \"reason\": \"main_loop_exit\"}"
+ }
+]
+
+=== agent_schedules: lifecycle/eval related ===
+[
+ {
+  "schedule_name": "self_improvement",
+  "agent": "QuantitativeCoach",
+  "interval_seconds": 86400,
+  "next_run_at": "2026-09-29T10:00:58.397306+00:00",
+  "last_run_at": "2026-09-28T10:41:42.828533+00:00",
+  "enabled": 1,
+  "payload": "{\"kind\": \"self_improvement\"}",
+  "claimed_at": null,
+  "claim_expires_at": null
+ },
+ {
+  "schedule_name": "lifecycle_evaluation",
+  "agent": "QuantitativeCoach",
+  "interval_seconds": 3600,
+  "next_run_at": "2026-09-28T11:27:35.901516+00:00",
+  "last_run_at": "2026-09-28T10:40:29.751525+00:00",
+  "enabled": 1,
+  "payload": "{\"kind\": \"lifecycle_evaluation\"}",
+  "claimed_at": null,
+  "claim_expires_at": null
+ }
+]
+
+=== stale/running agent_runs status counts ===
+[
+ {
+  "status": "STALE_RECOVERED",
+  "n": 510
+ },
+ {
+  "status": "STOPPED",
+  "n": 61
+ },
+ {
+  "status": "RUNNING",
+  "n": 1
+ },
+ {
+  "status": "FAILED",
+  "n": 1
+ }
+]
+
+END-MARKER-PU-0055

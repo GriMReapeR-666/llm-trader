@@ -1,0 +1,27 @@
+
+prompt#0: model=mistralai/mistral-7b-instruct-v0.2 messages=12
+  total content: 157615 chars
+  raw_decode at {"account" failed: Expecting value: line 1 column 104 (char 103)}
+  prose (system prompt + wrapper): 157615 chars
+
+prompt#1: model=mistralai/mistral-7b-instruct-v0.2 messages=10
+  total content: 125859 chars
+  raw_decode at {"account" failed: Expecting value: line 1 column 104 (char 103)}
+  prose (system prompt + wrapper): 125859 chars
+
+prompt#2: model=mistralai/mistral-7b-instruct-v0.2 messages=11
+  total content: 152193 chars
+  raw_decode at {"account" failed: Expecting value: line 1 column 104 (char 103)}
+  prose (system prompt + wrapper): 152193 chars
+
+prompt#3: model=mistralai/mistral-7b-instruct-v0.2 messages=12
+  total content: 155978 chars
+  raw_decode at {"account" failed: Expecting value: line 1 column 104 (char 103)}
+  prose (system prompt + wrapper): 155978 chars
+
+prompt#4: model=mistralai/mistral-7b-instruct-v0.2 messages=10
+  total content: 124299 chars
+  raw_decode at {"account" failed: Expecting value: line 1 column 104 (char 103)}
+  prose (system prompt + wrapper): 124299 chars
+PROBE-DONE
+END-MARKER-PU-0096

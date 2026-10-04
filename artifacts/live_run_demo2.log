@@ -1,0 +1,676 @@
+2026-09-18 08:38:18,016 INFO MT5Client:  Using Account: DEMO - 5055089321
+2026-09-18 08:38:18,516 INFO MT5Client: Trying default MT5 initialization...
+2026-09-18 08:38:18,597 INFO MT5Client:  Connected to MetaTrader 5 (MetaQuotes Ltd.)
+2026-09-18 08:38:18,598 INFO MT5Client:  Auto-trading is ENABLED
+2026-09-18 08:38:18,598 INFO MT5Client: === Account Info ===
+2026-09-18 08:38:18,598 INFO MT5Client: Login: 5055089321
+2026-09-18 08:38:18,598 INFO MT5Client: Server: MetaQuotes-Demo
+2026-09-18 08:38:18,598 INFO MT5Client: Balance: 100000.0
+2026-09-18 08:38:18,598 INFO MT5Client: Equity: 100000.0
+2026-09-18 08:38:18,599 INFO MT5Client: Company: MetaQuotes Ltd.
+2026-09-18 08:38:18,599 INFO MT5Client: Name: Llm trader  antigravity Graph ai
+2026-09-18 08:38:18,599 INFO MT5Client: =====================
+2026-09-18 08:38:18,908 INFO MT5Client: Broker preflight captured for XAUUSD; specification changed=False
+ Single symbol mode: XAUUSD
+2026-09-18 08:38:19,915 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-18 08:38:20,389 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-18 08:38:20,848 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-18 08:38:23,098 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-18 08:38:23,099 INFO main: LLM Router initialized: 4 providers, 3 agents
+2026-09-18 08:38:23,175 INFO core.harness.plugins: RiskManagementPlugin initialized with balance 10000.00, max risk 1.00%
+2026-09-18 08:38:23,176 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'risk_management' (v1.0.0)
+2026-09-18 08:38:23,192 INFO core.harness.plugins: TradingMemoryPlugin mounted on database 'trading_state.db'
+2026-09-18 08:38:23,192 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'trading_memory' (v1.0.0)
+2026-09-18 08:38:23,204 INFO TradeManager: Loaded active conditions for 2 symbols
+2026-09-18 08:38:23,204 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-18 08:38:23,204 INFO core.harness.plugins: BrokerPlugin mounted (mode=PAPER)
+2026-09-18 08:38:23,204 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'broker' (v1.0.0)
+2026-09-18 08:38:23,205 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-18 08:38:23,205 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-18 08:38:23,205 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-18 08:38:23,205 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-18 08:38:23,205 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-18 08:38:23,205 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-18 08:38:23,205 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-18 08:38:23,247 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-18 08:38:23,248 INFO core.harness.plugins: DataHubPlugin mounted (market_data=yes + FRED/COT/news/OpenBB).
+2026-09-18 08:38:23,248 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'data_hub' (v1.0.0)
+2026-09-18 08:38:23,251 INFO core.harness.plugins: CausalIntelligencePlugin mounted with 134 macro dynamic nodes.
+2026-09-18 08:38:23,252 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'causal_intelligence' (v1.0.0)
+2026-09-18 08:38:23,267 INFO core.harness.plugins: AnalyticalFrameworksPlugin mounted (Modules 01-07 Foresight, Spreads & Signals).
+2026-09-18 08:38:23,267 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'analytical_frameworks' (v1.0.0)
+2026-09-18 08:38:23,275 INFO core.harness.plugins: KronosIntelligencePlugin mounted (Signal Calibration, Synthetic Jumps & CPCV).
+2026-09-18 08:38:23,275 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'kronos_intelligence' (v1.0.0)
+2026-09-18 08:38:23,278 INFO core.harness.plugins: ExecutionSafetyPlugin mounted.
+2026-09-18 08:38:23,278 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'execution_safety' (v1.0.0)
+2026-09-18 08:38:23,281 INFO core.harness.plugins: CointegrationGovernancePlugin mounted.
+2026-09-18 08:38:23,281 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'cointegration_governance' (v1.0.0)
+2026-09-18 08:38:23,294 INFO core.harness.plugins: SkillsPlugin mounted with 35 standard skills.
+2026-09-18 08:38:23,295 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'skills' (v1.0.0)
+2026-09-18 08:38:23,296 INFO core.harness.plugins: JournalAuditPlugin mounted for database 'trading_state.db'.
+2026-09-18 08:38:23,296 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'journal_audit' (v1.0.0)
+2026-09-18 08:38:23,296 INFO core.harness.plugins: QuantWorkflowsPlugin mounted with 7 trading workflows.
+2026-09-18 08:38:23,297 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'quant_workflows' (v1.0.0)
+2026-09-18 08:38:23,299 INFO core.harness.plugins: MacroEventAlphaPlugin mounted with leading indicators, ESI & 3-phase execution.
+2026-09-18 08:38:23,299 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'macro_event_alpha' (v1.0.0)
+2026-09-18 08:38:23,302 INFO core.harness.extracted_module_plugins: ExtractedMetricsPlugin mounted — 14 metric functions available.
+2026-09-18 08:38:23,308 INFO core.harness.extracted_module_plugins: ExtractedValidationPlugin mounted — CPCV, MC shuffle, stress, jitter available.
+2026-09-18 08:38:23,334 INFO core.harness.extracted_module_plugins: ExtractedAlphaSourcePlugin mounted — alpha discovery, ensemble, decay, rotation available.
+2026-09-18 08:38:23,342 INFO core.harness.extracted_module_plugins: ExtractedRegimePlugin mounted — HMM/Hurst regime + allocation matrix wired.
+2026-09-18 08:38:23,346 INFO core.harness.extracted_module_plugins: ExtractedNewsPlugin mounted — ESI, Delta, phase detection, NFP/CPI weights available.
+2026-09-18 08:38:23,346 INFO core.harness.extracted_module_plugins: ExtractedRiskPlugin mounted — 3-layer risk, 1R sizing, vol targeting, heat management.
+2026-09-18 08:38:23,367 INFO core.harness.extracted_module_plugins: ExtractedAutonomousPlugin mounted — constitution, trust levels, seasons, drift detection.
+2026-09-18 08:38:23,368 INFO core.harness.extracted_module_plugins: ExtractedAltDataPlugin mounted — gold FV, vol regime, carry, synthetic index available.
+2026-09-18 08:38:23,374 INFO core.harness.extracted_module_plugins: ExtractedResearchPlugin mounted — FactorMiner, AQuA, MARS configs + challenge mapping.
+2026-09-18 08:38:23,374 INFO core.harness.extracted_module_plugins: ExtractedModulesPlugin mounted 9/9 adapters: ['extracted_metrics', 'extracted_validation', 'extracted_alpha_source', 'extracted_regime', 'extracted_news', 'extracted_risk', 'extracted_autonomous', 'extracted_alt_data', 'extracted_research']
+2026-09-18 08:38:23,374 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'extracted_modules' (v1.0.0)
+2026-09-18 08:38:23,429 INFO core.harness.quant_models_plugins: RetailQuantBundlePlugin mounted (12 modules).
+2026-09-18 08:38:23,429 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'retail_quant_bundle' (v1.0.0)
+2026-09-18 08:38:25,064 INFO LLMRouter: Initialized LLM provider: openrouter (1 keys)
+2026-09-18 08:38:25,543 INFO LLMRouter: Initialized LLM provider: tokenrouter (1 keys)
+2026-09-18 08:38:25,948 INFO LLMRouter: Initialized LLM provider: cerebras (1 keys)
+2026-09-18 08:38:28,213 INFO LLMRouter: Initialized LLM provider: nvidia_nim (5 keys)
+2026-09-18 08:38:28,225 INFO RiskManager: 🔁 Daily Limits Reset. Start Equity: $100000.00
+2026-09-18 08:38:28,256 INFO core.harness.plugins: DeliberativeGraphPlugin compiled and mounted.
+2026-09-18 08:38:28,257 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'deliberative_graph' (v1.0.0)
+2026-09-18 08:38:28,260 INFO core.harness.live_trading_plugin: LiveTradingPlugin mounted (paper=True) — loop factory, sandbox, live advisories via TradingContext
+2026-09-18 08:38:28,261 INFO core.harness.kernel: [paper_ctx] Mounted plugin 'live_trading' (v1.0.0)
+2026-09-18 08:38:28,261 INFO core.harness.quant_models_plugins: Profile 'paper' mounted with 17 plugins into context 'paper_ctx'.
+2026-09-18 08:38:28,265 INFO operations.event_bridge: event_bridge initialized (db=trading_state.db)
+2026-09-18 08:38:28,265 INFO main: Event bridge initialized for engine process
+2026-09-18 08:38:28,265 INFO main: Profile 'paper' mounted via TradingContext — 71 services, 17 plugins
+2026-09-18 08:38:28,295 INFO PrometheusExporter: Prometheus exporter started on 0.0.0.0:9090
+2026-09-18 08:38:28,295 INFO main: Prometheus metrics exporter started on port 9090
+2026-09-18 08:38:28,300 INFO main: Memory Orchestrator initialized (L0-L3 hierarchy)
+2026-09-18 08:38:28,302 INFO main: Knowledge Retrieval initialized (macro + cases + domain)
+2026-09-18 08:38:28,303 INFO main: Meta-Improvement Orchestrator initialized
+2026-09-18 08:38:28,304 INFO main: Kronos Signal Fusion initialized (multi-horizon)
+2026-09-18 08:38:28,304 INFO main: Advanced RL Pipeline initialized (multi-agent)
+2026-09-18 08:38:28,305 INFO main: Improvement Pipeline initialized (auto-apply low-risk)
+2026-09-18 08:38:28,319 INFO APIManager: ✅ Portfolio123 provider initialized
+2026-09-18 08:38:28,320 INFO APIManager: ✅ Seeking Alpha provider initialized (all 6 data types)
+2026-09-18 08:38:28,320 INFO APIManager: ✅ NewsAPI client initialized (pool size: 1)
+2026-09-18 08:38:28,320 INFO APIManager: ✅ FRED API client initialized (pool size: 1)
+2026-09-18 08:38:28,320 INFO APIManager: ✅ Yahoo Finance client initialized
+2026-09-18 08:38:28,320 INFO APIManager: ✅ OpenBB Data Bridge initialized (18 active providers)
+2026-09-18 08:38:28,320 INFO APIManager: ✅ SEC EDGAR client marked available (CIK resolution lazy-loaded)
+2026-09-18 08:38:28,324 INFO root: Enhanced calendar unavailable; no calendar fallback is trusted: Could not find MT5 terminal DLL. Please specify dll_path parameter.
+2026-09-18 08:38:28,492 INFO LLMOrchestrator: Using LLM Router | agent=trader | model=mistralai/mistral-7b-instruct-v0.2
+2026-09-18 08:38:28,503 INFO RLTrainer: RL model loaded from rl_model.json (0 states, 0 updates)
+2026-09-18 08:38:35,596 INFO KronosBridge: ✅ Kronos neural backend ready (kronos-mini): loaded neural weights model=kronos-mini tokenizer=kronos-tokenizer-2k device=cpu — error cleared
+2026-09-18 08:38:35,596 INFO LLMOrchestrator: Kronos advisory enabled | backend=neural | weights_loaded=True
+2026-09-18 08:38:35,612 INFO main: LLMOrchestrator constructed via harness factory (profile=paper)
+2026-09-18 08:38:35,613 INFO TradeManager: Loaded durable state: 4 scaled-out, 2 pyramided
+2026-09-18 08:38:35,613 INFO main: TradeManager wired from harness context to orchestrator
+Starting LLM Trader on XAUUSD (M15)...
+Mode: DEMO
+Model: mistralai/mistral-7b-instruct-v0.2
+2026-09-18 08:38:35,622 INFO ExternalGuardian: Ψ Guardian thread started (poll_interval=2.0s)
+2026-09-18 08:38:35,622 INFO ExternalGuardian: Ψ Guardian thread spawned
+2026-09-18 08:38:35,623 INFO main: Ψ External Guardian started (hardcoded thresholds, independent of Γ)
+2026-09-18 08:38:35,723 INFO TaskQueue: Migrated 39 intervals to S.Q priority queue
+2026-09-18 08:38:35,723 INFO main: S.Q Priority Queue initialized (39 scheduled tasks)
+2026-09-18 08:38:35,724 INFO main: κ Compliance Audit started (hash-chained, append-only)
+2026-09-18 08:38:35,735 INFO CrashRecovery: Crash recovery: checking system state...
+2026-09-18 08:38:35,774 INFO CrashRecovery: Recovery: clean start (no crash detected)
+2026-09-18 08:38:35,774 INFO main: Crash recovery started (hash-chained checkpoint journal, atexit+SIGTERM hooks)
+2026-09-18 08:38:36,005 INFO MT5Client: Broker preflight captured for XAUUSD; specification changed=False
+2026-09-18 08:38:36,052 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+2026-09-18 08:38:38,381 INFO APIManager: Fetched 1 FRED series
+┌──────────────────────────── 🚀 CYCLE 1/3 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: M15 | Time: 08:38:38                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 08:38:38,549 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 08:38:38,643 INFO MarketScanner: Scanning Key Markets & Wildcards...
+2026-09-18 08:38:48,151 INFO APIManager: Fetched 5 FRED series
+2026-09-18 08:38:53,582 WARNING LLMOrchestrator: schedule batch exceeded 15.0s budget; abandoning this pulse
+2026-09-18 08:38:53,631 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-18 08:38:53,653 INFO LLMOrchestrator: Fetching data for XAUUSD...
+2026-09-18 08:38:56,451 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-18 08:38:56,519 INFO core.signal_orthogonalizer: Signal orthogonalization: method=ols, n_alphas=17, n_factors=5, window=120
+2026-09-18 08:38:56,753 INFO core.signal_orthogonalizer: Orthogonalization complete: method=ols, factors_removed=0, mean_r2=0.0597
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_ensemble.py:362: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+2026-09-18 08:39:01,156 INFO core.signal_orthogonalizer: Signal orthogonalization: method=ols, n_alphas=17, n_factors=5, window=120
+2026-09-18 08:39:01,393 INFO core.signal_orthogonalizer: Orthogonalization complete: method=ols, factors_removed=0, mean_r2=0.0597
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_decay_monitor.py:115: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+2026-09-18 08:39:06,895 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_055 [CRITICAL]
+2026-09-18 08:39:07,063 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_017 [CRITICAL]
+2026-09-18 08:39:07,204 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DECAY_alpha_001 [WARNING]
+2026-09-18 08:39:07,391 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DEAD_alpha_009 [CRITICAL]
+2026-09-18 08:39:07,575 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_014 [CRITICAL]
+2026-09-18 08:39:07,679 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_022 [CRITICAL]
+2026-09-18 08:39:07,693 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_025 [CRITICAL]
+2026-09-18 08:39:07,703 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DEAD_alpha_028 [CRITICAL]
+2026-09-18 08:39:07,706 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_034 [CRITICAL]
+2026-09-18 08:39:07,714 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_037 [CRITICAL]
+2026-09-18 08:39:07,717 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_038 [CRITICAL]
+2026-09-18 08:39:07,720 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_041 [CRITICAL]
+2026-09-18 08:39:07,729 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_043 [CRITICAL]
+2026-09-18 08:39:07,750 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_053 [CRITICAL]
+2026-09-18 08:39:07,765 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_060 [CRITICAL]
+2026-09-18 08:39:07,771 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_101 [CRITICAL]
+2026-09-18 08:39:07,787 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_dead [CRITICAL]
+2026-09-18 08:39:07,791 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_reversed [CRITICAL]
+2026-09-18 08:39:07,792 INFO alpha_rotation: Alpha alpha_053 is REVERSED but no candidate available for promotion
+2026-09-18 08:39:07,792 INFO alpha_rotation: Alpha alpha_055 is REVERSED but no candidate available for promotion
+2026-09-18 08:39:07,792 INFO alpha_rotation: Alpha alpha_034 is REVERSED but no candidate available for promotion
+2026-09-18 08:39:07,792 INFO alpha_rotation: Alpha alpha_017 is REVERSED but no candidate available for promotion
+2026-09-18 08:39:07,792 INFO alpha_rotation: Alpha alpha_009 is DEAD but no candidate available for promotion
+2026-09-18 08:39:07,793 INFO alpha_rotation: Alpha alpha_041 is REVERSED but no candidate available for promotion
+2026-09-18 08:39:07,793 INFO alpha_rotation: Alpha alpha_101 is REVERSED but no candidate available for promotion
+2026-09-18 08:39:07,793 INFO alpha_rotation: Alpha alpha_014 is REVERSED but no candidate available for promotion
+2026-09-18 08:39:07,793 INFO alpha_rotation: Alpha alpha_022 is REVERSED but no candidate available for promotion
+2026-09-18 08:39:07,793 INFO alpha_rotation: Alpha alpha_025 is REVERSED but no candidate available for promotion
+2026-09-18 08:39:07,793 INFO alpha_rotation: Alpha alpha_043 is REVERSED but no candidate available for promotion
+2026-09-18 08:39:08,719 INFO APIManager: Fetched 0 news articles for: ['XAUUSD']
+2026-09-18 08:39:09,584 INFO APIManager: Fetched 2 hot topics (incl. geopolitics)
+2026-09-18 08:39:25,461 INFO APIManager: Fetched 18 FRED series
+2026-09-18 08:39:26,555 INFO APIManager: Fetched 5 news articles for: ['XAUUSD', 'Gold', 'XAU', 'Federal Reserve', 'US Dollar']
+2026-09-18 08:39:43,409 INFO APIManager: Fetched 18 FRED series
+2026-09-18 08:39:43,409 INFO MarketData: Fetched 18 FRED indicators
+2026-09-18 08:39:43,965 INFO core.news_indicator_fetcher: Fetching live indicators (FRED API: available)
+2026-09-18 08:39:44,478 WARNING core.news_indicator_fetcher: FRED fetch failed for ADPFE: Bad Request.  The series does not exist.
+2026-09-18 08:39:48,773 WARNING core.news_indicator_fetcher: FRED fetch failed for NAPM: Bad Request.  The series does not exist.
+2026-09-18 08:39:52,737 WARNING core.news_indicator_fetcher: FRED fetch failed for RETAILSALES: Bad Request.  The series does not exist.
+2026-09-18 08:39:54,648 WARNING core.news_indicator_fetcher: FRED fetch failed for CONSCONF: Bad Request.  The series does not exist.
+2026-09-18 08:39:54,649 INFO core.news_trading: Live indicators: NFP=MODERATE_BEAT CPI=MODERATE_BEAT ESI=62.5 (live=True)
+2026-09-18 08:39:59,176 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-18 08:39:59,221 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-18 08:39:59,264 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-18 08:40:28,473 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: cboe -> Input should be 'fmp' or 'yfinance') in 0.9s
+2026-09-18 08:40:29,334 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: cboe -> Input should be 'fmp' or 'yfinance') in 1.7s
+2026-09-18 08:40:31,055 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: cboe -> Input should be 'fmp' or 'yfinance'
+2026-09-18 08:40:31,485 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'yfinance') in 1.0s
+2026-09-18 08:40:32,487 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'yfinance') in 1.9s
+2026-09-18 08:40:34,350 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'yfinance'
+2026-09-18 08:40:34,464 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp') in 1.0s
+2026-09-18 08:40:35,495 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp') in 1.7s
+2026-09-18 08:40:37,211 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp'
+2026-09-18 08:40:37,469 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp', 'intrinio' or 'yfinance') in 0.8s
+2026-09-18 08:40:38,287 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp', 'intrinio' or 'yfinance') in 1.8s
+2026-09-18 08:40:40,060 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp', 'intrinio' or 'yfinance'
+2026-09-18 08:40:46,469 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'intrinio' or 'yfinance') in 1.0s
+2026-09-18 08:40:47,463 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'intrinio' or 'yfinance') in 1.9s
+2026-09-18 08:40:49,355 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'intrinio' or 'yfinance'
+2026-09-18 08:40:49,370 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 1.1s
+2026-09-18 08:40:50,429 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 1.6s
+2026-09-18 08:40:52,058 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred'
+2026-09-18 08:40:54,067 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.1s
+2026-09-18 08:40:55,150 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.7s
+2026-09-18 08:40:56,901 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred'
+2026-09-18 08:40:58,903 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.1s
+2026-09-18 08:40:59,992 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.8s
+2026-09-18 08:41:01,842 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 08:41:01,844 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.1s
+2026-09-18 08:41:02,942 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.7s
+2026-09-18 08:41:04,643 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+2026-09-18 08:41:04,646 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 0.9s
+2026-09-18 08:41:05,534 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.9s
+2026-09-18 08:41:07,430 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 08:41:19,435 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 0.9s
+2026-09-18 08:41:20,300 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.7s
+2026-09-18 08:41:21,986 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 08:41:21,989 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 0.9s
+2026-09-18 08:41:22,932 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.8s
+2026-09-18 08:41:24,738 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+2026-09-18 08:41:24,741 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.0s
+2026-09-18 08:41:25,772 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.7s
+2026-09-18 08:41:27,458 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 08:41:31,461 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 0.9s
+2026-09-18 08:41:32,339 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 1.8s
+2026-09-18 08:41:34,134 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred'
+2026-09-18 08:41:36,136 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 0.9s
+2026-09-18 08:41:37,029 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.9s
+2026-09-18 08:41:38,957 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred'
+2026-09-18 08:41:45,633 CRITICAL ExternalGuardian: Ψ GUARDIAN TRIPPED [HEARTBEAT]: HEARTBEAT_TIMEOUT: Γ silent for 121.7s > 120.0s | equity=100000.00 dd=0.00% positions=0 leverage=0.00
+2026-09-18 08:41:45,634 CRITICAL ExternalGuardian: Ψ FLATTEN COMPLETE: All orders cancelled, all positions closed
+2026-09-18 08:41:56,473 WARNING HttpRetry: Callable retry after error (
+[Error] -> Invalid value 'None' for 'country' (provider: 'imf'). Must be one of: ['afghanistan', 'albania', 'algeria', 'american_samoa', 'angola', 'anguilla', 'antigua_and_barbuda', 'argentina', 'armenia', 'aruba', 'australia', 'austria', 'azerbaijan', 'bahamas', 'bahrain', 'bangladesh', 'barbados', 'belarus', 'belgium', 'belize', 'benin', 'bermuda', 'bhutan', 'bolivia', 'bosnia_and_herzegovina', 'botswana', 'brazil', 'brunei_darussalam', 'bulgaria', 'burkina_faso', 'burundi', 'cabo_verde', 'cambodia', 'cameroon', 'canada', 'central_african_republic', 'chad', 'chile', 'china', 'colombia', 'comoros', 'congo', 'costa_rica', 'croatia', 'cuba', 'curaçao', 'cyprus', 'czech_republic', 'czechoslovakia', "côte_d'ivoire", 'denmark', 'djibouti', 'dominica', 'dominican_republic', 'ecuador', 'egypt', 'el_salvador', 'equatorial_guinea', 'eritrea', 'estonia', 'eswatini', 'ethiopia', 'falkland_islands', 'faroe_islands', 'fiji', 'finland', 'france', 'french_polynesia', 'gabon', 'gambia', 'georgia', 'german_democratic_republic', 'germany', 'ghana', 'gibraltar', 'greece', 'greenland', 'grenada', 'guam', 'guatemala', 'guinea', 'guinea_bissau', 'guyana', 'haiti', 'holy_see', 'honduras', 'hong_kong_special_administrative_region', 'hungary', 'iceland', 'india', 'indonesia', 'iran', 'iraq', 'ireland', 'israel', 'italy', 'jamaica', 'japan', 'jordan', 'kazakhstan', 'kenya', 'kiribati', 'korea', 'kosovo', 'kuwait', 'kyrgyz_republic', "lao_people's_democratic_republic", 'latvia', 'lebanon', 'lesotho', 'liberia', 'libya', 'lithuania', 'luxembourg', 'macao_special_administrative_region', 'madagascar', 'malawi', 'malaysia', 'maldives', 'mali', 'malta', 'marshall_islands', 'mauritania', 'mauritius', 'mexico', 'micronesia', 'moldova', 'mongolia', 'montenegro', 'montserrat', 'morocco', 'mozambique', 'myanmar', 'namibia', 'nauru', 'nepal', 'netherlands_antilles', 'netherlands', 'new_caledonia', 'new_zealand', 'nicaragua', 'niger', 'nigeria', 'north_macedonia', 'norway', 'oman', 'pakistan', 'palau', 'panama', 'papua_new_guinea', 'paraguay', 'peru', 'philippines', 'poland', 'portugal', 'qatar', 'romania', 'russian_federation', 'rwanda', 'samoa', 'san_marino', 'saudi_arabia', 'senegal', 'serbia_and_montenegro', 'serbia', 'seychelles', 'sierra_leone', 'singapore', 'sint_maarten', 'slovak_republic', 'slovenia', 'solomon_islands', 'somalia', 'south_africa', 'south_sudan', 'spain', 'sri_lanka', 'st._kitts_and_nevis', 'st._lucia', 'st._vincent_and_the_grenadines', 'sudan', 'suriname', 'sweden', 'switzerland', 'syrian_arab_republic', 'são_tomé_and_príncipe', 'tajikistan', 'tanzania', 'thailand', 'timor_leste', 'togo', 'tonga', 'trinidad_and_tobago', 'tunisia', 'turkmenistan', 'tuvalu', 'türkiye', 'uganda', 'ukraine', 'union_of_soviet_socialist_republics', 'united_arab_emirates', 'united_kingdom', 'united_states', 'uruguay', 'uzbekistan', 'vanuatu', 'venezuela', 'vietnam', 'west_bank_and_gaza', 'yemen_arab_republic', 'yemen', 'yugoslavia', 'zambia', 'zimbabwe', 'advanced_economies', 'africa', 'cis', 'emdes_by_source_of_export_earnings:_fuel', 'emdes_by_source_of_export_earnings:_nonfuel', 'emerging_market_and_developing_economies', 'emerging_and_developing_asia', 'emerging_and_developing_europe', 'euro_area', 'europe', 'european_union', 'latin_america_and_the_caribbean', 'middle_east', 'middle_east_and_central_asia', 'sub_saharan_africa', 'world', 'belgium_luxembourg', 'other_countries_n.i.e.', 'south_african_common_customs_area']) in 0.8s
+2026-09-18 08:41:57,314 WARNING HttpRetry: Callable retry after error (
+[Error] -> Invalid value 'None' for 'country' (provider: 'imf'). Must be one of: ['afghanistan', 'albania', 'algeria', 'american_samoa', 'angola', 'anguilla', 'antigua_and_barbuda', 'argentina', 'armenia', 'aruba', 'australia', 'austria', 'azerbaijan', 'bahamas', 'bahrain', 'bangladesh', 'barbados', 'belarus', 'belgium', 'belize', 'benin', 'bermuda', 'bhutan', 'bolivia', 'bosnia_and_herzegovina', 'botswana', 'brazil', 'brunei_darussalam', 'bulgaria', 'burkina_faso', 'burundi', 'cabo_verde', 'cambodia', 'cameroon', 'canada', 'central_african_republic', 'chad', 'chile', 'china', 'colombia', 'comoros', 'congo', 'costa_rica', 'croatia', 'cuba', 'curaçao', 'cyprus', 'czech_republic', 'czechoslovakia', "côte_d'ivoire", 'denmark', 'djibouti', 'dominica', 'dominican_republic', 'ecuador', 'egypt', 'el_salvador', 'equatorial_guinea', 'eritrea', 'estonia', 'eswatini', 'ethiopia', 'falkland_islands', 'faroe_islands', 'fiji', 'finland', 'france', 'french_polynesia', 'gabon', 'gambia', 'georgia', 'german_democratic_republic', 'germany', 'ghana', 'gibraltar', 'greece', 'greenland', 'grenada', 'guam', 'guatemala', 'guinea', 'guinea_bissau', 'guyana', 'haiti', 'holy_see', 'honduras', 'hong_kong_special_administrative_region', 'hungary', 'iceland', 'india', 'indonesia', 'iran', 'iraq', 'ireland', 'israel', 'italy', 'jamaica', 'japan', 'jordan', 'kazakhstan', 'kenya', 'kiribati', 'korea', 'kosovo', 'kuwait', 'kyrgyz_republic', "lao_people's_democratic_republic", 'latvia', 'lebanon', 'lesotho', 'liberia', 'libya', 'lithuania', 'luxembourg', 'macao_special_administrative_region', 'madagascar', 'malawi', 'malaysia', 'maldives', 'mali', 'malta', 'marshall_islands', 'mauritania', 'mauritius', 'mexico', 'micronesia', 'moldova', 'mongolia', 'montenegro', 'montserrat', 'morocco', 'mozambique', 'myanmar', 'namibia', 'nauru', 'nepal', 'netherlands_antilles', 'netherlands', 'new_caledonia', 'new_zealand', 'nicaragua', 'niger', 'nigeria', 'north_macedonia', 'norway', 'oman', 'pakistan', 'palau', 'panama', 'papua_new_guinea', 'paraguay', 'peru', 'philippines', 'poland', 'portugal', 'qatar', 'romania', 'russian_federation', 'rwanda', 'samoa', 'san_marino', 'saudi_arabia', 'senegal', 'serbia_and_montenegro', 'serbia', 'seychelles', 'sierra_leone', 'singapore', 'sint_maarten', 'slovak_republic', 'slovenia', 'solomon_islands', 'somalia', 'south_africa', 'south_sudan', 'spain', 'sri_lanka', 'st._kitts_and_nevis', 'st._lucia', 'st._vincent_and_the_grenadines', 'sudan', 'suriname', 'sweden', 'switzerland', 'syrian_arab_republic', 'são_tomé_and_príncipe', 'tajikistan', 'tanzania', 'thailand', 'timor_leste', 'togo', 'tonga', 'trinidad_and_tobago', 'tunisia', 'turkmenistan', 'tuvalu', 'türkiye', 'uganda', 'ukraine', 'union_of_soviet_socialist_republics', 'united_arab_emirates', 'united_kingdom', 'united_states', 'uruguay', 'uzbekistan', 'vanuatu', 'venezuela', 'vietnam', 'west_bank_and_gaza', 'yemen_arab_republic', 'yemen', 'yugoslavia', 'zambia', 'zimbabwe', 'advanced_economies', 'africa', 'cis', 'emdes_by_source_of_export_earnings:_fuel', 'emdes_by_source_of_export_earnings:_nonfuel', 'emerging_market_and_developing_economies', 'emerging_and_developing_asia', 'emerging_and_developing_europe', 'euro_area', 'europe', 'european_union', 'latin_america_and_the_caribbean', 'middle_east', 'middle_east_and_central_asia', 'sub_saharan_africa', 'world', 'belgium_luxembourg', 'other_countries_n.i.e.', 'south_african_common_customs_area']) in 1.9s
+2026-09-18 08:41:59,219 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> Invalid value 'None' for 'country' (provider: 'imf'). Must be one of: ['afghanistan', 'albania', 'algeria', 'american_samoa', 'angola', 'anguilla', 'antigua_and_barbuda', 'argentina', 'armenia', 'aruba', 'australia', 'austria', 'azerbaijan', 'bahamas', 'bahrain', 'bangladesh', 'barbados', 'belarus', 'belgium', 'belize', 'benin', 'bermuda', 'bhutan', 'bolivia', 'bosnia_and_herzegovina', 'botswana', 'brazil', 'brunei_darussalam', 'bulgaria', 'burkina_faso', 'burundi', 'cabo_verde', 'cambodia', 'cameroon', 'canada', 'central_african_republic', 'chad', 'chile', 'china', 'colombia', 'comoros', 'congo', 'costa_rica', 'croatia', 'cuba', 'curaçao', 'cyprus', 'czech_republic', 'czechoslovakia', "côte_d'ivoire", 'denmark', 'djibouti', 'dominica', 'dominican_republic', 'ecuador', 'egypt', 'el_salvador', 'equatorial_guinea', 'eritrea', 'estonia', 'eswatini', 'ethiopia', 'falkland_islands', 'faroe_islands', 'fiji', 'finland', 'france', 'french_polynesia', 'gabon', 'gambia', 'georgia', 'german_democratic_republic', 'germany', 'ghana', 'gibraltar', 'greece', 'greenland', 'grenada', 'guam', 'guatemala', 'guinea', 'guinea_bissau', 'guyana', 'haiti', 'holy_see', 'honduras', 'hong_kong_special_administrative_region', 'hungary', 'iceland', 'india', 'indonesia', 'iran', 'iraq', 'ireland', 'israel', 'italy', 'jamaica', 'japan', 'jordan', 'kazakhstan', 'kenya', 'kiribati', 'korea', 'kosovo', 'kuwait', 'kyrgyz_republic', "lao_people's_democratic_republic", 'latvia', 'lebanon', 'lesotho', 'liberia', 'libya', 'lithuania', 'luxembourg', 'macao_special_administrative_region', 'madagascar', 'malawi', 'malaysia', 'maldives', 'mali', 'malta', 'marshall_islands', 'mauritania', 'mauritius', 'mexico', 'micronesia', 'moldova', 'mongolia', 'montenegro', 'montserrat', 'morocco', 'mozambique', 'myanmar', 'namibia', 'nauru', 'nepal', 'netherlands_antilles', 'netherlands', 'new_caledonia', 'new_zealand', 'nicaragua', 'niger', 'nigeria', 'north_macedonia', 'norway', 'oman', 'pakistan', 'palau', 'panama', 'papua_new_guinea', 'paraguay', 'peru', 'philippines', 'poland', 'portugal', 'qatar', 'romania', 'russian_federation', 'rwanda', 'samoa', 'san_marino', 'saudi_arabia', 'senegal', 'serbia_and_montenegro', 'serbia', 'seychelles', 'sierra_leone', 'singapore', 'sint_maarten', 'slovak_republic', 'slovenia', 'solomon_islands', 'somalia', 'south_africa', 'south_sudan', 'spain', 'sri_lanka', 'st._kitts_and_nevis', 'st._lucia', 'st._vincent_and_the_grenadines', 'sudan', 'suriname', 'sweden', 'switzerland', 'syrian_arab_republic', 'são_tomé_and_príncipe', 'tajikistan', 'tanzania', 'thailand', 'timor_leste', 'togo', 'tonga', 'trinidad_and_tobago', 'tunisia', 'turkmenistan', 'tuvalu', 'türkiye', 'uganda', 'ukraine', 'union_of_soviet_socialist_republics', 'united_arab_emirates', 'united_kingdom', 'united_states', 'uruguay', 'uzbekistan', 'vanuatu', 'venezuela', 'vietnam', 'west_bank_and_gaza', 'yemen_arab_republic', 'yemen', 'yugoslavia', 'zambia', 'zimbabwe', 'advanced_economies', 'africa', 'cis', 'emdes_by_source_of_export_earnings:_fuel', 'emdes_by_source_of_export_earnings:_nonfuel', 'emerging_market_and_developing_economies', 'emerging_and_developing_asia', 'emerging_and_developing_europe', 'euro_area', 'europe', 'european_union', 'latin_america_and_the_caribbean', 'middle_east', 'middle_east_and_central_asia', 'sub_saharan_africa', 'world', 'belgium_luxembourg', 'other_countries_n.i.e.', 'south_african_common_customs_area']
+2026-09-18 08:42:00,473 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.0s
+2026-09-18 08:42:01,470 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.6s
+2026-09-18 08:42:03,121 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+2026-09-18 08:42:11,473 WARNING HttpRetry: Callable retry after error (
+[Error] -> 3 validations error(s)
+[Arg] commodity -> input: ... -> Missing required argument
+[Arg] year -> input: ... -> Missing required argument
+[Arg] month -> input: ... -> Missing required argument) in 0.9s
+2026-09-18 08:42:12,359 WARNING HttpRetry: Callable retry after error (
+[Error] -> 3 validations error(s)
+[Arg] commodity -> input: ... -> Missing required argument
+[Arg] year -> input: ... -> Missing required argument
+[Arg] month -> input: ... -> Missing required argument) in 1.9s
+2026-09-18 08:42:14,264 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 3 validations error(s)
+[Arg] commodity -> input: ... -> Missing required argument
+[Arg] year -> input: ... -> Missing required argument
+[Arg] month -> input: ... -> Missing required argument
+2026-09-18 08:42:14,476 WARNING HttpRetry: Callable retry after error (
+[Error] -> Invalid value 'None' for 'security_type' (provider: 'government_us'). Must be one of: ['bill', 'note', 'bond', 'cmb', 'tips', 'frn']) in 0.9s
+2026-09-18 08:42:15,357 WARNING HttpRetry: Callable retry after error (
+[Error] -> Invalid value 'None' for 'security_type' (provider: 'government_us'). Must be one of: ['bill', 'note', 'bond', 'cmb', 'tips', 'frn']) in 1.7s
+2026-09-18 08:42:17,101 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> Invalid value 'None' for 'security_type' (provider: 'government_us'). Must be one of: ['bill', 'note', 'bond', 'cmb', 'tips', 'frn']
+2026-09-18 08:42:19,251 WARNING HttpRetry: Callable retry after error (
+[Error] -> Error with the request: 403) in 1.1s
+2026-09-18 08:42:22,024 WARNING HttpRetry: Callable retry after error (
+[Error] -> Error with the request: 403) in 1.7s
+2026-09-18 08:42:25,381 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> Error with the request: 403
+2026-09-18 08:43:06,239 INFO LLMOrchestrator: RL Suggestion: BUY (exploitation)
+2026-09-18 08:43:06,976 INFO LLMOrchestrator: Requesting LLM decision...
+2026-09-18 08:43:07,120 INFO LLMOrchestrator: User Prompt Length: 42257 chars
+2026-09-18 08:43:09,546 INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-18 08:44:34,875 INFO LLMOrchestrator: Raw LLM Response (7020 chars, Attempt 1/3): We are given a market data JSON for XAUUSD (Gold). We need to analyze and output a deterministic JSO...
+2026-09-18 08:44:34,895 WARNING LLMOrchestrator: Primary JSON load failed. Attempting AGGRESSIVE repair.
+2026-09-18 08:44:34,896 ERROR LLMOrchestrator: JSON Parse Error: Extra data: line 1 column 156 (char 155)
+2026-09-18 08:44:34,896 INFO LLMOrchestrator: Raw Invalid Response: { "enabled":true, "dynamic_beta":0.5407, "alpha":0.4983, "spread_z_score":0.0, "ou_half_life_bars":5.0, "signal":"FLAT", "recommendation":"EXIT" }         So Kalman signal is FLAT, recommendation EXIT.        - Alpha ensemble composite:            composite_signal: "LONG"           composite_strength: 1.39301           composite_confidence: "MEDIUM"           composite_value: 1.39301      Trend Strength (ADX):          adx_14: [16.64866,15.76225,14.76175,14.56365,14.37969] -> the latest is 14.37969, which is below 20.          According to the protocol: If ADX < 20, Market is RANGING. Buy Support/Sell Res. NOT Breakouts.      Session Context:          session_info: "ASIAN"         The protocol says: Don't trade breakouts in ASIAN session (Fakeout risk). Since we are in a ranging market (ADX<20), we are looking for support/resistance bounces, not breakouts.      M15/M5 Price Action:         M15:            The last three bars show:             Bar1: bullish? open 4352.96, close 4351.45 -> bearish (red)             Bar2: open 4351.45, close 4346.72 -> bearish             Bar3: open 4346.6, close 4346.34 -> slightly bearish (very small body)           So we have three consecutive bearish bars.          M5:           The last three bars:             Bar1: open 4348.67, close 4346.72 -> bearish             Bar2: open 4346.6, close 4349.02 -> bullish             Bar3: open 4349.02, close 4346.34 -> bearish           So the last bar is bearish.      Momentum Rule:          We don't have HMA(21) but we have HMA_200 which is above price (bearish for long-term).          We don't have Kalman drift direction? The Kalman signal is FLAT, so drift might be zero?          Alpha ensemble composite is LONG (bullish).          However, note the alpha decay health shows many reversed alphas.       Let's look at the alpha factors (current values) and their means:          alpha_012: current 4.73, mean_20 -0.033 -> very high positive (bullish signal?)         alpha_053: current 2.31512, mean_20 -6.5311 -> positive (bullish)         alpha_055: current 0.75379, mean_20 0.2764 -> positive (bullish)         alpha_034: current 0.76305, mean_20 0.51285 -> positive (bullish)         alpha_009: current -4.73, mean_20 0.352 -> negative (bearish)         ... and so on.      The alpha ensemble composite is LONG with a value of 1.39301, which is above 1.0 -> strong bullish.      However, note the alpha decay health: many alphas are reversed or dead. The ensemble might be compromised.      BOCPD: from live_advisory_hub: bocpd: { "enabled":true, "changepoint_probability":0.0039, "has_recent_shift":false, ... }...
+┌────────────────────── 💼 Account & Positions - XAUUSD ──────────────────────┐
+│ Mission: Cycle 1/3 [███░░░░░░░]                                             │
+│ Market: Bid: 4348.13000 | Ask: 4348.59000 | Spread: 0.46000                 │
+│ Account: $100000.00 (Eq: $100000.00)                                        │
+│ Open Trades: 0                                                              │
+│ No Open Positions                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────── 🧠 Cycle 1 Logic ──────────────────────────────┐
+│ LLM Logic:                                                                  │
+│ JSON Parse Error. Raw Output:                                               │
+│ { "enabled":true, "dynamic_beta":0.5407, "alpha":0.4983,                    │
+│ "spread_z_score":0.0, "ou_half_life_bars":5.0, "signal":"FLAT",             │
+│ "recommendation":"EXIT" }         So Kalman signal is FLAT, recommendation  │
+│ EXIT.        - Alpha ensemble composite:            composite_signal:       │
+│ "LONG"           composite_strength: 1.39301                                │
+│ composite_confidence: "MEDIUM"           composite_value: 1.39301           │
+│ Trend Strength (ADX):          adx_14:                                      │
+│ [16.64866,15.76225,14.76175,14.56365,14.37969] -> the latest is 14.37...    │
+│                                                                             │
+│ Confluence Analysis:                                                        │
+│ Score: 0/12                                                                 │
+│ News Bonus: +0 | Volume Bonus: +0                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────── 🕰️ Multi-Timeframe Analysis ─────────────────────────┐
+│ D1: BULLISH (RSI: 50.4)                                                     │
+│ H4: BULLISH (RSI: 53.5)                                                     │
+│ H1: BULLISH (RSI: 52.7)                                                     │
+│ M30: BULLISH (RSI: 56.6)                                                    │
+│ M15: BEARISH (RSI: 39.7)                                                    │
+│ M5: BEARISH (RSI: 42.8)                                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────── 📰 News & Economic Events ─────────────────────────┐
+│ Hot Topics:                                                                 │
+│ • Peter Navarro says Fed’s rate raise is ‘a bad decision’ - The Hill        │
+│ (NEUTRAL)                                                                   │
+│ • At Dreamforce, Marc Benioff is king. But can he defend his throne? -      │
+│ sfgate.com (NEUTRAL)                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────── ⚡ Trade Decision & Planning ────────────────────────┐
+│ ACTION: BUY                                                                 │
+│ Entry: 4348.59000                                                           │
+│ SL: 4336.54394                                                              │
+│ TP: 4372.68212                                                              │
+│                                                                             │
+│ Current Condition: Monitoring price action                                  │
+│                                                                             │
+│ (No specific conditional orders set this cycle)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────── 🤖 System Intelligence ───────────────────────────┐
+│ RL State:                                                                   │
+│ Action: BUY (Exploitation)                                                  │
+│ Confidence: N/A                                                             │
+│ Epsilon: 0.2000 | Q-Table: 1                                                │
+│                                                                             │
+│ Performance:                                                                │
+│ Win Rate (20): 0.0% | Profit Factor: 0.00                                   │
+│ Rolling Sharpe: 0.000 | Rolling Sortino: 0.000                              │
+│ Total PnL: $0.00 | Max DD: $0.00                                            │
+│ Total Trades: 0                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────── 🏁 CYCLE 1 COMPLETE ────────────────────────────┐
+│ Waiting for next interval...                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 08:44:35,121 WARNING LLMOrchestrator: Deterministic validator rejected BUY XAUUSD: completed bar timestamp is missing or malformed; feature lineage timestamps are missing or malformed
+2026-09-18 08:44:35,882 WARNING AlertRules: ALERT [WARNING]: Rolling win rate below 40% (value=0.0, threshold=0.4)
+2026-09-18 08:44:35,885 WARNING main: ALERT [WARNING]: Rolling win rate below 40% (value=0.0)
+2026-09-18 08:44:35,887 INFO DegradationDetector: Running degradation check...
+2026-09-18 08:44:35,888 INFO DegradationDetector: Action REDUCE in cooldown, skipping
+
+ Next market pulse in 5 seconds...
+2026-09-18 08:44:40,899 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+┌──────────────────────────── 🚀 CYCLE 2/3 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: M15 | Time: 08:44:41                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 08:44:41,258 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 08:44:41,340 INFO operations.executors: executor 'event_triage' handled by EventAgent
+2026-09-18 08:44:41,364 INFO operations.executors: executor 'alloc_rebalance' handled by PortfolioAgent
+2026-09-18 08:44:41,397 INFO operations.executors: executor 'incident_sweep' handled by IncidentAgent
+2026-09-18 08:44:41,488 INFO MarketScanner: Scanning Key Markets & Wildcards...
+2026-09-18 08:44:56,311 WARNING LLMOrchestrator: schedule batch exceeded 15.0s budget; abandoning this pulse
+2026-09-18 08:44:56,965 WARNING AlertRules: ALERT [WARNING]: Rolling win rate below 40% (value=0.0, threshold=0.4)
+2026-09-18 08:44:56,968 WARNING main: ALERT [WARNING]: Rolling win rate below 40% (value=0.0)
+2026-09-18 08:44:56,969 INFO DegradationDetector: Running degradation check...
+2026-09-18 08:44:56,970 INFO DegradationDetector: Action REDUCE in cooldown, skipping
+
+ Next market pulse in 5 seconds...
+2026-09-18 08:45:01,976 INFO core.harness.pipeline_v2: PIPELINE_V2 entrypoint installed on LLMOrchestrator
+┌──────────────────────────── 🚀 CYCLE 3/3 START ─────────────────────────────┐
+│ Symbol: XAUUSD | TF: M15 | Time: 08:45:02                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+2026-09-18 08:45:02,333 INFO LLMOrchestrator: DEBUG: execute_cycle called with display_instance=None
+2026-09-18 08:45:02,421 WARNING LLMOrchestrator: DEBUG: display instance is None, SKIPPING update_header
+2026-09-18 08:45:02,422 INFO LLMOrchestrator: Fetching data for XAUUSD...
+2026-09-18 08:45:03,139 INFO MarketData: Regime engine: regime=LOW_VOL_TREND approved=True multiplier=0.50
+2026-09-18 08:45:03,190 INFO core.signal_orthogonalizer: Signal orthogonalization: method=ols, n_alphas=17, n_factors=5, window=120
+2026-09-18 08:45:03,390 INFO core.signal_orthogonalizer: Orthogonalization complete: method=ols, factors_removed=0, mean_r2=0.0598
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_ensemble.py:362: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+2026-09-18 08:45:04,296 INFO alpha_ensemble: Decay filter: alpha_053 weight zeroed (status=REVERSED, IC=-0.0121)
+2026-09-18 08:45:04,297 INFO alpha_ensemble: Decay filter: alpha_055 weight zeroed (status=REVERSED, IC=-0.1772)
+2026-09-18 08:45:04,297 INFO alpha_ensemble: Decay filter: alpha_034 weight zeroed (status=REVERSED, IC=-0.0213)
+2026-09-18 08:45:04,297 INFO alpha_ensemble: Decay filter: alpha_017 weight zeroed (status=REVERSED, IC=-0.1319)
+2026-09-18 08:45:04,297 INFO alpha_ensemble: Decay filter: alpha_009 weight zeroed (status=DEAD, IC=-0.0022)
+2026-09-18 08:45:04,297 INFO alpha_ensemble: Decay filter: alpha_041 weight zeroed (status=REVERSED, IC=-0.2216)
+2026-09-18 08:45:04,297 INFO alpha_ensemble: Decay filter: alpha_101 weight zeroed (status=REVERSED, IC=-0.0414)
+2026-09-18 08:45:04,298 INFO alpha_ensemble: Decay filter: alpha_014 weight zeroed (status=REVERSED, IC=-0.0552)
+2026-09-18 08:45:04,298 INFO alpha_ensemble: Decay filter: alpha_022 weight zeroed (status=REVERSED, IC=-0.0304)
+2026-09-18 08:45:04,298 INFO alpha_ensemble: Decay filter: alpha_025 weight zeroed (status=REVERSED, IC=-0.0178)
+2026-09-18 08:45:04,298 INFO alpha_ensemble: Decay filter: alpha_043 weight zeroed (status=REVERSED, IC=-0.1718)
+2026-09-18 08:45:04,314 INFO core.signal_orthogonalizer: Signal orthogonalization: method=ols, n_alphas=17, n_factors=5, window=120
+2026-09-18 08:45:04,526 INFO core.signal_orthogonalizer: Orthogonalization complete: method=ols, factors_removed=0, mean_r2=0.0598
+C:\Users\User\OneDrive\Desktop\selfmade game projects\llm trader - Checkpoint dicisipline soilder - used in antigravity\core\alpha_decay_monitor.py:115: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = sp_stats.spearmanr(x[mask], y[mask])
+2026-09-18 08:45:06,606 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DECAY_alpha_012 [WARNING]
+2026-09-18 08:45:06,625 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_055 [CRITICAL]
+2026-09-18 08:45:06,638 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_017 [CRITICAL]
+2026-09-18 08:45:06,650 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DECAY_alpha_001 [WARNING]
+2026-09-18 08:45:06,654 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DEAD_alpha_009 [CRITICAL]
+2026-09-18 08:45:06,669 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_014 [CRITICAL]
+2026-09-18 08:45:06,682 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DEAD_alpha_022 [CRITICAL]
+2026-09-18 08:45:06,694 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_025 [CRITICAL]
+2026-09-18 08:45:06,707 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DEAD_alpha_028 [CRITICAL]
+2026-09-18 08:45:06,713 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_034 [CRITICAL]
+2026-09-18 08:45:06,725 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_037 [CRITICAL]
+2026-09-18 08:45:06,730 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_038 [CRITICAL]
+2026-09-18 08:45:06,736 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_041 [CRITICAL]
+2026-09-18 08:45:06,754 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_043 [CRITICAL]
+2026-09-18 08:45:06,778 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_DECAY_alpha_053 [WARNING]
+2026-09-18 08:45:06,794 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_060 [CRITICAL]
+2026-09-18 08:45:06,800 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_101 [CRITICAL]
+2026-09-18 08:45:06,823 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_dead [CRITICAL]
+2026-09-18 08:45:06,828 INFO alpha_decay_monitor: Alpha decay alert enqueued: ALPHA_REVERSED_alpha_reversed [CRITICAL]
+2026-09-18 08:45:06,829 INFO alpha_rotation: Alpha alpha_055 is REVERSED but no candidate available for promotion
+2026-09-18 08:45:06,829 INFO alpha_rotation: Alpha alpha_034 is REVERSED but no candidate available for promotion
+2026-09-18 08:45:06,830 INFO alpha_rotation: Alpha alpha_017 is REVERSED but no candidate available for promotion
+2026-09-18 08:45:06,830 INFO alpha_rotation: Alpha alpha_009 is DEAD but no candidate available for promotion
+2026-09-18 08:45:06,830 INFO alpha_rotation: Alpha alpha_041 is REVERSED but no candidate available for promotion
+2026-09-18 08:45:06,830 INFO alpha_rotation: Alpha alpha_101 is REVERSED but no candidate available for promotion
+2026-09-18 08:45:06,830 INFO alpha_rotation: Alpha alpha_014 is REVERSED but no candidate available for promotion
+2026-09-18 08:45:06,830 INFO alpha_rotation: Alpha alpha_022 is DEAD but no candidate available for promotion
+2026-09-18 08:45:06,830 INFO alpha_rotation: Alpha alpha_025 is REVERSED but no candidate available for promotion
+2026-09-18 08:45:06,830 INFO alpha_rotation: Alpha alpha_043 is REVERSED but no candidate available for promotion
+2026-09-18 08:45:06,856 INFO MarketData: Fetched 18 FRED indicators
+2026-09-18 08:45:07,573 INFO core.news_indicator_fetcher: Fetching live indicators (FRED API: available)
+2026-09-18 08:45:08,310 WARNING core.news_indicator_fetcher: FRED fetch failed for ADPFE: Bad Request.  The series does not exist.
+2026-09-18 08:45:10,017 WARNING core.news_indicator_fetcher: FRED fetch failed for NAPM: Bad Request.  The series does not exist.
+2026-09-18 08:45:10,962 WARNING core.news_indicator_fetcher: FRED fetch failed for RETAILSALES: Bad Request.  The series does not exist.
+2026-09-18 08:45:13,467 WARNING core.news_indicator_fetcher: FRED fetch failed for CONSCONF: Bad Request.  The series does not exist.
+2026-09-18 08:45:13,469 INFO core.news_trading: Live indicators: NFP=MODERATE_BEAT CPI=MODERATE_BEAT ESI=62.5 (live=True)
+2026-09-18 08:45:40,286 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: cboe -> Input should be 'fmp' or 'yfinance') in 1.0s
+2026-09-18 08:45:41,330 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: cboe -> Input should be 'fmp' or 'yfinance') in 1.8s
+2026-09-18 08:45:43,120 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: cboe -> Input should be 'fmp' or 'yfinance'
+2026-09-18 08:45:43,278 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'yfinance') in 0.9s
+2026-09-18 08:45:44,184 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'yfinance') in 1.6s
+2026-09-18 08:45:45,819 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'yfinance'
+2026-09-18 08:45:46,277 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp') in 0.8s
+2026-09-18 08:45:47,123 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp') in 1.6s
+2026-09-18 08:45:48,773 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp'
+2026-09-18 08:45:49,277 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp', 'intrinio' or 'yfinance') in 1.1s
+2026-09-18 08:45:50,413 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp', 'intrinio' or 'yfinance') in 1.7s
+2026-09-18 08:45:52,167 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'fmp', 'intrinio' or 'yfinance'
+2026-09-18 08:45:58,279 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'intrinio' or 'yfinance') in 0.8s
+2026-09-18 08:45:59,086 WARNING HttpRetry: Callable retry after error (
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'intrinio' or 'yfinance') in 1.7s
+2026-09-18 08:46:00,806 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 2 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+[Arg] provider -> input: cboe -> Input should be 'intrinio' or 'yfinance'
+2026-09-18 08:46:00,810 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 1.0s
+2026-09-18 08:46:01,805 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 1.9s
+2026-09-18 08:46:03,681 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred'
+2026-09-18 08:46:05,687 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.1s
+2026-09-18 08:46:06,830 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.9s
+2026-09-18 08:46:08,767 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred'
+2026-09-18 08:46:10,770 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 0.9s
+2026-09-18 08:46:11,716 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.7s
+2026-09-18 08:46:13,468 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 08:46:13,472 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 0.8s
+2026-09-18 08:46:14,321 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.8s
+2026-09-18 08:46:16,167 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+2026-09-18 08:46:16,180 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.0s
+2026-09-18 08:46:17,140 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.7s
+2026-09-18 08:46:18,869 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 08:46:30,874 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.1s
+2026-09-18 08:46:31,939 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.8s
+2026-09-18 08:46:33,715 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 08:46:33,724 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 0.9s
+2026-09-18 08:46:34,634 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument) in 1.9s
+2026-09-18 08:46:36,540 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] symbol -> input: ... -> Missing required argument
+2026-09-18 08:46:36,542 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.1s
+2026-09-18 08:46:37,616 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument) in 1.9s
+2026-09-18 08:46:39,558 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] country -> input: ... -> Missing required argument
+2026-09-18 08:46:43,561 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 1.0s
+2026-09-18 08:46:44,532 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred') in 1.6s
+2026-09-18 08:46:46,136 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'fred'
+2026-09-18 08:46:48,139 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.0s
+2026-09-18 08:46:49,179 WARNING HttpRetry: Callable retry after error (
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred') in 1.8s
+2026-09-18 08:46:50,981 WARNING OpenBBDataBridge: OpenBB call failed: 
+[Error] -> 1 validations error(s)
+[Arg] provider -> input: ecb -> Input should be 'econdb', 'federal_reserve', 'fmp' or 'fred'

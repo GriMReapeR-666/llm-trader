@@ -1,0 +1,44 @@
+{
+  "corpus_articles": 478,
+  "stub_calls": 465,
+  "mode": "laya",
+  "gate_counts": {
+    "INGEST": 40,
+    "TAG": 393,
+    "REJECT": 45
+  },
+  "disagreements_by_question": {
+    "R1_headline_event_routing": 78,
+    "D0_2_duplicate_detection": 53,
+    "D5a_escalation_ladder": 61,
+    "D0_3_fact_vs_opinion": 56,
+    "D0_1_source_credibility": 62,
+    "D9_emergency_kill_switch": 17
+  },
+  "disagreements_total": 327,
+  "spoof_hazard_pass": {
+    "spoof_articles": 11,
+    "gate_counts": {
+      "INGEST": 0,
+      "TAG": 0,
+      "REJECT": 11
+    },
+    "ledger_rows": 382,
+    "pairs": 370
+  },
+  "pool_total_pairs": 370,
+  "pool_safety_pairs": 13,
+  "ledger_db": "artifacts\\triage_disagreement_sweep.db",
+  "pair_pool_db": "artifacts\\rlcd_training_pool_sweep.db",
+  "ledger_rows_logged": 382,
+  "pairs_persisted": 370,
+  "seed": 20260923,
+  "perturb_rate": {
+    "D0_1_source_credibility": 0.15,
+    "D0_2_duplicate_detection": 0.15,
+    "D0_3_fact_vs_opinion": 0.15,
+    "D5a_escalation_ladder": 0.2,
+    "D9_emergency_kill_switch": 0.1,
+    "R1_headline_event_routing": 0.2
+  }
+}

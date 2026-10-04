@@ -1,0 +1,6 @@
+2026-10-01T08:49:38+00:00 waiter armed (boot window 10h, run cap 3h)
+2026-10-01T09:00:38+00:00 boot detected at 2026-10-01T09:00:12.897881+00:00 - waiting out grace period
+2026-10-01T10:38:00+00:00 trader process gone on two consecutive polls - run complete
+2026-10-01T10:38:20+00:00 running PU-0150 report (window start 2026-10-01T09:00:12.897881+00:00)
+2026-10-01T10:38:20+00:00 report exit=0 -> artifacts/pu_session7_report.txt
+END-MARKER-PU-0153

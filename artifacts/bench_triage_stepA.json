@@ -1,0 +1,14 @@
+{
+  "step": "A_deterministic",
+  "ran_at": "2026-09-28T03:50:18.566427+00:00",
+  "articles": 400,
+  "wall_ms": 73.9,
+  "per_article_ms_mean": 0.184,
+  "per_article_ms_p50": 0.172,
+  "per_article_ms_p95": 0.221,
+  "actions": {
+    "INGEST": 200,
+    "TAG": 200
+  },
+  "note": "deterministic labeler path, laya=False force-off sentinel"
+}

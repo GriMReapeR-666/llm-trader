@@ -133,7 +133,7 @@ class TrialLedger:
         self._db_path = str(Path(db_path).resolve())
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         # Serialize schema init across processes: PRAGMA journal_mode=WAL
-        # needs brief exclusive access; 4 simultaneous constructors race.
+        # needs brief exclusive access; concurrent constructors race.
         with _cross_process_lock(self._db_path):
             self._init_db()
 
@@ -193,8 +193,7 @@ class TrialLedger:
             if "strategy_class" not in cols:
                 con.execute(
                     "ALTER TABLE trials ADD COLUMN strategy_class TEXT "
-                    "NOT NULL DEFAULT 'general'"
-                )
+                    "NOT NULL DEFAULT 'general'")
         except sqlite3.OperationalError:
             pass  # concurrent migration — column already present
 
