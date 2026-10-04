@@ -54,6 +54,16 @@ else
   say "bridge key exists: $KEY_FILE"
 fi
 
+# 4a) Shared API token (never committed; mode 0600) ------------------------------
+TOKEN_FILE="${GUI_API_TOKEN_FILE:-$HOME/.config/llm-trader/api.token}"
+if [ ! -s "$TOKEN_FILE" ]; then
+  mkdir -p "$(dirname "$TOKEN_FILE")"
+  ( umask 077; .venv/bin/python -c 'import secrets; print(secrets.token_hex(32))' > "$TOKEN_FILE" )
+  say "api token created: $TOKEN_FILE"
+else
+  say "api token exists: $TOKEN_FILE"
+fi
+
 # 4b) Secret-scan pre-commit hook -------------------------------------------------
 git config core.hooksPath .githooks && say "pre-commit secret scan enabled (.githooks)"
 

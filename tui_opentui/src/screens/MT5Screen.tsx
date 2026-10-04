@@ -4,6 +4,7 @@ import { useDeck } from "../store"
 import { T } from "../theme"
 import { fmtClock, fmtMoney, fmtNum, bar } from "../format"
 import { mcpCallTool } from "../transport/mcp"
+import { apiFetch } from "../transport/live"
 import { syntaxTheme } from "../syntaxStyle"
 import { TabBar } from "../components/TabBar"
 
@@ -430,7 +431,7 @@ function SecureAccountForm() {
       // Prefer local GUI API if running (port 8000), else direct MCP check only
       let saved = false
       try {
-        const r = await fetch("http://127.0.0.1:8000/api/config/accounts", {
+        const r = await apiFetch("http://127.0.0.1:8000/api/config/accounts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, login: Number(login), server, type: typ, password }),
@@ -464,7 +465,7 @@ function SecureAccountForm() {
     try {
       // Prefer GUI API test-login which uses secure_store + MT5Client
       try {
-        const r = await fetch("http://127.0.0.1:8000/api/config/accounts/test-login", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+        const r = await apiFetch("http://127.0.0.1:8000/api/config/accounts/test-login", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
         const j: any = await r.json()
         if (j.ok) {
           setOut(`✓ secure login OK via secure_store (${j.backend}) — equity ${JSON.stringify(j.info).slice(0,500)}`)
