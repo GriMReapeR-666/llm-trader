@@ -1920,7 +1920,8 @@ def deck_control(action: str, request: Request, payload: dict = _Body(default={}
 def get_control_status(control_id: int):
     from core.trading_safety import TradingStore
     try:
-        store = TradingStore()
+        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+        store = TradingStore(_db)
         ctrl = store.get_operator_control(int(control_id))
         if not ctrl:
             raise HTTPException(status_code=404, detail=f"Control {control_id} not found")
@@ -2146,7 +2147,8 @@ def get_latch_status():
     from core.trading_safety import TradingStore
     latch = get_kill_switch_latch()
     try:
-        store = TradingStore()
+        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+        store = TradingStore(_db)
         if getattr(latch, "_store", None) is None:
             latch.attach_store(store)
     except Exception:
@@ -2176,7 +2178,8 @@ def clear_latch(request: Request, payload: dict = _Body(default={})):
     from core.trading_safety import TradingStore
     latch = get_kill_switch_latch()
     try:
-        store = TradingStore()
+        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+        store = TradingStore(_db)
         if getattr(latch, "_store", None) is None:
             latch.attach_store(store)
     except Exception:
