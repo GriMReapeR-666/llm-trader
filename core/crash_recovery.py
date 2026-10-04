@@ -87,6 +87,25 @@ class RecoveryResult:
 
 
 # ============================================================================
+# Signal and Shutdown Flags (CC-F4)
+# ============================================================================
+_shutdown_event = threading.Event()
+_sigint_count = 0
+
+
+def shutdown_requested() -> bool:
+    """True if a shutdown signal (SIGTERM or SIGINT) has been received."""
+    return _shutdown_event.is_set()
+
+
+def reset_shutdown_request() -> None:
+    """Reset shutdown state (used in testing)."""
+    global _sigint_count
+    _shutdown_event.clear()
+    _sigint_count = 0
+
+
+# ============================================================================
 # Crash Recovery Manager
 # ============================================================================
 class CrashRecoveryManager:
@@ -109,7 +128,7 @@ class CrashRecoveryManager:
         self.guardian_stale_threshold = guardian_heartbeat_stale_seconds
         self._shutdown_snapshot_enabled = False
         self._shutdown_in_progress = False
-        self._shutdown_event = threading.Event()
+        self._shutdown_event = _shutdown_event
         self._current_cycle: int = 0
         self._current_checkpoint_id: Optional[int] = None
         self._last_snapshot_time: float = 0.0
@@ -118,33 +137,34 @@ class CrashRecoveryManager:
         self._register_shutdown_hooks()
 
     def _register_shutdown_hooks(self) -> None:
-        """Register atexit and signal handlers for graceful shutdown."""
+        """Register atexit and flag-only signal handlers for graceful shutdown (CC-F4)."""
         atexit.register(self._atexit_shutdown)
 
-        # SIGTERM — graceful shutdown
+        # Flag-only SIGTERM handler (CC-F4): never acquires locks or writes DB in handler
         if hasattr(signal, "SIGTERM"):
-            original_sigterm = signal.getsignal(signal.SIGTERM)
-
             def _sigterm_handler(signum, frame):
-                logger.warning("SIGTERM received — initiating graceful shutdown")
-                self.shutdown()
-                # Call original handler if it's not the default
-                if callable(original_sigterm):
-                    original_sigterm(signum, frame)
+                logger.warning("SIGTERM received — setting shutdown event")
+                _shutdown_event.set()
 
-            signal.signal(signal.SIGTERM, _sigterm_handler)
+            try:
+                signal.signal(signal.SIGTERM, _sigterm_handler)
+            except (ValueError, OSError):
+                pass
 
-        # SIGINT (Ctrl+C) — graceful shutdown
+        # Flag-only SIGINT handler (CC-F4): sets event; second SIGINT raises KeyboardInterrupt
         if hasattr(signal, "SIGINT"):
-            original_sigint = signal.getsignal(signal.SIGINT)
-
             def _sigint_handler(signum, frame):
-                logger.warning("SIGINT received — initiating graceful shutdown")
-                self.shutdown()
-                if callable(original_sigint):
-                    original_sigint(signum, frame)
+                global _sigint_count
+                _sigint_count += 1
+                logger.warning("SIGINT received (count=%d) — setting shutdown event", _sigint_count)
+                _shutdown_event.set()
+                if _sigint_count >= 2:
+                    raise KeyboardInterrupt
 
-            signal.signal(signal.SIGINT, _sigint_handler)
+            try:
+                signal.signal(signal.SIGINT, _sigint_handler)
+            except (ValueError, OSError):
+                pass
 
     def check_on_startup(self) -> RecoveryResult:
         """Check system state on startup and recommend recovery action.

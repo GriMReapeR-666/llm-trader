@@ -1304,11 +1304,14 @@ def _stop_file_path() -> str:
     """Path of the external stop flag.
 
     Override with MT5_TRADER_STOP_FILE (absolute, or relative to BASE_DIR).
-    Default: <repo>/trader_stop.flag
+    Default: <repo>/stop.flag (or fallback trader_stop.flag)
     """
     override = os.environ.get("MT5_TRADER_STOP_FILE", "").strip()
     if override:
         return override if os.path.isabs(override) else os.path.join(BASE_DIR, override)
+    candidate = os.path.join(BASE_DIR, "stop.flag")
+    if os.path.exists(candidate):
+        return candidate
     return os.path.join(BASE_DIR, "trader_stop.flag")
 
 
@@ -3870,8 +3873,18 @@ def execute_skill(**kwargs):
 
     # LLM Trading Orchestrator
     if args.cmd == "llm-trade":
-        # Single-instance lifecycle: publish PID so the API/deck can guard
-        # against double-spawn and offer a real stop. Best-effort only.
+        # Single-instance engine lock (CC-F9, PR 3.4):
+        from core.file_lock import FileLock
+        _lock_path = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.lock")
+        global _engine_file_lock
+        _engine_file_lock = FileLock(_lock_path)
+        if not _engine_file_lock.acquire(non_blocking=True):
+            _holder_pid = _engine_file_lock.read_pid()
+            print(f"[lifecycle] engine.lock held by another process (pid {_holder_pid or 'unknown'}); exiting with rc 3.")
+            sys.exit(3)
+        _engine_file_lock.write_pid(os.getpid())
+
+        # Single-instance lifecycle: publish PID so the API/deck can display it.
         _pid_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.pid")
         try:
             import atexit as _atexit
@@ -3882,6 +3895,11 @@ def execute_skill(**kwargs):
                 try:
                     os.remove(_pid_path)
                 except OSError:
+                    pass
+                try:
+                    if _engine_file_lock:
+                        _engine_file_lock.release()
+                except Exception:
                     pass
 
             _atexit.register(_cleanup_pid)
@@ -4579,11 +4597,12 @@ def execute_skill(**kwargs):
                 # (Guardian stop, supervisor shutdown, orchestrator shutdown,
                 # durable run close, CrashRecovery shutdown snapshot) — the
                 # graceful stop that a hard CTRL_BREAK terminate cannot give.
-                if _stop_file_requested():
-                    _stop_reason = _acknowledge_stop_file()
+                from core.crash_recovery import shutdown_requested
+                if _stop_file_requested() or shutdown_requested():
+                    _stop_reason = _acknowledge_stop_file() if _stop_file_requested() else "signal"
                     _stop_msg = (
-                        "Stop flag requested — winding down gracefully after "
-                        "this checkpoint (reason: {}).".format(_stop_reason or "unspecified")
+                        "Stop requested — winding down gracefully after "
+                        "this checkpoint (reason: {}).".format(_stop_reason or "signal")
                     )
                     logging.getLogger("main").warning(_stop_msg)
                     if display:
@@ -5771,7 +5790,7 @@ def execute_skill(**kwargs):
                         while time.monotonic() < deadline:
                             display.update_heartbeat()
                             _drain_operator_controls(orch)
-                            if _stop_file_requested():
+                            if _stop_file_requested() or shutdown_requested():
                                 break
                             time.sleep(min(1.0, max(0.05, deadline - time.monotonic())))
                     else:
@@ -5780,7 +5799,7 @@ def execute_skill(**kwargs):
                         deadline = time.monotonic() + sleep_time
                         while time.monotonic() < deadline:
                             _drain_operator_controls(orch)
-                            if _stop_file_requested():
+                            if _stop_file_requested() or shutdown_requested():
                                 break
                             time.sleep(min(1.0, max(0.05, deadline - time.monotonic())))
 
@@ -5790,13 +5809,50 @@ def execute_skill(**kwargs):
             run_status = "FAILED"
             logging.getLogger("main").exception("Critical error in main loop")
         finally:
-            # --- PU-0161 follow-up 4: explicit CrashRecovery shutdown ---
-            # The stop flag leaves the loop NORMALLY, so this is the path it
-            # takes. CrashRecovery also hooks atexit, but calling shutdown()
-            # here makes the graceful contract explicit and immune to atexit
-            # being bypassed (os._exit, interpreter teardown ordering).
-            # shutdown() is idempotent — its _shutdown_in_progress guard means
-            # the later atexit call is a no-op.
+            # --- Shutdown order (CC-F14): Stop cycles -> join sched-bounded -> velocity -> orchestrator -> guardian stop LAST -> CrashRecovery ---
+            if 'orch' in locals() and orch is not None:
+                # 1. Join bounded scheduler (10s bound)
+                try:
+                    bounded_sched = getattr(orch, "bounded_pipeline", None) or getattr(orch, "scheduler", None)
+                    if hasattr(bounded_sched, "join"):
+                        bounded_sched.join(timeout=10.0)
+                except Exception as _b_exc:
+                    logging.getLogger("main").debug("Bounded scheduler join skipped: %s", _b_exc)
+
+                # 2. Velocity shutdown & orchestrator shutdown
+                try:
+                    orch.shutdown()
+                except Exception:
+                    logging.getLogger("main").exception("Failed to stop dual-velocity workers")
+
+                # 3. Finish durable agent run
+                try:
+                    orch.operations.finish_run(
+                        orch.run_id,
+                        status=run_status,
+                        payload={"reason": "main_loop_exit"},
+                    )
+                except Exception:
+                    logging.getLogger("main").exception("Failed to close durable agent run")
+
+            # 4. Supervisor shutdown
+            try:
+                from operations.supervisor import get_supervisor as _gs
+                _sup_exit = _gs()
+                _sup_exit.request_shutdown(f"run_status={run_status}")
+                _sup_exit.complete_shutdown()
+            except Exception as exc:
+                logging.getLogger("mt5_trader").debug("shutdown failed: %s", exc)
+
+            # 5. Stop Ψ Guardian LAST (position protection remains alive throughout background shutdown)
+            if _guardian is not None:
+                try:
+                    _guardian.stop()
+                    logging.getLogger("main").info("Ψ Guardian stopped")
+                except Exception:
+                    pass
+
+            # 6. CrashRecovery shutdown snapshot (taken only after all worker threads are idle)
             if _crash_recovery is not None:
                 try:
                     _crash_recovery.shutdown()
@@ -5807,35 +5863,14 @@ def execute_skill(**kwargs):
                     logging.getLogger("main").warning(
                         "CrashRecovery shutdown snapshot skipped: %s", _cr_exc)
 
-            # Stop Ψ Guardian
-            if _guardian is not None:
-                try:
-                    _guardian.stop()
-                    logging.getLogger("main").info("Ψ Guardian stopped")
-                except Exception:
-                    pass
-            try:
-                from operations.supervisor import get_supervisor as _gs
-                _sup_exit = _gs()
-                _sup_exit.request_shutdown(f"run_status={run_status}")
-                _sup_exit.complete_shutdown()
-            except Exception as exc:
-                logging.getLogger("mt5_trader").debug("shutdown failed: %s", exc)
-            if 'orch' in locals() and orch is not None:
-                try:
-                    orch.shutdown()
-                except Exception:
-                    logging.getLogger("main").exception("Failed to stop dual-velocity workers")
-                try:
-                    orch.operations.finish_run(
-                        orch.run_id,
-                        status=run_status,
-                        payload={"reason": "main_loop_exit"},
-                    )
-                except Exception:
-                    logging.getLogger("main").exception("Failed to close durable agent run")
             if display:
                 display.stop()
+
+            if '_engine_file_lock' in globals() and _engine_file_lock is not None:
+                try:
+                    _engine_file_lock.release()
+                except Exception:
+                    pass
                 
             if args.show_metrics:
                 if 'orch' in locals() and orch and orch.perf:

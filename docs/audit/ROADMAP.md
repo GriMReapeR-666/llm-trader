@@ -98,9 +98,9 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [x] 🟠 `CC-F5` The latch copies tear the state file. `TS-P6`: a corrupt checkpoint must load as **latched**.
 - [x] 🟠 `PH3-N3` (found while planning) The API emits `CONTROL_EXECUTED` for a merely queued control and takes `actor` from the request body (`gui_api.py:1872-1877`).
 - [x] 🟠 `CC-F7` Cross-process operator controls are lost (1,826/2,000). Move controls into the journal with compare-and-set.
-- [ ] 🟠 `CC-F4` The SIGTERM handler deadlocks or is swallowed. Handlers should only set a flag.
-- [ ] 🟠 `CC-F9` The single-instance engine guard is check-then-act (use an OS file lock).
-- [ ] ⚪ `CC-F14` Shutdown ordering (daemon threads killed mid-write).
+- [x] 🟠 `CC-F4` The SIGTERM handler deadlocks or is swallowed. Handlers should only set a flag.
+- [x] 🟠 `CC-F9` The single-instance engine guard is check-then-act (use an OS file lock).
+- [x] ⚪ `CC-F14` Shutdown ordering (daemon threads killed mid-write).
 - [ ] 🟠 `P1-H4` Validator approves on missing evidence: a typed `MarketEvidence` with no pass-defaults. Includes `TS-P3` (NaN changepoint approved).
 - [ ] 🟠 `TS-P2` NaN, zero or negative equity gives drawdown multiplier 1.0 → fail closed (0.0).
 - [ ] 🟠 `PH1-N1` (found by the Phase 1 pinning tests) An explicit `high_impact_news=None` (news feed returned nothing) is treated as **safe**; a missing key is treated as unsafe. Pinned as a strict xfail in `tests/safety/test_validator_single_gate.py`.

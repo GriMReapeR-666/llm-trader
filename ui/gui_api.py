@@ -771,30 +771,19 @@ def start_trading(config: dict):
     # Pass API Sync URL
     cmd.extend(["--api-sync", "http://127.0.0.1:8000/api/internal/update"])
 
-    # Single-instance guard: the engine publishes its PID to engine.pid at boot.
-    # Refuse to spawn a second engine when one is already alive — duplicate
-    # engines thrash the journal DB and race MT5 (observed as 2GB twin processes).
-    _pid_file = os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
-    try:
-        if os.path.exists(_pid_file):
-            _prev = int(open(_pid_file, encoding="utf-8").read().strip() or 0)
-            if _prev > 0:
-                import psutil as _ps
-                _alive = False
-                try:
-                    _proc = _ps.Process(_prev)
-                    _alive = "python" in (_proc.name() or "").lower()
-                except Exception:
-                    _alive = _ps.pid_exists(_prev)
-                if _alive:
-                    ui_state.is_running = True
-                    return {
-                        "status": "already_running",
-                        "message": f"Engine already running (pid {_prev}) — start refused to avoid a duplicate engine.",
-                        "pid": _prev,
-                    }
-    except (ValueError, OSError):
-        pass  # unreadable pidfile → treat as no engine and proceed
+    # Single-instance guard (CC-F9): acquire FileLock to ensure no twin engines.
+    # Refuse to spawn a second engine when one is already alive.
+    from core.file_lock import FileLock
+    _lock_file = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.lock")
+    _engine_lock = FileLock(_lock_file)
+    if not _engine_lock.acquire(non_blocking=True):
+        ui_state.is_running = True
+        _holder_pid = _engine_lock.read_pid()
+        raise HTTPException(
+            status_code=409,
+            detail=f"Engine already running (lock held by pid {_holder_pid or 'unknown'})",
+        )
+    _engine_lock.release()
 
     # Prepare Environment
     env = os.environ.copy()
@@ -1821,34 +1810,66 @@ def deck_control(action: str, request: Request, payload: dict = _Body(default={}
         except Exception as exc:
             return {"ok": False, "reason": str(exc)}
     if action == "stop":
-        """Stop the trading engine subprocess (positions remain at the broker)."""
-        _pid_file = os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
-        try:
-            _pid = int(open(_pid_file, encoding="utf-8").read().strip() or 0) if os.path.exists(_pid_file) else 0
-        except (ValueError, OSError):
-            _pid = 0
-        if _pid <= 0:
-            return {"ok": False, "reason": "no engine.pid — the engine was not started with a lifecycle file"}
-        try:
-            import psutil as _ps
-            _proc = _ps.Process(_pid)
-        except Exception:
-            return {"ok": False, "reason": f"engine pid {_pid} not running (stale pidfile)"}
-        try:
-            _proc.terminate()
+        """Stop the trading engine subprocess cleanly via stop.flag (CC-F4, CC-F9)."""
+        from core.file_lock import FileLock
+        _lock_file = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.lock")
+        _lock = FileLock(_lock_file)
+
+        # Check if engine is running (lock held)
+        if _lock.acquire(non_blocking=True):
+            _lock.release()
+            return {"ok": False, "reason": "engine is not running (lock not held)"}
+
+        # Engine is running — get its PID from lockfile or pidfile
+        _pid = _lock.read_pid()
+        if not _pid:
+            _pid_file = os.environ.get("LLM_TRADER_PID_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
             try:
-                _proc.wait(timeout=10)
-            except Exception:
-                _proc.kill()
-                _proc.wait(timeout=5)
-            try:
-                os.remove(_pid_file)  # TerminateProcess skips the engine's atexit
-            except OSError:
-                pass
-            event_bridge_emit({"action": "ENGINE_STOPPED", "pid": _pid, "source": "command-deck"})
-            return {"ok": True, "action": "stop", "pid": _pid, "message": "Engine terminated"}
+                _pid = int(open(_pid_file, encoding="utf-8").read().strip() or 0) if os.path.exists(_pid_file) else 0
+            except (ValueError, OSError):
+                _pid = 0
+
+        # Request graceful stop via stop.flag (CC-F4, CC-F9)
+        _stop_file = os.environ.get("MT5_TRADER_STOP_FILE", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "stop.flag")
+        try:
+            with open(_stop_file, "w", encoding="utf-8") as f:
+                json.dump({"reason": "operator stop via deck", "timestamp": time.time()}, f)
         except Exception as exc:
-            return {"ok": False, "reason": f"failed to stop engine pid {_pid}: {exc}"}
+            logger.warning("Could not write stop.flag: %s", exc)
+
+        # Wait up to 15s for engine.lock to release cleanly
+        released = False
+        deadline = time.monotonic() + 15.0
+        while time.monotonic() < deadline:
+            if _lock.acquire(non_blocking=True):
+                _lock.release()
+                released = True
+                break
+            time.sleep(0.2)
+
+        if not released and _pid > 0:
+            # Timed out waiting for graceful stop: terminate PID
+            try:
+                import psutil as _ps
+                _proc = _ps.Process(_pid)
+                _proc.terminate()
+                try:
+                    _proc.wait(timeout=5)
+                except Exception:
+                    _proc.kill()
+                    _proc.wait(timeout=3)
+            except Exception as exc:
+                return {"ok": False, "reason": f"failed to terminate engine pid {_pid}: {exc}"}
+
+        ui_state.is_running = False
+        event_bridge_emit({"action": "ENGINE_STOPPED", "pid": _pid, "source": "command-deck", "graceful": released})
+        return {
+            "ok": True,
+            "action": "stop",
+            "pid": _pid,
+            "graceful": released,
+            "message": "Engine stopped cleanly" if released else "Engine terminated after timeout",
+        }
     if action not in {"pause", "resume", "flatten", "killswitch", "killswitch_off"}:
         return {"ok": False, "reason": f"unsupported action {action}"}
 
