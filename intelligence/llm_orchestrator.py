@@ -7333,6 +7333,87 @@ class LLMOrchestrator:
                 pass
             log.info("ABLATION no_macro: stripped %s from decision context", removed)
 
+    def _autonomy_gate(self, symbol: str, strategy: str, paper_mode: bool = True):
+        """Drain and apply operator controls, then evaluate trading_allowed.
+
+        Returns None when the cycle may proceed, or a ``(decision, latency)``
+        HOLD tuple when it must not.  Every failure path fails CLOSED: if the
+        gate cannot be evaluated — imports, queue, telemetry, control
+        application — the cycle becomes a HOLD instead of trading around the
+        gate (C4: the old implementation swallowed gate errors at debug level
+        and traded anyway).
+        """
+        log = logging.getLogger("LLMOrchestrator")
+        try:
+            from operations.event_bridge import emit as _emit
+            from operations.autonomy import get_autonomy as _get_autonomy, apply_operator_control
+            from data.kill_switch_latch import get_kill_switch_latch as _get_latch
+
+            _autonomy = _get_autonomy()
+            _drained = _autonomy.drain_controls()
+        except Exception as exc:
+            log.error("Autonomy gate unavailable — fail-closed HOLD: %s", exc, exc_info=True)
+            return ({"action": "HOLD",
+                     "reasoning": f"autonomy gate unavailable (fail-closed): {exc}"}, 0.0)
+
+        _tm = getattr(getattr(self, "data_provider", None), "trade_manager", None)
+        for _ctl in _drained:
+            _action = _ctl.get("action")
+            try:
+                _outcome = apply_operator_control(
+                    _ctl,
+                    store=self.store,
+                    autonomy=_autonomy,
+                    risk=getattr(self, "risk", None),
+                    trade_manager=_tm,
+                    operations=getattr(self, "operations", None),
+                    paper_broker=getattr(self, "paper_broker", None) if paper_mode else None,
+                    latch=_get_latch(),
+                )
+            except Exception as exc:
+                log.error("Operator control %s failed to apply: %s", _action, exc, exc_info=True)
+                try:
+                    _emit("CONTROL_FAILED", {"action": _action,
+                                              "actor": _ctl.get("actor"),
+                                              "source": _ctl.get("source"),
+                                              "error": str(exc)})
+                except Exception:
+                    pass
+                return ({"action": "HOLD",
+                         "reasoning": f"control {_action} failed to apply (fail-closed): {exc}"}, 0.0)
+
+            _status = str(_outcome.get("status") or "failed")
+            _event = ("CONTROL_EXECUTED" if _status in ("applied", "partial")
+                      else "CONTROL_PENDING" if _status == "queued"
+                      else "CONTROL_FAILED")
+            try:
+                _emit(_event, {"action": _action,
+                               "actor": _ctl.get("actor"),
+                               "source": _ctl.get("source"),
+                               "status": _status,
+                               "detail": _outcome})
+            except Exception:
+                pass
+            if _status == "failed":
+                log.error("Operator control %s FAILED: %s", _action, _outcome)
+                return ({"action": "HOLD",
+                         "reasoning": f"control {_action} failed: {_outcome.get('errors')}"}, 0.0)
+            log.warning("Operator control %s %s: %s", _action, _status.upper(), _outcome)
+
+        try:
+            _allowed, _why = _autonomy.trading_allowed()
+        except Exception as exc:
+            log.error("Autonomy state unreadable — fail-closed HOLD: %s", exc, exc_info=True)
+            return ({"action": "HOLD",
+                     "reasoning": f"autonomy state unreadable (fail-closed): {exc}"}, 0.0)
+        if not _allowed:
+            try:
+                _emit("CYCLE_SKIPPED_AUTONOMY", {"symbol": symbol, "strategy": strategy, "reason": _why})
+            except Exception:
+                pass
+            return ({"action": "HOLD", "reasoning": f"autonomy gate: {_why}"}, 0.0)
+        return None
+
     def execute_cycle(self, symbol: str, timeframe: str, cycle_num: int, total_cycles: int, paper_mode: bool = True, display_instance=None, strategy: str = "scalp"):
         # Claim this thread's per-strategy state before anything reads
         # self.memory or self._last_llm_trace.
@@ -7346,29 +7427,28 @@ class LLMOrchestrator:
         log.info(f"DEBUG: execute_cycle called with display_instance={display_instance}")
         start_time = time.time()
 
-        # --- autonomy gate + lifecycle telemetry (supervisor kernel) ---
+        # --- fail-soft lifecycle telemetry (never gates the cycle) ---
         try:
             from operations.event_bridge import emit as _emit
-            from operations.autonomy import get_autonomy as _get_autonomy
             from operations.supervisor import get_supervisor as _get_supervisor
 
-            _supervisor = _get_supervisor()
-            _supervisor.heartbeat()
+            _get_supervisor().heartbeat()
 
             # Ψ Guardian heartbeat: signal Γ is alive so Ψ doesn't trip on timeout
             self._guardian_progress("cycle_start")
+        except Exception as exc:
+            logging.getLogger("LLMOrchestrator").debug("Cycle telemetry failed: %s", exc)
 
-            _autonomy = _get_autonomy()
-            for _ctl in _autonomy.drain_controls():
-                _emit("CONTROL_EXECUTED", {
-                    "action": _ctl.get("action"),
-                    "actor": _ctl.get("actor"),
-                    "source": _ctl.get("source"),
-                })
-            _allowed, _why = _autonomy.trading_allowed()
-            if not _allowed:
-                _emit("CYCLE_SKIPPED_AUTONOMY", {"symbol": symbol, "strategy": strategy, "reason": _why})
-                return {"action": "HOLD", "reasoning": f"autonomy gate: {_why}"}, 0.0
+        # --- autonomy gate (C4: fail CLOSED) ---
+        # Drains the control queue, applies flatten/killswitch for real, and
+        # returns a HOLD tuple when trading must not continue.  A broken gate
+        # is a HOLD, never a silently skipped check.
+        _gate_result = self._autonomy_gate(symbol, strategy, paper_mode=paper_mode)
+        if _gate_result is not None:
+            return _gate_result
+
+        try:
+            from operations.event_bridge import emit as _emit
 
             try:
                 from operations.metrics_exporter import write_metrics
@@ -8543,27 +8623,11 @@ class LLMOrchestrator:
             # A provider outage means there is NO model judgement at all. Letting
             # the RL suggestion stand in for it would open new risk with nothing in
             # the loop, which is exactly what deterministic_hold_fallback forbids.
-            # The safety HOLD must stay absolute.
             provider_outage = bool(decision.get("deterministic_fallback"))
-            # If LLM is down but an institutional quant workflow passed all mathematical/deterministic
-            # safety stages with an EXECUTE decision, promote it so trading doesn't stall on LLM API outage.
-            inst_wf = toon.get("institutional_workflow")
-            if provider_outage and isinstance(inst_wf, dict) and inst_wf.get("decision") == "EXECUTE" and inst_wf.get("proposal"):
-                prop = inst_wf["proposal"]
-                decision = {
-                    "action": prop.get("side", "HOLD"),
-                    "decision": prop.get("side", "HOLD"),
-                    "entry": prop.get("entry_price", point_values.get("close")),
-                    "stop_loss": prop.get("stop_loss"),
-                    "take_profit": prop.get("take_profit"),
-                    "confidence": 0.85,
-                    "reasoning": f"[AutonomousWorkflow] {inst_wf.get('workflow_name')} generated deterministic signal during LLM outage.",
-                    "workflow_directed": True,
-                }
-                logger.info("⚡ Autonomous institutional workflow proposal promoted during LLM outage: %s %s (%s)", decision["action"], symbol, inst_wf.get("workflow_name"))
-                provider_outage = False
-
             if provider_outage:
+                logger.warning(
+                    "Deterministic safety HOLD: LLM providers are down; no new risk may be taken"
+                )
                 logger.warning(
                     "RL bridge suppressed: LLM providers are down and the decision "
                     "is a deterministic safety HOLD; no new risk may be taken")
