@@ -31,7 +31,12 @@ def _completed_meta_report() -> dict:
     }
 
 
-def test_promotion_package_is_fail_closed_without_evidence(tmp_path: Path):
+def test_promotion_package_is_fail_closed_without_evidence(tmp_path: Path, monkeypatch):
+    # build() audits the working directory; pin the result so this test does
+    # not depend on whether the checkout happens to contain a finding.
+    import promotion_package
+    monkeypatch.setattr(promotion_package, "security_audit",
+                        lambda *a, **k: {"status": "REVIEW_REQUIRED", "execution_authority": False})
     path = tmp_path / "state.db"
     TradingStore(str(path))
     package = build(str(path))

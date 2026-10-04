@@ -61,8 +61,8 @@
 | P4: arbiter approvals respect limits | (passed) | | |
 | P5b: pending orders are never marketable | (passed) | | |
 
-## Flaky test found
-`tests/test_p0_gates.py::TestOverfitGate::test_overfit_critical_blocks_trade` failed on **unmodified** code in 1 of 4 identical copies. It depends on ambient state (shared artifacts or DB files), so it is order- or worker-dependent. The risk-manager run had to exclude that file.
+## ~~Flaky test found~~ (corrected)
+`tests/test_p0_gates.py::TestOverfitGate::test_overfit_critical_blocks_trade` failed once in the mutation harness's baseline check. **Correction (Phase 1):** the test is deterministic (0 failures in 8 parallel runs). The failure came from a worker copy that still held a mutant from the run aborted by the rate limit, not from the test.
 
 ## Tests to add (highest value first)
 1. **Validator: one gate at a time.** Parametrize over every reason string: start from an all-pass `market` dict, break exactly one input, and assert `approved is False` and that the specific reason is present. Also assert that the all-pass fixture *is* approved (catches over-rejection). This kills about 40 survivors.

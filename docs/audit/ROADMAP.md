@@ -46,7 +46,7 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 
 ## Phase 1: Safety net and test hygiene
 - [ ] 🟠 `P1-C5` **Rotate the RoutesMe key** (it's in public git history). Replace the fixture with an obvious fake. *Owner: you.*
-- [ ] 🟡 Add a secret-scan pre-commit hook and CI step (detect-secrets/gitleaks).
+- [x] 🟡 Add a secret-scan pre-commit hook (CI step: PR 1.4) (detect-secrets/gitleaks).
 - [ ] 🟠 `TS-1` Validator "break exactly one gate" table tests (every reason string, plus an all-pass fixture).
 - [ ] 🟠 `TS-2` Arbiter boundary tests: daily, weekly and open-risk at, below and above the limit.
 - [ ] 🟠 `TS-3` Order-geometry table tests (BUY/SELL × SL/TP sides, 5 % and 0.5 ATR bounds, NaN/inf).
@@ -55,11 +55,11 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [ ] 🟠 `TS-6` Latch persistence tests (corrupt file → stays latched; write from copy A, read from copy B).
 - [ ] 🟡 `TS-8` Mutation-score ratchet in CI on the six safety modules (baseline 48 %).
 - [ ] 🟠 `P1-H6` Raise order-path coverage (`order_execution` 40 %): an end-to-end proposal → `order_send` test on the bridge's fake broker.
-- [ ] 🟠 Part 2 §9b: tests overwrite committed `artifacts/` and `data/` evidence. Move evidence to a read-only location, and point every test store at `tmp_path`.
-- [ ] 🟡 Part 2 §9b: parallel collection races the `trade_labels` migration (make `ACTIVE_KNOWLEDGE_AGENT` lazy; idempotent migration under `BEGIN IMMEDIATE`).
-- [ ] 🟠 Part 2 §9b: tests must never reach an MT5 terminal without an explicit opt-in flag.
-- [ ] 🟡 Part 1 M7: stray files (`--db`, `..tmp`, `:memory:`) at the repo root; Windows-only tests marked `skipif`.
-- [ ] 🟡 Flaky `test_p0_gates.py::test_overfit_critical_blocks_trade` (depends on ambient state).
+- [x] 🟠 Part 2 §9b: tests overwrite committed `artifacts/` and `data/` evidence. Move evidence to a read-only location, and point every test store at `tmp_path`.
+- [x] 🟡 Part 2 §9b: parallel collection races the `trade_labels` migration (make `ACTIVE_KNOWLEDGE_AGENT` lazy; idempotent migration under `BEGIN IMMEDIATE`).
+- [x] 🟠 Part 2 §9b: tests must never reach an MT5 terminal without an explicit opt-in flag.
+- [x] 🟡 Part 1 M7: stray files (`--db`, `..tmp`, `:memory:`) at the repo root; Windows-only tests marked `skipif`.
+- [x] ~~Flaky `test_p0_gates.py::test_overfit_critical_blocks_trade`~~: not flaky (0/8 failures); the earlier failure was a mutation-harness artifact.
 - [ ] 🟡 `P1-M8` Commit `tui_opentui/bun.lock` (un-ignore it from the `*.lock` pattern).
 - [ ] 🟡 Part 1 §6: CI workflow (pytest, both `tsc` checks, the double-import guard, secret scan, graphify update).
 

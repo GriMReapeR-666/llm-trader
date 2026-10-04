@@ -24,7 +24,7 @@ def _fake_report_script(tmp_path: Path, monkeypatch, payload: dict,
     fake = tmp_path / "fake_tuning_report.py"
     fake.write_text(
         "import json, sys\n"
-        f"json.dump({payload!r}, open(sys.argv[1], 'w'))\n"
+        f"json.dump({payload!r}, open({str(tmp_path / 'fake_report_out.json')!r}, 'w'))\n"
         f"raise SystemExit({exit_code})\n",
         encoding="utf-8",
     )
