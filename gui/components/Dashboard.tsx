@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Card } from './ui/Card';
 import { WorkflowState, ReasoningLog } from '../types';
 import { Brain, Cpu, Target, TrendingUp, AlertTriangle } from 'lucide-react';
+import { apiFetch } from '../api';
 
 interface DashboardProps {
   workflowState: WorkflowState;
 }
 
-const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : '/api';
 
 export const Dashboard: React.FC<DashboardProps> = ({ workflowState }) => {
   const [logs, setLogs] = useState<ReasoningLog[]>([]);
@@ -27,8 +27,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ workflowState }) => {
     const fetchData = async () => {
       try {
         const [logsRes, dashRes] = await Promise.all([
-          fetch(`${API_BASE}/logs`),
-          fetch(`${API_BASE}/dashboard`)
+          apiFetch(`/logs`),
+          apiFetch(`/dashboard`)
         ]);
 
         if (logsRes.ok) {

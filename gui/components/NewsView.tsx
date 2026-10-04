@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from './ui/Card';
 import { Globe, Clock } from 'lucide-react';
+import { apiFetch } from '../api';
 
-const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : '/api';
 
 export const NewsView: React.FC = () => {
   const [events, setEvents] = useState<any[]>([]);
@@ -10,7 +10,7 @@ export const NewsView: React.FC = () => {
   useEffect(() => {
     const fetchNews = async () => {
       try {
-        const res = await fetch(`${API_BASE}/news`);
+        const res = await apiFetch(`/news`);
         if (res.ok) setEvents(await res.json());
       } catch (e) { console.error(e); }
     };

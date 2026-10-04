@@ -93,5 +93,15 @@ The structure is right:
 | X4 | **Fixed.** `place_market_order` accepts the evidence kwargs. |
 | D1 | **Fixed.** `ensure_*_transport` were removed. `TradeManager` uses the shared gateway only when its store and transport match, otherwise a private one. The guardian flattens through a private live gateway while holding the shared gateway's `flattening` flag. |
 | Extra | Transient broker retcodes leave the intent CREATED for the caller's retry, and `abandon_entry` releases it once retries are exhausted (CREATED only). DONE_PARTIAL (10010) is now accepted and recorded as PARTIAL; it used to be recorded as REJECTED. |
-| D2, D3, D4, D6 | **Open.** Tracked in ROADMAP Phase 2. |
+| D2, D3, D4, D6 | See the follow-up below. |
 | D5, D7 | Accepted. D5 is covered by D1; D7 is a documented ratchet change (the gateway is now at 1 site). |
+
+## Follow-up: D2, D3, D4, D6
+| Item | Status |
+|---|---|
+| D2 | **Fixed.** Paper entries that carry validation evidence go through `_paper_entry_via_gateway`: the shared paper gateway, or a private one on the same journal. The gateway never marks FILLED; the reconciler owns PENDING → FILLED in paper too, using the paper book's position as fill proof, and writes the trades row that takes over the reservation. Evidence-less calls (tools, tests) stay on the simulator. |
+| D2 (found while testing) | **Fixed.** `reconcile_pending_orders` crashed on every fill at `TradeProposal(**payload)`, because `log_proposal` adds `validation_trace`. Fills were never journaled as trades, live included. Pinned by `tests/safety/test_paper_fill_reconcile.py`. |
+| D3 | **Analysed, partly closed.** Only quantities that entries themselves change can be raced: open risk (atomic now) and bucket risk, which is bounded by the open-risk check because it uses the same fraction. Daily/weekly loss and drawdown aren't changed by entries. The rolling-correlation (2 %) and netting limits remain non-atomic and blind to pending intents → ROADMAP `D3b` (Phase 4). |
+| D4 | **Fixed.** `sweep_stale_created` (default 5 min) runs at the start of each reconcile. A send that raises is UNRESOLVED on live (keeps reserving) and REJECTED on paper. |
+| D6 | **Fixed and verified in a browser:** sign-in screen → cookie → data loads; curl checks for 401, wrong Host and the public bundle. |
+| New: PH2-N1 | **Open.** Live `place_pending_order` requires a harness ORDER_WRITE token that `MarketDataProvider` never passes, so live planned entries always raise `PermissionError`. This predates Phase 2 and needs an operator decision. |

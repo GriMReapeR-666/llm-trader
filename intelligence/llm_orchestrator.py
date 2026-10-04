@@ -34,7 +34,8 @@ import logging
 import math
 import hashlib
 import json as _json
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, fields, replace
+from types import SimpleNamespace
 from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime, timedelta, timezone
 import numpy as np
@@ -5368,6 +5369,16 @@ class LLMOrchestrator:
         # Unresolved broker outcomes are retried as bounded, read-only history
         # lookups.  The retry claim never resubmits an order; operator review
         # remains mandatory after the retry budget is exhausted.
+        # Reservations orphaned between reserve and send (crash/exception) are
+        # resolved against the broker before the regular pass (review D4).
+        try:
+            from core.order_gateway import get_default_gateway
+            for _key, _status in get_default_gateway().sweep_stale_created(mt5_client=None if paper_mode else mt5).items():
+                if _status == "UNRESOLVED":
+                    self.operations.flag_execution_review(
+                        _key, "stale reservation: order reached the broker, outcome unknown", severity="CRITICAL")
+        except Exception as _sweep_exc:
+            logging.getLogger("LLMOrchestrator").warning("Stale order-intent sweep skipped: %s", _sweep_exc)
         due_retries = {item["intent_key"] for item in self.operations.claim_due_execution_review_retries()}
         for intent in self.operations.order_intents(("PENDING", "UNRESOLVED")):
             intent_key = str(intent.get("intent_key", ""))
@@ -5414,14 +5425,28 @@ class LLMOrchestrator:
                     self.store.log_lifecycle_event(int(ticket), "", "UNRESOLVED", "reconciler", {"intent_key": intent["intent_key"], "reason": "expiry cancellation not confirmed"})
                 continue
             if not exists:
-                if not paper_mode and ticket:
-                    try:
-                        now = datetime.now()
-                        recent = mt5.history_deals_get(now - timedelta(days=7), now) or []
-                        matching = [deal for deal in recent if int(getattr(deal, "order", 0) or 0) == int(ticket)]
-                    except Exception as exc:
-                        matching = []
-                        logging.getLogger("LLMOrchestrator").warning("Cannot inspect pending-order deal history for %s: %s", ticket, exc)
+                if ticket and (not paper_mode or self.paper_broker):
+                    if paper_mode:
+                        # Paper fills have no MT5 history: the paper book's open
+                        # (or already closed) position for this ticket is the fill
+                        # proof. Without it a paper market entry stayed PENDING ->
+                        # UNRESOLVED and reserved risk forever (Phase 2 review D2).
+                        _pos = (self.paper_broker.positions.get(int(ticket))
+                                or next((h for h in reversed(getattr(self.paper_broker, "history", []))
+                                         if int(h.get("ticket", 0) or 0) == int(ticket)), None))
+                        matching = [SimpleNamespace(
+                            order=int(ticket), position_id=int(ticket), ticket=int(ticket), entry=0,
+                            volume=float(_pos.get("volume", 0) or 0), price=float(_pos.get("price_open", 0) or 0),
+                            commission=0.0, swap=0.0,
+                        )] if _pos else []
+                    else:
+                        try:
+                            now = datetime.now()
+                            recent = mt5.history_deals_get(now - timedelta(days=7), now) or []
+                            matching = [deal for deal in recent if int(getattr(deal, "order", 0) or 0) == int(ticket)]
+                        except Exception as exc:
+                            matching = []
+                            logging.getLogger("LLMOrchestrator").warning("Cannot inspect pending-order deal history for %s: %s", ticket, exc)
                     if matching:
                         entry_deals = [deal for deal in matching if getattr(deal, "entry", None) != getattr(mt5, "DEAL_ENTRY_OUT", 1)]
                         if not entry_deals:
@@ -5444,7 +5469,10 @@ class LLMOrchestrator:
                         latency_ms = max(0.0, time.time() * 1000 - float(submitted_msc)) if submitted_msc else None
                         proposal_payload = self.store.latest_proposal(str(payload.get("setup_key", "")))
                         if proposal_payload:
-                            original = TradeProposal(**proposal_payload)
+                            # log_proposal stores extra keys (validation_trace) next to
+                            # the dataclass fields; passing them crashed every fill.
+                            _proposal_fields = {f.name for f in fields(TradeProposal)}
+                            original = TradeProposal(**{k: v for k, v in proposal_payload.items() if k in _proposal_fields})
                             filled = replace(original, entry=fill_price)
                             self.store.record_open_trade(
                                 position_id, filled, fill_volume,
@@ -9218,6 +9246,7 @@ Total Trades: {len(closed_trades)}"""
                                 atr=atr_val, magic=proposal.magic,
                                 validation_result=validation, setup_key=proposal.setup_key(),
                                 risk_amount=proposed_risk, intent_key=intent_key,
+                                account_equity=equity,
                             )
                         else:
                             expires_at = datetime.fromisoformat(execution_plan.expires_at)
@@ -9235,6 +9264,7 @@ Total Trades: {len(closed_trades)}"""
                                 expires_at=expires_at,
                                 validation_result=validation, setup_key=proposal.setup_key(),
                                 risk_amount=proposed_risk, intent_key=intent_key,
+                                account_equity=equity,
                             )
                         self.operations.record_raw_trace(
                             "mt5_order_response", {"intent_key": intent_key, "result": res or {}},

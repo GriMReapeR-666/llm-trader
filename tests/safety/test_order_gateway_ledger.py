@@ -136,7 +136,7 @@ def test_abandon_releases_only_created_intents(store, gw):
     gw.adapter.rc = 10009
     gw.submit_entry(intent("sent", 100.0))
     assert gw.abandon_entry("sent", "should not apply") is False
-    assert status(store, "sent") == "FILLED"
+    assert status(store, "sent") == "PENDING"
 
 
 def test_partial_fill_is_accepted_and_keeps_reserving(store):
@@ -188,9 +188,15 @@ def test_failed_cancel_keeps_the_reservation(store, gw):
 
 
 def test_gateway_never_makes_an_illegal_transition(store, gw):
-    assert gw.submit_entry(intent("a", 10.0)).success                  # FILLED (terminal)
-    assert gw._resolve_intent("a", "PENDING") is False
-    assert status(store, "a") == "FILLED"
+    assert gw.submit_entry(intent("a", 10.0)).success                  # PENDING
+    assert gw._resolve_intent("a", "CREATED") is False
+    assert status(store, "a") == "PENDING"
+
+
+def test_gateway_leaves_fills_to_the_reconciler(store, gw):
+    res = gw.submit_entry(intent("m", 10.0, order_type="MARKET"))
+    assert res.success and res.status == "FILLED"                       # paper market order filled
+    assert status(store, "m") == "PENDING"                              # journal fill is the reconciler's
 
 
 # ------------------------------------------------------------- R6 evidence
@@ -315,3 +321,135 @@ def test_guardian_flatten_leaves_the_shared_gateway_on_paper(store, monkeypatch)
     assert shared.is_paper and shared.flattening is False
     assert [c["position"] for c in t.calls] == [5]
     order_gateway.reset_default_gateway()
+
+
+# ------------------------------------------- D2 paper entries take the door
+def _paper_setup(store):
+    from core import order_gateway
+    from core.order_execution import PaperBroker
+    broker = PaperBroker()
+    order_gateway.configure_default_gateway(store, mode="PAPER", paper_broker=broker)
+    return broker
+
+
+def _place(broker, key, risk, evidence_=True):
+    from datetime import datetime, timedelta, timezone
+    from core.order_execution import place_pending_order
+    return place_pending_order(
+        "EURUSD", "buy_limit", 1.09, 0.1, 1.08, 1.11, "llm_auto", broker, magic=460001,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        validation_result=evidence() if evidence_ else None, setup_key="s",
+        risk_amount=risk, intent_key=key, account_equity=10_000.0,
+    )
+
+
+def test_paper_entry_with_evidence_reserves_through_the_gateway(store):
+    from core import order_gateway
+    broker = _paper_setup(store)
+    try:
+        res = _place(broker, "p1", 200.0)
+        assert res["retcode"] == 10009 and res["order"] in broker.orders
+        assert status(store, "p1") == "PENDING"
+        assert store.open_risk() == pytest.approx(200.0)
+        with pytest.raises(RuntimeError, match="open-risk"):
+            _place(broker, "p2", 200.0)                       # 400 > 300 cap, refused before the book
+        assert len(broker.orders) == 1
+        with sqlite3.connect(store.path) as con:   # refused inside the reservation: no row at all
+            assert con.execute("SELECT 1 FROM order_intents WHERE intent_key='p2'").fetchone() is None
+    finally:
+        order_gateway.reset_default_gateway()
+
+
+def test_paper_entry_without_evidence_stays_on_the_simulator(store):
+    from core import order_gateway
+    broker = _paper_setup(store)
+    try:
+        res = _place(broker, "sim", 200.0, evidence_=False)
+        assert res["retcode"] == 10009
+        with sqlite3.connect(store.path) as con:
+            has = con.execute("SELECT 1 FROM sqlite_master WHERE name='order_intents'").fetchone()
+            rows = con.execute("SELECT COUNT(*) FROM order_intents").fetchone()[0] if has else 0
+        assert rows == 0
+    finally:
+        order_gateway.reset_default_gateway()
+
+
+def test_paper_entry_with_evidence_needs_a_configured_gateway(store):
+    from core import order_gateway
+    from core.order_execution import PaperBroker
+    order_gateway.reset_default_gateway()
+    with pytest.raises(RuntimeError, match="not configured"):
+        _place(PaperBroker(), "x", 10.0)
+
+
+# ------------------------------------------------ D4 stale reservation sweep
+def _created(store, key, minutes_old, **payload):
+    from datetime import datetime, timedelta, timezone
+    ts = (datetime.now(timezone.utc) - timedelta(minutes=minutes_old)).isoformat()
+    body = {"symbol": "EURUSD", "side": "BUY", "volume": 0.1, "risk_amount": 100.0, **payload}
+    with sqlite3.connect(store.path) as con:
+        con.execute(INTENTS_DDL)
+        con.execute("INSERT INTO order_intents VALUES(?,?,?,NULL,NULL,'CREATED',NULL,?,NULL,NULL)",
+                    (key, ts, ts, json.dumps(body)))
+
+
+def test_paper_sweep_rejects_stale_and_keeps_fresh(store, gw):
+    _created(store, "old", 30)
+    _created(store, "new", 1)
+    assert gw.sweep_stale_created(max_age_s=300) == {"old": "REJECTED"}
+    assert status(store, "new") == "CREATED"
+    assert store.open_risk() == pytest.approx(100.0)
+
+
+class Broker:
+    def __init__(self, orders=(), positions=(), history=(), fail=False):
+        self._o, self._p, self._h, self.fail = list(orders), list(positions), list(history), fail
+
+    def orders_get(self):
+        if self.fail:
+            raise OSError("terminal down")
+        return self._o
+
+    def positions_get(self):
+        return self._p
+
+    def history_orders_get(self, a, b):
+        return self._h
+
+
+@pytest.mark.parametrize("broker,expected", [
+    (Broker(orders=[NS(ticket=41, symbol="EURUSD", volume_initial=0.1, magic=460001)]), "PENDING"),
+    (Broker(history=[NS(ticket=42, symbol="EURUSD", volume_initial=0.1, magic=460001)]), "UNRESOLVED"),
+    (Broker(orders=[NS(ticket=43, symbol="GBPUSD", volume_initial=0.1, magic=460001)]), "REJECTED"),
+    (Broker(fail=True), "CREATED"),
+], ids=["open-order", "history-only", "nothing-matching", "broker-down"])
+def test_live_sweep_resolves_against_the_broker(store, broker, expected):
+    _created(store, "k", 30, magic=460001)
+    gw = OrderGateway(store, mode="LIVE", adapter=RecAdapter())
+    gw.sweep_stale_created(max_age_s=300, mt5_client=broker)
+    assert status(store, "k") == expected
+
+
+def test_live_sweep_never_claims_a_ticket_twice(store):
+    _created(store, "a", 30, magic=460001)
+    _created(store, "b", 30, magic=460001)
+    broker = Broker(orders=[NS(ticket=41, symbol="EURUSD", volume_initial=0.1, magic=460001)],
+                    history=[NS(ticket=41, symbol="EURUSD", volume_initial=0.1, magic=460001)])
+    OrderGateway(store, mode="LIVE", adapter=RecAdapter()).sweep_stale_created(max_age_s=300, mt5_client=broker)
+    assert sorted([status(store, "a"), status(store, "b")]) == ["PENDING", "UNRESOLVED"]
+
+
+def test_send_exception_is_unresolved_on_live_and_rejected_on_paper(store, monkeypatch):
+    from core import margin_safety
+    monkeypatch.setattr(margin_safety.MarginSafetyGate, "assess_from_mt5",
+                        lambda self, **kw: NS(approved=True, reasons=[]))
+
+    class Boom(RecAdapter):
+        def send_order(self, req, mt5_client=None):
+            raise OSError("pipe closed")
+    live = OrderGateway(store, mode="LIVE", adapter=Boom())
+    live.submit_entry(intent("l", 10.0, account_equity=10_000.0))
+    assert status(store, "l") == "UNRESOLVED" and store.open_risk() == pytest.approx(10.0)
+    paper = OrderGateway(store, mode="PAPER", adapter=Boom())
+    paper.submit_entry(intent("p", 10.0))
+    assert status(store, "p") == "REJECTED"

@@ -258,3 +258,29 @@ def test_websocket_rejects_unauthorized_and_wrong_host(monkeypatch):
         headers={"Authorization": "Bearer ws-secret-token-789", "Host": "127.0.0.1:8000"},  # secret-scan: allow
     ) as ws:
         assert ws is not None
+
+
+# ---- Web GUI session flow (Phase 2 review D6) ------------------------------
+def test_gui_bundle_is_public_but_api_reads_are_not(client, valid_token):
+    """The GUI must load to show its sign-in screen; its data calls stay authenticated."""
+    assert client.get("/").status_code == 200
+    assert client.get("/assets/does-not-exist.js").status_code != 401
+    assert client.get("/api/status").status_code == 401
+
+
+def test_gui_login_cookie_round_trip(client, valid_token):
+    assert client.post("/api/auth/login", json={"token": "wrong"}).status_code == 401
+    assert "gui_session" not in client.cookies
+    resp = client.post("/api/auth/login", json={"token": valid_token})
+    assert resp.status_code == 200
+    set_cookie = resp.headers.get("set-cookie", "").lower()
+    assert "httponly" in set_cookie and "samesite=strict" in set_cookie
+    assert client.get("/api/status").status_code != 401          # cookie authenticates
+    assert client.post("/api/auth/logout").status_code == 200
+    client.cookies.clear()
+    assert client.get("/api/status").status_code == 401
+
+
+def test_root_serves_the_gui_without_minting_a_cookie(client, valid_token):
+    resp = client.get("/")
+    assert "set-cookie" not in resp.headers

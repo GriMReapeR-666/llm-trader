@@ -24,7 +24,7 @@ def _live_gateway():
 
 def _gateway_intent(*, symbol, side, volume, price, sl, tp, risk_amount,
                     setup_key="", order_type="MARKET", magic=0, comment="",
-                    validation_result=None, intent_key=None, expires_at=None):
+                    validation_result=None, intent_key=None, expires_at=None, account_equity=None):
     from core.order_gateway import OrderIntent
     import uuid
     return OrderIntent(
@@ -34,7 +34,49 @@ def _gateway_intent(*, symbol, side, volume, price, sl, tp, risk_amount,
         setup_key=setup_key or "", order_type=order_type,
         magic=int(magic or 0), comment=comment or "order_execution",
         validation_result=validation_result, expires_at=expires_at,
+        account_equity=account_equity,
     )
+
+
+def _paper_gateway(paper):
+    """Gateway for a paper entry: the shared one when it holds this book, else a
+    private paper gateway on the same journal (so the reservation ledger is shared).
+    Raises when no gateway is configured: no evidence-backed entry without a ledger."""
+    from core.order_gateway import OrderGateway, get_default_gateway
+    shared = get_default_gateway()
+    if shared.is_paper and shared.adapter.paper is paper:
+        return shared
+    private = OrderGateway(shared.store, mode="PAPER", arbiter=shared.arbiter,
+                           max_evidence_age_s=shared.max_evidence_age_s)
+    private.bind_paper_broker(paper)
+    return private
+
+
+def _paper_entry_via_gateway(paper, *, symbol, side, order_type, price, volume, sl, tp, comment, magic,
+                             validation_result, setup_key, risk_amount, intent_key,
+                             expires_at=None, account_equity=None) -> Dict[str, Any]:
+    """Paper entries with validation evidence take the same door as live ones
+    (reservation, intent lifecycle, evidence checks; review D2)."""
+    if not risk_amount or float(risk_amount) <= 0:
+        raise RuntimeError("paper entry with validation evidence requires risk_amount for reservation")
+    gw = _paper_gateway(paper)
+    intent = _gateway_intent(
+        symbol=symbol, side=side, volume=volume, price=price, sl=sl, tp=tp, risk_amount=risk_amount,
+        setup_key=setup_key, order_type=order_type, magic=magic, comment=comment,
+        validation_result=validation_result, intent_key=intent_key,
+        expires_at=expires_at.isoformat() if expires_at else None, account_equity=account_equity,
+    )
+    request = {"symbol": symbol, "volume": float(volume), "price": float(price), "sl": sl or 0.0,
+               "tp": tp or 0.0, "magic": int(magic or 0), "comment": comment}
+    if str(order_type).upper() == "MARKET":
+        request["type"] = 0 if str(side).upper() == "BUY" else 1
+    else:
+        request.update({"otype": order_type, "expires_at": expires_at})
+    res = gw.submit_entry(intent, mt5_request=request)
+    if not res.success:
+        gw.abandon_entry(intent.intent_key, str(res.error))
+        raise RuntimeError(f"Paper entry rejected by gateway: {res.error}")
+    return dict(res.details)
 
 try:
     import MetaTrader5 as mt5
@@ -334,7 +376,8 @@ def place_urgency_routed_order(symbol: str, side: str, volume: float,
                                 paper: Optional[PaperBroker], atr: Optional[float] = None,
                                 magic: int = 0, validation_result: Optional[Any] = None,
                                 setup_key: str = "", risk_amount: float = 0.0,
-                                intent_key: Optional[str] = None) -> Dict[str, Any]:
+                                intent_key: Optional[str] = None,
+                                account_equity: Optional[float] = None) -> Dict[str, Any]:
     """Place order with UrgencySOR pre-execution routing.
 
     Routes to:
@@ -373,6 +416,19 @@ def place_urgency_routed_order(symbol: str, side: str, volume: float,
         _order_type = _routing["order_type"] if _routing else "MARKET"
         _target_price = _routing["target_price"] if _routing else (1.0)
 
+        if validation_result is not None:
+            if _order_type == "LIMIT_MAKER":
+                _p_otype, _p_price, _p_comment = ("buy_limit" if side.lower() == "buy" else "sell_limit"), round(_target_price, 5), f"SOR_MKR:{comment}"
+            else:
+                _p_otype, _p_comment = "MARKET", comment
+                _q = _symbol_tick(symbol)   # raises without a quote: no synthetic 1.0 fills
+                _p_price = float(_q.ask if side.lower() == "buy" else _q.bid)
+            return _paper_entry_via_gateway(
+                paper, symbol=symbol, side=side, order_type=_p_otype, price=_p_price, volume=volume,
+                sl=sl, tp=tp, comment=_p_comment, magic=magic, validation_result=validation_result,
+                setup_key=setup_key, risk_amount=risk_amount, intent_key=intent_key,
+                account_equity=account_equity,
+            )
         if _order_type == "LIMIT_MAKER":
             otype = "buy_limit" if side.lower() == "buy" else "sell_limit"
             return paper.pending_order(
@@ -492,7 +548,7 @@ def place_urgency_routed_order(symbol: str, side: str, volume: float,
         symbol=symbol, side=side, volume=volume, price=_target_price,
         sl=sl, tp=tp, risk_amount=risk_amount, setup_key=setup_key,
         order_type=_gateway_otype, magic=magic, comment=f"SOR:{comment}",
-        validation_result=validation_result, intent_key=intent_key,
+        validation_result=validation_result, intent_key=intent_key, account_equity=account_equity,
     )
     _gw = _live_gateway()
     _gw_res = _gw.submit_entry(_intent, mt5_request=request, mt5_client=mt5_inst)
@@ -611,7 +667,8 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
                         magic: int = 0, expires_at: Optional[datetime] = None,
                         token: Optional[Any] = None, validation_result: Optional[Any] = None,
                         setup_key: str = "", risk_amount: float = 0.0,
-                        intent_key: Optional[str] = None) -> Dict[str, Any]:
+                        intent_key: Optional[str] = None,
+                        account_equity: Optional[float] = None) -> Dict[str, Any]:
     # --- Surgical sandbox guard: live ORDER_WRITE requires token, paper SIMULATION allowed ---
     if token is not None and hasattr(token, "can_access"):
         from core.harness.sandbox import PermissionLevel
@@ -662,6 +719,14 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
     side = "buy" if otype.startswith("buy_") else "sell"
     validate_order_params(side, numeric_price, numeric_sl, numeric_tp)
     if paper:
+        if validation_result is not None:
+            return _paper_entry_via_gateway(
+                paper, symbol=symbol, side=side, order_type=otype, price=numeric_price, volume=numeric_volume,
+                sl=numeric_sl, tp=numeric_tp, comment=comment, magic=magic, validation_result=validation_result,
+                setup_key=setup_key, risk_amount=risk_amount, intent_key=intent_key, expires_at=expires_at,
+                account_equity=account_equity,
+            )
+        # Evidence-less calls (tools, tests) stay on the in-memory simulator.
         return paper.pending_order(symbol, otype, numeric_price, numeric_volume, numeric_sl, numeric_tp,
                                    comment, magic=magic, expires_at=expires_at)
 
@@ -798,7 +863,7 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
         sl=numeric_sl, tp=numeric_tp, risk_amount=risk_amount, setup_key=setup_key,
         order_type=otype, magic=magic, comment=comment,
         validation_result=validation_result, intent_key=intent_key,
-        expires_at=expires_at.isoformat() if expires_at else None,
+        expires_at=expires_at.isoformat() if expires_at else None, account_equity=account_equity,
     )
     _gw = _live_gateway()
     last_err = None

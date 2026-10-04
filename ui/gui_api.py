@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, Request, Body as _Body
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
@@ -284,7 +285,11 @@ async def api_auth_middleware(request: Request, call_next):
         path.startswith(p) for p in ("/api/control", "/api/config", "/api/internal")
     )
     strict_auth = os.environ.get("GUI_STRICT_AUTH", "1") in ("1", "true", "True")
-    is_public_doc_or_root = path in ("/", "/index.html", "/docs", "/openapi.json", "/api/auth/login")
+    # Public: the login/logout endpoints and everything outside /api (the
+    # static web GUI bundle, /docs). The GUI must load to show its sign-in
+    # screen; every data/control call it then makes is under /api and
+    # authenticated (review D6).
+    is_public_doc_or_root = path in ("/api/auth/login", "/api/auth/logout") or not path.startswith("/api")
 
     needs_auth = is_control_route or (strict_auth and not is_public_doc_or_root)
 
@@ -320,6 +325,10 @@ active_ws_clients: List[WebSocket] = []
 def _root():
     # Public index never mints an auth cookie (single-door auth rule):
     # obtain one via POST /api/auth/login with the install-time token.
+    # Serves the web GUI when it is built (its sign-in screen calls the login).
+    index = os.path.join(GUI_DIST_DIR, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
     return {
         "status": "ok",
         "service": "LLM Trader API",
@@ -334,6 +343,11 @@ def auth_login(response: Response, credentials: dict = _Body(default={})):
         set_gui_session_cookie(response, token)
         return {"ok": True, "status": "authenticated"}
     return JSONResponse(status_code=401, content={"error": "Invalid credentials"})
+
+@app.post("/api/auth/logout")
+def auth_logout(response: Response):
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    return {"ok": True}
 
 @app.get("/api/health")
 def _health():

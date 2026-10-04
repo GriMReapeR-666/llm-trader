@@ -196,12 +196,13 @@ def test_end_to_end_validated_proposal_to_gateway_fill(tmp_path):
     assert result.ticket == 88888
     assert getattr(fake_mt5.order_send, "_orig", fake_mt5.order_send).called
 
-    # Verify intent in database is FILLED with ticket
+    # The intent is PENDING with the ticket: the reconciler owns PENDING -> FILLED
+    # and writes the trades row that takes over the reservation.
     con = store._connect()
     try:
         row = con.execute("SELECT status, mt5_ticket FROM order_intents WHERE intent_key='intent_e2e_01'").fetchone()
         assert row is not None
-        assert row["status"] == "FILLED"
+        assert row["status"] == "PENDING"
         assert row["mt5_ticket"] == 88888
     finally:
         con.close()

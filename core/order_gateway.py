@@ -22,7 +22,7 @@ from __future__ import annotations
 from contextvars import ContextVar
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import sqlite3
@@ -651,7 +651,15 @@ class OrderGateway:
                 self._resolve_intent(intent.intent_key, "REJECTED", error="Unsupported order_type")
                 return GatewayResult(False, "REJECTED", error="Unsupported order_type for gateway dispatch")
 
-        send_res = self.adapter.send_order(send_req, mt5_client=mt5_client)
+        try:
+            send_res = self.adapter.send_order(send_req, mt5_client=mt5_client)
+        except Exception as exc:
+            # The request may or may not have reached the broker: live -> UNRESOLVED
+            # (keeps reserving, reconciler/operator decides); paper -> REJECTED.
+            status = "REJECTED" if self.mode == "PAPER" else "UNRESOLVED"
+            self._resolve_intent(intent.intent_key, status, error=f"send raised: {exc}")
+            return GatewayResult(False, "ERROR", error=f"send raised: {exc}")
+        is_market = str(intent.order_type or "MARKET").upper() in ("MARKET", "BUY", "SELL")
 
         retcode = send_res.get("retcode", -1)
         if retcode in (10009, 10008, 10010):  # DONE / PLACED / DONE_PARTIAL
@@ -659,15 +667,103 @@ class OrderGateway:
             self._resolve_intent(intent.intent_key, "PENDING", ticket=ticket)
             if retcode == 10010:
                 self._resolve_intent(intent.intent_key, "PARTIAL", ticket=ticket)
-            elif self.mode == "PAPER":
-                self._resolve_intent(intent.intent_key, "FILLED", ticket=ticket)
-            return GatewayResult(True, "FILLED" if self.mode == "PAPER" else "PENDING", ticket=ticket, action=side, details=send_res)
+            # PENDING -> FILLED is owned by the reconciler, which also writes the
+            # trades row that takes over the reservation (paper and live alike).
+            filled = self.mode == "PAPER" and is_market and retcode != 10010
+            return GatewayResult(True, "FILLED" if filled else "PENDING", ticket=ticket, action=side, details=send_res)
         err = send_res.get("error", f"retcode {retcode}")
         if retcode in TRANSIENT_RETCODES:
             # Leave the intent CREATED (reservation held) for the caller's retry.
             return GatewayResult(False, "REJECTED", error=f"transient retcode {retcode}: {err}", details=send_res)
         self._resolve_intent(intent.intent_key, "REJECTED", error=str(err))
         return GatewayResult(False, "REJECTED", error=str(err), details=send_res)
+
+    def sweep_stale_created(self, max_age_s: float = 300.0, mt5_client: Any = None) -> Dict[str, str]:
+        """Resolve CREATED intents older than ``max_age_s`` (review D4).
+
+        A CREATED intent that old means the process died (or raised) between
+        the reservation and the send, so it reserves risk forever otherwise.
+        - PAPER: the in-memory book did not survive; nothing reached a broker -> REJECTED.
+        - LIVE/DEMO: look for the order at the broker by symbol, volume and magic.
+          An open order/position no other intent claims -> PENDING with that
+          ticket; a matching order in recent history -> UNRESOLVED (sent,
+          outcome unknown); nothing anywhere -> REJECTED.
+        A broker read failure leaves the intent CREATED for the next sweep.
+        Returns {intent_key: new_status}.
+        """
+        cutoff = datetime.now(timezone.utc).timestamp() - float(max_age_s)
+        db_path = getattr(self.store, "path", "trading_state.db")
+        try:
+            with sqlite3.connect(db_path, timeout=5.0) as con:
+                if not con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='order_intents'").fetchone():
+                    return {}
+                rows = con.execute("SELECT intent_key, created_at, payload FROM order_intents WHERE status='CREATED'").fetchall()
+                claimed = {r[0] for r in con.execute("SELECT mt5_ticket FROM order_intents WHERE mt5_ticket IS NOT NULL")}
+        except Exception as exc:
+            log.warning("stale-intent sweep could not read intents: %s", exc)
+            return {}
+        stale = []
+        for key, created_at, payload in rows:
+            try:
+                created = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+            except ValueError:
+                created = None
+            if created is None or created.timestamp() <= cutoff:
+                try:
+                    pl = json.loads(payload) if isinstance(payload, str) else dict(payload or {})
+                except Exception:
+                    pl = {}
+                stale.append((key, created, pl))
+        if not stale:
+            return {}
+        outcomes: Dict[str, str] = {}
+        if self.mode == "PAPER":
+            for key, _, _ in stale:
+                if self._resolve_intent(key, "REJECTED", error="stale reservation: never sent (paper)"):
+                    outcomes[key] = "REJECTED"
+            return outcomes
+        client = mt5_client or getattr(self.adapter, "client", None) or sys.modules.get("MetaTrader5")
+        if client is None:
+            return {}
+
+        def matches(obj: Any, pl: Dict[str, Any]) -> bool:
+            if str(getattr(obj, "symbol", "")) != str(pl.get("symbol", "")):
+                return False
+            vol = getattr(obj, "volume_initial", None) or getattr(obj, "volume", None)
+            try:
+                if abs(float(vol) - float(pl.get("volume"))) > 1e-9:
+                    return False
+            except (TypeError, ValueError):
+                return False
+            if pl.get("magic") not in (None, "", 0) and int(getattr(obj, "magic", 0) or 0) != int(pl["magic"]):
+                return False
+            return True
+
+        try:
+            with get_mt5_lock():
+                live = list(client.orders_get() or []) + list(client.positions_get() or [])
+                since = min((c for _, c, _ in stale if c is not None), default=datetime.now(timezone.utc))
+                # MT5 history is in broker server time (often hours off UTC): pad by a day.
+                history = list(client.history_orders_get(since.replace(tzinfo=None) - timedelta(days=1),
+                                                         datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1)) or [])
+        except Exception as exc:
+            log.warning("stale-intent sweep could not read the broker; leaving intents CREATED: %s", exc)
+            return {}
+        for key, _, pl in stale:
+            found = [o for o in live if matches(o, pl) and getattr(o, "ticket", None) not in claimed]
+            if found:
+                ticket = int(getattr(found[0], "ticket", 0))
+                if self._resolve_intent(key, "PENDING", ticket=ticket):
+                    claimed.add(ticket)
+                    outcomes[key] = "PENDING"
+            elif any(matches(o, pl) for o in history):
+                if self._resolve_intent(key, "UNRESOLVED", error="stale reservation: a matching order reached the broker; outcome unknown"):
+                    outcomes[key] = "UNRESOLVED"
+            elif self._resolve_intent(key, "REJECTED", error="stale reservation: no matching broker order"):
+                outcomes[key] = "REJECTED"
+        return outcomes
 
     def abandon_entry(self, intent_key: str, error: str) -> bool:
         """Release a CREATED reservation the caller will not retry again.
