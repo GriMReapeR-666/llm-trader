@@ -62,8 +62,8 @@ def test_tool_execute_dynamic_metric_analysis():
         "code": "OUTPUT = {'rolling_omega_ratio': 1.84, 'max_consecutive_losses': 2}",
         "description": "Calculate Omega ratio and consecutive loss metric",
     })
-    assert tool_res["success"] is True
-    assert tool_res["result"]["rolling_omega_ratio"] == 1.84
+    assert tool_res["success"] is False
+    assert "disabled" in tool_res["error"].lower()
 
 
 def test_tool_invoke_agent_skill():

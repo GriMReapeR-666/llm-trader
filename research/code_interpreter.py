@@ -143,6 +143,13 @@ class DynamicMetricInterpreter:
             code_str: Python code defining logic or returning a metric dictionary.
             custom_context: Additional parameters or variables to inject.
         """
+        # Gate 0 Security: Arbitrary runtime code execution deactivated
+        return ExecutionResult(
+            success=False,
+            error="Arbitrary code execution via DynamicMetricInterpreter has been deactivated for security.",
+            execution_time_ms=0.0,
+        )
+
         start_time = datetime.now(timezone.utc)
         stdout_buf = io.StringIO()
         stderr_buf = io.StringIO()

@@ -649,17 +649,14 @@ class ListSkillsInput(BaseModel):
 
 @tool("execute_dynamic_metric_analysis", args_schema=DynamicMetricInput)
 def execute_dynamic_metric_analysis(code: str, description: str = "Custom metric analysis") -> Dict[str, Any]:
-    """Dynamically write, validate, and execute arbitrary Python functions to calculate custom metrics or inspect trading data."""
-    from research.code_interpreter import DynamicMetricInterpreter
-    interpreter = DynamicMetricInterpreter()
-    res = interpreter.execute_code(code)
+    """Dynamically write, validate, and execute arbitrary Python functions (DISABLED for security)."""
     return {
         "task_description": description,
-        "success": res.success,
-        "result": res.result,
-        "stdout": res.stdout,
-        "error": res.error,
-        "execution_time_ms": res.execution_time_ms,
+        "success": False,
+        "result": None,
+        "stdout": "",
+        "error": "Dynamic metric Python execution is disabled for safety.",
+        "execution_time_ms": 0.0,
     }
 
 
@@ -2663,7 +2660,6 @@ RESEARCH_TOOLS = [
     query_retrieval_audit_trail,
     sync_working_memory_state,
     # Dynamic & Skill Extensibility
-    execute_dynamic_metric_analysis,
     invoke_agent_skill,
     list_available_agent_skills,
 ]
@@ -2690,7 +2686,6 @@ def _build_tool_registry() -> Dict[str, Any]:
         query_fred_macro_series,
         query_cftc_cot_positions,
         fetch_live_news_sentiment,
-        execute_dynamic_metric_analysis,
         invoke_agent_skill,
         list_available_agent_skills,
         query_sec_edgar_filings,
