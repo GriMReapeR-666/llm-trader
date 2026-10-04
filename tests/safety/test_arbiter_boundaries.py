@@ -136,7 +136,6 @@ def test_invalid_inputs_fail_closed(arbiter, bad):
     assert arbiter.permit(EQUITY, bad)[0] is False
 
 
-@pytest.mark.xfail(strict=True, reason="CC-F1: pending order intents are invisible to the open-risk cap")
 def test_pending_order_intents_count_toward_open_risk(store, arbiter):
     from agent_operations import AgentOperations
     ops = AgentOperations(store.path)

@@ -8,8 +8,9 @@ import { SettingsView } from './components/SettingsView';
 import { HistoryView } from './components/HistoryView';
 import { ViewState, WorkflowState } from './types';
 import { Clock, Cpu } from 'lucide-react';
+import { apiFetch, UNAUTHORIZED_EVENT } from './api';
+import { LoginScreen } from './components/LoginScreen';
 
-const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : '/api';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>('SETTINGS'); // Default to SETTINGS
@@ -19,6 +20,15 @@ export default function App() {
   const [cycleCount, setCycleCount] = useState(0);
   const [uptime, setUptime] = useState<string>('00:00:00');
   const [account, setAccount] = useState({ balance: 0, equity: 0, pnl: 0 });
+  const [needsLogin, setNeedsLogin] = useState(false);
+  const [sessionKey, setSessionKey] = useState(0); // remounts views after sign-in
+
+  // Any 401 from gui_api (no or expired session cookie) shows the sign-in screen.
+  useEffect(() => {
+    const onUnauthorized = () => setNeedsLogin(true);
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+  }, []);
 
   // Efficient consolidated polling with graceful offline resilience
   useEffect(() => {
@@ -27,8 +37,8 @@ export default function App() {
     const fetchSystemData = async () => {
       try {
         const [statusRes, accountRes] = await Promise.allSettled([
-          fetch(`${API_BASE}/status`),
-          fetch(`${API_BASE}/account`)
+          apiFetch(`/status`),
+          apiFetch(`/account`)
         ]);
 
         if (!active) return;
@@ -53,6 +63,7 @@ export default function App() {
       }
     };
 
+    if (needsLogin) return () => { active = false; };
     fetchSystemData();
     const interval = setInterval(fetchSystemData, 1500);
 
@@ -60,7 +71,7 @@ export default function App() {
       active = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [needsLogin]);
 
   const getViewTitle = (view: ViewState) => {
     switch (view) {
@@ -85,6 +96,10 @@ export default function App() {
       default: return <Dashboard workflowState={workflowState} />;
     }
   };
+
+  if (needsLogin) {
+    return <LoginScreen onSuccess={() => { setNeedsLogin(false); setSessionKey((k) => k + 1); }} />;
+  }
 
   return (
     <div className="flex h-screen bg-terminal-black text-terminal-text overflow-hidden font-sans">
@@ -132,7 +147,7 @@ export default function App() {
         </header>
 
         {/* View Content Wrapper */}
-        <div className="flex-1 overflow-hidden relative">
+        <div key={sessionKey} className="flex-1 overflow-hidden relative">
           {renderView()}
         </div>
       </main>

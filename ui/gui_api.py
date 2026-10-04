@@ -1,6 +1,7 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, Request, Body as _Body
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
@@ -11,6 +12,9 @@ import math
 import asyncio
 import threading
 import warnings
+import hmac
+import secrets
+from pathlib import Path
 from itertools import zip_longest
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from typing import List, Dict, Any, Optional
@@ -80,66 +84,238 @@ logger = logging.getLogger(__name__)
 # Define paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 GUI_DIST_DIR = os.path.join(BASE_DIR, "gui", "dist")
+if not os.path.exists(GUI_DIST_DIR):
+    _alt_dist = os.path.join(os.path.dirname(BASE_DIR), "gui", "dist")
+    if os.path.exists(_alt_dist):
+        GUI_DIST_DIR = _alt_dist
 
 app = FastAPI()
 
-# Enable CORS for development
+
+def is_valid_host(host_header: Optional[str]) -> bool:
+    """Validate Host header against DNS rebinding.
+    Host must be 127.0.0.1:<port> or localhost:<port>."""
+    if not host_header:
+        return False
+    host = host_header.strip().lower()
+    if ":" in host:
+        hostname, port = host.split(":", 1)
+        if not port.isdigit():
+            return False
+    else:
+        hostname = host
+    return hostname in ("127.0.0.1", "localhost")
+
+
+def get_cors_allowed_origins() -> List[str]:
+    origins = [
+        "http://127.0.0.1",
+        "http://127.0.0.1:8000",
+        "http://localhost",
+        "http://localhost:8000",
+    ]
+    if os.environ.get("GUI_DEV", "0") in ("1", "true", "True"):
+        origins.extend([
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ])
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_cors_allowed_origins(),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+def get_token_file_path() -> Path:
+    env_path = os.environ.get("GUI_API_TOKEN_FILE")
+    if env_path:
+        return Path(env_path)
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        base = Path(appdata) if appdata else (Path.home() / "AppData" / "Roaming")
+        return base / "llm-trader" / "api.token"
+    else:
+        return Path.home() / ".config" / "llm-trader" / "api.token"
+
+
 def get_configured_api_token() -> Optional[str]:
-    """Return the configured API token/key from environment, if any."""
-    return os.environ.get("GUI_API_TOKEN") or os.environ.get("GUI_API_KEY") or None
+    """Return the configured API token/key from environment or token file.
+    If no token exists and no env var is set, generate a secure random 32-byte
+    hex token and write it to the token file with 0600 permissions."""
+    env_token = os.environ.get("GUI_API_TOKEN") or os.environ.get("GUI_API_KEY")
+    if env_token and env_token.strip():
+        return env_token.strip()
+
+    token_path = get_token_file_path()
+    try:
+        if token_path.is_file():
+            content = token_path.read_text(encoding="utf-8").strip()
+            if content:
+                return content
+    except Exception as exc:
+        logger.error("Failed reading token file %s: %s", token_path, exc)
+        return None
+
+    # Generate secure random 32-byte hex token and write with 0600 permissions
+    try:
+        new_token = secrets.token_hex(32)
+        token_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        fd = os.open(str(token_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with open(fd, "w", encoding="utf-8") as f:
+            f.write(new_token + "\n")
+        try:
+            os.chmod(str(token_path), 0o600)
+        except OSError:
+            pass
+        return new_token
+    except Exception as exc:
+        logger.error("Failed creating token file %s: %s", token_path, exc)
+        return None
 
 
-def is_request_authenticated(headers: Any, query_params: Any = None) -> bool:
-    """Validate incoming request headers or query params against the configured token."""
+_GENERATED_ENGINE_TOKEN: Optional[str] = None
+
+
+def get_engine_internal_token() -> Optional[str]:
+    """Return the separate engine token for /api/internal/update."""
+    global _GENERATED_ENGINE_TOKEN
+    env_token = os.environ.get("ENGINE_INTERNAL_TOKEN")
+    if env_token and env_token.strip():
+        return env_token.strip()
+    if _GENERATED_ENGINE_TOKEN is None:
+        _GENERATED_ENGINE_TOKEN = secrets.token_hex(32)
+    return _GENERATED_ENGINE_TOKEN
+
+
+SESSION_COOKIE_NAME = "gui_session"
+
+
+def set_gui_session_cookie(response: Response, token: str) -> None:
+    """Provide a SameSite=Strict; HttpOnly session cookie for seamless browser GUI access."""
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        samesite="strict",
+        path="/",
+    )
+
+
+def is_request_authenticated(headers: Any, cookies: Any = None) -> bool:
+    """Validate incoming request headers or cookie against the configured token.
+    Uses hmac.compare_digest and strictly rejects query parameter authentication."""
     token = get_configured_api_token()
     if not token:
-        return True
+        # Refuse to authenticate when no token is configured or token generation failed
+        return False
 
     # 1. Check Authorization: Bearer <token>
     auth_header = headers.get("authorization", "") if hasattr(headers, "get") else ""
     if auth_header.startswith("Bearer "):
         bearer = auth_header[7:].strip()
-        if bearer == token:
+        if hmac.compare_digest(bearer, token):
             return True
 
     # 2. Check X-API-Key header
     api_key_header = headers.get("x-api-key", "") if hasattr(headers, "get") else ""
-    if api_key_header == token:
+    if api_key_header and hmac.compare_digest(api_key_header, token):
         return True
 
-    # 3. Check query param (e.g. for WebSockets or simple query URLs)
-    if query_params and hasattr(query_params, "get"):
-        if query_params.get("token") == token:
+    # 3. Check session cookie
+    if cookies and hasattr(cookies, "get"):
+        session_cookie = cookies.get(SESSION_COOKIE_NAME) or cookies.get("token")
+        if session_cookie and hmac.compare_digest(session_cookie, token):
             return True
 
+    # Note: query parameters (?token=...) are deliberately NOT accepted
+    return False
+
+
+def is_engine_authenticated(headers: Any) -> bool:
+    """Validate incoming request for /api/internal/update against ENGINE_INTERNAL_TOKEN."""
+    expected_token = get_engine_internal_token()
+    if not expected_token:
+        return False
+    auth_header = headers.get("authorization", "") if hasattr(headers, "get") else ""
+    if auth_header.startswith("Bearer "):
+        bearer = auth_header[7:].strip()
+        if hmac.compare_digest(bearer, expected_token):
+            return True
+    engine_header = headers.get("x-engine-token", "") if hasattr(headers, "get") else ""
+    if engine_header and hmac.compare_digest(engine_header, expected_token):
+        return True
     return False
 
 
 @app.middleware("http")
 async def api_auth_middleware(request: Request, call_next):
-    token = get_configured_api_token()
-    if token:
-        path = request.url.path
-        if path not in ("/", "/api/health", "/docs", "/openapi.json"):
-            is_control_route = any(
-                path.startswith(p) for p in ("/api/control", "/api/config", "/api/internal")
+    # 1. Host header validation: Host must be 127.0.0.1:<port> or localhost:<port>
+    host = request.headers.get("host")
+    if not is_valid_host(host):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Bad Request: invalid Host header (must be 127.0.0.1:<port> or localhost:<port>)"},
+        )
+
+    path = request.url.path
+
+    # Public health check is always unauthenticated
+    if path == "/api/health":
+        return await call_next(request)
+
+    # 2. Engine internal update authentication
+    if path == "/api/internal/update":
+        if not is_engine_authenticated(request.headers):
+            return JSONResponse(
+                status_code=401,
+                content={"error": "Unauthorized: invalid or missing engine token"},
             )
-            strict_auth = os.environ.get("GUI_STRICT_AUTH", "0") == "1"
-            if is_control_route or strict_auth:
-                if not is_request_authenticated(request.headers, request.query_params):
-                    return JSONResponse(
-                        status_code=401,
-                        content={"error": "Unauthorized: invalid or missing API token"},
-                    )
-    return await call_next(request)
+        request.state.actor = "engine_internal"
+        return await call_next(request)
+
+    # 3. Sensitive / control / read routes
+    is_control_route = any(
+        path.startswith(p) for p in ("/api/control", "/api/config", "/api/internal")
+    )
+    strict_auth = os.environ.get("GUI_STRICT_AUTH", "1") in ("1", "true", "True")
+    # Public: the login/logout endpoints and everything outside /api (the
+    # static web GUI bundle, /docs). The GUI must load to show its sign-in
+    # screen; every data/control call it then makes is under /api and
+    # authenticated (review D6).
+    is_public_doc_or_root = path in ("/api/auth/login", "/api/auth/logout") or not path.startswith("/api")
+
+    needs_auth = is_control_route or (strict_auth and not is_public_doc_or_root)
+
+    token = get_configured_api_token()
+    if needs_auth:
+        if not token or not is_request_authenticated(request.headers, request.cookies):
+            return JSONResponse(
+                status_code=401,
+                content={"error": "Unauthorized: invalid or missing API token"},
+            )
+
+    # Track authenticated actor on request state
+    if is_request_authenticated(request.headers, request.cookies):
+        auth_header = request.headers.get("authorization", "") if hasattr(request.headers, "get") else ""
+        if auth_header.startswith("Bearer "):
+            request.state.actor = "authenticated_operator"
+        elif request.cookies.get(SESSION_COOKIE_NAME) or request.cookies.get("token"):
+            request.state.actor = "authenticated_session"
+        else:
+            request.state.actor = "authenticated_operator"
+    else:
+        request.state.actor = "unauthenticated"
+
+    response = await call_next(request)
+
+    return response
 
 
 # Active WebSocket Clients for Harness Live Event Streaming
@@ -147,11 +323,31 @@ active_ws_clients: List[WebSocket] = []
 
 @app.get("/")
 def _root():
+    # Public index never mints an auth cookie (single-door auth rule):
+    # obtain one via POST /api/auth/login with the install-time token.
+    # Serves the web GUI when it is built (its sign-in screen calls the login).
+    index = os.path.join(GUI_DIST_DIR, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
     return {
         "status": "ok",
         "service": "LLM Trader API",
         "endpoints": "/api/snapshot, /api/analytics, /api/skills, /docs",
     }
+
+@app.post("/api/auth/login")
+def auth_login(response: Response, credentials: dict = _Body(default={})):
+    token = get_configured_api_token()
+    provided = credentials.get("token") or credentials.get("password") or ""
+    if token and provided and hmac.compare_digest(provided, token):
+        set_gui_session_cookie(response, token)
+        return {"ok": True, "status": "authenticated"}
+    return JSONResponse(status_code=401, content={"error": "Invalid credentials"})
+
+@app.post("/api/auth/logout")
+def auth_logout(response: Response):
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    return {"ok": True}
 
 @app.get("/api/health")
 def _health():
@@ -159,10 +355,18 @@ def _health():
 
 @app.websocket("/ws/harness-events")
 async def websocket_harness_events(websocket: WebSocket):
+    # Host header check
+    host = websocket.headers.get("host")
+    if not is_valid_host(host):
+        await websocket.close(code=4000, reason="Bad Request: invalid Host header")
+        return
+
+    # Authentication check
     token = get_configured_api_token()
-    if token and not is_request_authenticated(websocket.headers, websocket.query_params):
+    if not token or not is_request_authenticated(websocket.headers, websocket.cookies):
         await websocket.close(code=4001, reason="Unauthorized: invalid or missing API token")
         return
+
     await websocket.accept()
     active_ws_clients.append(websocket)
     try:
@@ -596,6 +800,9 @@ def start_trading(config: dict):
 
     # Prepare Environment
     env = os.environ.copy()
+    engine_token = get_engine_internal_token()
+    if engine_token:
+        env["ENGINE_INTERNAL_TOKEN"] = engine_token
     if config.get("mt5_login"): env["MT5_LOGIN"] = str(config.get("mt5_login"))
     if config.get("mt5_password"): env["MT5_PASSWORD"] = str(config.get("mt5_password"))
     if config.get("mt5_server"): env["MT5_SERVER"] = str(config.get("mt5_server"))
@@ -1577,16 +1784,22 @@ def _apply_snapshot_extensions(snap: dict) -> None:
 
 
 @app.post("/api/control/{action}")
-def deck_control(action: str, payload: dict = _Body(default={})):
+def deck_control(action: str, request: Request, payload: dict = _Body(default={})):
     if action == "approve":
         try:
             from operations.strategy_factory import get_factory
+            # Derive actor from the authenticated session; ignore payload actor to prevent forgery
+            session_actor = getattr(request.state, "actor", "authenticated_operator")
+            if not session_actor or session_actor == "unauthenticated":
+                session_actor = "authenticated_operator"
             res = get_factory().write_decision(
                 str(payload.get("approval_id") or ""),
                 "APPROVED" if payload.get("decision", "APPROVED") != "REJECTED" else "REJECTED",
-                actor=str(payload.get("actor") or "operator"),
+                actor=session_actor,
             )
-            event_bridge_emit(payload)
+            emit_payload = dict(payload)
+            emit_payload["actor"] = session_actor
+            event_bridge_emit(emit_payload)
             return {"ok": True, "applied": res}
         except Exception as exc:
             return {"ok": False, "reason": str(exc)}

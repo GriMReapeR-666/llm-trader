@@ -453,9 +453,11 @@ class ExternalGuardian:
         self._page_human(reason, severity)
 
     def _execute_flatten(self, reason: str) -> None:
-        """Cancel all open orders and flatten all positions.
+        """Cancel all open orders and flatten all positions via OrderGateway.
 
-        This is the nuclear option. Cannot be countermanded.
+        Single-door rule: never calls mt5.order_send/order_cancel directly.
+        Sets the gateway flattening flag (CC-F10) so concurrent entries are
+        refused while the flatten runs. Cannot be countermanded.
         """
         mt5 = self._get_mt5()
         if mt5 is None:
@@ -463,49 +465,25 @@ class ExternalGuardian:
             return
 
         try:
-            # 1. Cancel all pending orders
-            orders = mt5.orders_get()
-            if orders:
-                for order in orders:
-                    ticket = getattr(order, "ticket", None)
-                    if ticket:
-                        result = mt5.order_cancel(ticket)
-                        if result and result.retcode != mt5.TRADE_RETCODE_DONE:
-                            logger.warning("Ψ Failed to cancel order %s: %s", ticket, result.comment)
-
-            # 2. Close all open positions
-            positions = mt5.positions_get()
-            if positions:
-                for pos in positions:
-                    ticket = getattr(pos, "ticket", None)
-                    symbol = getattr(pos, "symbol", "")
-                    vol = getattr(pos, "volume", 0)
-                    pos_type = getattr(pos, "type", 0)
-
-                    if ticket and vol > 0:
-                        # Close opposite to position type
-                        close_type = mt5.ORDER_TYPE_SELL if pos_type == 0 else mt5.ORDER_TYPE_BUY
-                        price = (mt5.symbol_info_tick(symbol).bid if pos_type == 0
-                                 else mt5.symbol_info_tick(symbol).ask)
-
-                        request = {
-                            "action": mt5.TRADE_ACTION_DEAL,
-                            "symbol": symbol,
-                            "volume": float(vol),
-                            "type": close_type,
-                            "position": ticket,
-                            "price": price,
-                            "deviation": 50,
-                            "magic": 234000,
-                            "comment": f"Ψ_GUARDIAN_FLATTEN:{reason[:50]}",
-                            "type_time": mt5.ORDER_TIME_GTC,
-                            "type_filling": mt5.ORDER_FILLING_IOC,
-                        }
-                        result = mt5.order_send(request)
-                        if result and result.retcode != mt5.TRADE_RETCODE_DONE:
-                            logger.warning("Ψ Failed to close position %s: %s", ticket, result.comment)
-
-            logger.critical("Ψ FLATTEN COMPLETE: All orders cancelled, all positions closed")
+            from core.order_gateway import OrderGateway, get_default_gateway
+            # Flatten the broker account through a private live gateway so the
+            # shared one is never switched to live (review D1), while holding
+            # the shared gateway's flattening flag so no entry slips in (CC-F10).
+            try:
+                _shared = get_default_gateway()
+            except RuntimeError:
+                _shared = None
+            _gw = OrderGateway(getattr(self, "store", None), mode="LIVE")
+            _gw.bind_live_client(mt5)
+            if _shared is not None:
+                _shared.flattening = True
+            try:
+                _results = _gw.execute_flatten(owned_magics=None, mt5_client=mt5)
+            finally:
+                if _shared is not None:
+                    _shared.flattening = False
+            _ok = sum(1 for r in _results if getattr(r, "success", False))
+            logger.critical("Ψ FLATTEN COMPLETE via gateway: %s/%s applied (%s)", _ok, len(_results), reason)
 
         except Exception as exc:
             logger.critical("Ψ FLATTEN EXCEPTION: %s — positions may remain open", exc)

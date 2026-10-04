@@ -213,11 +213,10 @@ def merge_bridge_into_decision(
     *,
     fill_missing_only: bool = True,
 ) -> Dict[str, Any]:
-    """Overlay bridged continuous params onto an LLM decision without granting authority.
+    """Overlay bridged continuous numeric params onto an LLM decision without granting authority.
 
-    When ``fill_missing_only`` is True, only empty/null numeric fields are filled
-    and action is only replaced when the decision action is missing/HOLD while
-    the bridge has BUY/SELL (caller must still validate).
+    The RL bridge may fill numeric fields only (entry, stop_loss, take_profit)
+    and NEVER mutates or overrides the decision 'action'. A HOLD/NONE stays HOLD/NONE.
     """
     out = dict(decision or {})
     out["rl_bridged_params"] = bridged.as_dict()
@@ -227,15 +226,13 @@ def merge_bridge_into_decision(
 
     overlay = bridged.to_decision_overlay()
     if fill_missing_only:
-        current_action = str(out.get("action") or "HOLD").upper()
-        if current_action in {"", "HOLD", "NONE", "NULL"}:
-            out["action"] = bridged.action
+        # Numeric continuous execution parameters only: action is NEVER changed
         for key in ("entry", "stop_loss", "take_profit"):
             if out.get(key) in (None, "", 0, 0.0) and overlay.get(key) is not None:
                 out[key] = overlay[key]
         if not out.get("strategy_hint"):
             out["strategy_hint"] = bridged.strategy
     else:
-        out.update({k: v for k, v in overlay.items() if k != "execution_authority"})
+        out.update({k: v for k, v in overlay.items() if k not in ("action", "execution_authority")})
         out["execution_authority"] = False
     return out

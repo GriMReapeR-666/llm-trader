@@ -647,9 +647,9 @@ class ListSkillsInput(BaseModel):
     category: str = Field(default="", description="Optional category filter ('RESEARCH', 'BACKTEST', 'AUDIT', 'ANALYTICS', 'DYNAMIC')")
 
 
-@tool("execute_dynamic_metric_analysis", args_schema=DynamicMetricInput)
+# execute_dynamic_metric_analysis removed from tool interface (PI-P1 / TL-S1 safety finding)
 def execute_dynamic_metric_analysis(code: str, description: str = "Custom metric analysis") -> Dict[str, Any]:
-    """Dynamically write, validate, and execute arbitrary Python functions to calculate custom metrics or inspect trading data."""
+    """Calculate custom metrics or inspect trading data via code interpreter (non-tool helper)."""
     from research.code_interpreter import DynamicMetricInterpreter
     interpreter = DynamicMetricInterpreter()
     res = interpreter.execute_code(code)
@@ -2662,8 +2662,9 @@ RESEARCH_TOOLS = [
     audit_journal_integrity,
     query_retrieval_audit_trail,
     sync_working_memory_state,
-    # Dynamic & Skill Extensibility
-    execute_dynamic_metric_analysis,
+    # Dynamic & Skill Extensibility (execute_dynamic_metric_analysis removed:
+    # PI-P1/TL-S1 unsandboxed exec must not be a tool; plain helper remains
+    # at module level for non-tool callers only)
     invoke_agent_skill,
     list_available_agent_skills,
 ]
@@ -2682,7 +2683,7 @@ def _build_tool_registry() -> Dict[str, Any]:
     global _TOOL_REGISTRY
     if _TOOL_REGISTRY:
         return _TOOL_REGISTRY
-    # All tool-decorated functions in this module
+    # All tool-decorated functions in this module (execute_dynamic_metric_analysis removed)
     _tool_funcs = [
         get_technical_indicators,
         query_macro_causal_dag,
@@ -2690,7 +2691,6 @@ def _build_tool_registry() -> Dict[str, Any]:
         query_fred_macro_series,
         query_cftc_cot_positions,
         fetch_live_news_sentiment,
-        execute_dynamic_metric_analysis,
         invoke_agent_skill,
         list_available_agent_skills,
         query_sec_edgar_filings,
@@ -2730,6 +2730,45 @@ def _build_tool_registry() -> Dict[str, Any]:
     return _TOOL_REGISTRY
 
 
+# Read-only decision toolkit (PI-P1 / TL-S1):
+# Excludes exec tools, memory writing tools, and agent skills.
+DECISION_READONLY_TOOLS = [
+    "get_technical_indicators",
+    "query_macro_causal_dag",
+    "search_historical_scenarios",
+    "query_fred_macro_series",
+    "query_cftc_cot_positions",
+    "fetch_live_news_sentiment",
+    "query_sec_edgar_filings",
+    "query_seeking_alpha_news",
+    "query_openbb_macro",
+    "query_zero_lag_macro",
+    "evaluate_expectancy_balsara_ruin_kelly",
+    "calculate_fractional_differentiation",
+    "detect_bayesian_changepoints",
+    "estimate_transaction_costs_and_impact",
+    "run_kalman_statarb_tracking",
+    "test_cointegration_and_robustness",
+    "run_regime_monte_carlo",
+    "run_vectorized_backtest",
+    "query_alternative_data_registry",
+    "evaluate_portfolio_risk_gate",
+    "audit_journal_integrity",
+    "query_kronos_foundation_signals",
+    "query_kronos_multi_dim_forecast",
+    "query_kronos_advanced_volatility",
+    "query_kronos_mt5_multi_dim",
+    "simulate_causal_shock_propagation",
+    "match_historical_case_study_analogs",
+    "audit_edge_lifecycle_governance",
+    "query_economic_calendar_events",
+    "query_eia_energy_inventory",
+    "run_system_health_diagnostics",
+    "recall_active_knowledge_context",
+    "query_retrieval_audit_trail",
+]
+
+
 def get_tool_schemas(toolkits: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     """Return OpenAI-format tool schemas for all registered tools.
 
@@ -2760,13 +2799,20 @@ def get_tool_schemas(toolkits: Optional[List[str]] = None) -> List[Dict[str, Any
     return schemas
 
 
-def execute_tool(name: str, args: Dict[str, Any]) -> str:
+def execute_tool(name: str, args: Dict[str, Any], allowed_tools: Optional[Set[str]] = None) -> str:
     """Execute a tool by name with the given arguments.
+
+    Args:
+        name: Name of tool to execute.
+        args: Dictionary of keyword arguments.
+        allowed_tools: Optional set of tool names allowed in this execution context.
 
     Returns:
         JSON string result.
     """
     import json as _json
+    if allowed_tools is not None and name not in allowed_tools:
+        return _json.dumps({"error": f"Tool '{name}' is not allowed in this execution context"})
     registry = _build_tool_registry()
     tool_obj = registry.get(name)
     if tool_obj is None:

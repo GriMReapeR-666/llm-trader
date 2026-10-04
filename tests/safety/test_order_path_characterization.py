@@ -63,7 +63,6 @@ def test_marketable_pending_geometry_is_refused_before_any_send(broker):
     assert broker.sent == []
 
 
-@pytest.mark.xfail(strict=True, reason="1a-F8: paper-mode pyramiding sends a real order_send")
 def test_paper_pyramid_never_reaches_the_broker(monkeypatch, tmp_path, broker):
     import trade_manager as tm_mod
     patch_everywhere(monkeypatch, "core/trade_manager.py", "mt5", broker)

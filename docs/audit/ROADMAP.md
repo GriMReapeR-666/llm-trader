@@ -55,7 +55,7 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [x] 🟠 `TS-6` Latch persistence tests (corrupt file → stays latched; write from copy A, read from copy B).
 - [x] 🟡 `TS-8` Mutation-score ratchet in CI on the six safety modules (weekly, `--min-score 50`). Measured at the end of Phase 1: **52.2 %**, short of the 75 % target. See `work/04_test_strength.md` § Phase 1 re-measure.
 - [ ] 🟡 `TS-9` Raise the safety mutation score to ≥ 75 %. Most of the remaining survivors are in `order_execution` (place_pending_order and emergency_market_exit, which Phase 2 rewrites) and `calc_position_size` (Phase 4). Re-measure after each of those phases and raise the ratchet.
-- [ ] 🟠 `P1-H6` Raise order-path coverage (`order_execution` 40 %): an end-to-end proposal → `order_send` test on the bridge's fake broker.
+- [x] 🟠 `P1-H6` Raise order-path coverage (`order_execution` 40 %): an end-to-end proposal → `order_send` test on the bridge's fake broker.
 - [x] 🟠 Part 2 §9b: tests overwrite committed `artifacts/` and `data/` evidence. Move evidence to a read-only location, and point every test store at `tmp_path`.
 - [x] 🟡 Part 2 §9b: parallel collection races the `trade_labels` migration (make `ACTIVE_KNOWLEDGE_AGENT` lazy; idempotent migration under `BEGIN IMMEDIATE`).
 - [x] 🟠 Part 2 §9b: tests must never reach an MT5 terminal without an explicit opt-in flag.
@@ -65,19 +65,26 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [x] 🟡 Part 1 §6: CI workflow (pytest, both `tsc` checks, the double-import guard, secret scan, graphify update).
 
 ## Phase 2: One door to the broker
-- [ ] 🔴 Build the **OrderGateway**: validate → atomic risk reservation (counting pending orders) → journal write-ahead → send → reconcile. One MT5 lock inside it. Fixes `CC-F1` (risk cap check-then-act), `CC-F2` (MT5 from 4 threads, no lock), `CC-F8` (trade lock never acquired).
-- [ ] 🔴 `P1-C3` Remove `mt5_order_send` from the deck palette (`mt5_order_check` only); manual orders go through the gateway with typed confirmation.
-- [ ] 🔴 `1a-F8` Pyramiding in paper mode sends a real order: add a paper branch, then route through the gateway. Also fix the stale-SL use.
-- [ ] 🟠 `1a-F4` = `1b-R1` The RL bridge must never change `action`; replace the dead "live" check with the real journal mode.
-- [ ] 🟠 `1a-F6` = `PI-P12` Remove the outage → institutional-workflow promotion at hard-coded confidence 0.85.
-- [ ] 🔴 `PI-P1` = `TL-S1` Remove `execute_dynamic_metric_analysis` (unsandboxed `exec`) from the decision LLM's tools.
-- [ ] 🟡 `PI-P10` `dynamic_code_runner`'s ζ review fails open; `PI-P6` the alpha-DSL AST check is escapable.
-- [ ] 🟠 `1b-R2` = `LA-B4` The backtest engine writes trades, memories, playbook rules and promotions into the production journal. Give it its own DB.
-- [ ] 🔴 `P1-C2` Finish API auth (started in `f218887`): token generated at install, sent by the deck and web GUI, mandatory, CORS allowlist, Host check, no `?token=` in URLs.
-- [ ] 🟡 `1a-F19` The send-time margin re-check has the wrong signature and never runs.
-- [ ] 🟠 `PH1-N3` (found by the Phase 1 pinning tests) `validate_order_params` skips **every** check for an order with no stop-loss (`sl=None` or `0`) or an unknown side (`"long"`). The gateway must require both. Pinned in `tests/safety/test_order_geometry.py`.
-- [ ] 🟠 `CC-F10` Guardian flatten vs concurrent entries (TOCTOU): block entries via the gateway while flattening.
-- [ ] 🟡 `TL-S2` The Prometheus exporter binds `0.0.0.0` by default.
+- [x] 🔴 Build the **OrderGateway**: validate → atomic risk reservation (counting pending orders) → journal write-ahead → send → reconcile. One MT5 lock inside it. Fixes `CC-F1` (risk cap check-then-act), `CC-F2` (MT5 from 4 threads, no lock), `CC-F8` (trade lock never acquired).
+- [x] 🔴 `P1-C3` Remove `mt5_order_send` from the deck palette (`mt5_order_check` only); manual orders go through the gateway with typed confirmation.
+- [x] 🔴 `1a-F8` Pyramiding in paper mode sends a real order: add a paper branch, then route through the gateway. Also fix the stale-SL use.
+- [x] 🟠 `1a-F4` = `1b-R1` The RL bridge must never change `action`; replace the dead "live" check with the real journal mode.
+- [x] 🟠 `1a-F6` = `PI-P12` Remove the outage → institutional-workflow promotion at hard-coded confidence 0.85.
+- [x] 🔴 `PI-P1` = `TL-S1` Remove `execute_dynamic_metric_analysis` (unsandboxed `exec`) from the decision LLM's tools.
+- [x] 🟡 `PI-P10` `dynamic_code_runner`'s ζ review fails open; `PI-P6` the alpha-DSL AST check is escapable.
+- [x] 🟠 `1b-R2` = `LA-B4` The backtest engine writes trades, memories, playbook rules and promotions into the production journal. Give it its own DB.
+- [x] 🔴 `P1-C2` Finish API auth (started in `f218887`): token generated at install, sent by the deck and web GUI, mandatory, CORS allowlist, Host check, no `?token=` in URLs.
+- [x] 🟡 `1a-F19` The send-time margin re-check has the wrong signature and never runs.
+- [x] 🟠 `PH1-N3` (found by the Phase 1 pinning tests) `validate_order_params` skips **every** check for an order with no stop-loss (`sl=None` or `0`) or an unknown side (`"long"`). The gateway must require both. Pinned in `tests/safety/test_order_geometry.py`.
+- [x] 🟠 `CC-F10` Guardian flatten vs concurrent entries (TOCTOU): block entries via the gateway while flattening.
+- [x] 🟡 `TL-S2` The Prometheus exporter binds `0.0.0.0` by default.
+- [x] 🔴 Phase 2 review `R1`-`R6`, `X1`-`X4`, `D1` (see `REVIEW_PHASE2_2026-10-04.md`): phantom reservations after broker-side closes, fake $10k equity, double-counted intents, failed-cancel release, state-machine bypass, unbound evidence, SL/TP cleared by modify, wrong-position close, exit requests missing broker fields, `place_market_order` TypeError, per-call paper/live switching. Pinned in `tests/safety/test_order_gateway_ledger.py`.
+- [x] 🟠 Review `D2`: paper entries with validation evidence now go through the gateway (reservation, intent lifecycle). The reconciler journals paper fills from the paper book; before, paper market entries stayed UNRESOLVED and reserved risk forever. Also fixed: every fill crashed the reconciler on `TradeProposal(**payload)` (extra `validation_trace` key, present since the first commit).
+- [x] 🟡 Review `D3` (analysed): daily/weekly loss and drawdown depend on realized P&L and equity, which entries don't change, so a stale read can't be raced past. The bucket cap uses the same fraction as the open-risk cap, so the atomic open-risk check already bounds it.
+- [ ] 🟡 `D3b` The 2 % rolling-correlation cap and the FX-netting limits read open trades only (pending intents are invisible to them) and are not atomic. Move them into the Phase 4 risk engine.
+- [x] 🟡 Review `D4`: `OrderGateway.sweep_stale_created` runs each reconcile. Paper → REJECTED. Live → matched against broker orders, positions and history (PENDING / UNRESOLVED + CRITICAL review / REJECTED). A send that raises is UNRESOLVED on live.
+- [x] 🟠 Review `D6`: the web GUI has a sign-in screen. `gui/api.ts` `apiFetch` sends the HttpOnly cookie, `/` serves the built GUI, the static bundle is public, every `/api` call is authenticated, and `/api/auth/logout` exists.
+- [x] 🟠 `PH2-N1` (found in review) Live planned entries never passed the harness ORDER_WRITE token, so every live pending entry raised `PermissionError`. Now `mt5_trader --live` hands its gated profile sandbox to the orchestrator, which mints a 2-minute broker-scoped token per entry (LIVE journal only). The live urgency path gets the same gate. `--demo` gets order authority only when the broker reports a demo account (`trade_mode == ACCOUNT_TRADE_MODE_DEMO`), re-checked on every order. Paper gets no token.
 
 ## Phase 3: Emergency stack that works
 - [ ] 🔴 `P1-C1` = `P1-M1` One import root: `pyproject.toml`, remove 88 `sys.path` inserts, add a double-import guard test. Also fixes `CC-F13` (lazy singletons without locks).

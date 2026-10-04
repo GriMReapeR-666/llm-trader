@@ -397,7 +397,7 @@ class ContinuousBacktestPipeline:
         try:
             from research.mt5_backtest_engine import MT5BrokerBacktestEngine, BacktestMetrics
             import pandas as pd
-            mt5_engine = MT5BrokerBacktestEngine(db_path=os.path.join(self.base_dir, "trading_state.db"))
+            mt5_engine = MT5BrokerBacktestEngine(journal_path=os.path.join(self.base_dir, "backtest_state.db"))
             bars_frame = pd.DataFrame(raw_bars) if raw_bars else pd.DataFrame()
             data_imp = mt5_engine.process_data_improvement(bars_frame, symbol=symbol, timeframe=timeframe)
             results["stages"]["data_improvement"] = data_imp

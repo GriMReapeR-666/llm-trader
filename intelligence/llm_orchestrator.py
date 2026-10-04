@@ -34,7 +34,8 @@ import logging
 import math
 import hashlib
 import json as _json
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, fields, replace
+from types import SimpleNamespace
 from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime, timedelta, timezone
 import numpy as np
@@ -817,6 +818,29 @@ class LLMOrchestrator:
                 self.risk.set_portfolio_heat_provider(self._calc_paper_portfolio_heat)
         except NameError:
              self.paper_broker = None
+
+        # Single-door OrderGateway: process-wide broker door (Phase 2).
+        # Configured once here so order_execution / trade_manager / guardian
+        # all share one reservation ledger, one MT5 lock, one journal mode.
+        try:
+            from core.order_gateway import configure_default_gateway
+            _gw_mode = "PAPER"
+            try:
+                if getattr(self, "store", None) is not None:
+                    _scope = getattr(self.store, "scope", None)
+                    if isinstance(_scope, dict) and _scope.get("mode"):
+                        _gw_mode = str(_scope["mode"])
+                    elif getattr(self.store, "mode", None):
+                        _gw_mode = str(self.store.mode)
+            except Exception:
+                pass
+            configure_default_gateway(
+                getattr(self, "store", None), mode=_gw_mode,
+                paper_broker=getattr(self, "paper_broker", None),
+                arbiter=getattr(self, "arbiter", None),
+            )
+        except Exception as _gw_exc:
+            logger.warning("OrderGateway default configuration failed (fail-closed on first order): %s", _gw_exc)
 
         # Bounded-Autonomy Pipeline (NZE, 2026: R ∘ V_LLM ∘ S)
         self.enable_bounded_autonomy = bounded_autonomy
@@ -1780,16 +1804,20 @@ class LLMOrchestrator:
             for attempt in range(max_retries):
                 try:
                     self._last_llm_trace["attempts"] = attempt + 1
-                    # Use tool-calling loop when tools are available
+                    # Use tool-calling loop when tools are available (read-only decision toolkit, PI-P1 / TL-S1)
                     try:
-                        from core.trading_tools import get_tool_schemas, execute_tool
-                        _tool_schemas = get_tool_schemas()
+                        from core.trading_tools import get_tool_schemas, execute_tool, DECISION_READONLY_TOOLS
+                        _tool_schemas = get_tool_schemas(toolkits=DECISION_READONLY_TOOLS)
+                        _allowed_decision_tools = set(DECISION_READONLY_TOOLS)
+                        def _decision_executor(name, args):
+                            return execute_tool(name, args, allowed_tools=_allowed_decision_tools)
                     except Exception:
                         _tool_schemas = []
+                        _decision_executor = None
 
-                    if _tool_schemas and hasattr(self.llm, 'generate_with_tools'):
+                    if _tool_schemas and hasattr(self.llm, 'generate_with_tools') and _decision_executor is not None:
                         response_content = self.llm.generate_with_tools(
-                            messages, tools=_tool_schemas, tool_executor=execute_tool,
+                            messages, tools=_tool_schemas, tool_executor=_decision_executor,
                             model=self.model_name, temperature=0, seed=42, max_tokens=4096,
                         )
                     else:
@@ -2344,6 +2372,39 @@ class LLMOrchestrator:
         except Exception as e:
             logging.getLogger("LLMOrchestrator").warning(f"Failed to build RL state: {e}")
             return {}
+
+    def _live_order_token(self):
+        """Short-lived ORDER_WRITE token for one broker entry (PH2-N1).
+
+        The authority is the sandbox mt5_trader grants (``order_write_sandbox``):
+        for --live after its fail-closed capability gate, for --demo only when
+        the broker reports a demo account. ``order_write_mode`` names the
+        journal it was granted for, and the journal must match. A DEMO grant
+        re-checks the broker account on every order, so a terminal switched to
+        a real account gets nothing. The orchestrator's own fallback harness
+        context never grants authority. None -> order_execution refuses.
+        """
+        sandbox = getattr(self, "order_write_sandbox", None)
+        if sandbox is None:
+            return None
+        from core.harness.sandbox import PermissionLevel
+        if getattr(sandbox, "default_level", 0) < PermissionLevel.ORDER_WRITE:
+            return None
+        granted = str(getattr(self, "order_write_mode", "LIVE") or "").upper()
+        scope = getattr(self.store, "scope", None)
+        mode = (scope.get("mode") if isinstance(scope, dict) else None) or getattr(self.store, "mode", None)
+        if granted not in ("LIVE", "DEMO") or str(mode or "").upper() != granted:
+            return None
+        if granted == "DEMO":
+            try:
+                broker = _get_mt5()
+                trade_mode = getattr(broker.account_info(), "trade_mode", None)
+                if trade_mode is None or int(trade_mode) != int(getattr(broker, "ACCOUNT_TRADE_MODE_DEMO", 0)):
+                    return None
+            except Exception:
+                return None
+        return sandbox.issue_token(PermissionLevel.ORDER_WRITE, scopes=["broker"], duration_minutes=2,
+                                   issuer="LLMOrchestrator.live_entry")
 
     def _validate_proposal(self, decision: Dict[str, Any], toon: Dict[str, Any], symbol: str, strategy: str, paper_mode: bool = False) -> Tuple[Optional[TradeProposal], ValidationResult]:
         """Translate an LLM hypothesis into a deterministic, auditable gate."""
@@ -5341,6 +5402,16 @@ class LLMOrchestrator:
         # Unresolved broker outcomes are retried as bounded, read-only history
         # lookups.  The retry claim never resubmits an order; operator review
         # remains mandatory after the retry budget is exhausted.
+        # Reservations orphaned between reserve and send (crash/exception) are
+        # resolved against the broker before the regular pass (review D4).
+        try:
+            from core.order_gateway import get_default_gateway
+            for _key, _status in get_default_gateway().sweep_stale_created(mt5_client=None if paper_mode else mt5).items():
+                if _status == "UNRESOLVED":
+                    self.operations.flag_execution_review(
+                        _key, "stale reservation: order reached the broker, outcome unknown", severity="CRITICAL")
+        except Exception as _sweep_exc:
+            logging.getLogger("LLMOrchestrator").warning("Stale order-intent sweep skipped: %s", _sweep_exc)
         due_retries = {item["intent_key"] for item in self.operations.claim_due_execution_review_retries()}
         for intent in self.operations.order_intents(("PENDING", "UNRESOLVED")):
             intent_key = str(intent.get("intent_key", ""))
@@ -5387,14 +5458,28 @@ class LLMOrchestrator:
                     self.store.log_lifecycle_event(int(ticket), "", "UNRESOLVED", "reconciler", {"intent_key": intent["intent_key"], "reason": "expiry cancellation not confirmed"})
                 continue
             if not exists:
-                if not paper_mode and ticket:
-                    try:
-                        now = datetime.now()
-                        recent = mt5.history_deals_get(now - timedelta(days=7), now) or []
-                        matching = [deal for deal in recent if int(getattr(deal, "order", 0) or 0) == int(ticket)]
-                    except Exception as exc:
-                        matching = []
-                        logging.getLogger("LLMOrchestrator").warning("Cannot inspect pending-order deal history for %s: %s", ticket, exc)
+                if ticket and (not paper_mode or self.paper_broker):
+                    if paper_mode:
+                        # Paper fills have no MT5 history: the paper book's open
+                        # (or already closed) position for this ticket is the fill
+                        # proof. Without it a paper market entry stayed PENDING ->
+                        # UNRESOLVED and reserved risk forever (Phase 2 review D2).
+                        _pos = (self.paper_broker.positions.get(int(ticket))
+                                or next((h for h in reversed(getattr(self.paper_broker, "history", []))
+                                         if int(h.get("ticket", 0) or 0) == int(ticket)), None))
+                        matching = [SimpleNamespace(
+                            order=int(ticket), position_id=int(ticket), ticket=int(ticket), entry=0,
+                            volume=float(_pos.get("volume", 0) or 0), price=float(_pos.get("price_open", 0) or 0),
+                            commission=0.0, swap=0.0,
+                        )] if _pos else []
+                    else:
+                        try:
+                            now = datetime.now()
+                            recent = mt5.history_deals_get(now - timedelta(days=7), now) or []
+                            matching = [deal for deal in recent if int(getattr(deal, "order", 0) or 0) == int(ticket)]
+                        except Exception as exc:
+                            matching = []
+                            logging.getLogger("LLMOrchestrator").warning("Cannot inspect pending-order deal history for %s: %s", ticket, exc)
                     if matching:
                         entry_deals = [deal for deal in matching if getattr(deal, "entry", None) != getattr(mt5, "DEAL_ENTRY_OUT", 1)]
                         if not entry_deals:
@@ -5417,7 +5502,10 @@ class LLMOrchestrator:
                         latency_ms = max(0.0, time.time() * 1000 - float(submitted_msc)) if submitted_msc else None
                         proposal_payload = self.store.latest_proposal(str(payload.get("setup_key", "")))
                         if proposal_payload:
-                            original = TradeProposal(**proposal_payload)
+                            # log_proposal stores extra keys (validation_trace) next to
+                            # the dataclass fields; passing them crashed every fill.
+                            _proposal_fields = {f.name for f in fields(TradeProposal)}
+                            original = TradeProposal(**{k: v for k, v in proposal_payload.items() if k in _proposal_fields})
                             filled = replace(original, entry=fill_price)
                             self.store.record_open_trade(
                                 position_id, filled, fill_volume,
@@ -8384,11 +8472,16 @@ class LLMOrchestrator:
         # A live broker run must remain deterministic and model-independent.
         # RL state is captured for PAPER and DEMO modes (non-LIVE) to enable
         # the online learning loop. Action influence requires explicit opt-in.
-        # Live mode is detected by checking if execution authority is enabled
-        # on the data provider (paper brokers don't have execution authority).
-        has_paper_broker = getattr(self.data_provider, "paper", None) is not None
-        has_execution_authority = getattr(self.data_provider, "execution_authority", False)
-        non_live = has_paper_broker or not has_execution_authority
+        # Live mode is detected by checking the authoritative journal scope/mode
+        journal_mode = "PAPER"
+        if hasattr(self, "store") and self.store:
+            if getattr(self.store, "scope", None) and isinstance(self.store.scope, dict):
+                journal_mode = str(self.store.scope.get("mode") or "PAPER").upper()
+            elif getattr(self.store, "mode", None):
+                journal_mode = str(self.store.mode).upper()
+        else:
+            journal_mode = str(os.getenv("TRADING_JOURNAL_MODE", "PAPER")).upper()
+        non_live = journal_mode != "LIVE"
         rl_learning_allowed = non_live and (
             paper_mode
             or self.rl_offline_updates_enabled
@@ -8545,23 +8638,6 @@ class LLMOrchestrator:
             # the loop, which is exactly what deterministic_hold_fallback forbids.
             # The safety HOLD must stay absolute.
             provider_outage = bool(decision.get("deterministic_fallback"))
-            # If LLM is down but an institutional quant workflow passed all mathematical/deterministic
-            # safety stages with an EXECUTE decision, promote it so trading doesn't stall on LLM API outage.
-            inst_wf = toon.get("institutional_workflow")
-            if provider_outage and isinstance(inst_wf, dict) and inst_wf.get("decision") == "EXECUTE" and inst_wf.get("proposal"):
-                prop = inst_wf["proposal"]
-                decision = {
-                    "action": prop.get("side", "HOLD"),
-                    "decision": prop.get("side", "HOLD"),
-                    "entry": prop.get("entry_price", point_values.get("close")),
-                    "stop_loss": prop.get("stop_loss"),
-                    "take_profit": prop.get("take_profit"),
-                    "confidence": 0.85,
-                    "reasoning": f"[AutonomousWorkflow] {inst_wf.get('workflow_name')} generated deterministic signal during LLM outage.",
-                    "workflow_directed": True,
-                }
-                logger.info("⚡ Autonomous institutional workflow proposal promoted during LLM outage: %s %s (%s)", decision["action"], symbol, inst_wf.get("workflow_name"))
-                provider_outage = False
 
             if provider_outage:
                 logger.warning(
@@ -8863,6 +8939,9 @@ Total Trades: {len(closed_trades)}"""
         
         if action in ["BUY", "SELL"]:
             proposal, validation = self._validate_proposal(decision, toon, symbol, strategy, paper_mode=paper_mode)
+            if proposal is not None and getattr(validation, "approved", False):
+                # Bind the evidence to this setup for the OrderGateway (review R6).
+                validation.setup_key = proposal.setup_key()
             try:
                 from operations.event_bridge import emit as _emit
                 from operations.supervisor import get_supervisor as _get_sup
@@ -9188,7 +9267,9 @@ Total Trades: {len(closed_trades)}"""
                         except Exception as _urg_exc:
                             log.debug("UrgencySOR pre-route skipped: %s", _urg_exc)
 
-                        # Route via UrgencySOR if available and order is market-like
+                        # Route via UrgencySOR if available and order is market-like.
+                        # Single-door rule: validated evidence travels with the
+                        # order into OrderGateway (reservation + margin + send).
                         if _use_urgency and execution_plan.order_type.upper() in ("MARKET", "BUY", "SELL"):
                             res = place_urgency_routed_order(
                                 symbol=symbol, side=action, volume=safe_vol,
@@ -9196,6 +9277,10 @@ Total Trades: {len(closed_trades)}"""
                                 comment="llm_auto",
                                 paper=self.paper_broker if paper_mode else None,
                                 atr=atr_val, magic=proposal.magic,
+                                validation_result=validation, setup_key=proposal.setup_key(),
+                                risk_amount=proposed_risk, intent_key=intent_key,
+                                account_equity=equity,
+                                token=None if paper_mode else self._live_order_token(),
                             )
                         else:
                             expires_at = datetime.fromisoformat(execution_plan.expires_at)
@@ -9211,6 +9296,10 @@ Total Trades: {len(closed_trades)}"""
                                 paper=self.paper_broker if paper_mode else None,
                                 magic=proposal.magic,
                                 expires_at=expires_at,
+                                validation_result=validation, setup_key=proposal.setup_key(),
+                                risk_amount=proposed_risk, intent_key=intent_key,
+                                account_equity=equity,
+                                token=None if paper_mode else self._live_order_token(),
                             )
                         self.operations.record_raw_trace(
                             "mt5_order_response", {"intent_key": intent_key, "result": res or {}},

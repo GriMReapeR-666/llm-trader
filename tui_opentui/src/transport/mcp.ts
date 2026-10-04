@@ -91,8 +91,24 @@ function pushMcpCall(tool: MT5McpTool, argsSummary: string, resultSummary: strin
   })
 }
 
+// Read-only allowlist for deck tools: order placement is forbidden from the deck
+export const ALLOWED_MCP_TOOLS = new Set<string>([
+  "mt5_version", "mt5_terminal_info", "mt5_last_error", "mt5_account_info",
+  "mt5_health_check", "mt5_server_info", "mt5_connection_status",
+  "mt5_symbols_total", "mt5_symbols_get", "mt5_symbol_info", "mt5_symbol_info_tick", "mt5_symbol_select",
+  "mt5_copy_rates_from", "mt5_copy_rates_range", "mt5_copy_rates_from_pos", "mt5_copy_ticks_from", "mt5_copy_ticks_range",
+  "mt5_positions_total", "mt5_positions_get", "mt5_orders_total", "mt5_orders_get",
+  "mt5_history_orders_total", "mt5_history_orders_get", "mt5_history_deals_total", "mt5_history_deals_get",
+  "mt5_order_check", "mt5_order_calc_margin", "mt5_order_calc_profit",
+])
+
 async function callTool<T = any>(name: string, args: Record<string, any> | undefined, summaryForLog: string): Promise<{ ok: boolean; data: T | null; latencyMs: number; error?: string }> {
   if (!client) return { ok: false, data: null, latencyMs: 0, error: "no client" }
+  if (!ALLOWED_MCP_TOOLS.has(name)) {
+    const errorMsg = `Tool '${name}' is blocked: deck transport operates in strict read-only mode`
+    pushMcpCall(name as MT5McpTool, summaryForLog, errorMsg, 0, false)
+    return { ok: false, data: null, latencyMs: 0, error: errorMsg }
+  }
   const t0 = Date.now()
   try {
     const res: any = await client.callTool({ name, arguments: args as any })

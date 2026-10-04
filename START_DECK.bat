@@ -93,6 +93,12 @@ REM -- Kill stale processes on port 8000 -----------------
 
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr :8000 ^| findstr LISTENING') do taskkill /PID %%a /F >nul 2>&1
 
+REM -- Ensure API token exists (%APPDATA%\llm-trader\api.token) ----------
+if not exist "%APPDATA%\llm-trader" mkdir "%APPDATA%\llm-trader"
+if not exist "%APPDATA%\llm-trader\api.token" (
+  python -c "import secrets, os; open(os.path.expandvars(r'%%APPDATA%%\llm-trader\api.token'), 'w').write(secrets.token_hex(32) + '\n')"
+)
+
 REM -- Start API Server in background --------------------
 
 echo  Starting API Server on :8000...

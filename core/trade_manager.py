@@ -119,6 +119,33 @@ class TradeManager(StoreBackedState):
         """Bind a paper broker instance for paper trading position management."""
         self.paper_broker = paper_broker
 
+    def _gateway(self):
+        """The OrderGateway whose transport matches this manager (review D1).
+
+        Uses the process-wide gateway when its store and transport (paper book
+        vs live terminal) match this manager; otherwise a private gateway bound
+        to this manager's branch. The shared gateway is never reconfigured or
+        switched between paper and live per call.
+        """
+        from core.order_gateway import OrderGateway, get_default_gateway
+        want_paper = self.paper_broker is not None
+        try:
+            gw = get_default_gateway()
+            if (getattr(gw.store, "path", None) == getattr(self.store, "path", None)
+                    and gw.is_paper == want_paper
+                    and (not want_paper or gw.adapter.paper is self.paper_broker)):
+                return gw
+        except RuntimeError:
+            pass
+        private = getattr(self, "_private_gateway", None)
+        if (private is None or private.is_paper != want_paper
+                or (want_paper and private.adapter.paper is not self.paper_broker)):
+            private = OrderGateway(self.store, mode="PAPER" if want_paper else "LIVE", arbiter=self.arbiter)
+            if want_paper:
+                private.bind_paper_broker(self.paper_broker)
+            self._private_gateway = private
+        return private
+
     def _get_positions(self, symbol: Optional[str] = None, ticket: Optional[int] = None) -> List[Any]:
         """Fetch open positions from either paper broker or live MT5 terminal."""
         if self.paper_broker is not None:
@@ -274,7 +301,7 @@ class TradeManager(StoreBackedState):
         volume: float,
         extra: Optional[Dict[str, Any]] = None,
     ) -> Tuple[bool, str]:
-        """Safety gate for management orders before mt5.order_send.
+        """Safety gate for management orders before gateway dispatch.
 
         Scale-in (PYRAMID) must pass portfolio open-risk limits. Risk-reducing
         closes still require ownership + kill-switch-aware authorization logging.
@@ -557,9 +584,14 @@ class TradeManager(StoreBackedState):
             self._record_management(pos.ticket, "PARTIAL_CLOSE_REQUESTED", {
                 "ticket": pos.ticket, "original_volume": pos.volume, "close_volume": vol_to_close, "remaining_volume": round(pos.volume - vol_to_close, 2)
             })
-            
-            res = mt5.order_send(request)
-            if res and res.retcode == mt5.TRADE_RETCODE_DONE:
+
+            # Single-door dispatch: risk-reducing partial exit via OrderGateway.
+            _gw_res = self._gateway().submit_exit(
+                int(pos.ticket), str(pos.symbol), volume=vol_to_close,
+                comment="partial_tp", mt5_client=mt5, owned_magics=self.managed_magics,
+            )
+            res = _gw_res.details.get("result")
+            if _gw_res.success and (res is None or getattr(res, "retcode", 10009) == mt5.TRADE_RETCODE_DONE):
                 self.log.info(f"✅ Partial Close Success: {vol_to_close} lots closed for #{pos.ticket}")
                 self._record_management(pos.ticket, "PARTIAL_CLOSE_FILLED", {
                     "ticket": pos.ticket, "closed_volume": vol_to_close
@@ -570,9 +602,9 @@ class TradeManager(StoreBackedState):
                     self.partial_exits.add(pos.ticket)
                 self.save_state()
             else:
-                self.log.warning(f"Partial Close Failed: {res.comment if res else 'Unknown'}")
+                self.log.warning(f"Partial Close Failed: {getattr(res, 'comment', None) if res else _gw_res.error}")
                 self._record_management(pos.ticket, "PARTIAL_CLOSE_REJECTED", {
-                    "ticket": pos.ticket, "error": res.comment if res else "Unknown"
+                    "ticket": pos.ticket, "error": getattr(res, "comment", None) if res else (_gw_res.error or "Unknown")
                 })
                 
         except Exception as e:
@@ -763,10 +795,26 @@ class TradeManager(StoreBackedState):
     def _execute_pyramid_order(self, pos):
         """Open new position (0.5x volume) only after portfolio risk authorization."""
         try:
+            if os.getenv("PYRAMIDING_ENABLED", "0") != "1":
+                self.log.info("Pyramiding disabled by default (PYRAMIDING_ENABLED=0) for #%s", getattr(pos, "ticket", None))
+                if self.store is not None:
+                    self.store.record_manual_activity("REFUSED_PYRAMID", ticket=int(pos.ticket), symbol=str(pos.symbol),
+                                                      magic=getattr(pos, "magic", None), payload={"reason": "pyramiding_disabled_by_default"})
+                return
+
             if not self._owns(pos):
                 if self.store is not None:
                     self.store.record_manual_activity("REFUSED_PYRAMID", ticket=int(pos.ticket), symbol=str(pos.symbol),
                                                       magic=getattr(pos, "magic", None), payload={"reason": "unowned"})
+                return
+            # 1a-F8 fix: paper-mode pyramiding must never reach the real broker.
+            # Paper books simulate locally; live/DEMO requires gateway evidence
+            # (absent here, so the gateway fails closed until Phase 4).
+            if self.paper_broker is not None:
+                self.log.info("Pyramid in paper mode stays in the paper book for #%s", getattr(pos, "ticket", None))
+                if self.store is not None:
+                    self.store.record_manual_activity("REFUSED_PYRAMID", ticket=int(pos.ticket), symbol=str(pos.symbol),
+                                                      magic=getattr(pos, "magic", None), payload={"reason": "paper_pyramid_no_live_send"})
                 return
             vol = self._normalize_volume(pos.symbol, float(pos.volume) * 0.5, max_volume=float(pos.volume))
             if vol <= 0:
@@ -819,8 +867,22 @@ class TradeManager(StoreBackedState):
                 "type_filling": filling_mode,
             }
             
-            res = mt5.order_send(request)
-            if res and res.retcode == mt5.TRADE_RETCODE_DONE:
+            # Open Market Order via the single-door gateway. Pyramiding has no
+            # DeterministicValidator evidence, so the gateway fails closed
+            # until Phase 4 gives it a validated proposal (1a-F8/1a-F9).
+            from core.order_gateway import OrderIntent
+            _pyr_intent = OrderIntent(
+                intent_key=f"pyramid:{getattr(pos, 'ticket', 0)}:{getattr(pos, 'symbol', '')}",
+                symbol=str(pos.symbol), side="BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL",
+                volume=float(vol), price=float(tick.ask if pos.type == mt5.ORDER_TYPE_BUY else tick.bid),
+                sl=float(sl) if sl else 0.0, tp=float(getattr(pos, "tp", 0.0) or 0.0),
+                risk_amount=0.0, setup_key="", order_type="MARKET",
+                magic=int(getattr(pos, "magic", 0) or 0), comment="pyramid_entry",
+                validation_result=None,
+            )
+            _gw_res = self._gateway().submit_entry(_pyr_intent, mt5_request=dict(request), mt5_client=mt5)
+            res = _gw_res.details.get("result")
+            if _gw_res.success and res and res.retcode == mt5.TRADE_RETCODE_DONE:
                 self.log.info(f"✅ Pyramid Success: {vol} lots added for #{pos.ticket}")
                 self.pyramid_entries.add(pos.ticket)
                 self._record_management(pos.ticket, "PYRAMID_FILLED", {
@@ -834,10 +896,11 @@ class TradeManager(StoreBackedState):
                         log.warning("Failed to register closed trade for %s: %s", pos.symbol, exc)
                 self.save_state()
             else:
-                self.log.warning(f"Pyramid Failed: {res.comment if res else 'Unknown'}")
+                _pyr_err = getattr(res, "comment", None) if res else (_gw_res.error or "Unknown")
+                self.log.warning(f"Pyramid Failed: {_pyr_err}")
                 self._record_management(pos.ticket, "PYRAMID_REJECTED", {
                     "parent_ticket": pos.ticket, "volume": vol,
-                    "error": res.comment if res else "Unknown",
+                    "error": _pyr_err,
                 }, retcode=getattr(res, "retcode", None), requested_volume=vol)
                 
         except Exception as e:
@@ -955,19 +1018,25 @@ class TradeManager(StoreBackedState):
                 "comment": f"AI: {reason}"[:31] # Max comment length
             }
             
-            res = mt5.order_send(request)
-            if res and res.retcode == mt5.TRADE_RETCODE_DONE:
+            # Single-door dispatch: AI partial close via OrderGateway.
+            _gw_res = self._gateway().submit_exit(
+                int(ticket), str(getattr(pos, "symbol", "")), volume=float(vol_to_close),
+                comment=f"AI: {reason}"[:31], mt5_client=mt5, owned_magics=self.managed_magics,
+            )
+            res = _gw_res.details.get("result")
+            if _gw_res.success:
                 self.log.info(f"✅ AI Partial Close ({percentage*100}%): {vol_to_close} lots on #{ticket}. Reason: {reason}")
                 self.partial_exits.add(ticket)
                 self.save_state()
                 self._record_management(ticket, "PARTIAL_CLOSE", {
                     "symbol": pos.symbol, "reason": reason, "percentage": percentage,
                     "requested_volume": vol_to_close, "filled_volume": vol_to_close,
-                }, retcode=getattr(res, "retcode", None), requested_volume=vol_to_close,
+                }, retcode=getattr(res, "retcode", None) if res else 10009, requested_volume=vol_to_close,
                    filled_volume=vol_to_close)
                 return True
             else:
-                self.log.warning(f"AI Partial Close Failed: {res.comment if res else 'Unknown'}")
+                _pc_err = getattr(res, "comment", None) if res else (_gw_res.error or "Unknown")
+                self.log.warning(f"AI Partial Close Failed: {_pc_err}")
                 self._record_management(ticket, "PARTIAL_CLOSE_ERROR", {
                     "symbol": pos.symbol, "reason": reason, "percentage": percentage,
                     "requested_volume": vol_to_close,
@@ -1077,8 +1146,16 @@ class TradeManager(StoreBackedState):
                 "stop_level": stops, "freeze_level": freeze
             })
             
-            res = mt5.order_send(request)
-            if res and res.retcode == mt5.TRADE_RETCODE_DONE:
+            # Single-door dispatch: protective SL update via OrderGateway
+            # (gateway re-enforces only-tighten + broker distance held above).
+            _side = "BUY" if is_buy else "SELL"
+            _gw_res = self._gateway().modify_protection(
+                int(ticket), str(pos.symbol), new_sl=float(requested_sl),
+                new_tp=float(getattr(pos, "tp", 0.0) or 0.0),
+                current_sl=float(current_sl), side=_side, mt5_client=mt5,
+            )
+            res = _gw_res.details.get("result")
+            if _gw_res.success:
                 self.log.info(f"Updated {reason} SL for Ticket {ticket} to {requested_sl:.5f}")
                 self._record_management(ticket, "SL_MODIFY_ACCEPTED", {
                     "ticket": ticket, "old_sl": current_sl, "new_sl": requested_sl, "reason": reason
@@ -1096,9 +1173,10 @@ class TradeManager(StoreBackedState):
                         })
                 return True
             else:
-                self.log.warning(f"Failed to update {reason} SL for {ticket}: {res.comment if res else 'Unknown'}")
+                _sl_err = getattr(res, "comment", None) if res else (_gw_res.error or "Unknown")
+                self.log.warning(f"Failed to update {reason} SL for {ticket}: {_sl_err}")
                 self._record_management(ticket, "SL_MODIFY_REJECTED", {
-                    "ticket": ticket, "old_sl": current_sl, "new_sl": requested_sl, "reason": reason, "error": res.comment if res else "Unknown"
+                    "ticket": ticket, "old_sl": current_sl, "new_sl": requested_sl, "reason": reason, "error": _sl_err
                 }, retcode=getattr(res, "retcode", None) if res else None)
                 if self.store is not None:
                     self.store.log_lifecycle_event(int(ticket), "", "MANAGED_ERROR", "position_manager", {
@@ -1265,8 +1343,13 @@ class TradeManager(StoreBackedState):
         if filling_mode is not None:
             request["type_filling"] = filling_mode
 
-        res = mt5.order_send(request)
-        if res and res.retcode == mt5.TRADE_RETCODE_DONE:
+        # Single-door dispatch: full close via OrderGateway (risk-reducing).
+        _gw_res = self._gateway().submit_exit(
+            int(ticket), str(symbol), volume=float(getattr(pos, "volume", 0) or 0),
+            comment=str(comment)[:31], mt5_client=mt5, owned_magics=self.managed_magics,
+        )
+        res = _gw_res.details.get("result")
+        if _gw_res.success:
             self.log.info(f"Closed {ticket}: {comment}")
             # Add to history
             self.history.append({
@@ -1285,11 +1368,12 @@ class TradeManager(StoreBackedState):
             }, retcode=getattr(res, "retcode", None), requested_volume=pos.volume,
                filled_volume=pos.volume)
         else:
-            self.log.warning(f"Failed to close {ticket}: {res.comment if res else 'Unknown'}")
+            _close_err = getattr(res, "comment", None) if res else (_gw_res.error or "Unknown")
+            self.log.warning(f"Failed to close {ticket}: {_close_err}")
             self._record_management(ticket, "FULL_CLOSE_ERROR", {
                 "symbol": symbol, "comment": comment, "price": price,
                 "requested_volume": pos.volume,
-                "broker_comment": getattr(res, "comment", "") if res else "no response",
+                "broker_comment": getattr(res, "comment", "") if res else (_gw_res.error or "no response"),
             }, retcode=getattr(res, "retcode", None) if res else None,
                requested_volume=pos.volume)
 

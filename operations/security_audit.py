@@ -398,12 +398,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     """CLI for the pre-commit hook and CI.
 
     --paths F...         scan only these files (pre-commit: the staged files)
+    --tracked            scan git-tracked files (default repo scan; kept as an
+                         explicit alias because PLAN_PHASE_1_2.md documents
+                         `python -m operations.security_audit --tracked`)
     --fail-on-findings   exit 1 on any credential-shaped value, fixtures
                          included (mark deliberate fakes with ALLOW_MARKER)
     """
     import argparse
     ap = argparse.ArgumentParser(prog="python -m operations.security_audit")
     ap.add_argument("--paths", nargs="*", default=None)
+    ap.add_argument("--tracked", action="store_true",
+                    help="scan git-tracked files (same as the default repo scan)")
     ap.add_argument("--fail-on-findings", action="store_true")
     args = ap.parse_args(argv)
     if args.paths is not None:

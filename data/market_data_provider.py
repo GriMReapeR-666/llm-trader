@@ -946,7 +946,9 @@ class MarketDataProvider:
 
     def place_market_order(self, symbol: str, side: str, volume: float,
                            sl: Optional[float], tp: Optional[float], comment: str, atr: Optional[float] = None, paper: Optional[Any] = None,
-                           magic: int = 0) -> Dict[str, Any]:
+                           magic: int = 0, validation_result: Optional[Any] = None,
+                           setup_key: str = "", risk_amount: float = 0.0,
+                           intent_key: Optional[str] = None) -> Dict[str, Any]:
         log = logging.getLogger("MarketData")
         log.info(f"Placing order: {side} {volume} {symbol} (Paper={paper is not None})")
 
@@ -1039,12 +1041,18 @@ class MarketDataProvider:
             log.debug("UrgencySOR score=%.3f for %s %s", _urgency, symbol, side)
         except Exception as _urg_exc:
             log.debug("UrgencySOR skipped: %s", _urg_exc)
-        return place_market_order(symbol, side, volume, sl, tp, comment, paper=paper, atr=atr, magic=magic)
+        return place_market_order(symbol, side, volume, sl, tp, comment, paper=paper, atr=atr, magic=magic,
+                                  validation_result=validation_result, setup_key=setup_key,
+                                  risk_amount=risk_amount, intent_key=intent_key)
 
     def place_pending_order(self, symbol: str, otype: str, price: float, volume: float,
                             sl: Optional[float], tp: Optional[float], comment: str,
                             paper: Optional[Any] = None, magic: int = 0,
-                            expires_at: Optional[datetime] = None) -> Dict[str, Any]:
+                            expires_at: Optional[datetime] = None, validation_result: Optional[Any] = None,
+                            setup_key: str = "", risk_amount: float = 0.0,
+                            intent_key: Optional[str] = None,
+                            account_equity: Optional[float] = None,
+                            token: Optional[Any] = None) -> Dict[str, Any]:
         log = logging.getLogger("MarketData")
         # --- Ψ GUARDIAN HARD GATE: Cannot be countermanded by any agent ---
         try:
@@ -1067,7 +1075,10 @@ class MarketDataProvider:
             "Placing planned %s %s @ %s (%s)", otype, symbol, price, "paper" if paper else "MT5"
         )
         return place_pending_order(symbol, otype, price, volume, sl, tp, comment,
-                                   paper=paper, magic=magic, expires_at=expires_at)
+                                   paper=paper, magic=magic, expires_at=expires_at,
+                                   validation_result=validation_result, setup_key=setup_key,
+                                   risk_amount=risk_amount, intent_key=intent_key,
+                                   account_equity=account_equity, token=token)
 
     def check_data_sources(self) -> Dict[str, str]:
         status = {
