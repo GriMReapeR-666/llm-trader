@@ -17,7 +17,7 @@ def test_l0_raw_trace_secret_redaction(tmp_path):
     payload = {
         "headers": {"Authorization": "Bearer rm-1234567890abcdef12345678"},
         "api_key": "sk-TESTFIXTURE0000000000000000000000000000REDACTED",
-        "secret_assignment": "ROUTESME_KEY=rm-da4790ea1631c5cd82303e2a1173a3208750a22a5f27c6b6",
+        "secret_assignment": "ROUTESME_KEY=rm-TESTFIXTURE0000000000000000000000000000000000000000",
         "normal_field": "EURUSD_BUY_PROPOSAL",
     }
     
@@ -30,7 +30,7 @@ def test_l0_raw_trace_secret_redaction(tmp_path):
     redacted_json = row["payload"]
     assert "rm-1234567890abcdef12345678" not in redacted_json
     assert "sk-TESTFIXTURE0000000000000000000000000000REDACTED" not in redacted_json
-    assert "rm-da4790ea1631c5cd82303e2a1173a3208750a22a5f27c6b6" not in redacted_json
+    assert "rm-TESTFIXTURE0000000000000000000000000000000000000000" not in redacted_json
     assert "EURUSD_BUY_PROPOSAL" in redacted_json
 
 
