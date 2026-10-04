@@ -501,7 +501,8 @@ class ExternalGuardian:
                             "type_time": mt5.ORDER_TIME_GTC,
                             "type_filling": mt5.ORDER_FILLING_IOC,
                         }
-                        result = mt5.order_send(request)
+                        from core.order_gateway import LiveMT5Adapter
+                        result = LiveMT5Adapter(mt5).send_order(request).get("result")
                         if result and result.retcode != mt5.TRADE_RETCODE_DONE:
                             logger.warning("Ψ Failed to close position %s: %s", ticket, result.comment)
 

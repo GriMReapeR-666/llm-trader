@@ -23,6 +23,51 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 log = logging.getLogger("order_gateway")
 
 
+class DirectOrderExecutionForbidden(RuntimeError):
+    """Raised when mt5.order_send is invoked directly outside core/order_gateway.py."""
+    pass
+
+
+def install_order_send_guard(mt5_mod: Any = None) -> None:
+    """Installs a runtime interceptor on mt5.order_send requiring gateway caller frames."""
+    if mt5_mod is None:
+        mt5_mod = sys.modules.get("MetaTrader5")
+    if mt5_mod is None:
+        return
+    if getattr(mt5_mod, "_llm_trader_order_send_guarded", False) is True:
+        return
+
+    orig = getattr(mt5_mod, "order_send", None)
+    if orig is None or not callable(orig):
+        return
+
+    def guarded_order_send(*args, **kwargs):
+        caller_frame = sys._getframe(1)
+        caller_file = (caller_frame.f_code.co_filename or "").replace("\\", "/")
+        if not caller_file.endswith("core/order_gateway.py") and not caller_file.endswith("order_gateway.py"):
+            raise DirectOrderExecutionForbidden(
+                f"Direct order_send forbidden outside core/order_gateway.py (called from {caller_file}:{caller_frame.f_lineno})"
+            )
+        return orig(*args, **kwargs)
+
+    guarded_order_send._orig = orig
+    setattr(mt5_mod, "order_send", guarded_order_send)
+    setattr(mt5_mod, "_llm_trader_order_send_guarded", True)
+
+
+def uninstall_order_send_guard(mt5_mod: Any = None) -> None:
+    """Removes the runtime interceptor on mt5.order_send."""
+    if mt5_mod is None:
+        mt5_mod = sys.modules.get("MetaTrader5")
+    if mt5_mod is None:
+        return
+    guarded = getattr(mt5_mod, "order_send", None)
+    if guarded is not None and hasattr(guarded, "_orig"):
+        setattr(mt5_mod, "order_send", guarded._orig)
+    if hasattr(mt5_mod, "_llm_trader_order_send_guarded"):
+        delattr(mt5_mod, "_llm_trader_order_send_guarded")
+
+
 def get_mt5_lock() -> threading.RLock:
     """Process-wide MT5 lock stored on the MetaTrader5 module object.
 
@@ -90,21 +135,27 @@ class LiveMT5Adapter(BaseBrokerAdapter):
         self.client = client
 
     def _get_mt5(self):
-        try:
-            import MetaTrader5 as mt5
-            return mt5
-        except ImportError:
-            return sys.modules.get("MetaTrader5")
+        if self.client is not None:
+            mod = self.client
+        else:
+            try:
+                import MetaTrader5 as mt5
+                mod = mt5
+            except ImportError:
+                mod = sys.modules.get("MetaTrader5")
+        if mod is not None:
+            install_order_send_guard(mod)
+        return mod
 
     def send_order(self, request: Dict[str, Any]) -> Dict[str, Any]:
         mt5 = self._get_mt5()
         if mt5 is None:
-            return {"retcode": -1, "error": "MetaTrader5 module unavailable"}
+            return {"retcode": -1, "error": "MetaTrader5 module unavailable", "result": None}
         with get_mt5_lock():
             res = mt5.order_send(request)
             if res is None:
                 err = mt5.last_error() if hasattr(mt5, "last_error") else (-1, "order_send returned None")
-                return {"retcode": err[0] if isinstance(err, tuple) else -1, "error": str(err)}
+                return {"retcode": err[0] if isinstance(err, tuple) else -1, "error": str(err), "result": None}
             return {"retcode": getattr(res, "retcode", 10009), "order": getattr(res, "order", 0), "result": res}
 
     def modify_protection(self, ticket: int, symbol: str, sl: float, tp: float) -> Dict[str, Any]:
@@ -127,8 +178,15 @@ class LiveMT5Adapter(BaseBrokerAdapter):
         if mt5 is None:
             return {"retcode": -1, "error": "MetaTrader5 unavailable"}
         with get_mt5_lock():
-            positions = mt5.positions_get(ticket=ticket) if hasattr(mt5, "positions_get") else None
-            pos = positions[0] if positions else None
+            positions = None
+            try:
+                positions = mt5.positions_get(ticket=ticket) if hasattr(mt5, "positions_get") else None
+            except TypeError:
+                positions = mt5.positions_get() if hasattr(mt5, "positions_get") else None
+            pos = None
+            if positions:
+                matched = [p for p in positions if getattr(p, "ticket", None) == ticket]
+                pos = matched[0] if matched else positions[0]
             if not pos:
                 return {"retcode": -1, "error": f"Position {ticket} not found"}
             tick = mt5.symbol_info_tick(symbol) if hasattr(mt5, "symbol_info_tick") else None
@@ -468,3 +526,9 @@ class OrderGateway:
                 )
         except Exception as e:
             log.debug("Closing intent failed: %s", e)
+
+
+try:
+    install_order_send_guard()
+except Exception:
+    pass

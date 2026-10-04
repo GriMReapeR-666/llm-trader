@@ -329,12 +329,13 @@ def place_market_order(symbol: str, side: str, volume: float,
         "magic": magic,
         "comment": comment,
     }
-    res = mt5_inst.order_send(request)
+    from core.order_gateway import LiveMT5Adapter
+    res = LiveMT5Adapter(mt5_inst).send_order(request).get("result")
     if res is None:
         if _lock is not None:
             try: _lock.release()
             except Exception: pass
-        raise RuntimeError(f"order_send returned None: {mt5_inst.last_error()}")
+        raise RuntimeError(f"gateway send_order returned None: {mt5_inst.last_error()}")
     # κ Audit: log market order result
     try:
         from core.compliance_audit import get_audit, EventType
@@ -533,9 +534,10 @@ def place_urgency_routed_order(symbol: str, side: str, volume: float,
             "comment": f"SOR_STD:{comment}",
         }
 
-    res = mt5_inst.order_send(request)
+    from core.order_gateway import LiveMT5Adapter
+    res = LiveMT5Adapter(mt5_inst).send_order(request).get("result")
     if res is None:
-        raise RuntimeError(f"order_send returned None: {mt5_inst.last_error()}")
+        raise RuntimeError(f"gateway send_order returned None: {mt5_inst.last_error()}")
 
     # κ Audit
     try:
@@ -605,9 +607,10 @@ def emergency_market_exit(*, symbol: str, position_ticket: int, side: str, volum
         "type_time": mt5_inst.ORDER_TIME_GTC, "magic": check["magic"],
         "comment": f"EMERGENCY_EXIT:{check['reason'][:180]}",
     }
-    result = mt5_inst.order_send(request)
+    from core.order_gateway import LiveMT5Adapter
+    result = LiveMT5Adapter(mt5_inst).send_order(request).get("result")
     if result is None:
-        raise RuntimeError(f"emergency exit order_send returned None: {mt5_inst.last_error()}")
+        raise RuntimeError(f"emergency exit gateway send_order returned None: {mt5_inst.last_error()}")
     accepted = {getattr(mt5_inst, "TRADE_RETCODE_DONE", 10009), getattr(mt5_inst, "TRADE_RETCODE_DONE_PARTIAL", 10010)}
     if int(getattr(result, "retcode", 0) or 0) not in accepted:
         raise RuntimeError(f"emergency exit failed: retcode={getattr(result, 'retcode', None)}, comment={getattr(result, 'comment', '')}")
@@ -650,7 +653,7 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
         # get_active_context, no module-level context singleton, and
         # TradingContext exposes only get/provide/get_state/set_state. The
         # hasattr() guard therefore always evaluated False, the body never ran,
-        # and every live pending order reached order_send with zero capability
+        # and every live pending order reached broker dispatch with zero capability
         # verification despite the "fail-closed" comment.
         #
         # Scoped to the live path only: a paper order returns below, before this
@@ -805,9 +808,10 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
     ACCEPTED = {getattr(mt5_inst, "TRADE_RETCODE_DONE", 10009), getattr(mt5_inst, "TRADE_RETCODE_PLACED", 10008), getattr(mt5_inst, "TRADE_RETCODE_DONE_PARTIAL", 10010)}
     last_err = None
     for attempt in range(3):
-        res = mt5_inst.order_send(request)
+        from core.order_gateway import LiveMT5Adapter
+        res = LiveMT5Adapter(mt5_inst).send_order(request).get("result")
         if res is None:
-            last_err = f"order_send returned None: {mt5_inst.last_error()}"
+            last_err = f"gateway send_order returned None: {mt5_inst.last_error()}"
             if attempt < 2:
                 import time as _t; _t.sleep(0.25 * (attempt + 1))
                 # Refresh tick and update price if requote-like
@@ -876,7 +880,8 @@ def modify_order_sltp(symbol: Optional[str], sl: Optional[float], tp: Optional[f
             "sl": sl if sl is not None else p.sl,
             "tp": tp if tp is not None else p.tp,
         }
-        res = mt5_inst.order_send(req)
+        from core.order_gateway import LiveMT5Adapter
+        res = LiveMT5Adapter(mt5_inst).send_order(req).get("result")
         if res and res.retcode == mt5_inst.TRADE_RETCODE_DONE:
             count += 1
     return count
@@ -899,7 +904,8 @@ def cancel_pending_order(order_id: int, paper: Optional[PaperBroker], magic: int
     if int(getattr(order[0], "magic", 0) or 0) != magic:
         return False
     req = {"action": mt5_inst.TRADE_ACTION_REMOVE, "order": order_id}
-    res = mt5_inst.order_send(req)
+    from core.order_gateway import LiveMT5Adapter
+    res = LiveMT5Adapter(mt5_inst).send_order(req).get("result")
     return bool(res and res.retcode == mt5_inst.TRADE_RETCODE_DONE)
 
 

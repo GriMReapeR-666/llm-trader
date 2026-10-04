@@ -1,0 +1,171 @@
+"""AST single-door and runtime execution door proof (Phase 2 PR 2.3).
+
+Proves:
+1. Single door in AST: The broker execution function `.order_send` appears in
+   EXACTLY ONE production source file across the entire repository: core/order_gateway.py.
+2. Runtime door: Calling mt5.order_send outside core/order_gateway.py is blocked
+   at runtime with DirectOrderExecutionForbidden.
+3. Gateway dispatch: Calling via LiveMT5Adapter inside core/order_gateway.py
+   succeeds without raising DirectOrderExecutionForbidden.
+4. Pyramiding disabled: Pyramiding is disabled by default (PYRAMIDING_ENABLED=0).
+"""
+import ast
+import os
+from pathlib import Path
+from unittest.mock import MagicMock
+import pytest
+
+from core.order_gateway import (
+    DirectOrderExecutionForbidden,
+    LiveMT5Adapter,
+    OrderGateway,
+    OrderIntent,
+    install_order_send_guard,
+    uninstall_order_send_guard,
+)
+from core.trading_safety import TradingStore
+
+
+def test_ast_proves_order_send_only_in_order_gateway():
+    """Verify that .order_send attribute/call appears in exactly one production file."""
+    repo_root = Path(__file__).resolve().parent.parent.parent
+
+    # Find all python files, excluding virtual environments, tests, compat bridge stubs, scripts
+    ignored_parts = {".venv", "venv", ".git", "tests", "compat", "scripts", "__pycache__"}
+    production_files_with_order_send = []
+
+    for py_file in repo_root.rglob("*.py"):
+        rel_parts = py_file.relative_to(repo_root).parts
+        if any(ignored in rel_parts for ignored in ignored_parts):
+            continue
+
+        try:
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        except Exception:
+            continue
+
+        has_order_send = False
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr == "order_send":
+                has_order_send = True
+                break
+
+        if has_order_send:
+            rel_path = py_file.relative_to(repo_root).as_posix()
+            production_files_with_order_send.append(rel_path)
+
+    assert production_files_with_order_send == ["core/order_gateway.py"], (
+        f"order_send must appear in EXACTLY ONE production file ('core/order_gateway.py'), "
+        f"but found in: {production_files_with_order_send}"
+    )
+
+
+def test_runtime_guard_blocks_direct_order_send():
+    """Calling mt5.order_send outside order_gateway.py raises DirectOrderExecutionForbidden."""
+    fake_mt5 = MagicMock()
+    fake_mt5.order_send = MagicMock(return_value=MagicMock(retcode=10009))
+
+    # Install runtime guard
+    install_order_send_guard(fake_mt5)
+    try:
+        with pytest.raises(DirectOrderExecutionForbidden, match="Direct order_send forbidden"):
+            fake_mt5.order_send({"action": 1, "symbol": "EURUSD"})
+    finally:
+        uninstall_order_send_guard(fake_mt5)
+
+
+def test_runtime_guard_permits_gateway_execution():
+    """Calling through LiveMT5Adapter succeeds because caller frame is order_gateway.py."""
+    fake_mt5 = MagicMock()
+    fake_mt5.order_send = MagicMock(return_value=MagicMock(retcode=10009, order=555))
+
+    install_order_send_guard(fake_mt5)
+    try:
+        adapter = LiveMT5Adapter(fake_mt5)
+        res = adapter.send_order({"action": 1, "symbol": "EURUSD"})
+        assert res["retcode"] == 10009
+        assert res["order"] == 555
+        assert getattr(fake_mt5.order_send, "_orig", fake_mt5.order_send).called
+    finally:
+        uninstall_order_send_guard(fake_mt5)
+
+
+def test_pyramiding_is_disabled_by_default(tmp_path):
+    """1a-F5 / 1a-F8: trade_manager pyramids are disabled by default."""
+    from core.trade_manager import TradeManager
+    from types import SimpleNamespace
+
+    store = TradingStore(str(tmp_path / "state.db"))
+    manager = TradeManager(
+        MagicMock(), MagicMock(), store=store,
+        state_file=str(tmp_path / "tm.json"),
+        conditions_file=str(tmp_path / "tc.json"),
+    )
+    pos = SimpleNamespace(ticket=1001, symbol="EURUSD", volume=0.5, type=0, magic=460001)
+
+    fake_mt5 = MagicMock()
+    manager.log = MagicMock()
+
+    # Without PYRAMIDING_ENABLED env var, it must not execute
+    if "PYRAMIDING_ENABLED" in os.environ:
+        del os.environ["PYRAMIDING_ENABLED"]
+
+    manager._execute_pyramid_order(pos)
+    assert fake_mt5.order_send.call_count == 0
+    import json
+    con = store._connect()
+    try:
+        refused = con.execute("SELECT * FROM manual_activity WHERE action='REFUSED_PYRAMID'").fetchall()
+    finally:
+        con.close()
+    assert len(refused) >= 1
+    pl = json.loads(refused[0]["payload"]) if isinstance(refused[0]["payload"], str) else (refused[0]["payload"] or {})
+    assert pl.get("reason") == "pyramiding_disabled_by_default"
+
+
+def test_end_to_end_validated_proposal_to_gateway_fill(tmp_path):
+    """End-to-end flow: validated proposal -> gateway -> LiveMT5Adapter -> intent PENDING -> filled."""
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+
+    store = TradingStore(str(tmp_path / "e2e_state.db"))
+    fake_mt5 = MagicMock()
+    order_res = SimpleNamespace(retcode=10009, order=88888, comment="done")
+    fake_mt5.order_send = MagicMock(return_value=order_res)
+
+    adapter = LiveMT5Adapter(fake_mt5)
+    gateway = OrderGateway(store=store, mode="LIVE", adapter=adapter)
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    evidence = SimpleNamespace(approved=True, setup_key="valid_alpha_1", created_at=now_iso)
+
+    intent = OrderIntent(
+        intent_key="intent_e2e_01",
+        symbol="EURUSD",
+        side="BUY",
+        volume=0.1,
+        price=1.1050,
+        sl=1.1000,
+        tp=1.1150,
+        risk_amount=50.0,
+        setup_key="valid_alpha_1",
+        validation_result=evidence,
+    )
+
+    result = gateway.submit_entry(intent)
+    assert result.success is True
+    assert result.status == "PENDING"
+    assert result.ticket == 88888
+    assert getattr(fake_mt5.order_send, "_orig", fake_mt5.order_send).called
+
+    # Verify intent in database is PENDING with ticket
+    con = store._connect()
+    try:
+        row = con.execute("SELECT status, mt5_ticket FROM order_intents WHERE intent_key='intent_e2e_01'").fetchone()
+        assert row is not None
+        assert row["status"] == "PENDING"
+        assert row["mt5_ticket"] == 88888
+    finally:
+        con.close()
+
+

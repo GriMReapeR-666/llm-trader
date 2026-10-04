@@ -274,7 +274,7 @@ class TradeManager(StoreBackedState):
         volume: float,
         extra: Optional[Dict[str, Any]] = None,
     ) -> Tuple[bool, str]:
-        """Safety gate for management orders before mt5.order_send.
+        """Safety gate for management orders before gateway dispatch.
 
         Scale-in (PYRAMID) must pass portfolio open-risk limits. Risk-reducing
         closes still require ownership + kill-switch-aware authorization logging.
@@ -558,7 +558,8 @@ class TradeManager(StoreBackedState):
                 "ticket": pos.ticket, "original_volume": pos.volume, "close_volume": vol_to_close, "remaining_volume": round(pos.volume - vol_to_close, 2)
             })
             
-            res = mt5.order_send(request)
+            from core.order_gateway import LiveMT5Adapter
+            res = LiveMT5Adapter(mt5).send_order(request).get("result")
             if res and res.retcode == mt5.TRADE_RETCODE_DONE:
                 self.log.info(f"✅ Partial Close Success: {vol_to_close} lots closed for #{pos.ticket}")
                 self._record_management(pos.ticket, "PARTIAL_CLOSE_FILLED", {
@@ -763,6 +764,13 @@ class TradeManager(StoreBackedState):
     def _execute_pyramid_order(self, pos):
         """Open new position (0.5x volume) only after portfolio risk authorization."""
         try:
+            if os.getenv("PYRAMIDING_ENABLED", "0") != "1":
+                self.log.info("Pyramiding disabled by default (PYRAMIDING_ENABLED=0) for #%s", getattr(pos, "ticket", None))
+                if self.store is not None:
+                    self.store.record_manual_activity("REFUSED_PYRAMID", ticket=int(pos.ticket), symbol=str(pos.symbol),
+                                                      magic=getattr(pos, "magic", None), payload={"reason": "pyramiding_disabled_by_default"})
+                return
+
             if not self._owns(pos):
                 if self.store is not None:
                     self.store.record_manual_activity("REFUSED_PYRAMID", ticket=int(pos.ticket), symbol=str(pos.symbol),
@@ -819,7 +827,8 @@ class TradeManager(StoreBackedState):
                 "type_filling": filling_mode,
             }
             
-            res = mt5.order_send(request)
+            from core.order_gateway import LiveMT5Adapter
+            res = LiveMT5Adapter(mt5).send_order(request).get("result")
             if res and res.retcode == mt5.TRADE_RETCODE_DONE:
                 self.log.info(f"✅ Pyramid Success: {vol} lots added for #{pos.ticket}")
                 self.pyramid_entries.add(pos.ticket)
@@ -955,7 +964,8 @@ class TradeManager(StoreBackedState):
                 "comment": f"AI: {reason}"[:31] # Max comment length
             }
             
-            res = mt5.order_send(request)
+            from core.order_gateway import LiveMT5Adapter
+            res = LiveMT5Adapter(mt5).send_order(request).get("result")
             if res and res.retcode == mt5.TRADE_RETCODE_DONE:
                 self.log.info(f"✅ AI Partial Close ({percentage*100}%): {vol_to_close} lots on #{ticket}. Reason: {reason}")
                 self.partial_exits.add(ticket)
@@ -1077,7 +1087,8 @@ class TradeManager(StoreBackedState):
                 "stop_level": stops, "freeze_level": freeze
             })
             
-            res = mt5.order_send(request)
+            from core.order_gateway import LiveMT5Adapter
+            res = LiveMT5Adapter(mt5).send_order(request).get("result")
             if res and res.retcode == mt5.TRADE_RETCODE_DONE:
                 self.log.info(f"Updated {reason} SL for Ticket {ticket} to {requested_sl:.5f}")
                 self._record_management(ticket, "SL_MODIFY_ACCEPTED", {
@@ -1265,7 +1276,8 @@ class TradeManager(StoreBackedState):
         if filling_mode is not None:
             request["type_filling"] = filling_mode
 
-        res = mt5.order_send(request)
+        from core.order_gateway import LiveMT5Adapter
+        res = LiveMT5Adapter(mt5).send_order(request).get("result")
         if res and res.retcode == mt5.TRADE_RETCODE_DONE:
             self.log.info(f"Closed {ticket}: {comment}")
             # Add to history

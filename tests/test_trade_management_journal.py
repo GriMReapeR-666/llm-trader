@@ -104,7 +104,8 @@ def test_partial_close_lifecycle_journaling(tmp_path):
     assert "PARTIAL_CLOSE_FILLED" in events
 
 
-def test_pyramid_lifecycle_journaling(tmp_path):
+def test_pyramid_lifecycle_journaling(tmp_path, monkeypatch):
+    monkeypatch.setenv("PYRAMIDING_ENABLED", "1")
     store = TradingStore(str(tmp_path / "state.db"))
     risk = MagicMock()
     risk.balance = 10000.0
@@ -146,7 +147,8 @@ def test_pyramid_lifecycle_journaling(tmp_path):
     assert "PYRAMID_FILLED" in events
 
 
-def test_pyramid_blocked_when_arbiter_rejects(tmp_path):
+def test_pyramid_blocked_when_arbiter_rejects(tmp_path, monkeypatch):
+    monkeypatch.setenv("PYRAMIDING_ENABLED", "1")
     store = TradingStore(str(tmp_path / "state.db"))
     store.set_kill_switch(True, "test halt")
     risk = MagicMock()
