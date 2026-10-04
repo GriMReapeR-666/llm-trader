@@ -54,6 +54,9 @@ else
   say "bridge key exists: $KEY_FILE"
 fi
 
+# 4b) Secret-scan pre-commit hook -------------------------------------------------
+git config core.hooksPath .githooks && say "pre-commit secret scan enabled (.githooks)"
+
 # 5) Command deck (Bun + OpenTUI) ----------------------------------------------
 BUN="$(command -v bun || true)"
 [ -z "$BUN" ] && [ -x "$HOME/.bun/bin/bun" ] && BUN="$HOME/.bun/bin/bun"

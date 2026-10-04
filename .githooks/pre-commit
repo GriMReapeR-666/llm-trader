@@ -1,0 +1,10 @@
+#!/bin/sh
+# Blocks commits that add credential-shaped values (API keys, bearer tokens,
+# passwords). Deliberate test fakes must carry "# secret-scan: allow" on the line.
+# Installed by scripts/mac/setup_mac.sh and build.bat:  git config core.hooksPath .githooks
+PY=.venv/bin/python
+[ -x "$PY" ] || PY=.venv/Scripts/python.exe
+[ -x "$PY" ] || PY=$(command -v python3 || command -v python)
+git diff --cached --name-only --diff-filter=ACM -z \
+  | xargs -0 "$PY" -m operations.security_audit --fail-on-findings --paths \
+  || { echo "commit blocked by the secret scan above" >&2; exit 1; }

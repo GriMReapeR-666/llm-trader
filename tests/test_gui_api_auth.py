@@ -25,7 +25,7 @@ def test_api_control_allows_authorized_bearer_token(monkeypatch):
     resp = client.post(
         "/api/control/start",
         json={"symbol": "EURUSD"},
-        headers={"Authorization": "Bearer secret-test-token-123"},
+        headers={"Authorization": "Bearer secret-test-token-123"},  # secret-scan: allow
     )
     # The request got past the 401 auth gate!
     assert resp.status_code != 401
