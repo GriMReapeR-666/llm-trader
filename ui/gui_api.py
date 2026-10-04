@@ -83,25 +83,62 @@ GUI_DIST_DIR = os.path.join(BASE_DIR, "gui", "dist")
 
 app = FastAPI()
 
-# Enable CORS for development
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
 
-def get_configured_api_token() -> Optional[str]:
-    """Return the configured API token/key from environment, if any."""
-    return os.environ.get("GUI_API_TOKEN") or os.environ.get("GUI_API_KEY") or None
+def get_configured_api_token() -> str:
+    """Return the configured API token/key from environment or persistent keyfile.
+    
+    If no token exists, auto-generates a high-entropy secret in artifacts/gui_api.key.
+    """
+    token = os.environ.get("GUI_API_TOKEN") or os.environ.get("GUI_API_KEY")
+    if token and token.strip():
+        return token.strip()
+
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    key_file = os.path.join(repo_root, "artifacts", "gui_api.key")
+    if os.path.exists(key_file):
+        try:
+            with open(key_file, "r", encoding="utf-8") as f:
+                saved = f.read().strip()
+                if saved:
+                    return saved
+        except Exception:
+            pass
+
+    import secrets
+    new_token = f"gui_{secrets.token_hex(24)}"
+    try:
+        os.makedirs(os.path.dirname(key_file), exist_ok=True)
+        with open(key_file, "w", encoding="utf-8") as f:
+            f.write(new_token)
+    except Exception as exc:
+        logger.warning("Could not persist auto-generated GUI API token to %s: %s", key_file, exc)
+    return new_token
 
 
 def is_request_authenticated(headers: Any, query_params: Any = None) -> bool:
     """Validate incoming request headers or query params against the configured token."""
     token = get_configured_api_token()
     if not token:
-        return True
+        return False
 
     # 1. Check Authorization: Bearer <token>
     auth_header = headers.get("authorization", "") if hasattr(headers, "get") else ""
@@ -123,22 +160,31 @@ def is_request_authenticated(headers: Any, query_params: Any = None) -> bool:
     return False
 
 
+ALLOWED_HOSTS = {"localhost", "127.0.0.1", "testserver"}
+
+
 @app.middleware("http")
 async def api_auth_middleware(request: Request, call_next):
-    token = get_configured_api_token()
-    if token:
-        path = request.url.path
-        if path not in ("/", "/api/health", "/docs", "/openapi.json"):
-            is_control_route = any(
-                path.startswith(p) for p in ("/api/control", "/api/config", "/api/internal")
+    # 1. Host header validation (DNS rebinding protection)
+    raw_host = request.headers.get("host", "").split(":")[0].strip().lower()
+    if raw_host and raw_host not in ALLOWED_HOSTS:
+        return JSONResponse(
+            status_code=403,
+            content={"error": f"Forbidden: Host '{raw_host}' not permitted."},
+        )
+
+    # 2. Control plane authentication for mutating / sensitive routes
+    path = request.url.path
+    is_control_route = any(
+        path.startswith(p) for p in ("/api/control", "/api/config", "/api/internal")
+    )
+    if is_control_route:
+        if not is_request_authenticated(request.headers, request.query_params):
+            return JSONResponse(
+                status_code=401,
+                content={"error": "Unauthorized: invalid or missing API token"},
             )
-            strict_auth = os.environ.get("GUI_STRICT_AUTH", "0") == "1"
-            if is_control_route or strict_auth:
-                if not is_request_authenticated(request.headers, request.query_params):
-                    return JSONResponse(
-                        status_code=401,
-                        content={"error": "Unauthorized: invalid or missing API token"},
-                    )
+
     return await call_next(request)
 
 

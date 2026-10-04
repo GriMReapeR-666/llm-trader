@@ -1,7 +1,5 @@
-"""Integration tests for the GUI API graph status endpoint."""
-import pytest
 from fastapi.testclient import TestClient
-from gui_api import app, ui_state
+from gui_api import app, ui_state, get_configured_api_token
 
 
 def test_gui_api_graph_status():
@@ -53,7 +51,8 @@ def test_gui_api_internal_update_macro_state_bridge():
     """Trader-process macro telemetry must reach the GUI snapshot via the bridge."""
     client = TestClient(app)
 
-    res = client.post("/api/internal/update", json={
+    auth = {"Authorization": f"Bearer {get_configured_api_token()}"}
+    res = client.post("/api/internal/update", headers=auth, json={
         "type": "macro_state",
         "data": {
             "macro_regime": "CRISIS_PANIC",
@@ -77,7 +76,7 @@ def test_gui_api_internal_update_macro_state_bridge():
     assert macro["causal_attribution"]["primary_driver"] == "liquidity"
 
     # Partial update: only the sent keys change; others keep their last value.
-    res = client.post("/api/internal/update", json={
+    res = client.post("/api/internal/update", headers=auth, json={
         "type": "macro_state",
         "data": {"macro_regime": "RISK_ON_EXPANSION"},
     })
@@ -89,9 +88,9 @@ def test_gui_api_internal_update_macro_state_bridge():
     assert macro["last_bundle"]["bundle_id"] == "BUNDLE_test"
 
     # Missing 'data' must not 500 (boundary: empty payload).
-    assert client.post("/api/internal/update", json={"type": "macro_state"}).status_code == 200
+    assert client.post("/api/internal/update", headers=auth, json={"type": "macro_state"}).status_code == 200
     # Unknown type is a no-op, not an error.
-    assert client.post("/api/internal/update", json={"type": "unknown_type", "data": {}}).status_code == 200
+    assert client.post("/api/internal/update", headers=auth, json={"type": "unknown_type", "data": {}}).status_code == 200
 
 
 def test_gui_api_no_fake_data_and_laya_registry():
@@ -112,7 +111,8 @@ def test_gui_api_no_fake_data_and_laya_registry():
     assert laya["metrics"]["win_rate"] == 0
 
     # 1b. Trader-reported metrics flow through the internal update bridge.
-    res_upd = client.post("/api/internal/update", json={
+    auth = {"Authorization": f"Bearer {get_configured_api_token()}"}
+    res_upd = client.post("/api/internal/update", headers=auth, json={
         "type": "laya_metrics",
         "data": {"validated_accuracy": 1.0, "freeze_recall": 1.0, "win_rate": 0.625},
     })
@@ -126,7 +126,7 @@ def test_gui_api_no_fake_data_and_laya_registry():
     assert laya_live["metrics"]["win_rate"] == 0.625
     # Non-numeric / NaN fields are rejected — the registry must surface
     # honest zeros, never the garbage the sender tried to push.
-    client.post("/api/internal/update", json={
+    client.post("/api/internal/update", headers=auth, json={
         "type": "laya_metrics",
         "data": {"ece": "garbage", "raw_accuracy": None},
     })
