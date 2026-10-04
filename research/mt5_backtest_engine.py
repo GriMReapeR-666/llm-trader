@@ -769,7 +769,7 @@ class MT5BrokerBacktestEngine:
 
                 # 2. Persist individual backtest trades for downstream CPCV / ledger analytics
                 con.execute("""
-                    CREATE TABLE IF NOT EXISTS trades (
+                    CREATE TABLE IF NOT EXISTS research_backtest_trades (
                         ticket INTEGER PRIMARY KEY,
                         magic INTEGER,
                         strategy TEXT,
@@ -800,7 +800,7 @@ class MT5BrokerBacktestEngine:
                 for idx, tr in enumerate(metrics.trades[:100]):  # Store up to 100 sample trades
                     ticket_id = base_ticket + idx
                     con.execute("""
-                        INSERT OR REPLACE INTO trades
+                        INSERT OR REPLACE INTO research_backtest_trades
                         (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, take_profit, risk_amount,
                          opened_at, closed_at, exit_price, pnl, exit_reason, payload, setup_id, gross_pnl, commission, swap, financing)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

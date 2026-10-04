@@ -125,7 +125,7 @@ def test_journaling_and_reflection(sample_bars, temp_db):
     assert len(runs) >= 1
     assert runs[0][1] == "MT5_BROKER_BACKTEST"
 
-    trades = con.execute("SELECT ticket, strategy, symbol FROM trades").fetchall()
+    trades = con.execute("SELECT ticket, strategy, symbol FROM research_backtest_trades").fetchall()
     assert len(trades) >= 1
     con.close()
 
