@@ -2374,13 +2374,15 @@ class LLMOrchestrator:
             return {}
 
     def _live_order_token(self):
-        """Short-lived ORDER_WRITE token for one live entry (PH2-N1).
+        """Short-lived ORDER_WRITE token for one broker entry (PH2-N1).
 
-        The authority is the sandbox mt5_trader mounts for --live after its
-        fail-closed capability gate (``order_write_sandbox``). The
-        orchestrator's own fallback harness context never grants order
-        authority, and the journal must be LIVE. Returns None otherwise, and
-        the live entry is then refused by order_execution.
+        The authority is the sandbox mt5_trader grants (``order_write_sandbox``):
+        for --live after its fail-closed capability gate, for --demo only when
+        the broker reports a demo account. ``order_write_mode`` names the
+        journal it was granted for, and the journal must match. A DEMO grant
+        re-checks the broker account on every order, so a terminal switched to
+        a real account gets nothing. The orchestrator's own fallback harness
+        context never grants authority. None -> order_execution refuses.
         """
         sandbox = getattr(self, "order_write_sandbox", None)
         if sandbox is None:
@@ -2388,10 +2390,19 @@ class LLMOrchestrator:
         from core.harness.sandbox import PermissionLevel
         if getattr(sandbox, "default_level", 0) < PermissionLevel.ORDER_WRITE:
             return None
+        granted = str(getattr(self, "order_write_mode", "LIVE") or "").upper()
         scope = getattr(self.store, "scope", None)
         mode = (scope.get("mode") if isinstance(scope, dict) else None) or getattr(self.store, "mode", None)
-        if str(mode or "").upper() != "LIVE":
+        if granted not in ("LIVE", "DEMO") or str(mode or "").upper() != granted:
             return None
+        if granted == "DEMO":
+            try:
+                broker = _get_mt5()
+                trade_mode = getattr(broker.account_info(), "trade_mode", None)
+                if trade_mode is None or int(trade_mode) != int(getattr(broker, "ACCOUNT_TRADE_MODE_DEMO", 0)):
+                    return None
+            except Exception:
+                return None
         return sandbox.issue_token(PermissionLevel.ORDER_WRITE, scopes=["broker"], duration_minutes=2,
                                    issuer="LLMOrchestrator.live_entry")
 

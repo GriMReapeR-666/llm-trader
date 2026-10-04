@@ -875,7 +875,8 @@ class MT5Client:
                     "margin_so_so": getattr(ai, "margin_so_so", None),
                     "leverage": ai.leverage,
                     "currency": ai.currency,
-                    "server": ai.server
+                    "server": ai.server,
+                    "trade_mode": getattr(ai, "trade_mode", None),
                 }
         except Exception as e:
             self.log.warning(f"Failed to get account info: {e}")
@@ -4113,6 +4114,21 @@ def execute_skill(**kwargs):
             # the orchestrator. Paper/demo profiles never set it.
             if getattr(args, "live", False) and harness_ctx.has("sandbox"):
                 orch.order_write_sandbox = harness_ctx.get("sandbox")
+                orch.order_write_mode = "LIVE"
+            elif getattr(args, "demo", False):
+                # Demo runs on the paper profile (SIMULATION sandbox), so order
+                # authority is granted here, and only when the broker itself
+                # reports a demo account. The orchestrator re-checks per order.
+                _acct = client.get_account_info() if client else {}
+                _demo_code = getattr(sys.modules.get("MetaTrader5"), "ACCOUNT_TRADE_MODE_DEMO", 0)
+                if _acct.get("trade_mode") is not None and int(_acct["trade_mode"]) == int(_demo_code):
+                    from core.harness.sandbox import CapabilitySandbox, PermissionLevel
+                    orch.order_write_sandbox = CapabilitySandbox(default_level=PermissionLevel.ORDER_WRITE)
+                    orch.order_write_mode = "DEMO"
+                else:
+                    logging.getLogger("main").error(
+                        "Demo mode requested but the broker account is not a demo account "
+                        "(trade_mode=%s); broker entries stay refused.", _acct.get("trade_mode"))
             if harness_ctx.has("quant_workflow_engine"):
                 orch.quant_workflow_engine = harness_ctx.get("quant_workflow_engine")
                 logging.getLogger("main").info("QuantWorkflowEngine wired from harness context to orchestrator")

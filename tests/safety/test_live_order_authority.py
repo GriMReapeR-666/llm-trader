@@ -11,13 +11,43 @@ import pytest
 from core.harness.sandbox import CapabilitySandbox, PermissionLevel
 
 
-def _orch(mode="LIVE", sandbox_level=PermissionLevel.ORDER_WRITE, wired=True):
+def _orch(mode="LIVE", sandbox_level=PermissionLevel.ORDER_WRITE, wired=True, granted="LIVE"):
     from llm_orchestrator import LLMOrchestrator
     orch = LLMOrchestrator.__new__(LLMOrchestrator)
     orch.store = NS(scope={"mode": mode})
     if wired:
         orch.order_write_sandbox = CapabilitySandbox(default_level=sandbox_level)
+        orch.order_write_mode = granted
     return orch
+
+
+def _broker(monkeypatch, trade_mode):
+    import llm_orchestrator
+    from tests.fakes.fake_mt5 import patch_everywhere
+    def account_info():
+        if trade_mode == "error":
+            raise OSError("terminal gone")
+        return NS(trade_mode=trade_mode)
+    broker = NS(ACCOUNT_TRADE_MODE_DEMO=0, account_info=account_info)
+    patch_everywhere(monkeypatch, "intelligence/llm_orchestrator.py", "_get_mt5", lambda: broker)
+
+
+def test_demo_grant_issues_tokens_on_a_demo_account(monkeypatch):
+    _broker(monkeypatch, 0)
+    token = _orch(mode="DEMO", granted="DEMO")._live_order_token()
+    assert token is not None and token.can_access(PermissionLevel.ORDER_WRITE, scope="broker")
+
+
+@pytest.mark.parametrize("trade_mode", [2, 1, None, "error"], ids=["real", "contest", "unknown", "unreadable"])
+def test_demo_grant_refuses_when_the_broker_is_not_demo(monkeypatch, trade_mode):
+    _broker(monkeypatch, trade_mode)
+    assert _orch(mode="DEMO", granted="DEMO")._live_order_token() is None
+
+
+def test_grants_do_not_cross_journals(monkeypatch):
+    _broker(monkeypatch, 0)
+    assert _orch(mode="LIVE", granted="DEMO")._live_order_token() is None
+    assert _orch(mode="DEMO", granted="LIVE")._live_order_token() is None
 
 
 def test_live_token_is_short_lived_and_broker_scoped():
@@ -71,11 +101,12 @@ def test_live_pending_order_gate_accepts_a_live_token(monkeypatch):
         _pending(_orch()._live_order_token())
 
 
-def test_launcher_wires_authority_only_for_live():
-    import ast, pathlib
+def test_launcher_wires_authority_only_for_live_or_verified_demo():
+    import pathlib
     src = (pathlib.Path(__file__).resolve().parents[2] / "mt5_trader.py").read_text(encoding="utf-8")
-    assignments = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Assign)
-                   and any(isinstance(t, ast.Attribute) and t.attr == "order_write_sandbox" for t in n.targets)]
-    assert len(assignments) == 1
-    seg = src[src.rfind("\n", 0, src.find("orch.order_write_sandbox")) - 200: src.find("orch.order_write_sandbox")]
-    assert 'getattr(args, "live", False)' in seg
+    assert src.count("orch.order_write_sandbox =") == 2
+    live = src.index('orch.order_write_mode = "LIVE"')
+    demo = src.index('orch.order_write_mode = "DEMO"')
+    assert 'getattr(args, "live", False)' in src[live - 400:live]
+    demo_block = src[demo - 900:demo]
+    assert 'getattr(args, "demo", False)' in demo_block and "ACCOUNT_TRADE_MODE_DEMO" in demo_block
