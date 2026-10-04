@@ -41,17 +41,24 @@ def install_order_send_guard(mt5_mod: Any = None) -> None:
     if orig is None or not callable(orig):
         return
 
-    def guarded_order_send(*args, **kwargs):
-        caller_frame = sys._getframe(1)
-        caller_file = (caller_frame.f_code.co_filename or "").replace("\\", "/")
-        if not caller_file.endswith("core/order_gateway.py") and not caller_file.endswith("order_gateway.py"):
-            raise DirectOrderExecutionForbidden(
-                f"Direct order_send forbidden outside core/order_gateway.py (called from {caller_file}:{caller_frame.f_lineno})"
-            )
-        return orig(*args, **kwargs)
+    class GuardedOrderSend:
+        def __init__(self, orig_fn):
+            self._orig = orig_fn
 
-    guarded_order_send._orig = orig
-    setattr(mt5_mod, "order_send", guarded_order_send)
+        def __call__(self, *args, **kwargs):
+            caller_frame = sys._getframe(1)
+            caller_file = (caller_frame.f_code.co_filename or "").replace("\\", "/")
+            if not caller_file.endswith("core/order_gateway.py") and not caller_file.endswith("order_gateway.py"):
+                raise DirectOrderExecutionForbidden(
+                    f"Direct order_send forbidden outside core/order_gateway.py (called from {caller_file}:{caller_frame.f_lineno})"
+                )
+            return self._orig(*args, **kwargs)
+
+        def __getattr__(self, name):
+            return getattr(self._orig, name)
+
+    guarded = GuardedOrderSend(orig)
+    setattr(mt5_mod, "order_send", guarded)
     setattr(mt5_mod, "_llm_trader_order_send_guarded", True)
 
 
