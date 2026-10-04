@@ -134,6 +134,9 @@ An institutional-grade, multi-agent autonomous trading system integrating Large 
 
 ## 🚀 Quick Start
 
+> **macOS:** run `scripts/mac/setup_mac.sh`, then use `./start_trading.sh` and `./start_deck.sh` instead of the `.bat` launchers.
+> MT5 runs in Wine (or on a Windows box) behind a small bridge. See [docs/MACOS.md](docs/MACOS.md).
+
 ### 1. Verification & Readiness Checks
 ```powershell
 # Run the complete test suite (148 test files, 700+ tests)
