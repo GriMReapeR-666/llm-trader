@@ -8574,6 +8574,7 @@ class LLMOrchestrator:
             strategy=strategy, provider=provider,
             model=self.model_name, trigger_key=f"llm:{cycle_key}", run_id=self.run_id,
             **budget)
+        self._active_llm_request_id = llm_request_id if allowed else None
         if not allowed:
             self.operations.complete_task(cycle_key, {"action": "HOLD", "reason": llm_request_id})
             return {"action": "HOLD", "reasoning": f"LLM request not permitted: {llm_request_id}"}, 0.0
@@ -8703,7 +8704,9 @@ class LLMOrchestrator:
                     correlation_id=llm_request_id,
                     severity="INFO" if llm_success else "WARNING",
                 )
+                self._active_llm_request_id = None
         except KeyboardInterrupt:
+            self._active_llm_request_id = None
             if llm_request_id:
                 try:
                     self.operations.finish_llm(
@@ -8717,6 +8720,7 @@ class LLMOrchestrator:
             self.operations.fail_task(cycle_key, "Interrupted by user (KeyboardInterrupt)")
             raise
         except Exception as exc:
+            self._active_llm_request_id = None
             if llm_request_id:
                 trace = getattr(self, "_last_llm_trace", {}) or {}
                 usage = getattr(self.llm, "last_usage", {}) or {}
@@ -9212,6 +9216,24 @@ Total Trades: {len(closed_trades)}"""
                         log.warning(reason)
                         return {"action": "HOLD", "reasoning": reason}, 0.0
                     self._v2_seam("cycle.seams.sized")
+
+                    # Check hold_only flag (P1-H2)
+                    from operations.autonomy import get_autonomy
+                    _autonomy_hold = get_autonomy().is_hold_only() if hasattr(get_autonomy(), "is_hold_only") else False
+                    _pipeline_hold = False
+                    try:
+                        from core.harness.pipeline_v2 import get_tls_hold_only
+                        _pipeline_hold = get_tls_hold_only()
+                    except ImportError:
+                        pass
+                    if _pipeline_hold or _autonomy_hold:
+                        _hold_reason = "hold_only active: order execution blocked"
+                        log.info(_hold_reason)
+                        self.operations.event("trading", "hold_only_blocked_order", {
+                            "symbol": symbol, "action": action, "pipeline_hold": _pipeline_hold, "autonomy_hold": _autonomy_hold,
+                        }, run_id=self.run_id, severity="INFO")
+                        return {"action": "HOLD", "reasoning": _hold_reason}, 0.0
+
                     intent_key = f"{proposal.setup_key()}:{proposal.magic}"
                     created, _intent = self.operations.create_order_intent(intent_key, {
                         "symbol": symbol, "side": action, "entry": entry, "volume": safe_vol,

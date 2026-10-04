@@ -82,10 +82,24 @@ def begin_v2_envelope() -> None:
     path can never leave a stale token behind.
     """
     _tls.v2_active = True
+    _tls.hold_only = False
 
 
 def end_v2_envelope() -> None:
     _tls.v2_active = False
+    _tls.hold_only = False
+
+
+def set_tls_hold_only(val: bool = True) -> None:
+    _tls.hold_only = val
+
+
+def get_tls_hold_only() -> bool:
+    return getattr(_tls, "hold_only", False)
+
+
+_abandoned_threads: Dict[str, List[threading.Thread]] = {}
+_abandoned_threads_lock = threading.Lock()
 
 
 def mark_analysis_stage_start(stage_key: str) -> None:
@@ -160,46 +174,128 @@ class PipelineRunner:
 
         attempts = max(1, spec.retries + 1)
         last_error = ""
+        timed_out = False
         for attempt in range(1, attempts + 1):
-            try:
-                value = spec.fn(ctx, {"attempt": attempt})
-                duration_ms = int((time.time() - started) * 1000)
-                result = StageResult(spec.key, "done", duration_ms, value=value)
-                if spec.emits_done:
-                    self._emit("STAGE_DONE",
-                               {"stage": spec.key, "ms": duration_ms},
+            if spec.abandonable:
+                with _abandoned_threads_lock:
+                    alive_abandoned = [t for t in _abandoned_threads.get(spec.key, []) if t.is_alive()]
+                    _abandoned_threads[spec.key] = alive_abandoned
+                if len(alive_abandoned) >= 2:
+                    logger.warning(
+                        "Stage %s has %d abandoned threads alive; tripping autonomy circuit",
+                        spec.key, len(alive_abandoned),
+                    )
+                    try:
+                        from operations.autonomy import get_autonomy
+                        get_autonomy().pause(reason=f"abandon_leak:{spec.key}")
+                    except Exception as _p_exc:
+                        logger.warning("Failed to pause autonomy on abandon leak: %s", _p_exc)
+                    last_error = f"abandon_leak: {len(alive_abandoned)} threads already abandoned for {spec.key}"
+                    timed_out = True
+                    break
+
+                from intelligence.boot_fetch_watchdog import run_stage_with_deadline
+                outcome = run_stage_with_deadline(
+                    spec.key,
+                    lambda: spec.fn(ctx, {"attempt": attempt}),
+                    timeout_s=spec.timeout_s,
+                )
+                if outcome.get("timed_out"):
+                    timed_out = True
+                    last_error = outcome.get("error") or f"stage exceeded {spec.timeout_s}s deadline"
+                    worker = outcome.get("worker")
+                    if worker and worker.is_alive():
+                        with _abandoned_threads_lock:
+                            _abandoned_threads.setdefault(spec.key, []).append(worker)
+                    duration_ms = int((time.time() - started) * 1000)
+                    self._emit("STAGE_TIMEOUT", {
+                        "stage": spec.key,
+                        "timeout_s": spec.timeout_s,
+                        "elapsed_s": outcome.get("elapsed_s", 0.0),
+                    }, actor=spec.agent)
+                    if spec.key == "analysis.llm":
+                        try:
+                            req_id = getattr(ctx.orchestrator, "_active_llm_request_id", None)
+                            if req_id and hasattr(ctx.orchestrator, "operations"):
+                                ctx.orchestrator.operations.finish_llm(
+                                    req_id, success=False, parse_status="TIMEOUT", error="STAGE_TIMEOUT",
+                                )
+                                ctx.orchestrator._active_llm_request_id = None
+                        except Exception as e:
+                            logger.debug("Failed to release LLM budget reservation on timeout: %s", e)
+                    break
+                elif not outcome.get("ok"):
+                    err_obj = outcome.get("error_obj")
+                    if isinstance(err_obj, CycleAbort):
+                        duration_ms = int((time.time() - started) * 1000)
+                        self._beat(spec.agent, False, f"{spec.key}: aborted")
+                        self._emit("STAGE_ABORTED",
+                                   {"stage": spec.key, "reason": str(err_obj)[:200]},
+                                   actor=spec.agent)
+                        result = StageResult(spec.key, "aborted", duration_ms, error=str(err_obj))
+                        self.results.append(result)
+                        raise CycleAbort(str(err_obj)) from None
+                    last_error = outcome.get("error") or "stage execution error"
+                    logger.warning("stage %s attempt %d failed: %s", spec.key, attempt, last_error)
+                    if attempt < attempts:
+                        continue
+                else:
+                    value = outcome.get("result")
+                    duration_ms = int((time.time() - started) * 1000)
+                    result = StageResult(spec.key, "done", duration_ms, value=value)
+                    if spec.emits_done:
+                        self._emit("STAGE_DONE",
+                                   {"stage": spec.key, "ms": duration_ms},
+                                   actor=spec.agent)
+                    if duration_ms > spec.sla_ms:
+                        self._emit("STAGE_SLA_MISS",
+                                   {"stage": spec.key, "ms": duration_ms,
+                                    "sla_ms": spec.sla_ms},
+                                   actor=spec.agent)
+                    self._beat(spec.agent, True, spec.key)
+                    self.results.append(result)
+                    return result
+            else:
+                try:
+                    value = spec.fn(ctx, {"attempt": attempt})
+                    duration_ms = int((time.time() - started) * 1000)
+                    result = StageResult(spec.key, "done", duration_ms, value=value)
+                    if spec.emits_done:
+                        self._emit("STAGE_DONE",
+                                   {"stage": spec.key, "ms": duration_ms},
+                                   actor=spec.agent)
+                    if duration_ms > spec.sla_ms:
+                        self._emit("STAGE_SLA_MISS",
+                                   {"stage": spec.key, "ms": duration_ms,
+                                    "sla_ms": spec.sla_ms},
+                                   actor=spec.agent)
+                    self._beat(spec.agent, True, spec.key)
+                    self.results.append(result)
+                    return result
+                except CycleAbort as abort:
+                    duration_ms = int((time.time() - started) * 1000)
+                    self._beat(spec.agent, False, f"{spec.key}: aborted")
+                    self._emit("STAGE_ABORTED",
+                               {"stage": spec.key, "reason": str(abort)[:200]},
                                actor=spec.agent)
-                if duration_ms > spec.sla_ms:
-                    self._emit("STAGE_SLA_MISS",
-                               {"stage": spec.key, "ms": duration_ms,
-                                "sla_ms": spec.sla_ms},
-                               actor=spec.agent)
-                self._beat(spec.agent, True, spec.key)
-                self.results.append(result)
-                return result
-            except CycleAbort as abort:
-                duration_ms = int((time.time() - started) * 1000)
-                self._beat(spec.agent, False, f"{spec.key}: aborted")
-                self._emit("STAGE_ABORTED",
-                           {"stage": spec.key, "reason": str(abort)[:200]},
-                           actor=spec.agent)
-                result = StageResult(spec.key, "aborted", duration_ms,
-                                     error=str(abort))
-                self.results.append(result)
-                # Abort always stops the pipeline: bubble to the envelope.
-                raise CycleAbort(str(abort)) from None
-            except Exception as exc:  # noqa: BLE001 - stage isolation
-                last_error = f"{type(exc).__name__}: {exc}"
-                logger.warning("stage %s attempt %d failed: %s",
-                               spec.key, attempt, last_error)
-                if attempt < attempts:
-                    continue
+                    result = StageResult(spec.key, "aborted", duration_ms,
+                                         error=str(abort))
+                    self.results.append(result)
+                    # Abort always stops the pipeline: bubble to the envelope.
+                    raise CycleAbort(str(abort)) from None
+                except Exception as exc:  # noqa: BLE001 - stage isolation
+                    last_error = f"{type(exc).__name__}: {exc}"
+                    logger.warning("stage %s attempt %d failed: %s",
+                                   spec.key, attempt, last_error)
+                    if attempt < attempts:
+                        continue
 
         duration_ms = int((time.time() - started) * 1000)
         self._beat(spec.agent, False, f"{spec.key}: {last_error[:80]}")
-        self._emit("STAGE_FAILED",
-                   {"stage": spec.key, "error": last_error[:300]},
-                   actor=spec.agent)
+        if not timed_out:
+            self._emit("STAGE_FAILED",
+                       {"stage": spec.key, "error": last_error[:300]},
+                       actor=spec.agent)
 
         policy = spec.fallback
         status = {
@@ -213,6 +309,7 @@ class PipelineRunner:
         self.results.append(result)
         if policy == "degrade":
             ctx.hold_only(f"stage {spec.key} degraded: {last_error[:120]}")
+            set_tls_hold_only(True)
         if policy == "abort_cycle":
             raise CycleAbort(f"{spec.key}: {last_error}")
         return result
@@ -266,6 +363,18 @@ def _stage_portfolio_consult(ctx: RunnerContext, inp: Dict[str, Any]) -> Dict[st
 
 
 def _stage_legacy_body(ctx: RunnerContext, _inp: Dict[str, Any]) -> Any:
+    from operations.autonomy import get_autonomy
+    autonomy_hold_only = get_autonomy().is_hold_only() if hasattr(get_autonomy(), "is_hold_only") else False
+    if ctx.flags.get("hold_only") or autonomy_hold_only or get_tls_hold_only():
+        why = ctx.flags.get("hold_only_why") or "hold_only flag active"
+        try:
+            from operations.event_bridge import emit
+            emit("HOLD_ONLY_TRIGGERED", {"stage": "legacy.body", "why": why}, actor="RiskController")
+        except Exception:
+            pass
+        result = ({"action": "HOLD", "reasoning": f"hold_only: {why}"}, 0.0)
+        ctx.shared["_legacy_return"] = result
+        return result
     result = ctx.orchestrator.execute_cycle(**ctx.shared["legacy_args"])
     ctx.shared["_legacy_return"] = result
     return result
@@ -307,14 +416,14 @@ def maintenance_stages(orchestrator: Any, symbol: str, timeframe: str,
     return [
         StageSpec("velocity.poll", "TechnicalNet",
                   lambda c, i: orchestrator._poll_velocity_results(),
-                  timeout_s=30, sla_ms=5000),
+                  timeout_s=30, sla_ms=5000, abandonable=True),
         StageSpec("reconcile.pending", "RiskController",
                   lambda c, i: orchestrator.reconcile_pending_orders(paper_mode),
                   timeout_s=60, sla_ms=10000),
         StageSpec("reconcile.open", "RiskController", reconcile_open,
                   timeout_s=60, sla_ms=10000),
         StageSpec("memory.dispatch", "QuantitativeCoach", memory_dispatch,
-                  timeout_s=10, sla_ms=2000, fallback="skip",
+                  timeout_s=10, sla_ms=2000, fallback="skip", abandonable=True,
                   notes="slow-lane dispatch; BACKPRESSURE journalled"),
         StageSpec("position.tick", "RiskController",
                   lambda c, i: orchestrator._monitor_owned_positions_tick(
@@ -409,6 +518,17 @@ def _stage_cycle_size(ctx: RunnerContext, _inp: Dict[str, Any]) -> Dict[str, Any
 
 
 def _stage_cycle_execute(ctx: RunnerContext, _inp: Dict[str, Any]) -> Any:
+    from operations.autonomy import get_autonomy
+    autonomy_hold_only = get_autonomy().is_hold_only() if hasattr(get_autonomy(), "is_hold_only") else False
+    if ctx.flags.get("hold_only") or autonomy_hold_only or get_tls_hold_only():
+        why = ctx.flags.get("hold_only_why") or "hold_only flag set"
+        logger.info("analysis.execute stage: hold_only active (%s)", why)
+        try:
+            from operations.event_bridge import emit
+            emit("HOLD_ONLY_TRIGGERED", {"stage": "analysis.execute", "why": why}, actor="RiskController")
+        except Exception:
+            pass
+        return {"attributed": "analysis.execute", "action": "HOLD", "reasoning": f"hold_only: {why}"}
     _run_staged_pass(ctx, "analysis.execute", "analysis_executed")
     return {"attributed": "analysis.execute"}
 
@@ -422,16 +542,16 @@ def analysis_stages() -> List[StageSpec]:
     """
     return [
         StageSpec("analysis.context", "QuantitativeCoach", _stage_cycle_context,
-                  timeout_s=30, sla_ms=10000,
+                  timeout_s=30, sla_ms=10000, abandonable=True,
                   notes="per-cycle bounded context re-read (idempotent)"),
         StageSpec("analysis.data", "TechnicalNet", _stage_cycle_data,
-                  timeout_s=120, sla_ms=30000,
+                  timeout_s=120, sla_ms=30000, abandonable=True,
                   notes="fetch → quality/news gates → indicators → SMC → regime"),
         StageSpec("analysis.causal", "MacroAnalyst", _stage_cycle_causal,
-                  timeout_s=120, sla_ms=30000,
+                  timeout_s=120, sla_ms=30000, abandonable=True,
                   notes="macro ingest → causal/memory/working-memory context"),
         StageSpec("analysis.llm", "MarketModel", _stage_cycle_llm,
-                  timeout_s=300, sla_ms=45000, retries=0, fallback="continue",
+                  timeout_s=300, sla_ms=45000, retries=0, fallback="degrade", abandonable=True,
                   notes="LLM decision call with budget/circuit guards"),
         StageSpec("analysis.validate", "RiskController", _stage_cycle_validate,
                   timeout_s=30, sla_ms=10000,
@@ -901,6 +1021,12 @@ def run_envelope(orchestrator: Any, *, symbol: str, timeframe: str,
 
     if hold_decision is not None:
         return hold_decision, 0.0
+
+    from operations.autonomy import get_autonomy
+    autonomy_hold_only = get_autonomy().is_hold_only() if hasattr(get_autonomy(), "is_hold_only") else False
+    if ctx.flags.get("hold_only") or autonomy_hold_only or get_tls_hold_only():
+        why = ctx.flags.get("hold_only_why") or "hold_only flag active"
+        return ({"action": "HOLD", "reasoning": f"hold_only: {why}"}, 0.0)
 
     if staged_mode:
         # The first full pass is authoritative: later passes are deduped by

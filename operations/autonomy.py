@@ -219,6 +219,30 @@ class AutonomyManager(StoreBackedState):
                     pass
             self._persist_locked()
 
+    def pause(self, reason: str = "") -> None:
+        with self._lock:
+            self._state["paused"] = True
+            self._state["pause_reason"] = reason or "paused"
+            self._record_locked("PAUSE", {"reason": self._state["pause_reason"]})
+            if getattr(self, "store", None) is not None and hasattr(self.store, "set_autonomy_paused"):
+                try:
+                    self.store.set_autonomy_paused(True, actor="pipeline_runner", reason=self._state["pause_reason"])
+                except Exception:
+                    pass
+            self._persist_locked()
+
+    def is_hold_only(self) -> bool:
+        with self._lock:
+            return bool(self._state.get("flags", {}).get("hold_only", False))
+
+    def set_hold_only(self, hold_only: bool = True, why: str = "") -> None:
+        with self._lock:
+            self._state.setdefault("flags", {})
+            self._state["flags"]["hold_only"] = hold_only
+            if why:
+                self._state["flags"]["hold_only_why"] = why
+            self._persist_locked()
+
     def trading_allowed(self) -> tuple[bool, str]:
         with self._lock:
             self._load()
