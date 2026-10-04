@@ -507,7 +507,7 @@ const TOOL_GROUPS: { label: string; tools: { name: string; desc: string }[] }[] 
   { label: "MARKET", tools: [{ name: "mt5_symbols_total", desc: "count of symbols" }, { name: "mt5_symbols_get", desc: "list symbols (group filter)" }, { name: "mt5_symbol_info", desc: "spec for one symbol" }, { name: "mt5_symbol_info_tick", desc: "current bid/ask/last" }, { name: "mt5_symbol_select", desc: "add/remove from MarketWatch" }, { name: "mt5_copy_rates_from", desc: "OHLCV from date+count" }, { name: "mt5_copy_rates_range", desc: "OHLCV date_from→date_to" }, { name: "mt5_copy_rates_from_pos", desc: "OHLCV from pos+count" }, { name: "mt5_copy_ticks_from", desc: "ticks from date+count" }, { name: "mt5_copy_ticks_range", desc: "ticks date_from→date_to" }] },
   { label: "POSITIONS", tools: [{ name: "mt5_positions_total", desc: "count open positions" }, { name: "mt5_positions_get", desc: "list open positions" }, { name: "mt5_orders_total", desc: "count pending orders" }, { name: "mt5_orders_get", desc: "list pending orders" }] },
   { label: "HISTORY", tools: [{ name: "mt5_history_orders_total", desc: "count history orders in range" }, { name: "mt5_history_orders_get", desc: "list history orders" }, { name: "mt5_history_deals_total", desc: "count deals in range" }, { name: "mt5_history_deals_get", desc: "list deals" }] },
-  { label: "TRADING", tools: [{ name: "mt5_order_send", desc: "send/modify/remove order ⚠" }, { name: "mt5_order_check", desc: "validate without sending" }, { name: "mt5_order_calc_margin", desc: "required margin" }, { name: "mt5_order_calc_profit", desc: "potential profit" }] },
+  { label: "TRADING", tools: [{ name: "mt5_order_check", desc: "validate without sending" }, { name: "mt5_order_calc_margin", desc: "required margin" }, { name: "mt5_order_calc_profit", desc: "potential profit" }] },
 ]
 
 const ALL_TOOLS = TOOL_GROUPS.flatMap((g) => g.tools)
@@ -516,7 +516,7 @@ function ToolPalette() {
   const [tool, setTool] = useState("mt5_account_info")
   const [symbol, setSymbol] = useState("EURUSD")
   const [extraJson, setExtraJson] = useState("{}")
-  const [out, setOut] = useState("select a tool → edit args → RUN (↩). 29 tools via metatrader5-mcp.")
+  const [out, setOut] = useState("select a tool → edit args → RUN (↩). 28 tools via metatrader5-mcp.")
   const [busy, setBusy] = useState(false)
 
   const current = ALL_TOOLS.find((t) => t.name === tool) ?? ALL_TOOLS[0]
@@ -536,7 +536,7 @@ function ToolPalette() {
       case "mt5_history_orders_get": case "mt5_history_deals_get": return `{ "date_from": "2026-07-01", "date_to": "2026-08-26", "group": "${symbol}" }`
       case "mt5_order_calc_margin": return `{ "action": 0, "symbol": "${symbol}", "volume": 0.1, "price": 1.0842 }`
       case "mt5_order_calc_profit": return `{ "action": 0, "symbol": "${symbol}", "volume": 0.1, "price_open": 1.0842, "price_close": 1.09 }`
-      case "mt5_order_check": case "mt5_order_send": return `{ "action": 1, "symbol": "${symbol}", "volume": 0.1, "type": 0, "price": 1.0842, "sl": 1.08, "tp": 1.09, "deviation": 10 }`
+      case "mt5_order_check": return `{ "action": 1, "symbol": "${symbol}", "volume": 0.1, "type": 0, "price": 1.0842, "sl": 1.08, "tp": 1.09, "deviation": 10 }`
       default: return `{ } — no args or { "symbol": "${symbol}" }`
     }
   })()

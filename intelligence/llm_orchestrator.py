@@ -1780,16 +1780,20 @@ class LLMOrchestrator:
             for attempt in range(max_retries):
                 try:
                     self._last_llm_trace["attempts"] = attempt + 1
-                    # Use tool-calling loop when tools are available
+                    # Use tool-calling loop when tools are available (read-only decision toolkit, PI-P1 / TL-S1)
                     try:
-                        from core.trading_tools import get_tool_schemas, execute_tool
-                        _tool_schemas = get_tool_schemas()
+                        from core.trading_tools import get_tool_schemas, execute_tool, DECISION_READONLY_TOOLS
+                        _tool_schemas = get_tool_schemas(toolkits=DECISION_READONLY_TOOLS)
+                        _allowed_decision_tools = set(DECISION_READONLY_TOOLS)
+                        def _decision_executor(name, args):
+                            return execute_tool(name, args, allowed_tools=_allowed_decision_tools)
                     except Exception:
                         _tool_schemas = []
+                        _decision_executor = None
 
-                    if _tool_schemas and hasattr(self.llm, 'generate_with_tools'):
+                    if _tool_schemas and hasattr(self.llm, 'generate_with_tools') and _decision_executor is not None:
                         response_content = self.llm.generate_with_tools(
-                            messages, tools=_tool_schemas, tool_executor=execute_tool,
+                            messages, tools=_tool_schemas, tool_executor=_decision_executor,
                             model=self.model_name, temperature=0, seed=42, max_tokens=4096,
                         )
                     else:
@@ -8384,11 +8388,16 @@ class LLMOrchestrator:
         # A live broker run must remain deterministic and model-independent.
         # RL state is captured for PAPER and DEMO modes (non-LIVE) to enable
         # the online learning loop. Action influence requires explicit opt-in.
-        # Live mode is detected by checking if execution authority is enabled
-        # on the data provider (paper brokers don't have execution authority).
-        has_paper_broker = getattr(self.data_provider, "paper", None) is not None
-        has_execution_authority = getattr(self.data_provider, "execution_authority", False)
-        non_live = has_paper_broker or not has_execution_authority
+        # Live mode is detected by checking the authoritative journal scope/mode
+        journal_mode = "PAPER"
+        if hasattr(self, "store") and self.store:
+            if getattr(self.store, "scope", None) and isinstance(self.store.scope, dict):
+                journal_mode = str(self.store.scope.get("mode") or "PAPER").upper()
+            elif getattr(self.store, "mode", None):
+                journal_mode = str(self.store.mode).upper()
+        else:
+            journal_mode = str(os.getenv("TRADING_JOURNAL_MODE", "PAPER")).upper()
+        non_live = journal_mode != "LIVE"
         rl_learning_allowed = non_live and (
             paper_mode
             or self.rl_offline_updates_enabled
@@ -8545,23 +8554,6 @@ class LLMOrchestrator:
             # the loop, which is exactly what deterministic_hold_fallback forbids.
             # The safety HOLD must stay absolute.
             provider_outage = bool(decision.get("deterministic_fallback"))
-            # If LLM is down but an institutional quant workflow passed all mathematical/deterministic
-            # safety stages with an EXECUTE decision, promote it so trading doesn't stall on LLM API outage.
-            inst_wf = toon.get("institutional_workflow")
-            if provider_outage and isinstance(inst_wf, dict) and inst_wf.get("decision") == "EXECUTE" and inst_wf.get("proposal"):
-                prop = inst_wf["proposal"]
-                decision = {
-                    "action": prop.get("side", "HOLD"),
-                    "decision": prop.get("side", "HOLD"),
-                    "entry": prop.get("entry_price", point_values.get("close")),
-                    "stop_loss": prop.get("stop_loss"),
-                    "take_profit": prop.get("take_profit"),
-                    "confidence": 0.85,
-                    "reasoning": f"[AutonomousWorkflow] {inst_wf.get('workflow_name')} generated deterministic signal during LLM outage.",
-                    "workflow_directed": True,
-                }
-                logger.info("⚡ Autonomous institutional workflow proposal promoted during LLM outage: %s %s (%s)", decision["action"], symbol, inst_wf.get("workflow_name"))
-                provider_outage = False
 
             if provider_outage:
                 logger.warning(
