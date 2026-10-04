@@ -825,18 +825,50 @@ class TradingStore:
         from operations.daily_reconciliation import compare_day
         return compare_day(self, broker_deals, start, end, require_timestamps=require_timestamps)
 
-    def open_risk(self) -> float:
+    def open_risk(self, include_pending_intents: bool = True) -> float:
         with self._connect() as con:
             row = con.execute("SELECT COALESCE(SUM(risk_amount),0) AS total FROM trades WHERE closed_at IS NULL").fetchone()
-        return float(row["total"])
+            total = float(row["total"])
+            if include_pending_intents:
+                tables = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+                if "order_intents" in tables:
+                    open_tickets = {r[0] for r in con.execute("SELECT ticket FROM trades WHERE closed_at IS NULL").fetchall()}
+                    intent_rows = con.execute(
+                        "SELECT payload, mt5_ticket FROM order_intents WHERE status IN ('CREATED','PENDING','PARTIAL','UNRESOLVED','ERROR','FILLED')"
+                    ).fetchall()
+                    for r in intent_rows:
+                        try:
+                            ticket = r[1]
+                            if ticket is not None and ticket in open_tickets:
+                                continue
+                            pl = json.loads(r[0]) if isinstance(r[0], str) else (r[0] or {})
+                            total += float(pl.get("risk_amount", 0.0) or 0.0)
+                        except Exception:
+                            pass
+        return total
 
-    def open_bucket_risk(self, bucket: str) -> float:
+    def open_bucket_risk(self, bucket: str, include_pending_intents: bool = True) -> float:
         with self._connect() as con:
             rows = con.execute("SELECT symbol,side,risk_amount FROM trades WHERE closed_at IS NULL").fetchall()
-        total = 0.0
-        for row in rows:
-            if bucket in exposure_buckets(row["symbol"], row["side"]):
-                total += float(row["risk_amount"])
+            total = 0.0
+            for row in rows:
+                if bucket in exposure_buckets(row["symbol"], row["side"]):
+                    total += float(row["risk_amount"])
+            if include_pending_intents:
+                tables = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+                if "order_intents" in tables:
+                    intent_rows = con.execute(
+                        "SELECT payload FROM order_intents WHERE status IN ('CREATED','PENDING','PARTIAL','UNRESOLVED','ERROR')"
+                    ).fetchall()
+                    for r in intent_rows:
+                        try:
+                            pl = json.loads(r[0]) if isinstance(r[0], str) else (r[0] or {})
+                            sym = pl.get("symbol", "")
+                            side = pl.get("side", "")
+                            if sym and side and bucket in exposure_buckets(sym, side):
+                                total += float(pl.get("risk_amount", 0.0) or 0.0)
+                        except Exception:
+                            pass
         return total
 
     def realized_loss(self, since_iso: str) -> float:

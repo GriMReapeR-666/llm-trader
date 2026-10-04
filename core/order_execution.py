@@ -13,11 +13,8 @@ import numpy as np
 log = logging.getLogger(__name__)
 logger = log
 
-# ── Distributed Lock (Blind Spot audit) ──────────────────────────────────────
-try:
-    from core.distributed_lock import get_trade_lock as _get_trade_lock
-except ImportError:
-    _get_trade_lock = None
+# ── Process-wide Gateway MT5 Lock (CC-F2 / CC-F8) ──────────────────────────────
+from core.order_gateway import get_mt5_lock
 
 try:
     import MetaTrader5 as mt5
@@ -306,16 +303,13 @@ def place_market_order(symbol: str, side: str, volume: float,
     price = tick.ask if side.lower() == "buy" else tick.bid
     validate_order_params(side, price, sl, tp, atr=atr)
 
-    # ── Distributed Lock (Blind Spot audit) ──────────────────────────────────
-    _lock = None
-    if _get_trade_lock is not None:
-        try:
-            _lock = _get_trade_lock(f"order:{symbol}")
-            if not _lock.acquire(blocking=True):
-                return {"error": "lock_timeout", "message": f"Could not acquire trade lock for {symbol}"}
-        except Exception as _lock_exc:
-            log.debug("DistributedLock skipped for %s: %s", symbol, _lock_exc)
-            _lock = None
+    # ── Gateway MT5 Lock (CC-F2 / CC-F8) ──────────────────────────────────
+    _lock = get_mt5_lock()
+    try:
+        _lock.acquire()
+    except Exception as _lock_exc:
+        log.debug("MT5 lock acquire failed: %s", _lock_exc)
+        _lock = None
 
     tick_point = getattr(tick, "point", None) or 0.00001
     spread_pts = abs(tick.ask - tick.bid) / tick_point if tick and tick.bid and tick.ask and tick_point else None
