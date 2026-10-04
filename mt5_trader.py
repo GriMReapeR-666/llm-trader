@@ -4108,6 +4108,11 @@ def execute_skill(**kwargs):
         # Wire TradeManager & QuantWorkflowEngine from harness context to orchestrator
         if harness_ctx is not None:
             orch.harness_ctx = harness_ctx
+            # Live order authority (PH2-N1): only this launcher, after the
+            # fail-closed ORDER_WRITE gate above, hands the profile sandbox to
+            # the orchestrator. Paper/demo profiles never set it.
+            if getattr(args, "live", False) and harness_ctx.has("sandbox"):
+                orch.order_write_sandbox = harness_ctx.get("sandbox")
             if harness_ctx.has("quant_workflow_engine"):
                 orch.quant_workflow_engine = harness_ctx.get("quant_workflow_engine")
                 logging.getLogger("main").info("QuantWorkflowEngine wired from harness context to orchestrator")

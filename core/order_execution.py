@@ -38,6 +38,16 @@ def _gateway_intent(*, symbol, side, volume, price, sl, tp, risk_amount,
     )
 
 
+def _require_order_write(token, what: str) -> None:
+    """Live entries need an unexpired ORDER_WRITE token for the broker scope (PH2-N1)."""
+    from core.harness.sandbox import PermissionLevel
+    if token is None or not hasattr(token, "can_access") or not token.can_access(PermissionLevel.ORDER_WRITE, scope="broker"):
+        raise PermissionError(
+            f"Capability authorization failed: {what} requires an ORDER_WRITE token "
+            "issued by the harness sandbox."
+        )
+
+
 def _paper_gateway(paper):
     """Gateway for a paper entry: the shared one when it holds this book, else a
     private paper gateway on the same journal (so the reservation ledger is shared).
@@ -377,7 +387,8 @@ def place_urgency_routed_order(symbol: str, side: str, volume: float,
                                 magic: int = 0, validation_result: Optional[Any] = None,
                                 setup_key: str = "", risk_amount: float = 0.0,
                                 intent_key: Optional[str] = None,
-                                account_equity: Optional[float] = None) -> Dict[str, Any]:
+                                account_equity: Optional[float] = None,
+                                token: Optional[Any] = None) -> Dict[str, Any]:
     """Place order with UrgencySOR pre-execution routing.
 
     Routes to:
@@ -443,6 +454,7 @@ def place_urgency_routed_order(symbol: str, side: str, volume: float,
             )
         return place_market_order(symbol, side, volume, sl, tp, comment, paper, atr, magic)
 
+    _require_order_write(token, "live urgency order")
     mt5_inst = _get_mt5()
     tick = _symbol_tick(symbol)
     if tick is None or not tick.bid or not tick.ask:

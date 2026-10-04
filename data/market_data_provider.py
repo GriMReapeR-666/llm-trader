@@ -1051,7 +1051,8 @@ class MarketDataProvider:
                             expires_at: Optional[datetime] = None, validation_result: Optional[Any] = None,
                             setup_key: str = "", risk_amount: float = 0.0,
                             intent_key: Optional[str] = None,
-                            account_equity: Optional[float] = None) -> Dict[str, Any]:
+                            account_equity: Optional[float] = None,
+                            token: Optional[Any] = None) -> Dict[str, Any]:
         log = logging.getLogger("MarketData")
         # --- Ψ GUARDIAN HARD GATE: Cannot be countermanded by any agent ---
         try:
@@ -1077,7 +1078,7 @@ class MarketDataProvider:
                                    paper=paper, magic=magic, expires_at=expires_at,
                                    validation_result=validation_result, setup_key=setup_key,
                                    risk_amount=risk_amount, intent_key=intent_key,
-                                   account_equity=account_equity)
+                                   account_equity=account_equity, token=token)
 
     def check_data_sources(self) -> Dict[str, str]:
         status = {

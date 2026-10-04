@@ -84,7 +84,7 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [ ] 🟡 `D3b` The 2 % rolling-correlation cap and the FX-netting limits read open trades only (pending intents are invisible to them) and are not atomic. Move them into the Phase 4 risk engine.
 - [x] 🟡 Review `D4`: `OrderGateway.sweep_stale_created` runs each reconcile. Paper → REJECTED. Live → matched against broker orders, positions and history (PENDING / UNRESOLVED + CRITICAL review / REJECTED). A send that raises is UNRESOLVED on live.
 - [x] 🟠 Review `D6`: the web GUI has a sign-in screen. `gui/api.ts` `apiFetch` sends the HttpOnly cookie, `/` serves the built GUI, the static bundle is public, every `/api` call is authenticated, and `/api/auth/logout` exists.
-- [ ] 🟠 `PH2-N1` (found in review) Live planned entries call `place_pending_order` without the harness ORDER_WRITE token it requires, so every live pending entry raises `PermissionError` (since the first commit). Decide how the orchestrator gets the token.
+- [x] 🟠 `PH2-N1` (found in review) Live planned entries never passed the harness ORDER_WRITE token, so every live pending entry raised `PermissionError`. Now `mt5_trader --live` hands its gated profile sandbox to the orchestrator, which mints a 2-minute broker-scoped token per entry (LIVE journal only). The live urgency path gets the same gate. Demo and paper get no token.
 
 ## Phase 3: Emergency stack that works
 - [ ] 🔴 `P1-C1` = `P1-M1` One import root: `pyproject.toml`, remove 88 `sys.path` inserts, add a double-import guard test. Also fixes `CC-F13` (lazy singletons without locks).

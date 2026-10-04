@@ -2373,6 +2373,28 @@ class LLMOrchestrator:
             logging.getLogger("LLMOrchestrator").warning(f"Failed to build RL state: {e}")
             return {}
 
+    def _live_order_token(self):
+        """Short-lived ORDER_WRITE token for one live entry (PH2-N1).
+
+        The authority is the sandbox mt5_trader mounts for --live after its
+        fail-closed capability gate (``order_write_sandbox``). The
+        orchestrator's own fallback harness context never grants order
+        authority, and the journal must be LIVE. Returns None otherwise, and
+        the live entry is then refused by order_execution.
+        """
+        sandbox = getattr(self, "order_write_sandbox", None)
+        if sandbox is None:
+            return None
+        from core.harness.sandbox import PermissionLevel
+        if getattr(sandbox, "default_level", 0) < PermissionLevel.ORDER_WRITE:
+            return None
+        scope = getattr(self.store, "scope", None)
+        mode = (scope.get("mode") if isinstance(scope, dict) else None) or getattr(self.store, "mode", None)
+        if str(mode or "").upper() != "LIVE":
+            return None
+        return sandbox.issue_token(PermissionLevel.ORDER_WRITE, scopes=["broker"], duration_minutes=2,
+                                   issuer="LLMOrchestrator.live_entry")
+
     def _validate_proposal(self, decision: Dict[str, Any], toon: Dict[str, Any], symbol: str, strategy: str, paper_mode: bool = False) -> Tuple[Optional[TradeProposal], ValidationResult]:
         """Translate an LLM hypothesis into a deterministic, auditable gate."""
         mt5 = _get_mt5()
@@ -9247,6 +9269,7 @@ Total Trades: {len(closed_trades)}"""
                                 validation_result=validation, setup_key=proposal.setup_key(),
                                 risk_amount=proposed_risk, intent_key=intent_key,
                                 account_equity=equity,
+                                token=None if paper_mode else self._live_order_token(),
                             )
                         else:
                             expires_at = datetime.fromisoformat(execution_plan.expires_at)
@@ -9265,6 +9288,7 @@ Total Trades: {len(closed_trades)}"""
                                 validation_result=validation, setup_key=proposal.setup_key(),
                                 risk_amount=proposed_risk, intent_key=intent_key,
                                 account_equity=equity,
+                                token=None if paper_mode else self._live_order_token(),
                             )
                         self.operations.record_raw_trace(
                             "mt5_order_response", {"intent_key": intent_key, "result": res or {}},
