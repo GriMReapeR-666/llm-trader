@@ -1945,6 +1945,201 @@ def get_control_status(control_id: int):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+@app.get("/api/safety")
+def get_safety(request: Request):
+    """GET /api/safety — Unified safety telemetry for the deck safety strip (Part 1 §7.2)."""
+    if not is_request_authenticated(request.headers, request.cookies):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing API token")
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Engine status via OS file lock (CC-F9)
+    from core.file_lock import FileLock
+    _lock_file = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.lock")
+    _lock = FileLock(_lock_file)
+
+    engine_running = False
+    pid = None
+    if _lock.acquire(non_blocking=True):
+        _lock.release()
+        engine_running = False
+    else:
+        engine_running = True
+        pid = _lock.read_pid()
+
+    # Heartbeat
+    hb_age_s = None
+    if engine_running:
+        try:
+            from core.trading_safety import TradingStore
+            _journal_path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+            store = TradingStore(_journal_path)
+            with store._connect() as con:
+                row = con.execute("SELECT heartbeat_at FROM agent_runs ORDER BY started_at DESC LIMIT 1").fetchone()
+                if row and row["heartbeat_at"]:
+                    try:
+                        hb_dt = datetime.fromisoformat(row["heartbeat_at"])
+                        if hb_dt.tzinfo is None:
+                            hb_dt = hb_dt.replace(tzinfo=timezone.utc)
+                        hb_age_s = max(0.0, (datetime.now(timezone.utc) - hb_dt).total_seconds())
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    engine_field = {
+        "is_running": engine_running,
+        "lock_held": engine_running,
+        "heartbeat_age_s": hb_age_s,
+        "pid": pid,
+        "as_of": now,
+    }
+
+    # If engine is down, all other safety fields are null per PR 3.7 spec:
+    if not engine_running:
+        return {
+            "engine": engine_field,
+            "mode": None,
+            "autonomy": None,
+            "kill_switch": None,
+            "news_latch": None,
+            "daily_pnl": None,
+            "tick_age": None,
+            "bridge": None,
+            "llm_circuit": None,
+            "open_controls": None,
+        }
+
+    from core.trading_safety import TradingStore
+    _journal_path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+    store = TradingStore(_journal_path)
+
+    # Mode
+    mode_val = os.environ.get("LLM_TRADER_MODE", "PAPER").upper()
+    mode_field = {"value": mode_val, "as_of": now}
+
+    # Autonomy
+    try:
+        from operations.autonomy import get_autonomy
+        snap = get_autonomy().snapshot()
+        autonomy_field = {
+            "level": getattr(snap.level, "key", str(snap.level)),
+            "paused": snap.paused,
+            "halted": snap.halted,
+            "pause_reason": snap.pause_reason,
+            "halt_reason": snap.halt_reason,
+            "as_of": now,
+        }
+    except Exception:
+        autonomy_field = None
+
+    # Kill switch
+    try:
+        ks_active = store.is_kill_switch_active()
+        ks_state = store.get_state("kill_switch", {})
+        ks_reason = ks_state.get("reason", "") if isinstance(ks_state, dict) else ""
+        kill_switch_field = {
+            "active": ks_active,
+            "reason": ks_reason,
+            "as_of": now,
+        }
+    except Exception:
+        kill_switch_field = None
+
+    # News latch
+    try:
+        from data.kill_switch_latch import get_kill_switch_latch
+        latch = get_kill_switch_latch()
+        st = latch.snapshot()
+        latched = bool(st.get("latched", False))
+        triggered_at = st.get("triggered_at")
+        since_iso = None
+        if latched and triggered_at:
+            try:
+                since_iso = datetime.fromtimestamp(float(triggered_at), tz=timezone.utc).isoformat()
+            except Exception:
+                since_iso = str(triggered_at)
+        news_latch_field = {
+            "latched": latched,
+            "since": since_iso,
+            "source": st.get("trigger_source"),
+            "headlines": st.get("triggered_headlines", []),
+            "as_of": now,
+        }
+    except Exception:
+        news_latch_field = None
+
+    # Daily P&L against limit & breaker state
+    try:
+        pnl_val = float(ui_state.pnl if hasattr(ui_state, "pnl") else 0.0)
+        daily_state = store.get_state("daily_breaker", {})
+        breaker_tripped = bool(daily_state.get("tripped", False)) if isinstance(daily_state, dict) else False
+        daily_pnl_field = {
+            "pnl": pnl_val,
+            "limit": float(daily_state.get("limit", -500.0)) if isinstance(daily_state, dict) else -500.0,
+            "breaker_tripped": breaker_tripped,
+            "as_of": now,
+        }
+    except Exception:
+        daily_pnl_field = None
+
+    # Last tick age per symbol
+    try:
+        tick_syms = ui_state.system_health.get("feed_ages", {}) if isinstance(ui_state.system_health, dict) else {}
+        tick_age_field = {
+            "symbols": tick_syms or {},
+            "as_of": now,
+        }
+    except Exception:
+        tick_age_field = None
+
+    # MT5 bridge status
+    try:
+        bridge_conn = bool(ui_state.is_connected)
+        bridge_field = {
+            "connected": bridge_conn,
+            "status": "CONNECTED" if bridge_conn else "DISCONNECTED",
+            "as_of": now,
+        }
+    except Exception:
+        bridge_field = None
+
+    # LLM provider circuit
+    try:
+        circuit_st = store.get_state("llm_circuit", {})
+        llm_circuit_field = {
+            "state": circuit_st.get("state", "CLOSED") if isinstance(circuit_st, dict) else "CLOSED",
+            "available": circuit_st.get("available", True) if isinstance(circuit_st, dict) else True,
+            "as_of": now,
+        }
+    except Exception:
+        llm_circuit_field = None
+
+    # Open control requests
+    try:
+        open_ctrls = store.get_open_operator_controls() if hasattr(store, "get_open_operator_controls") else []
+        open_controls_field = {
+            "count": len(open_ctrls),
+            "requests": open_ctrls,
+            "as_of": now,
+        }
+    except Exception:
+        open_controls_field = None
+
+    return {
+        "engine": engine_field,
+        "mode": mode_field,
+        "autonomy": autonomy_field,
+        "kill_switch": kill_switch_field,
+        "news_latch": news_latch_field,
+        "daily_pnl": daily_pnl_field,
+        "tick_age": tick_age_field,
+        "bridge": bridge_field,
+        "llm_circuit": llm_circuit_field,
+        "open_controls": open_controls_field,
+    }
+
+
 @app.get("/api/latch/status")
 def get_latch_status():
     from data.kill_switch_latch import get_kill_switch_latch

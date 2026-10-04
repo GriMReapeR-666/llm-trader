@@ -567,6 +567,24 @@ class TradingStore:
                     res["status"] = "ACKNOWLEDGED"
             return res
 
+    def get_open_operator_controls(self) -> List[Dict[str, Any]]:
+        with self._connect() as con:
+            rows = con.execute(
+                "SELECT * FROM operator_controls WHERE status IN ('REQUESTED', 'CLAIMED') ORDER BY id DESC"
+            ).fetchall()
+            controls = []
+            for r in rows:
+                c = dict(r)
+                if c.get("result_json"):
+                    try:
+                        c["result"] = json.loads(c["result_json"])
+                    except Exception:
+                        c["result"] = c["result_json"]
+                else:
+                    c["result"] = {}
+                controls.append(c)
+            return controls
+
     def claim_pending_operator_controls(
         self,
         expiry_seconds: float = 60.0,

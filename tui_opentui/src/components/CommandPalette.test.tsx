@@ -41,7 +41,7 @@ describe("CommandPalette Outcome Rendering", () => {
   })
 
   it("fails closed when deck is offline and refuses to simulate local execution", async () => {
-    store.set({ transport: "synthetic" })
+    store.set({ transport: "stale" })
     const prevAlertCount = store.get().alerts.length
     await applyIntervention("flatten")
     const alerts = store.get().alerts

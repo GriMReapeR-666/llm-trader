@@ -107,7 +107,7 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [x] 🟠 `PH1-N2` (found by the Phase 1 pinning tests) `RiskManager.check_daily_drawdown` allows trading when `daily_start_equity` is 0 or negative, or when equity is NaN. Pinned in `tests/safety/test_risk_ladders.py`.
 - [x] 🟡 `1a-F15` Pre-trade gates that fail open on exception (data quality, news gate, pending-order guardian) → HOLD.
 - [x] 🟠 `P1-H2` Enforce stage deadlines (`run_stage_with_deadline`) and honour `hold_only`.
-- [ ] 🟡 Part 1 §7.2 **Persistent safety status bar** in the deck (PAPER/LIVE, autonomy, kill switch and latch, daily P&L vs limit, feed age, bridge, LLM circuit).
+- [x] 🟡 Part 1 §7.2 **Persistent safety status bar** in the deck (PAPER/LIVE, autonomy, kill switch and latch, daily P&L vs limit, feed age, bridge, LLM circuit).
 
 ## Phase 4: Live-mode correctness (fix together; only then remove the two accidental blocks)
 Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).

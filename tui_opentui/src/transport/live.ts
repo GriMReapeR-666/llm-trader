@@ -1846,7 +1846,7 @@ export async function sendControl(action: string, payload?: Record<string, any>)
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ source: "command-deck", ...(payload ?? {}) }),
     })
-    const data = await res.json().catch(() => ({}))
+    const data: any = await res.json().catch(() => ({}))
     if (res.ok) void refreshSnapshot()
     return {
       ok: res.ok && data.ok !== false,
@@ -1864,7 +1864,7 @@ export async function getControlStatus(controlId: number): Promise<ControlStatus
   try {
     const res = await apiFetch(`${API}/api/control/${controlId}`)
     if (!res.ok) return null
-    return await res.json()
+    return (await res.json()) as ControlStatus | null
   } catch {
     return null
   }

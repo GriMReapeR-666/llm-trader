@@ -1460,3 +1460,62 @@ export interface DeckState {
     scrollOffset: number
   }
 }
+
+export interface SafetyData {
+  engine: {
+    is_running: boolean
+    lock_held: boolean
+    heartbeat_age_s: number | null
+    pid: number | null
+    as_of: string | null
+  } | null
+  mode: {
+    value: string | null
+    as_of: string | null
+  } | null
+  autonomy: {
+    level: string | null
+    paused: boolean | null
+    halted: boolean | null
+    pause_reason: string | null
+    halt_reason: string | null
+    as_of: string | null
+  } | null
+  kill_switch: {
+    active: boolean | null
+    reason: string | null
+    as_of: string | null
+  } | null
+  news_latch: {
+    latched: boolean | null
+    since: string | null
+    source: string | null
+    headlines: string[] | null
+    as_of: string | null
+  } | null
+  daily_pnl: {
+    pnl: number | null
+    limit: number | null
+    breaker_tripped: boolean | null
+    as_of: string | null
+  } | null
+  tick_age: {
+    symbols: Record<string, number> | null
+    as_of: string | null
+  } | null
+  bridge: {
+    connected: boolean | null
+    status: string | null
+    as_of: string | null
+  } | null
+  llm_circuit: {
+    state: string | null
+    available: boolean | null
+    as_of: string | null
+  } | null
+  open_controls: {
+    count: number | null
+    requests: any[] | null
+    as_of: string | null
+  } | null
+}
