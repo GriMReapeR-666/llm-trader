@@ -8878,6 +8878,9 @@ Total Trades: {len(closed_trades)}"""
         
         if action in ["BUY", "SELL"]:
             proposal, validation = self._validate_proposal(decision, toon, symbol, strategy, paper_mode=paper_mode)
+            if proposal is not None and getattr(validation, "approved", False):
+                # Bind the evidence to this setup for the OrderGateway (review R6).
+                validation.setup_key = proposal.setup_key()
             try:
                 from operations.event_bridge import emit as _emit
                 from operations.supervisor import get_supervisor as _get_sup

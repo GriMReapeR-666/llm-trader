@@ -43,14 +43,10 @@ class DirectOrderExecutionForbidden(RuntimeError):
 # — including via a smuggled LiveMT5Adapter — is rejected by the guard.
 _GATEWAY_SEND_CTX: ContextVar[bool] = ContextVar("_GATEWAY_SEND_CTX", default=False)
 
-# Intent statuses that still reserve risk budget. CLOSED/CANCELLED/REJECTED
-# release the reservation; every other state keeps it. FILLED is ACTIVE
-# here (not terminal): the gateway never creates trade rows itself, so a
-# FILLED intent without a matching trade ticket is the only record of that
-# open risk. When a trade row exists for the same ticket it is deduped by
-# ticket below, so live fills count exactly once. Exits move intents to
-# CLOSED, cancels to CANCELLED. See CC-F1.
-ACTIVE_INTENT_STATUSES = ("CREATED", "PENDING", "PARTIAL", "UNRESOLVED", "ERROR", "FILLED")
+# Broker retcodes worth retrying with the same intent (requote, reject,
+# timeout, price changed, market closed). The intent stays CREATED so the
+# reservation is held across retries.
+TRANSIENT_RETCODES = frozenset({10004, 10006, 10012, 10015, 10018})
 
 
 @contextmanager
@@ -167,6 +163,9 @@ class OrderIntent:
     validation_result: Optional[Any] = None
     expires_at: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    # Equity the risk was sized on. When absent the gateway reads the live
+    # account (LIVE/DEMO) or the store's "equity" state; with none it refuses.
+    account_equity: Optional[float] = None
 
 
 @dataclass
@@ -188,8 +187,12 @@ class BaseBrokerAdapter:
     def modify_protection(self, ticket: int, symbol: str, sl: float, tp: float, mt5_client: Any = None) -> Dict[str, Any]:
         raise NotImplementedError
 
-    def close_position(self, ticket: int, symbol: str, volume: Optional[float] = None, comment: str = "", mt5_client: Any = None) -> Dict[str, Any]:
+    def close_position(self, ticket: int, symbol: str, volume: Optional[float] = None, comment: str = "", mt5_client: Any = None, deviation: int = 20) -> Dict[str, Any]:
         raise NotImplementedError
+
+    def position_protection(self, ticket: int, mt5_client: Any = None) -> Optional[tuple]:
+        """(sl, tp) of an open position, or None when it cannot be read."""
+        return None
 
     def cancel_order(self, ticket: int, mt5_client: Any = None) -> Dict[str, Any]:
         raise NotImplementedError
@@ -239,34 +242,74 @@ class LiveMT5Adapter(BaseBrokerAdapter):
             res = _mt5_send(mt5, req)
             return {"retcode": getattr(res, "retcode", 10009) if res else -1, "result": res}
 
-    def close_position(self, ticket: int, symbol: str, volume: Optional[float] = None, comment: str = "", mt5_client: Any = None) -> Dict[str, Any]:
+    @staticmethod
+    def _find_position(mt5: Any, ticket: int) -> Any:
+        """The position with exactly this ticket, or None (never another one: review X2)."""
+        if not hasattr(mt5, "positions_get"):
+            return None
+        try:
+            positions = mt5.positions_get(ticket=ticket)
+        except TypeError:
+            positions = mt5.positions_get()
+        matched = [p for p in (positions or []) if getattr(p, "ticket", None) == ticket]
+        return matched[0] if matched else None
+
+    @staticmethod
+    def _filling_mode(mt5: Any, symbol: str) -> Optional[int]:
+        """Broker-advertised market filling mode, as order_execution uses for entries (review X3)."""
+        try:
+            flags = int(getattr(mt5.symbol_info(symbol), "filling_mode", -1))
+        except Exception:
+            return None
+        if flags > 0 and flags & 2:
+            return int(getattr(mt5, "ORDER_FILLING_IOC", 1))
+        if flags > 0 and flags & 1:
+            return int(getattr(mt5, "ORDER_FILLING_FOK", 0))
+        return None
+
+    def position_protection(self, ticket: int, mt5_client: Any = None) -> Optional[tuple]:
+        mt5 = self._get_mt5(mt5_client)
+        if mt5 is None:
+            return None
+        with get_mt5_lock():
+            pos = self._find_position(mt5, int(ticket))
+        if pos is None:
+            return None
+        return float(getattr(pos, "sl", 0.0) or 0.0), float(getattr(pos, "tp", 0.0) or 0.0)
+
+    def close_position(self, ticket: int, symbol: str, volume: Optional[float] = None, comment: str = "", mt5_client: Any = None, deviation: int = 20) -> Dict[str, Any]:
         mt5 = self._get_mt5(mt5_client)
         if mt5 is None:
             return {"retcode": -1, "error": "MetaTrader5 unavailable"}
         with get_mt5_lock():
-            positions = None
-            try:
-                positions = mt5.positions_get(ticket=ticket) if hasattr(mt5, "positions_get") else None
-            except TypeError:
-                positions = mt5.positions_get() if hasattr(mt5, "positions_get") else None
-            pos = None
-            if positions:
-                matched = [p for p in positions if getattr(p, "ticket", None) == ticket]
-                pos = matched[0] if matched else positions[0]
-            if not pos:
+            pos = self._find_position(mt5, int(ticket))
+            if pos is None:
                 return {"retcode": -1, "error": f"Position {ticket} not found"}
+            symbol = str(getattr(pos, "symbol", "") or symbol)
             tick = mt5.symbol_info_tick(symbol) if hasattr(mt5, "symbol_info_tick") else None
             is_buy = getattr(pos, "type", 0) == getattr(mt5, "ORDER_TYPE_BUY", 0)
-            price = getattr(tick, "bid" if is_buy else "ask", getattr(pos, "price_current", 0.0))
+            price = getattr(tick, "bid" if is_buy else "ask", None) if tick is not None else None
+            if not price:
+                price = getattr(pos, "price_current", 0.0)
+            pos_volume = float(getattr(pos, "volume", 0.0) or 0.0)
+            close_volume = float(volume) if volume else pos_volume
+            if not 0 < close_volume <= pos_volume + 1e-9:
+                return {"retcode": -1, "error": f"Close volume {close_volume} outside position volume {pos_volume}"}
             req = {
                 "action": getattr(mt5, "TRADE_ACTION_DEAL", 1),
                 "position": ticket,
                 "symbol": symbol,
-                "volume": float(volume or getattr(pos, "volume", 0.01)),
+                "volume": close_volume,
                 "type": getattr(mt5, "ORDER_TYPE_SELL" if is_buy else "ORDER_TYPE_BUY", 1),
                 "price": price,
+                "deviation": int(deviation),
+                "magic": int(getattr(pos, "magic", 0) or 0),
+                "type_time": getattr(mt5, "ORDER_TIME_GTC", 0),
                 "comment": comment or "gateway_close",
             }
+            filling = self._filling_mode(mt5, symbol)
+            if filling is not None:
+                req["type_filling"] = filling
             res = _mt5_send(mt5, req)
             return {"retcode": getattr(res, "retcode", 10009) if res else -1, "result": res}
 
@@ -354,7 +397,13 @@ class PaperAdapter(BaseBrokerAdapter):
             return {"retcode": 10009 if ok > 0 else -1}
         return {"retcode": 10009 if ok else -1}
 
-    def close_position(self, ticket: int, symbol: str, volume: Optional[float] = None, comment: str = "", mt5_client: Any = None) -> Dict[str, Any]:
+    def position_protection(self, ticket: int, mt5_client: Any = None) -> Optional[tuple]:
+        pos = getattr(self.paper, "positions", {}).get(int(ticket))
+        if not pos:
+            return None
+        return float(pos.get("sl", 0.0) or 0.0), float(pos.get("tp", 0.0) or 0.0)
+
+    def close_position(self, ticket: int, symbol: str, volume: Optional[float] = None, comment: str = "", mt5_client: Any = None, deviation: int = 20) -> Dict[str, Any]:
         pos = getattr(self.paper, "positions", {}).get(int(ticket), {})
         price = float(pos.get("current_price") or pos.get("price") or pos.get("price_open") or 1.0)
         magic = int(pos.get("magic", 0) or 0)
@@ -422,6 +471,10 @@ class OrderGateway:
         self._reservation_lock = threading.RLock()
 
     # -- adapter client plumbing -------------------------------------------
+    @property
+    def is_paper(self) -> bool:
+        return isinstance(self.adapter, PaperAdapter)
+
     def bind_paper_broker(self, paper_broker: Any) -> None:
         if isinstance(self.adapter, PaperAdapter) and paper_broker is not None:
             self.adapter.paper = paper_broker
@@ -429,20 +482,6 @@ class OrderGateway:
     def bind_live_client(self, client: Any) -> None:
         if isinstance(self.adapter, LiveMT5Adapter) and client is not None:
             self.adapter.client = client
-
-    def ensure_live_transport(self) -> None:
-        """Switch this gateway to the live transport (trade-manager live branch)."""
-        if not isinstance(self.adapter, LiveMT5Adapter):
-            prior_client = getattr(self.adapter, "client", None)
-            self.adapter = LiveMT5Adapter(prior_client)
-
-    def ensure_paper_transport(self, paper_broker: Any = None) -> None:
-        """Switch this gateway to the paper transport bound to the given book."""
-        broker = paper_broker if paper_broker is not None else getattr(self.adapter, "paper", None)
-        if not isinstance(self.adapter, PaperAdapter):
-            self.adapter = PaperAdapter(broker)
-        elif broker is not None:
-            self.adapter.paper = broker
 
     # -- entries ------------------------------------------------------------
     def submit_entry(
@@ -481,22 +520,28 @@ class OrderGateway:
         vr = intent.validation_result
         if vr is None or not getattr(vr, "approved", False):
             return GatewayResult(False, "REJECTED", error="Missing or unapproved validation evidence")
+        strict = self.mode in ("LIVE", "DEMO")
         vr_setup = getattr(vr, "setup_key", None)
+        if strict and not (vr_setup and intent.setup_key):
+            return GatewayResult(False, "REJECTED", error="Validation evidence is not bound to a setup_key")
         if intent.setup_key and vr_setup and vr_setup != intent.setup_key:
             return GatewayResult(False, "REJECTED", error=f"Validation evidence setup_key mismatch: {vr_setup} != {intent.setup_key}")
 
         created_ts = getattr(vr, "created_at", None)
+        if strict and not created_ts:
+            return GatewayResult(False, "REJECTED", error="Validation evidence has no timestamp")
         if created_ts:
             try:
-                if isinstance(created_ts, str):
-                    ts_dt = datetime.fromisoformat(created_ts.replace("Z", "+00:00"))
-                else:
-                    ts_dt = created_ts
+                ts_dt = datetime.fromisoformat(created_ts.replace("Z", "+00:00")) if isinstance(created_ts, str) else created_ts
                 age = (datetime.now(timezone.utc) - ts_dt).total_seconds()
-                if age > self.max_evidence_age_s:
-                    return GatewayResult(False, "REJECTED", error=f"Validation evidence expired ({age:.1f}s > {self.max_evidence_age_s}s)")
             except Exception as e:
-                log.debug("Evidence timestamp parse error: %s", e)
+                return GatewayResult(False, "REJECTED", error=f"Validation evidence timestamp unreadable: {e}")
+            if age > self.max_evidence_age_s:
+                return GatewayResult(False, "REJECTED", error=f"Validation evidence expired ({age:.1f}s > {self.max_evidence_age_s}s)")
+
+        equity = self._equity(intent, mt5_client)
+        if equity is None:
+            return GatewayResult(False, "REJECTED", error="Refused: account equity unavailable for the risk cap")
 
         # 3. Atomic Risk Reservation (BEGIN IMMEDIATE with mutex)
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -512,63 +557,50 @@ class OrderGateway:
                       payload TEXT NOT NULL, result TEXT, error TEXT
                     )""")
 
-                    # Compute current open risk = filled trades + active intents.
-                    # Terminal intent states never reserve (see ACTIVE_INTENT_STATUSES).
-                    open_tickets = set()
-                    trades_exists = con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='trades'").fetchone()
+                    existing = con.execute(
+                        "SELECT status FROM order_intents WHERE intent_key=?", (intent.intent_key,)
+                    ).fetchone()
+                    if existing is not None and existing[0] != "CREATED":
+                        con.execute("ROLLBACK")
+                        return GatewayResult(False, "REJECTED", error=f"Duplicate intent {intent.intent_key} already {existing[0]}")
+
+                    # Open risk = open trades + intents still reserving, this
+                    # intent excluded so a pre-created or retried CREATED row
+                    # is counted once, as the new risk below (review R3).
+                    from core.trading_safety import reserving_intent_payloads
+                    trades_exists = con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='trades'").fetchone()
+                    current_open_risk = 0.0
                     if trades_exists:
-                        row_trades = con.execute("SELECT COALESCE(SUM(risk_amount),0) FROM trades WHERE closed_at IS NULL").fetchone()
-                        current_open_risk = float(row_trades[0] if row_trades else 0.0)
-                        open_tickets = {r[0] for r in con.execute("SELECT ticket FROM trades WHERE closed_at IS NULL").fetchall()}
-                    else:
-                        current_open_risk = 0.0
+                        current_open_risk = float(con.execute(
+                            "SELECT COALESCE(SUM(risk_amount),0) FROM trades WHERE closed_at IS NULL").fetchone()[0])
+                    current_open_risk += sum(float(pl.get("risk_amount", 0.0) or 0.0)
+                                             for pl in reserving_intent_payloads(con, exclude_key=intent.intent_key))
 
-                    placeholders = ",".join(["?"] * len(ACTIVE_INTENT_STATUSES))
-                    active_intents = con.execute(
-                        f"SELECT payload, mt5_ticket FROM order_intents WHERE status IN ({placeholders})",
-                        ACTIVE_INTENT_STATUSES,
-                    ).fetchall()
-                    for irow in active_intents:
-                        try:
-                            ticket = irow[1]
-                            if ticket is not None and ticket in open_tickets:
-                                continue
-                            pl = json.loads(irow[0]) if isinstance(irow[0], str) else (irow[0] or {})
-                            current_open_risk += float(pl.get("risk_amount", 0.0) or 0.0)
-                        except Exception:
-                            pass
-
-                    # Arbiter check if configured
-                    equity = 10000.0
-                    if hasattr(self.store, "get_state"):
-                        try:
-                            equity = float(self.store.get_state("equity") or 10000.0)
-                        except Exception:
-                            equity = 10000.0
                     max_open_fraction = 0.03
                     if self.arbiter:
                         max_open_fraction = getattr(self.arbiter, "max_open_risk_fraction", 0.03)
-
-                    if current_open_risk + float(intent.risk_amount or 0.0) > (equity * max_open_fraction) + 1e-6:
+                    cap = equity * max_open_fraction
+                    new_total = current_open_risk + float(intent.risk_amount or 0.0)
+                    if new_total > cap + 1e-6:
                         con.execute("ROLLBACK")
-                        return GatewayResult(False, "REJECTED", error=f"Portfolio open-risk limit breached: {current_open_risk + float(intent.risk_amount or 0.0):.2f} > {equity * max_open_fraction:.2f}")
+                        return GatewayResult(False, "REJECTED", error=f"Portfolio open-risk limit breached: {new_total:.2f} > {cap:.2f}")
 
-                    # Insert intent as CREATED
-                    payload_json = json.dumps({
-                        "symbol": intent.symbol,
-                        "side": intent.side,
-                        "volume": intent.volume,
-                        "price": intent.price,
-                        "sl": intent.sl,
-                        "tp": intent.tp,
-                        "risk_amount": intent.risk_amount,
-                        "setup_key": intent.setup_key,
-                        "order_type": intent.order_type,
-                    })
-                    con.execute(
-                        "INSERT OR REPLACE INTO order_intents(intent_key, created_at, updated_at, status, payload) VALUES(?,?,?,?,?)",
-                        (intent.intent_key, now_iso, now_iso, "CREATED", payload_json),
-                    )
+                    if existing is None:
+                        payload_json = json.dumps({
+                            "symbol": intent.symbol,
+                            "side": intent.side,
+                            "volume": intent.volume,
+                            "price": intent.price,
+                            "sl": intent.sl,
+                            "tp": intent.tp,
+                            "risk_amount": intent.risk_amount,
+                            "setup_key": intent.setup_key,
+                            "order_type": intent.order_type,
+                        })
+                        con.execute(
+                            "INSERT INTO order_intents(intent_key, created_at, updated_at, status, payload) VALUES(?,?,?,?,?)",
+                            (intent.intent_key, now_iso, now_iso, "CREATED", payload_json),
+                        )
                     con.execute("COMMIT")
                 except Exception as exc:
                     try:
@@ -622,14 +654,63 @@ class OrderGateway:
         send_res = self.adapter.send_order(send_req, mt5_client=mt5_client)
 
         retcode = send_res.get("retcode", -1)
-        if retcode in (10009, 10008):  # ORDER_DONE / ORDER_PLACED
+        if retcode in (10009, 10008, 10010):  # DONE / PLACED / DONE_PARTIAL
             ticket = send_res.get("order") or send_res.get("ticket")
-            self._resolve_intent(intent.intent_key, "FILLED" if self.mode == "PAPER" else "PENDING", ticket=ticket)
+            self._resolve_intent(intent.intent_key, "PENDING", ticket=ticket)
+            if retcode == 10010:
+                self._resolve_intent(intent.intent_key, "PARTIAL", ticket=ticket)
+            elif self.mode == "PAPER":
+                self._resolve_intent(intent.intent_key, "FILLED", ticket=ticket)
             return GatewayResult(True, "FILLED" if self.mode == "PAPER" else "PENDING", ticket=ticket, action=side, details=send_res)
-        else:
-            err = send_res.get("error", f"retcode {retcode}")
-            self._resolve_intent(intent.intent_key, "REJECTED", error=str(err))
-            return GatewayResult(False, "REJECTED", error=str(err), details=send_res)
+        err = send_res.get("error", f"retcode {retcode}")
+        if retcode in TRANSIENT_RETCODES:
+            # Leave the intent CREATED (reservation held) for the caller's retry.
+            return GatewayResult(False, "REJECTED", error=f"transient retcode {retcode}: {err}", details=send_res)
+        self._resolve_intent(intent.intent_key, "REJECTED", error=str(err))
+        return GatewayResult(False, "REJECTED", error=str(err), details=send_res)
+
+    def abandon_entry(self, intent_key: str, error: str) -> bool:
+        """Release a CREATED reservation the caller will not retry again.
+
+        Only CREATED (never sent, or a transient broker refusal) is released;
+        an intent already PENDING/FILLED at the broker is left untouched.
+        """
+        db_path = getattr(self.store, "path", "trading_state.db")
+        try:
+            with sqlite3.connect(db_path, timeout=5.0) as con:
+                row = con.execute("SELECT status FROM order_intents WHERE intent_key=?", (intent_key,)).fetchone()
+        except Exception as exc:
+            log.warning("abandon_entry lookup failed: %s", exc)
+            return False
+        if row is None or row[0] != "CREATED":
+            return False
+        return self._resolve_intent(intent_key, "REJECTED", error=error)
+
+    def _equity(self, intent: OrderIntent, mt5_client: Any = None) -> Optional[float]:
+        """Equity for the open-risk cap; None (refuse) when nothing trustworthy is known (review R2)."""
+        import math
+        candidates = [intent.account_equity]
+        if self.mode in ("LIVE", "DEMO"):
+            client = mt5_client or getattr(self.adapter, "client", None) or sys.modules.get("MetaTrader5")
+            try:
+                with get_mt5_lock():
+                    info = client.account_info() if client is not None else None
+                candidates.append(getattr(info, "equity", None))
+            except Exception as exc:
+                log.warning("account_info unavailable for the risk cap: %s", exc)
+        if hasattr(self.store, "get_state"):
+            try:
+                candidates.append(self.store.get_state("equity"))
+            except Exception:
+                pass
+        for value in candidates:
+            try:
+                v = float(value)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(v) and v > 0:
+                return v
+        return None
 
     def _buckets(self, symbol: str, side: str) -> List[str]:
         try:
@@ -661,7 +742,7 @@ class OrderGateway:
         return None
 
     # -- exits / modifies / cancels (risk-reducing; allowed under kill switch)
-    def submit_exit(self, ticket: int, symbol: str, volume: Optional[float] = None, comment: str = "exit", mt5_client: Any = None, owned_magics: Optional[Set[int]] = None) -> GatewayResult:
+    def submit_exit(self, ticket: int, symbol: str, volume: Optional[float] = None, comment: str = "exit", mt5_client: Any = None, owned_magics: Optional[Set[int]] = None, deviation: int = 20) -> GatewayResult:
         """Submit position exit. Allowed under kill switch (risk-reducing)."""
         if owned_magics is not None and mt5_client is not None and hasattr(mt5_client, "positions_get"):
             try:
@@ -670,15 +751,20 @@ class OrderGateway:
                     return GatewayResult(False, "REJECTED", ticket=int(ticket), action="EXIT", error="Refused: position magic not owned")
             except Exception:
                 pass
-        res = self.adapter.close_position(int(ticket), symbol, volume=volume, comment=comment, mt5_client=mt5_client)
+        res = self.adapter.close_position(int(ticket), symbol, volume=volume, comment=comment, mt5_client=mt5_client, deviation=deviation)
         retcode = res.get("retcode", -1)
         ok = retcode in (10009, 10008, 10010)
-        if ok:
-            self._close_intent_by_ticket(int(ticket))
+        # No intent transition here: a filled intent's risk is released by its
+        # trades row (see trading_safety.reserving_intent_payloads).
         return GatewayResult(ok, "FILLED" if ok else "ERROR", ticket=int(ticket), action="EXIT", error=res.get("error"), details=res)
 
-    def modify_protection(self, ticket: int, symbol: str, new_sl: Optional[float] = None, new_tp: Optional[float] = None, current_sl: Optional[float] = None, side: str = "BUY", mt5_client: Any = None) -> GatewayResult:
-        """Modify stop-loss and take-profit enforcing monotonic only-tighten protection."""
+    def modify_protection(self, ticket: int, symbol: str, new_sl: Optional[float] = None, new_tp: Optional[float] = None, current_sl: Optional[float] = None, side: str = "BUY", mt5_client: Any = None, current_tp: Optional[float] = None) -> GatewayResult:
+        """Modify stop-loss and take-profit enforcing monotonic only-tighten protection.
+
+        A value left as None keeps the position's current one; MT5 treats 0
+        as "remove", so an SL-only change must not clear the TP and a TP-only
+        change must never strip the protective SL (review X1).
+        """
         if new_sl is not None and current_sl is not None and current_sl > 0:
             try:
                 if side.upper() == "BUY" and float(new_sl) < float(current_sl) - 1e-12:
@@ -687,7 +773,24 @@ class OrderGateway:
                     return GatewayResult(False, "REJECTED", ticket=int(ticket), action="MODIFY", error=f"Protective SL cannot be widened on SELL ({new_sl} > {current_sl})")
             except (TypeError, ValueError):
                 return GatewayResult(False, "REJECTED", ticket=int(ticket), action="MODIFY", error="Invalid SL values")
-        res = self.adapter.modify_protection(int(ticket), symbol, sl=float(new_sl or 0.0), tp=float(new_tp or 0.0), mt5_client=mt5_client)
+        if new_sl is None:
+            new_sl = current_sl
+        if new_tp is None:
+            new_tp = current_tp
+        if new_sl is None or new_tp is None:
+            known = self.adapter.position_protection(int(ticket), mt5_client=mt5_client)
+            if known is None:
+                return GatewayResult(False, "REJECTED", ticket=int(ticket), action="MODIFY",
+                                     error="Current SL/TP unknown; refusing a modify that could clear them")
+            new_sl = known[0] if new_sl is None else new_sl
+            new_tp = known[1] if new_tp is None else new_tp
+        try:
+            if not float(new_sl) > 0:
+                return GatewayResult(False, "REJECTED", ticket=int(ticket), action="MODIFY",
+                                     error="Refused: modify would remove the protective stop-loss")
+        except (TypeError, ValueError):
+            return GatewayResult(False, "REJECTED", ticket=int(ticket), action="MODIFY", error="Invalid SL values")
+        res = self.adapter.modify_protection(int(ticket), symbol, sl=float(new_sl), tp=float(new_tp or 0.0), mt5_client=mt5_client)
         retcode = res.get("retcode", -1)
         ok = retcode in (10009, 10008, 10010)
         return GatewayResult(ok, "FILLED" if ok else "ERROR", ticket=int(ticket), action="MODIFY", error=res.get("error"), details=res)
@@ -697,7 +800,12 @@ class OrderGateway:
         res = self.adapter.cancel_order(int(ticket), mt5_client=mt5_client)
         retcode = res.get("retcode", -1)
         ok = retcode in (10009, 10008, 10010)
-        self._release_reservation_by_ticket(int(ticket))
+        # Release only a confirmed cancel; otherwise the order may still be
+        # working at the broker, so keep reserving and flag it (review R4).
+        if ok:
+            self._resolve_by_ticket(int(ticket), "CANCELLED")
+        else:
+            self._resolve_by_ticket(int(ticket), "UNRESOLVED", error=f"cancel not confirmed: {res.get('error') or retcode}")
         return GatewayResult(ok, "CANCELLED" if ok else "ERROR", ticket=int(ticket), action="CANCEL", error=res.get("error"), details=res)
 
     def execute_flatten(self, owned_magics: Optional[Set[int]] = None, mt5_client: Any = None) -> List[GatewayResult]:
@@ -754,41 +862,43 @@ class OrderGateway:
             self.flattening = False
         return results
 
-    def _resolve_intent(self, intent_key: str, status: str, ticket: Optional[int] = None, error: Optional[str] = None):
+    def _resolve_intent(self, intent_key: str, status: str, ticket: Optional[int] = None, error: Optional[str] = None) -> bool:
+        """Apply one legal intent transition (review R5: never a free-form overwrite)."""
+        try:
+            from operations.agent_operations import AgentOperations
+            transitions = AgentOperations.ORDER_INTENT_TRANSITIONS
+        except Exception as exc:  # pragma: no cover - import layout guard
+            log.warning("intent state machine unavailable: %s", exc)
+            return False
         now_iso = datetime.now(timezone.utc).isoformat()
         db_path = getattr(self.store, "path", "trading_state.db")
         try:
             with sqlite3.connect(db_path, timeout=5.0) as con:
+                row = con.execute("SELECT status FROM order_intents WHERE intent_key=?", (intent_key,)).fetchone()
+                if row is None:
+                    return False
+                if status not in transitions.get(row[0], frozenset()):
+                    log.warning("Illegal intent transition %s -> %s for %s", row[0], status, intent_key)
+                    return False
                 con.execute(
-                    "UPDATE order_intents SET status=?, updated_at=?, mt5_ticket=COALESCE(?, mt5_ticket), error=? WHERE intent_key=?",
+                    "UPDATE order_intents SET status=?, updated_at=?, mt5_ticket=COALESCE(?, mt5_ticket), error=COALESCE(?, error) WHERE intent_key=?",
                     (status, now_iso, ticket, error, intent_key),
                 )
+            return True
         except Exception as e:
-            log.debug("Intent resolution update failed: %s", e)
+            log.warning("Intent resolution update failed: %s", e)
+            return False
 
-    def _release_reservation_by_ticket(self, ticket: int):
-        now_iso = datetime.now(timezone.utc).isoformat()
+    def _resolve_by_ticket(self, ticket: int, status: str, error: Optional[str] = None) -> None:
         db_path = getattr(self.store, "path", "trading_state.db")
         try:
             with sqlite3.connect(db_path, timeout=5.0) as con:
-                con.execute(
-                    "UPDATE order_intents SET status='CANCELLED', updated_at=? WHERE mt5_ticket=?",
-                    (now_iso, ticket),
-                )
+                keys = [r[0] for r in con.execute("SELECT intent_key FROM order_intents WHERE mt5_ticket=?", (int(ticket),))]
         except Exception as e:
-            log.debug("Releasing reservation failed: %s", e)
-
-    def _close_intent_by_ticket(self, ticket: int):
-        now_iso = datetime.now(timezone.utc).isoformat()
-        db_path = getattr(self.store, "path", "trading_state.db")
-        try:
-            with sqlite3.connect(db_path, timeout=5.0) as con:
-                con.execute(
-                    "UPDATE order_intents SET status='CLOSED', updated_at=? WHERE mt5_ticket=?",
-                    (now_iso, ticket),
-                )
-        except Exception as e:
-            log.debug("Closing intent failed: %s", e)
+            log.warning("Intent lookup by ticket failed: %s", e)
+            return
+        for key in keys:
+            self._resolve_intent(key, status, error=error)
 
 
 # -- process-wide default gateway -------------------------------------------

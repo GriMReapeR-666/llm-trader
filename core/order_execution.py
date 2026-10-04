@@ -303,7 +303,10 @@ def calculate_dynamic_slippage_deviation(
 
 def place_market_order(symbol: str, side: str, volume: float,
                        sl: Optional[float], tp: Optional[float], comment: str, paper: Optional[PaperBroker], atr: Optional[float] = None,
-                       magic: int = 0) -> Dict[str, Any]:
+                       magic: int = 0, validation_result: Optional[Any] = None, setup_key: str = "",
+                       risk_amount: float = 0.0, intent_key: Optional[str] = None) -> Dict[str, Any]:
+    # Evidence kwargs are accepted for signature parity with the other entry
+    # points (MarketDataProvider forwards them); the live path stays disabled.
     if paper is None:
         raise RuntimeError(
             "direct market entries are disabled; use a validated pending plan "
@@ -494,6 +497,7 @@ def place_urgency_routed_order(symbol: str, side: str, volume: float,
     _gw = _live_gateway()
     _gw_res = _gw.submit_entry(_intent, mt5_request=request, mt5_client=mt5_inst)
     if not _gw_res.success:
+        _gw.abandon_entry(_intent.intent_key, str(_gw_res.error))
         raise RuntimeError(f"Urgency order rejected by gateway: {_gw_res.error}")
     res = _gw_res.details.get("result")
     if res is None:
@@ -811,6 +815,7 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
                 except Exception as tick_exc:
                     log.debug("Tick refresh failed during retry: %s", tick_exc)
                 continue
+            _gw.abandon_entry(_intent.intent_key, str(_gw_res.error))
             raise RuntimeError(f"Pending order rejected by gateway: {_gw_res.error}")
         res = _gw_res.details.get("result")
         if res is None:

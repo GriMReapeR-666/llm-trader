@@ -73,11 +73,16 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [x] 🔴 `PI-P1` = `TL-S1` Remove `execute_dynamic_metric_analysis` (unsandboxed `exec`) from the decision LLM's tools.
 - [x] 🟡 `PI-P10` `dynamic_code_runner`'s ζ review fails open; `PI-P6` the alpha-DSL AST check is escapable.
 - [x] 🟠 `1b-R2` = `LA-B4` The backtest engine writes trades, memories, playbook rules and promotions into the production journal. Give it its own DB.
-- [x] 🔴 `P1-C2` Finish API auth (started in `f218887`): token generated at install, sent by the deck and web GUI, mandatory, CORS allowlist, Host check, no `?token=` in URLs.
+- [ ] 🔴 `P1-C2` Finish API auth (started in `f218887`): token generated at install, sent by the deck and web GUI, mandatory, CORS allowlist, Host check, no `?token=` in URLs.
 - [x] 🟡 `1a-F19` The send-time margin re-check has the wrong signature and never runs.
 - [x] 🟠 `PH1-N3` (found by the Phase 1 pinning tests) `validate_order_params` skips **every** check for an order with no stop-loss (`sl=None` or `0`) or an unknown side (`"long"`). The gateway must require both. Pinned in `tests/safety/test_order_geometry.py`.
 - [x] 🟠 `CC-F10` Guardian flatten vs concurrent entries (TOCTOU): block entries via the gateway while flattening.
 - [x] 🟡 `TL-S2` The Prometheus exporter binds `0.0.0.0` by default.
+- [x] 🔴 Phase 2 review `R1`-`R6`, `X1`-`X4`, `D1` (see `REVIEW_PHASE2_2026-10-04.md`): phantom reservations after broker-side closes, fake $10k equity, double-counted intents, failed-cancel release, state-machine bypass, unbound evidence, SL/TP cleared by modify, wrong-position close, exit requests missing broker fields, `place_market_order` TypeError, per-call paper/live switching. Pinned in `tests/safety/test_order_gateway_ledger.py`.
+- [ ] 🟠 Review `D2`: paper entries return from `PaperBroker` before the gateway (no reservation or intent lifecycle in paper).
+- [ ] 🟡 Review `D3`: daily/weekly loss, drawdown and bucket risk are still checked only in the non-atomic `arbiter.permit`, not inside the reservation transaction.
+- [ ] 🟡 Review `D4`: sweep stale CREATED intents (crash between reservation and send) to UNRESOLVED during reconciliation.
+- [ ] 🟠 Review `D6`: the web GUI (`gui/`) has no login, so it gets 401 everywhere under strict auth. Add a login screen that posts to `/api/auth/login`, or serve `gui/dist` from `gui_api`. (Unticked `P1-C2` above until this lands.)
 
 ## Phase 3: Emergency stack that works
 - [ ] 🔴 `P1-C1` = `P1-M1` One import root: `pyproject.toml`, remove 88 `sys.path` inserts, add a double-import guard test. Also fixes `CC-F13` (lazy singletons without locks).

@@ -465,23 +465,23 @@ class ExternalGuardian:
             return
 
         try:
-            from core.order_gateway import get_default_gateway, configure_default_gateway
+            from core.order_gateway import OrderGateway, get_default_gateway
+            # Flatten the broker account through a private live gateway so the
+            # shared one is never switched to live (review D1), while holding
+            # the shared gateway's flattening flag so no entry slips in (CC-F10).
             try:
-                _gw = get_default_gateway()
+                _shared = get_default_gateway()
             except RuntimeError:
-                _gw = configure_default_gateway(getattr(self, "store", None), mode="LIVE")
-            # The process-wide gateway may currently hold a paper transport
-            # (trade-manager tests) or another store: force live transport and
-            # bind this guardian's MT5 client before flattening.
+                _shared = None
+            _gw = OrderGateway(getattr(self, "store", None), mode="LIVE")
+            _gw.bind_live_client(mt5)
+            if _shared is not None:
+                _shared.flattening = True
             try:
-                _gw.ensure_live_transport()
-            except Exception:
-                pass
-            try:
-                _gw.bind_live_client(mt5)
-            except Exception:
-                pass
-            _results = _gw.execute_flatten(owned_magics=None, mt5_client=mt5)
+                _results = _gw.execute_flatten(owned_magics=None, mt5_client=mt5)
+            finally:
+                if _shared is not None:
+                    _shared.flattening = False
             _ok = sum(1 for r in _results if getattr(r, "success", False))
             logger.critical("Ψ FLATTEN COMPLETE via gateway: %s/%s applied (%s)", _ok, len(_results), reason)
 

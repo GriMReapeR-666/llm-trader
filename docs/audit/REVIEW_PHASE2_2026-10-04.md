@@ -77,3 +77,21 @@ The structure is right:
 3. D1 (one transport at boot, no reconfiguration from `TradeManager` or the guardian), then D6.
 4. Re-run the probes. They become permanent tests under `tests/safety/test_order_gateway_ledger.py`.
 5. Then re-tick the ROADMAP.
+
+## Fix status (same day)
+| Item | Status |
+|---|---|
+| R1 | **Fixed.** `trading_safety.reserving_intent_payloads` is the one rule for the gateway, `open_risk` and `open_bucket_risk`. CREATED, PENDING, PARTIAL and UNRESOLVED reserve. FILLED and ERROR reserve only while ticketed and absent from `trades`. Any intent whose ticket has a trades row (open or closed) is skipped. This also fixes `open_bucket_risk` double-counting pending intents of open trades. |
+| R2 | **Fixed.** `OrderIntent.account_equity`, then the live `account_info().equity` (LIVE/DEMO), then the store's `equity`; with none of these the entry is refused. |
+| R3 | **Fixed.** A pre-existing CREATED intent is reused (no replace, metadata kept) and excluded from the sum. Any other existing state is refused as a duplicate. |
+| R4 | **Fixed.** Release happens on a confirmed cancel only; otherwise the intent goes to UNRESOLVED and keeps reserving. |
+| R5 | **Fixed.** Every gateway transition is checked against `AgentOperations.ORDER_INTENT_TRANSITIONS`. The `CLOSED` pseudo-state is gone. |
+| R6 | **Fixed.** `ValidationResult.setup_key` and `created_at` added. The orchestrator binds `setup_key`. In LIVE/DEMO both are mandatory, and an unreadable timestamp is refused. |
+| X1 | **Fixed.** Missing SL/TP keep the current values (from the caller or the position). A modify that would leave SL 0 is refused. |
+| X2 | **Fixed.** Exact ticket match only; volume is bounded by the position's volume. |
+| X3 | **Fixed.** The close request carries `type_filling` (broker flags), `deviation`, `magic` and `type_time`. |
+| X4 | **Fixed.** `place_market_order` accepts the evidence kwargs. |
+| D1 | **Fixed.** `ensure_*_transport` were removed. `TradeManager` uses the shared gateway only when its store and transport match, otherwise a private one. The guardian flattens through a private live gateway while holding the shared gateway's `flattening` flag. |
+| Extra | Transient broker retcodes leave the intent CREATED for the caller's retry, and `abandon_entry` releases it once retries are exhausted (CREATED only). DONE_PARTIAL (10010) is now accepted and recorded as PARTIAL; it used to be recorded as REJECTED. |
+| D2, D3, D4, D6 | **Open.** Tracked in ROADMAP Phase 2. |
+| D5, D7 | Accepted. D5 is covered by D1; D7 is a documented ratchet change (the gateway is now at 1 site). |

@@ -34,7 +34,9 @@ class DummyValidationResult:
 @pytest.fixture
 def store(tmp_path):
     db_file = str(tmp_path / "test_gateway.db")
-    return TradingStore(db_file, mode="PAPER")
+    store = TradingStore(db_file, mode="PAPER")
+    store.set_state("equity", 10000.0)  # the gateway refuses without a known equity
+    return store
 
 
 @pytest.fixture

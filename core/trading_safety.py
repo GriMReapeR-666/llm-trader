@@ -76,6 +76,42 @@ class ValidationResult:
     reasons: List[str]
     confluence_score: int
     rule_trace: Dict[str, Any] = field(default_factory=dict)
+    # Evidence binding for OrderGateway (review R6): which setup was approved
+    # and when. The gateway refuses LIVE/DEMO entries whose evidence is for
+    # another setup or older than its max_evidence_age_s.
+    setup_key: str = ""
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+# Order-intent states that hold risk budget (CC-F1). A ticketed FILLED/ERROR
+# intent reserves only until a trades row exists for its ticket; once the
+# journal has the trade (open or closed) the trade row is the record, so a
+# broker-side SL/TP close releases the budget (review R1).
+RESERVING_INTENT_STATUSES = ("CREATED", "PENDING", "PARTIAL", "UNRESOLVED")
+TICKETED_INTENT_STATUSES = ("FILLED", "ERROR")
+
+
+def reserving_intent_payloads(con: sqlite3.Connection, exclude_key: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Payloads of order intents that still reserve risk, deduped against trades."""
+    def table(name: str) -> bool:
+        return con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+    if not table("order_intents"):
+        return []
+    traded = {r[0] for r in con.execute("SELECT ticket FROM trades").fetchall()} if table("trades") else set()
+    statuses = RESERVING_INTENT_STATUSES + TICKETED_INTENT_STATUSES
+    marks = ",".join("?" for _ in statuses)
+    out: List[Dict[str, Any]] = []
+    for key, status, ticket, payload in con.execute(
+            f"SELECT intent_key, status, mt5_ticket, payload FROM order_intents WHERE status IN ({marks})", statuses):
+        if key == exclude_key or (ticket is not None and ticket in traded):
+            continue
+        if status in TICKETED_INTENT_STATUSES and ticket is None:
+            continue
+        try:
+            out.append(json.loads(payload) if isinstance(payload, str) else dict(payload or {}))
+        except Exception:
+            continue
+    return out
 
 
 class TradingStore:
@@ -830,25 +866,7 @@ class TradingStore:
             row = con.execute("SELECT COALESCE(SUM(risk_amount),0) AS total FROM trades WHERE closed_at IS NULL").fetchone()
             total = float(row["total"])
             if include_pending_intents:
-                tables = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
-                if "order_intents" in tables:
-                    open_tickets = {r[0] for r in con.execute("SELECT ticket FROM trades WHERE closed_at IS NULL").fetchall()}
-                    # Active states keep reserving (CC-F1); CLOSED/CANCELLED/
-                    # REJECTED release. FILLED stays active until exit/cancel
-                    # because the gateway writes no trade rows itself (deduped
-                    # by ticket when a trade row exists).
-                    intent_rows = con.execute(
-                        "SELECT payload, mt5_ticket FROM order_intents WHERE status IN ('CREATED','PENDING','PARTIAL','UNRESOLVED','ERROR','FILLED')"
-                    ).fetchall()
-                    for r in intent_rows:
-                        try:
-                            ticket = r[1]
-                            if ticket is not None and ticket in open_tickets:
-                                continue
-                            pl = json.loads(r[0]) if isinstance(r[0], str) else (r[0] or {})
-                            total += float(pl.get("risk_amount", 0.0) or 0.0)
-                        except Exception:
-                            pass
+                total += sum(float(pl.get("risk_amount", 0.0) or 0.0) for pl in reserving_intent_payloads(con))
         return total
 
     def open_bucket_risk(self, bucket: str, include_pending_intents: bool = True) -> float:
@@ -859,20 +877,10 @@ class TradingStore:
                 if bucket in exposure_buckets(row["symbol"], row["side"]):
                     total += float(row["risk_amount"])
             if include_pending_intents:
-                tables = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
-                if "order_intents" in tables:
-                    intent_rows = con.execute(
-                        "SELECT payload FROM order_intents WHERE status IN ('CREATED','PENDING','PARTIAL','UNRESOLVED','ERROR')"
-                    ).fetchall()
-                    for r in intent_rows:
-                        try:
-                            pl = json.loads(r[0]) if isinstance(r[0], str) else (r[0] or {})
-                            sym = pl.get("symbol", "")
-                            side = pl.get("side", "")
-                            if sym and side and bucket in exposure_buckets(sym, side):
-                                total += float(pl.get("risk_amount", 0.0) or 0.0)
-                        except Exception:
-                            pass
+                for pl in reserving_intent_payloads(con):
+                    sym, side = pl.get("symbol", ""), pl.get("side", "")
+                    if sym and side and bucket in exposure_buckets(sym, side):
+                        total += float(pl.get("risk_amount", 0.0) or 0.0)
         return total
 
     def realized_loss(self, since_iso: str) -> float:

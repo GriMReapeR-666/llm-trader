@@ -166,6 +166,7 @@ def test_end_to_end_validated_proposal_to_gateway_fill(tmp_path):
     from types import SimpleNamespace
 
     store = TradingStore(str(tmp_path / "e2e_state.db"))
+    store.set_state("equity", 10000.0)
     fake_mt5 = MagicMock()
     order_res = SimpleNamespace(retcode=10009, order=88888, comment="done")
     fake_mt5.order_send = MagicMock(return_value=order_res)
@@ -224,6 +225,7 @@ def test_gateway_live_margin_fail_closed(tmp_path):
         intent_key="live-no-margin", symbol="EURUSD", side="BUY", volume=0.1,
         price=1.10, sl=1.09, tp=1.12, risk_amount=50.0, setup_key="k",
         validation_result=evidence,
+        account_equity=10000.0,  # equity known; the margin read is what fails
     )
     result = gateway.submit_entry(intent, mt5_client=fake_mt5)
     assert result.success is False

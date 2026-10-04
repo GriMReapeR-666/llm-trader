@@ -118,50 +118,33 @@ class TradeManager(StoreBackedState):
     def attach_paper_broker(self, paper_broker) -> None:
         """Bind a paper broker instance for paper trading position management."""
         self.paper_broker = paper_broker
-        try:
-            from core.order_gateway import get_default_gateway
-            get_default_gateway().bind_paper_broker(paper_broker)
-        except Exception:
-            pass
 
     def _gateway(self):
-        """Return the process-wide OrderGateway, keeping adapter/store in sync.
+        """The OrderGateway whose transport matches this manager (review D1).
 
-        The manager's live paths (partial/close/SL) always carry an explicit
-        mt5_client; when no paper broker is bound those calls must reach a
-        live transport even if the journal store defaults to PAPER (as in
-        unit tests that patch trade_manager.mt5 with a fake).
+        Uses the process-wide gateway when its store and transport (paper book
+        vs live terminal) match this manager; otherwise a private gateway bound
+        to this manager's branch. The shared gateway is never reconfigured or
+        switched between paper and live per call.
         """
-        from core.order_gateway import (
-            configure_default_gateway, get_default_gateway,
-        )
+        from core.order_gateway import OrderGateway, get_default_gateway
+        want_paper = self.paper_broker is not None
         try:
             gw = get_default_gateway()
-            if getattr(getattr(gw, "store", None), "path", None) != getattr(self.store, "path", None):
-                raise RuntimeError("gateway store mismatch")
+            if (getattr(gw.store, "path", None) == getattr(self.store, "path", None)
+                    and gw.is_paper == want_paper
+                    and (not want_paper or gw.adapter.paper is self.paper_broker)):
+                return gw
         except RuntimeError:
-            mode = "PAPER"
-            try:
-                scope = getattr(self.store, "scope", None)
-                if isinstance(scope, dict) and scope.get("mode"):
-                    mode = str(scope["mode"])
-                elif getattr(self.store, "mode", None):
-                    mode = str(self.store.mode)
-            except Exception:
-                pass
-            gw = configure_default_gateway(
-                self.store, mode=mode, paper_broker=self.paper_broker, arbiter=self.arbiter,
-            )
-        # Keep the transport consistent with the paper/live branch this
-        # manager will take in _get_positions: paper book vs live terminal.
-        try:
-            if self.paper_broker is not None:
-                gw.ensure_paper_transport(self.paper_broker)
-            else:
-                gw.ensure_live_transport()
-        except Exception:
             pass
-        return gw
+        private = getattr(self, "_private_gateway", None)
+        if (private is None or private.is_paper != want_paper
+                or (want_paper and private.adapter.paper is not self.paper_broker)):
+            private = OrderGateway(self.store, mode="PAPER" if want_paper else "LIVE", arbiter=self.arbiter)
+            if want_paper:
+                private.bind_paper_broker(self.paper_broker)
+            self._private_gateway = private
+        return private
 
     def _get_positions(self, symbol: Optional[str] = None, ticket: Optional[int] = None) -> List[Any]:
         """Fetch open positions from either paper broker or live MT5 terminal."""
