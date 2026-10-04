@@ -818,6 +818,29 @@ class LLMOrchestrator:
         except NameError:
              self.paper_broker = None
 
+        # Single-door OrderGateway: process-wide broker door (Phase 2).
+        # Configured once here so order_execution / trade_manager / guardian
+        # all share one reservation ledger, one MT5 lock, one journal mode.
+        try:
+            from core.order_gateway import configure_default_gateway
+            _gw_mode = "PAPER"
+            try:
+                if getattr(self, "store", None) is not None:
+                    _scope = getattr(self.store, "scope", None)
+                    if isinstance(_scope, dict) and _scope.get("mode"):
+                        _gw_mode = str(_scope["mode"])
+                    elif getattr(self.store, "mode", None):
+                        _gw_mode = str(self.store.mode)
+            except Exception:
+                pass
+            configure_default_gateway(
+                getattr(self, "store", None), mode=_gw_mode,
+                paper_broker=getattr(self, "paper_broker", None),
+                arbiter=getattr(self, "arbiter", None),
+            )
+        except Exception as _gw_exc:
+            logger.warning("OrderGateway default configuration failed (fail-closed on first order): %s", _gw_exc)
+
         # Bounded-Autonomy Pipeline (NZE, 2026: R ∘ V_LLM ∘ S)
         self.enable_bounded_autonomy = bounded_autonomy
         self.bounded_pipeline = None
@@ -9180,7 +9203,9 @@ Total Trades: {len(closed_trades)}"""
                         except Exception as _urg_exc:
                             log.debug("UrgencySOR pre-route skipped: %s", _urg_exc)
 
-                        # Route via UrgencySOR if available and order is market-like
+                        # Route via UrgencySOR if available and order is market-like.
+                        # Single-door rule: validated evidence travels with the
+                        # order into OrderGateway (reservation + margin + send).
                         if _use_urgency and execution_plan.order_type.upper() in ("MARKET", "BUY", "SELL"):
                             res = place_urgency_routed_order(
                                 symbol=symbol, side=action, volume=safe_vol,
@@ -9188,6 +9213,8 @@ Total Trades: {len(closed_trades)}"""
                                 comment="llm_auto",
                                 paper=self.paper_broker if paper_mode else None,
                                 atr=atr_val, magic=proposal.magic,
+                                validation_result=validation, setup_key=proposal.setup_key(),
+                                risk_amount=proposed_risk, intent_key=intent_key,
                             )
                         else:
                             expires_at = datetime.fromisoformat(execution_plan.expires_at)
@@ -9203,6 +9230,8 @@ Total Trades: {len(closed_trades)}"""
                                 paper=self.paper_broker if paper_mode else None,
                                 magic=proposal.magic,
                                 expires_at=expires_at,
+                                validation_result=validation, setup_key=proposal.setup_key(),
+                                risk_amount=proposed_risk, intent_key=intent_key,
                             )
                         self.operations.record_raw_trace(
                             "mt5_order_response", {"intent_key": intent_key, "result": res or {}},

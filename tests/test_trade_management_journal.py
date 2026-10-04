@@ -105,6 +105,11 @@ def test_partial_close_lifecycle_journaling(tmp_path):
 
 
 def test_pyramid_lifecycle_journaling(tmp_path, monkeypatch):
+    """Pyramiding without DeterministicValidator evidence fails closed at the gateway (1a-F8).
+
+    No live order may leave the manager: the broker mock must stay silent and
+    the attempt is journalled as PYRAMID_REJECTED.
+    """
     monkeypatch.setenv("PYRAMIDING_ENABLED", "1")
     store = TradingStore(str(tmp_path / "state.db"))
     risk = MagicMock()
@@ -135,16 +140,17 @@ def test_pyramid_lifecycle_journaling(tmp_path, monkeypatch):
     with patch("trade_manager.mt5", fake_mt5):
         manager._execute_pyramid_order(position)
 
+    assert fake_mt5.order_send.call_count == 0
     con = store._connect()
     try:
         lifecycle = con.execute("SELECT event_type FROM trade_lifecycle_events WHERE ticket=103").fetchall()
         events = [row["event_type"] for row in lifecycle]
     finally:
         con.close()
-    
+
     assert "PYRAMID_AUTHORIZED" in events
     assert "PYRAMID_REQUESTED" in events
-    assert "PYRAMID_FILLED" in events
+    assert "PYRAMID_REJECTED" in events
 
 
 def test_pyramid_blocked_when_arbiter_rejects(tmp_path, monkeypatch):

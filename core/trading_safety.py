@@ -833,6 +833,10 @@ class TradingStore:
                 tables = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
                 if "order_intents" in tables:
                     open_tickets = {r[0] for r in con.execute("SELECT ticket FROM trades WHERE closed_at IS NULL").fetchall()}
+                    # Active states keep reserving (CC-F1); CLOSED/CANCELLED/
+                    # REJECTED release. FILLED stays active until exit/cancel
+                    # because the gateway writes no trade rows itself (deduped
+                    # by ticket when a trade row exists).
                     intent_rows = con.execute(
                         "SELECT payload, mt5_ticket FROM order_intents WHERE status IN ('CREATED','PENDING','PARTIAL','UNRESOLVED','ERROR','FILLED')"
                     ).fetchall()

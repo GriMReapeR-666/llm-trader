@@ -310,10 +310,6 @@ async def api_auth_middleware(request: Request, call_next):
 
     response = await call_next(request)
 
-    # Set SameSite=Strict; HttpOnly session cookie on index page load
-    if path in ("/", "/index.html") and token:
-        set_gui_session_cookie(response, token)
-
     return response
 
 
@@ -321,10 +317,9 @@ async def api_auth_middleware(request: Request, call_next):
 active_ws_clients: List[WebSocket] = []
 
 @app.get("/")
-def _root(response: Response):
-    token = get_configured_api_token()
-    if token:
-        set_gui_session_cookie(response, token)
+def _root():
+    # Public index never mints an auth cookie (single-door auth rule):
+    # obtain one via POST /api/auth/login with the install-time token.
     return {
         "status": "ok",
         "service": "LLM Trader API",

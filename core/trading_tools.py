@@ -2662,8 +2662,9 @@ RESEARCH_TOOLS = [
     audit_journal_integrity,
     query_retrieval_audit_trail,
     sync_working_memory_state,
-    # Dynamic & Skill Extensibility
-    execute_dynamic_metric_analysis,
+    # Dynamic & Skill Extensibility (execute_dynamic_metric_analysis removed:
+    # PI-P1/TL-S1 unsandboxed exec must not be a tool; plain helper remains
+    # at module level for non-tool callers only)
     invoke_agent_skill,
     list_available_agent_skills,
 ]

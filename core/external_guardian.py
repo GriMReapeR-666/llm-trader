@@ -453,9 +453,11 @@ class ExternalGuardian:
         self._page_human(reason, severity)
 
     def _execute_flatten(self, reason: str) -> None:
-        """Cancel all open orders and flatten all positions.
+        """Cancel all open orders and flatten all positions via OrderGateway.
 
-        This is the nuclear option. Cannot be countermanded.
+        Single-door rule: never calls mt5.order_send/order_cancel directly.
+        Sets the gateway flattening flag (CC-F10) so concurrent entries are
+        refused while the flatten runs. Cannot be countermanded.
         """
         mt5 = self._get_mt5()
         if mt5 is None:
@@ -463,50 +465,25 @@ class ExternalGuardian:
             return
 
         try:
-            # 1. Cancel all pending orders
-            orders = mt5.orders_get()
-            if orders:
-                for order in orders:
-                    ticket = getattr(order, "ticket", None)
-                    if ticket:
-                        result = mt5.order_cancel(ticket)
-                        if result and result.retcode != mt5.TRADE_RETCODE_DONE:
-                            logger.warning("Ψ Failed to cancel order %s: %s", ticket, result.comment)
-
-            # 2. Close all open positions
-            positions = mt5.positions_get()
-            if positions:
-                for pos in positions:
-                    ticket = getattr(pos, "ticket", None)
-                    symbol = getattr(pos, "symbol", "")
-                    vol = getattr(pos, "volume", 0)
-                    pos_type = getattr(pos, "type", 0)
-
-                    if ticket and vol > 0:
-                        # Close opposite to position type
-                        close_type = mt5.ORDER_TYPE_SELL if pos_type == 0 else mt5.ORDER_TYPE_BUY
-                        price = (mt5.symbol_info_tick(symbol).bid if pos_type == 0
-                                 else mt5.symbol_info_tick(symbol).ask)
-
-                        request = {
-                            "action": mt5.TRADE_ACTION_DEAL,
-                            "symbol": symbol,
-                            "volume": float(vol),
-                            "type": close_type,
-                            "position": ticket,
-                            "price": price,
-                            "deviation": 50,
-                            "magic": 234000,
-                            "comment": f"Ψ_GUARDIAN_FLATTEN:{reason[:50]}",
-                            "type_time": mt5.ORDER_TIME_GTC,
-                            "type_filling": mt5.ORDER_FILLING_IOC,
-                        }
-                        from core.order_gateway import LiveMT5Adapter
-                        result = LiveMT5Adapter(mt5).send_order(request).get("result")
-                        if result and result.retcode != mt5.TRADE_RETCODE_DONE:
-                            logger.warning("Ψ Failed to close position %s: %s", ticket, result.comment)
-
-            logger.critical("Ψ FLATTEN COMPLETE: All orders cancelled, all positions closed")
+            from core.order_gateway import get_default_gateway, configure_default_gateway
+            try:
+                _gw = get_default_gateway()
+            except RuntimeError:
+                _gw = configure_default_gateway(getattr(self, "store", None), mode="LIVE")
+            # The process-wide gateway may currently hold a paper transport
+            # (trade-manager tests) or another store: force live transport and
+            # bind this guardian's MT5 client before flattening.
+            try:
+                _gw.ensure_live_transport()
+            except Exception:
+                pass
+            try:
+                _gw.bind_live_client(mt5)
+            except Exception:
+                pass
+            _results = _gw.execute_flatten(owned_magics=None, mt5_client=mt5)
+            _ok = sum(1 for r in _results if getattr(r, "success", False))
+            logger.critical("Ψ FLATTEN COMPLETE via gateway: %s/%s applied (%s)", _ok, len(_results), reason)
 
         except Exception as exc:
             logger.critical("Ψ FLATTEN EXCEPTION: %s — positions may remain open", exc)

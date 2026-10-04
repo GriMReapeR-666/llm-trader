@@ -125,23 +125,35 @@ def validate_backtest_journal_path(path: Any) -> str:
     if not path_str:
         raise ValueError("journal_path cannot be empty")
 
-    norm_path = os.path.normpath(path_str)
+    # Resolve symlinks/relative segments before the filename check so
+    # link-trading_state.db cannot smuggle the production journal in.
+    try:
+        real_path = os.path.realpath(path_str)
+    except Exception:
+        real_path = path_str
+    norm_path = os.path.normpath(real_path)
     base_name = os.path.basename(norm_path).lower()
 
-    # 1. Refuse trading_state.db by filename
+    # 1. Refuse trading_state.db by filename (after symlink resolution)
     if base_name == "trading_state.db":
         raise ValueError(
             f"Backtest engine cannot write to production database '{path_str}'. "
             f"Backtest engine must only ever write to a dedicated backtest or research database."
         )
 
-    # 2. Refuse if path matches active environment journal
+    # 2. Refuse if path matches active environment journal (resolved)
     env_journal = os.getenv("LLM_TRADER_JOURNAL_PATH")
-    if env_journal and os.path.abspath(path_str) == os.path.abspath(env_journal):
-        raise ValueError(
-            f"Backtest engine cannot write to active environment journal '{path_str}'. "
-            f"Backtest engine must only ever write to a dedicated backtest or research database."
-        )
+    if env_journal:
+        try:
+            if os.path.realpath(path_str) == os.path.realpath(env_journal):
+                raise ValueError(
+                    f"Backtest engine cannot write to active environment journal '{path_str}'. "
+                    f"Backtest engine must only ever write to a dedicated backtest or research database."
+                )
+        except ValueError:
+            raise
+        except Exception:
+            pass
 
     # 3. Check existing database for LIVE or DEMO journal scope
     if os.path.exists(path_str):

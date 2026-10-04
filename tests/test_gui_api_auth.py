@@ -146,14 +146,19 @@ def test_actor_cannot_be_forged_in_control_approve(client, valid_token, tmp_path
 
 
 def test_cookie_session_authenticates_requests(client, valid_token):
-    """Index page sets SameSite=Strict; HttpOnly session cookie which authenticates subsequent requests."""
-    # 1. Index page sets cookie
+    """POST /api/auth/login mints a SameSite=Strict; HttpOnly session cookie; public GET / never does."""
+    # 1. Public index never mints auth material (single-door auth rule).
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "gui_session" in resp.cookies
-    assert resp.cookies["gui_session"] == valid_token
+    assert "gui_session" not in resp.cookies
 
-    # 2. Control route accepts the session cookie
+    # 2. Login with the install-time token mints the cookie.
+    resp_login = client.post("/api/auth/login", json={"token": valid_token})
+    assert resp_login.status_code == 200
+    assert "gui_session" in resp_login.cookies
+    assert resp_login.cookies["gui_session"] == valid_token
+
+    # 3. Control route accepts the session cookie
     client.cookies.set("gui_session", valid_token)
     resp_ctrl = client.post(
         "/api/control/start",
