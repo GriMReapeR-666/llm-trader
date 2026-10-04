@@ -1,0 +1,364 @@
+{
+  "harvested_trips": [
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "NYSE halts trading",
+      "branch": "halt_trading",
+      "expect": "unknown"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "Circuit breaker triggered on open",
+      "branch": "circuit_breaker",
+      "expect": "unknown"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "Swiss franc de-pegged from euro",
+      "branch": "peg_break",
+      "expect": "unknown"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "SNB abandons the peg.",
+      "branch": "peg_break",
+      "expect": "unknown"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "Bank runs spread across region",
+      "branch": "bank_run",
+      "expect": "unknown"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "Bank freezes redemptions on funds",
+      "branch": "redemption_freeze",
+      "expect": "unknown"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "Emergency rate cut announced",
+      "branch": "emergency_action",
+      "expect": "unknown"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "NYSE halts trading as circuit breaker triggered",
+      "branch": "halt_trading",
+      "expect": "unknown"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "Exchange halts trading after flash crash",
+      "branch": "halt_trading",
+      "expect": "unknown"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "Trading halted indefinitely",
+      "branch": "halt_trading",
+      "expect": "unknown"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_triage.py",
+      "text": "Exchange halts trading as circuit breaker hits",
+      "branch": "halt_trading",
+      "expect": "trip"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_latch.py",
+      "text": "Exchange halts trading as circuit breaker hits",
+      "branch": "halt_trading",
+      "expect": "trip"
+    },
+    {
+      "source": "tests/test_d9_kill_switch_latch.py",
+      "text": "Second exchange halt confirmed",
+      "branch": "halt_trading",
+      "expect": "unknown"
+    }
+  ],
+  "benign_false_positives": [
+    {
+      "text": "Nasdaq halts trading in Zenith Biotech amid merger talks",
+      "branch": "halt_trading",
+      "fp_classes": [
+        "single_name_scope"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "NYSE halts trading shares of small-cap retailer pending news",
+      "branch": "halt_trading",
+      "fp_classes": [
+        "single_name_scope"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Trading halted in three lithium miners on unusual volume",
+      "branch": "halt_trading",
+      "fp_classes": [
+        "single_name_scope"
+      ],
+      "guard_would_suppress": false
+    },
+    {
+      "text": "Nasdaq halts trading of Terra Labs stock after review",
+      "branch": "halt_trading",
+      "fp_classes": [
+        "single_name_scope"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Euronext halts trading in one stock after order-entry glitch",
+      "branch": "halt_trading",
+      "fp_classes": [
+        "single_name_scope"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Circuit breakers triggered briefly in March, SEC review finds",
+      "branch": "circuit_breaker",
+      "fp_classes": [],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "How circuit breakers work and when they last triggered",
+      "branch": "circuit_breaker",
+      "fp_classes": [],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Senate bill would tighten circuit breaker rules for exchanges",
+      "branch": "circuit_breaker",
+      "fp_classes": [
+        "forecast_or_debate"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Circuit breaker tripped on a single stock after earnings leak",
+      "branch": "circuit_breaker",
+      "fp_classes": [
+        "single_name_scope"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Exchanges propose wider circuit breaker bands after volatility",
+      "branch": "circuit_breaker",
+      "fp_classes": [
+        "forecast_or_debate"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Gold market closed until further notice? No \u2014 regular session ahead",
+      "branch": "markets_closed",
+      "fp_classes": [
+        "negation"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Officials discuss whether the currency board peg breaks the taboo on flexibility",
+      "branch": "peg_break",
+      "fp_classes": [
+        "forecast_or_debate"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Fed emergency rate cut of 2008 revisited by historians",
+      "branch": "emergency_action",
+      "fp_classes": [
+        "retrospective"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Parliament debates emergency ban on single-use plastics",
+      "branch": "emergency_action",
+      "fp_classes": [
+        "forecast_or_debate"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Turkey held an emergency rate meeting last quarter, minutes show",
+      "branch": "emergency_action",
+      "fp_classes": [
+        "retrospective"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Flash crash in one microcap stock draws SEC inquiry",
+      "branch": "crash",
+      "fp_classes": [
+        "single_name_scope"
+      ],
+      "guard_would_suppress": false
+    },
+    {
+      "text": "Wheat futures flash crash blamed on fat-finger order",
+      "branch": "crash",
+      "fp_classes": [],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Analysts warn of a possible market crash next year",
+      "branch": "crash",
+      "fp_classes": [
+        "forecast_or_debate"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "1987 market crash anniversary: what changed since",
+      "branch": "crash",
+      "fp_classes": [
+        "retrospective"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Crypto token flash crash revives debate on thin liquidity",
+      "branch": "crash",
+      "fp_classes": [
+        "forecast_or_debate",
+        "single_name_scope"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Pension fund freezes withdrawals? No \u2014 it only delayed benefit adjustments",
+      "branch": "redemption_freeze",
+      "fp_classes": [
+        "negation"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Bank of England lifts cap; lenders no longer suspend withdrawals in old plan",
+      "branch": "redemption_freeze",
+      "fp_classes": [
+        "negation",
+        "reversal"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Silicon Valley Bank bank run of 2023 becomes a business school case",
+      "branch": "bank_run",
+      "fp_classes": [
+        "retrospective"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Economists model contagion risk after bank runs in history",
+      "branch": "bank_run",
+      "fp_classes": [
+        "retrospective",
+        "forecast_or_debate"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Study: deposit insurance reduced the odds of a bank run",
+      "branch": "bank_run",
+      "fp_classes": [
+        "forecast_or_debate"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "First Republic customers had queued online, but no bank run materialised",
+      "branch": "bank_run",
+      "fp_classes": [
+        "negation"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Greece capital controls of 2015: a retrospective",
+      "branch": "capital_controls",
+      "fp_classes": [
+        "retrospective"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Economists debate whether capital controls ever work",
+      "branch": "capital_controls",
+      "fp_classes": [
+        "forecast_or_debate"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Malaysia lifts remaining capital controls imposed decades ago",
+      "branch": "capital_controls",
+      "fp_classes": [
+        "retrospective",
+        "reversal"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "No trading halt expected as volatility stays contained",
+      "branch": "halt_trading",
+      "fp_classes": [
+        "negation"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "If a trading halt were triggered, dealers would face settlement gaps",
+      "branch": "halt_trading",
+      "fp_classes": [],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Would a de-peg of the euro cross-rate threaten stability? Economists doubt it",
+      "branch": "peg_break",
+      "fp_classes": [
+        "negation"
+      ],
+      "guard_would_suppress": true
+    },
+    {
+      "text": "Officials said an emergency rate cut is not on the table",
+      "branch": "emergency_action",
+      "fp_classes": [
+        "negation"
+      ],
+      "guard_would_suppress": true
+    }
+  ],
+  "benign_passes": [
+    "LME halts nickel trading for the day; other metals trade normally",
+    "Bond market closed for Veterans Day; equities trade normally",
+    "London Metal Exchange closed for a public holiday Thursday",
+    "Schools and government offices closed until further notice after storm",
+    "Hong Kong dollar peg holds through turbulent week",
+    "Swiss franc peg abandoned in 2015, a decade of lessons since",
+    "Danish central bank defends its euro peg with rate hike",
+    "Saudi riyal peg intact despite oil price swings",
+    "ECB holds rates, emergency meeting not expected this week",
+    "Pakistan seeks emergency loan measure from IMF",
+    "Company freezes hiring as growth slows",
+    "Fed freezes assets of sanctioned oligarchs",
+    "City freezes parking fees during the festival",
+    "Markets were closed until further notice, a headline from 1914"
+  ],
+  "recall_holes": [
+    "Swiss franc peg abandoned",
+    "LME halts nickel trading"
+  ]
+}

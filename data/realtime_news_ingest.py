@@ -469,7 +469,11 @@ def run(
             continue
         v = a.get("triage") or {}
         if str(v.get("d9_kill_switch") or "").upper() == "EMERGENCY_HALT_ACTIVE":
-            kill_headlines.append(str(a.get("title") or "")[:120])
+            url = str(a.get("url") or a.get("link") or "")
+            publisher = str(a.get("publisher") or a.get("source") or "")
+            assessment = assess_source(url=url, publisher=publisher)
+            if assessment.get("allowed") and assessment.get("tier") in ("PRIMARY", "RUNTIME_FEED"):
+                kill_headlines.append(str(a.get("title") or "")[:120])
     # Latch: one batch of tripwire headlines is a *pending confirmation*, not
     # an active kill-switch; the latch requires N batches within its window.
     # Once latched, quiet cycles never clear it — only explicit market data

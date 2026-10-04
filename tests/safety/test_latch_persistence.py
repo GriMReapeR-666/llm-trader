@@ -89,7 +89,6 @@ def test_latch_survives_restart(latched, path):
     assert _latch(path).snapshot()["latched"] is True
 
 
-@pytest.mark.xfail(strict=True, reason="TS-P6: an unreadable checkpoint loads as unlatched (fails open)")
 def test_corrupt_checkpoint_after_crash_loads_latched(latched, path):
     with open(path, "w") as fh:
         fh.write('{"latched": tr')      # torn write

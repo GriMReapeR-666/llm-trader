@@ -1665,6 +1665,14 @@ def main() -> None:
     parser_kill.add_argument("--reason", default="manual operator action")
     parser_kill.add_argument("--journal-path", default="trading_state.db")
 
+    parser_latch = sub.add_parser("latch", help="View or clear the D9 news kill-switch latch")
+    parser_latch.add_argument("--status", action="store_true", help="Display latch status")
+    parser_latch.add_argument("--clear", action="store_true", help="Operator clear the latch")
+    parser_latch.add_argument("--reason", default="", help="Reason for clearing the latch")
+    parser_latch.add_argument("--confirm", default="", help="Type CLEAR_LATCH to confirm clear")
+    parser_latch.add_argument("--actor", default="operator", help="Actor recording the clear")
+    parser_latch.add_argument("--journal-path", default="trading_state.db")
+
     parser_provider_circuit = sub.add_parser("provider-circuit", help="Inspect or manually reset the persistent LLM provider circuit")
     parser_provider_circuit.add_argument("action", choices=["status", "reset"])
     parser_provider_circuit.add_argument("--reason", default="manual operator reset")
@@ -2130,6 +2138,25 @@ def main() -> None:
         else:
             store.set_kill_switch(args.action == "enable", args.reason)
             print(f"Kill switch {'ENABLED' if args.action == 'enable' else 'DISABLED'}.")
+        return
+
+    if args.cmd == "latch":
+        from data.kill_switch_latch import get_kill_switch_latch
+        store = TradingStore(args.journal_path)
+        latch = get_kill_switch_latch()
+        latch.attach_store(store)
+        if args.clear:
+            if args.confirm != "CLEAR_LATCH":
+                print("Error: Confirmation required. Pass --confirm CLEAR_LATCH")
+                return
+            if not args.reason.strip():
+                print("Error: Reason required. Pass --reason <reason>")
+                return
+            snap = latch.clear(reason=args.reason.strip(), actor=args.actor)
+            print(f"Latch CLEARED by {args.actor}. Snapshot:\n{json.dumps(snap, indent=2)}")
+            return
+        # Default or --status
+        print(json.dumps(latch.snapshot(), indent=2))
         return
 
     if args.cmd == "provider-circuit":
@@ -4768,6 +4795,27 @@ def execute_skill(**kwargs):
                         orch.pre_pulse_macro_ingest(current_symbol, paper_mode=args.paper)
                     except Exception as _pulse_ingest_exc:
                         logging.getLogger("main").debug("Pre-pulse macro ingest skipped: %s", _pulse_ingest_exc)
+
+                # Step 5b: Market-data clear on main path: each engine pulse applies fresh VIX when macro feed has one
+                try:
+                    from data.kill_switch_latch import get_kill_switch_latch
+                    _latch = get_kill_switch_latch()
+                    if getattr(_latch, "_store", None) is None and hasattr(orch, "store") and orch.store is not None:
+                        _latch.attach_store(orch.store)
+                    _macro_vix = None
+                    if hasattr(orch, "macro_provider") and orch.macro_provider is not None:
+                        _snap = getattr(orch.macro_provider, "latest_snapshot", None)
+                        if isinstance(_snap, dict):
+                            _macro_vix = _snap.get("vix")
+                    if _macro_vix is None and hasattr(orch, "_pulse_macro_cache"):
+                        _cache = getattr(orch, "_pulse_macro_cache", {}).get(current_symbol, {})
+                        _macro_data = _cache.get("macro_observations_ingest", {}).get("macro_data", {})
+                        if isinstance(_macro_data, dict):
+                            _macro_vix = _macro_data.get("vix")
+                    if _macro_vix is not None:
+                        _latch.apply_market_data(vix=float(_macro_vix), halt_flag=False)
+                except Exception as _pulse_vix_exc:
+                    logging.getLogger("main").debug("Pulse latch VIX check skipped: %s", _pulse_vix_exc)
 
                 if len(strategy_cycles) > 1:
                     from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed as _AC

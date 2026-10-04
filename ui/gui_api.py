@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, Request, Body as _Body
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, Request, Body as _Body, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -281,7 +281,7 @@ async def api_auth_middleware(request: Request, call_next):
 
     # 3. Sensitive / control / read routes
     is_control_route = any(
-        path.startswith(p) for p in ("/api/control", "/api/config", "/api/internal")
+        path.startswith(p) for p in ("/api/control", "/api/config", "/api/internal", "/api/latch")
     )
     strict_auth = os.environ.get("GUI_STRICT_AUTH", "1") in ("1", "true", "True")
     # Public: the login/logout endpoints and everything outside /api (the
@@ -1866,6 +1866,60 @@ def deck_control(action: str, request: Request, payload: dict = _Body(default={}
         return result
     except Exception as exc:
         return {"ok": False, "reason": str(exc)}
+
+
+@app.get("/api/latch/status")
+def get_latch_status():
+    from data.kill_switch_latch import get_kill_switch_latch
+    from core.trading_safety import TradingStore
+    latch = get_kill_switch_latch()
+    try:
+        store = TradingStore()
+        if getattr(latch, "_store", None) is None:
+            latch.attach_store(store)
+    except Exception:
+        pass
+    return latch.snapshot()
+
+
+@app.post("/api/latch/clear")
+def clear_latch(request: Request, payload: dict = _Body(default={})):
+    confirm = payload.get("confirm") or payload.get("confirmation")
+    if confirm != "CLEAR_LATCH":
+        raise HTTPException(
+            status_code=400,
+            detail="Confirmation required: pass confirm='CLEAR_LATCH'",
+        )
+    reason = str(payload.get("reason") or "").strip()
+    if not reason:
+        raise HTTPException(
+            status_code=400,
+            detail="Reason required to clear latch",
+        )
+    session_actor = getattr(request.state, "actor", "authenticated_operator")
+    if not session_actor or session_actor == "unauthenticated":
+        session_actor = "authenticated_operator"
+
+    from data.kill_switch_latch import get_kill_switch_latch
+    from core.trading_safety import TradingStore
+    latch = get_kill_switch_latch()
+    try:
+        store = TradingStore()
+        if getattr(latch, "_store", None) is None:
+            latch.attach_store(store)
+    except Exception:
+        pass
+
+    result = latch.clear(reason=reason, actor=session_actor)
+    event_bridge_emit({
+        "action": "LATCH_CLEARED",
+        "actor": session_actor,
+        "reason": reason,
+        "ts": time.time(),
+        "snapshot": result,
+    }, event_type="LATCH_CLEARED")
+    return {"ok": True, "result": result}
+
 
 
 def event_bridge_emit(payload: dict, event_type: str = "APPROVAL_DECISION") -> None:

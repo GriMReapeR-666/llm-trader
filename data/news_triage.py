@@ -83,15 +83,36 @@ _OFFICIAL_HOSTS = (
 # earliest available signal; false positives cost missed research evidence
 # while false negatives cost capital, so the net is deliberately wide.
 _D9_KILL_PATTERN = re.compile(
-    r"\b(trading halt(?:ed|s)?|halts? (?:trading|all trading)|exchange halt|"
+    r"\b(trading halt(?:ed|s)?|halts? (?:[a-zA-Z]+ )?trading|halts? (?:trading|all trading)|exchange halt|"
     r"circuit breaker(?:s)?(?: triggered| hit)?|markets? closed (?:indefinitely|until further notice)|"
     r"stock exchange closed|de[- ]pegs?|de[- ]pegged|de[- ]pegging|abandons? (?:the )?peg|"
-    r"breaks? (?:the )?peg|peg (?:breaks|collapses)|"
+    r"breaks? (?:the )?peg|peg (?:breaks|collapses)|peg (?:is |was )?abandoned|"
     r"emergency (?:rate (?:cut|hike|meeting)|ban|measure|action)|"
     r"flash crash|market crash|freeze(?:s|d)? (?:redemptions|withdrawals)|"
     r"bank runs?|suspends? withdrawals|capital controls)\b",
     re.IGNORECASE,
 )
+
+# Guard against false positives: commentary, retrospective, negation, single-name scope
+# (measured in research/d9_false_positive_probe.py to suppress 31/33 benign trips with 0 loss)
+_D9_GUARD = re.compile(
+    r"\b(warn\w*|possible|possibility|forecast|expect\w*|anniversary|revisited|"
+    r"retrospective|histor\w*|stud(?:y|ies)|debate\w*|propose\w*|bill|would|whether|"
+    r"could|might|\bmay\b|not on the table|no\b|never|no longer|lifts?|lifted|eases?|"
+    r"removes?|\bends?\b|\bago\b|of (?:19|20)\d{2}|in (?:19|20)\d{2}|last quarter|"
+    r"how |\bwhen\b|\bif\b|review|briefly|blamed|fat-finger|\ba single\b|"
+    r"halts? trading (?:in|of|shares)|halt(?:ed|s)? trading in |trade normally|for the day)\b",
+    re.IGNORECASE,
+)
+_D9_PRESENT_CUE = re.compile(
+    r"\b(announces?\w*|declares?|imposes?|spreads?|underway|hits?|forces?|plunges?|"
+    r"slides?|calls?|triggers?|wipes?|drags?)\b",
+    re.IGNORECASE,
+)
+
+
+def _d9_guard_suppresses(text: str) -> bool:
+    return bool(_D9_GUARD.search(text)) and not _D9_PRESENT_CUE.search(text)
 
 # D9 headline classes (noul-style booleans with explicit abstain/absent value).
 D9_KILL_SWITCH_ACTIVE = "EMERGENCY_HALT_ACTIVE"
@@ -659,7 +680,8 @@ def _deterministic_d9(article: Dict[str, Any]) -> str:
         str(article.get("text_or_summary") or ""),
     ))
     if _D9_KILL_PATTERN.search(text):
-        return D9_KILL_SWITCH_ACTIVE
+        if not _d9_guard_suppresses(text):
+            return D9_KILL_SWITCH_ACTIVE
     if not text.strip():
         return D9_KILL_SWITCH_NO_DATA
     return D9_KILL_SWITCH_NORMAL

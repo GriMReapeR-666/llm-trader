@@ -440,8 +440,9 @@ class MacroAnalystNode:
         # latch unclearable (news asserted halt → calm market can't clear).
         try:
             _latch = get_kill_switch_latch()
-            _halt_flag = bool(snapshot.get("is_market_halt", False)) or None
-            _market_vix = float(snapshot.get("vix", features.get("vix", 18.0)))
+            _raw_vix = snapshot.get("vix", features.get("vix") if features else None)
+            _market_vix = float(_raw_vix) if _raw_vix is not None else None
+            _halt_flag = bool(snapshot.get("halt_flag") or snapshot.get("market_halt") or False)
             latch_snapshot = _latch.apply_market_data(vix=_market_vix, halt_flag=_halt_flag)
             if latch_snapshot["latched"]:
                 kill_switch = dict(kill_switch or {})

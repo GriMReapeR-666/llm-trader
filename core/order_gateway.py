@@ -494,12 +494,12 @@ class OrderGateway:
         # 1. Preconditions
         if self.flattening:
             return GatewayResult(False, "REJECTED", error="Refused: flattening in progress")
-        try:
-            if self.store is not None and self.store.is_kill_switch_active():
+        from core.kill_switch import entries_blocked
+        blocked, block_reason = entries_blocked(self.store)
+        if blocked:
+            if block_reason == "kill switch active":
                 return GatewayResult(False, "REJECTED", error="Refused: kill switch is active")
-        except Exception as exc:
-            # Fail closed: an unreadable kill switch must not admit new risk.
-            return GatewayResult(False, "REJECTED", error=f"Refused: kill-switch unreadable ({exc})")
+            return GatewayResult(False, "REJECTED", error=f"Refused: {block_reason}")
 
         side = str(intent.side or "").upper()
         if side not in ("BUY", "SELL"):

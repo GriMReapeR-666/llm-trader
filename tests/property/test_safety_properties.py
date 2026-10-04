@@ -224,7 +224,6 @@ def test_p5b_pending_geometry_never_marketable(otype, entry, bid, spread):
     st.tuples(st.just("vix"), st.one_of(st.none(), st.just(NAN), st.floats(20, 80))),
     st.tuples(st.just("restart"), st.booleans()),
 ), max_size=12))
-@pytest.mark.xfail(strict=True, reason="TS-P6: corrupt latch checkpoint loads unlatched")
 def test_p6_latch_only_clears_on_explicit_calm(ops, tmp_path_factory):
     path = str(tmp_path_factory.mktemp("p6") / "latch.json")
     t = [1000.0]

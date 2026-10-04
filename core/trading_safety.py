@@ -1040,7 +1040,11 @@ class DeterministicValidator:
 
     def validate(self, proposal: TradeProposal, market: Dict[str, Any]) -> ValidationResult:
         reasons: List[str] = []
-        kill_switch_active = self.store.is_kill_switch_active()
+        from core.kill_switch import entries_blocked
+        blocked, block_reason = entries_blocked(self.store)
+        kill_switch_active = blocked
+        if blocked:
+            reasons.append(block_reason)
         try:
             tick_age = float(market.get("tick_age_ms", 10**9))
             max_tick_age = float(market.get("max_tick_age_ms", 5_000))
@@ -1053,7 +1057,6 @@ class DeterministicValidator:
             spread_ok = spread <= max_spread
         except (TypeError, ValueError):
             spread, max_spread, spread_ok = None, None, False
-        if kill_switch_active: reasons.append("kill switch active")
         if not market.get("market_open"): reasons.append("market not open")
         if not tick_fresh: reasons.append("stale tick")
         if not market.get("clock_ok", True): reasons.append("broker/local clock health rejected tick")
