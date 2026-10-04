@@ -101,11 +101,11 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [x] 🟠 `CC-F4` The SIGTERM handler deadlocks or is swallowed. Handlers should only set a flag.
 - [x] 🟠 `CC-F9` The single-instance engine guard is check-then-act (use an OS file lock).
 - [x] ⚪ `CC-F14` Shutdown ordering (daemon threads killed mid-write).
-- [ ] 🟠 `P1-H4` Validator approves on missing evidence: a typed `MarketEvidence` with no pass-defaults. Includes `TS-P3` (NaN changepoint approved).
-- [ ] 🟠 `TS-P2` NaN, zero or negative equity gives drawdown multiplier 1.0 → fail closed (0.0).
-- [ ] 🟠 `PH1-N1` (found by the Phase 1 pinning tests) An explicit `high_impact_news=None` (news feed returned nothing) is treated as **safe**; a missing key is treated as unsafe. Pinned as a strict xfail in `tests/safety/test_validator_single_gate.py`.
-- [ ] 🟠 `PH1-N2` (found by the Phase 1 pinning tests) `RiskManager.check_daily_drawdown` allows trading when `daily_start_equity` is 0 or negative, or when equity is NaN. Pinned in `tests/safety/test_risk_ladders.py`.
-- [ ] 🟡 `1a-F15` Pre-trade gates that fail open on exception (data quality, news gate, pending-order guardian) → HOLD.
+- [x] 🟠 `P1-H4` Validator approves on missing evidence: a typed `MarketEvidence` with no pass-defaults. Includes `TS-P3` (NaN changepoint approved).
+- [x] 🟠 `TS-P2` NaN, zero or negative equity gives drawdown multiplier 1.0 → fail closed (0.0).
+- [x] 🟠 `PH1-N1` (found by the Phase 1 pinning tests) An explicit `high_impact_news=None` (news feed returned nothing) is treated as **safe**; a missing key is treated as unsafe. Pinned as a strict xfail in `tests/safety/test_validator_single_gate.py`.
+- [x] 🟠 `PH1-N2` (found by the Phase 1 pinning tests) `RiskManager.check_daily_drawdown` allows trading when `daily_start_equity` is 0 or negative, or when equity is NaN. Pinned in `tests/safety/test_risk_ladders.py`.
+- [x] 🟡 `1a-F15` Pre-trade gates that fail open on exception (data quality, news gate, pending-order guardian) → HOLD.
 - [ ] 🟠 `P1-H2` Enforce stage deadlines (`run_stage_with_deadline`) and honour `hold_only`.
 - [ ] 🟡 Part 1 §7.2 **Persistent safety status bar** in the deck (PAPER/LIVE, autonomy, kill switch and latch, daily P&L vs limit, feed age, bridge, LLM circuit).
 

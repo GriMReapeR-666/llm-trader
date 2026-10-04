@@ -1069,7 +1069,12 @@ class MarketDataProvider:
         except ImportError:
             pass
         except Exception as _g_exc:
-            log.warning("Ψ Guardian check failed (fail-open): %s", _g_exc)
+            log.warning("Ψ Guardian check failed (fail-closed): %s", _g_exc)
+            return {
+                "retcode": 0, "order": 0, "rejected": True,
+                "rejection_reason": f"Ψ_GUARDIAN_CHECK_FAILED:{type(_g_exc).__name__}",
+                "source": "ExternalGuardian",
+            }
 
         log.info(
             "Placing planned %s %s @ %s (%s)", otype, symbol, price, "paper" if paper else "MT5"

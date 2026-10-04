@@ -70,6 +70,103 @@ class TradeProposal:
         return hashlib.sha256(raw.encode()).hexdigest()[:24]
 
 
+@dataclass(frozen=True)
+class MarketEvidence:
+    """Frozen typed market evidence required by DeterministicValidator (P1-H4).
+
+    Every gate input is a required field with no default.
+    """
+    market_open: bool
+    tick_age_ms: float
+    max_tick_age_ms: float
+    symbol_tradable: bool
+    spread: float
+    max_spread: float
+    clock_ok: bool
+    session_allowed: bool
+    liquidity_ok: bool
+    microstructure_ok: bool
+    required_data_ok: bool
+    completed_candle: bool
+    breakout_event: bool
+    stop_distance: float
+    min_stop_distance: float
+    high_impact_news: bool
+    setup_cooldown_seconds: float
+    raw: Dict[str, Any] = field(default_factory=dict)
+
+    REQUIRED_FIELDS = (
+        "market_open",
+        "tick_age_ms",
+        "max_tick_age_ms",
+        "symbol_tradable",
+        "spread",
+        "max_spread",
+        "clock_ok",
+        "session_allowed",
+        "liquidity_ok",
+        "microstructure_ok",
+        "required_data_ok",
+        "completed_candle",
+        "breakout_event",
+        "stop_distance",
+        "min_stop_distance",
+        "high_impact_news",
+        "setup_cooldown_seconds",
+    )
+
+    @classmethod
+    def parse(cls, market: Any) -> Tuple[Optional["MarketEvidence"], List[str]]:
+        problems: List[str] = []
+        if not isinstance(market, dict):
+            return None, ["missing evidence: market evidence must be a dict"]
+
+        for field_name in cls.REQUIRED_FIELDS:
+            if field_name not in market or market[field_name] is None:
+                problems.append(f"missing evidence: {field_name}")
+            else:
+                val = market[field_name]
+                if isinstance(val, (int, float)) and not isinstance(val, bool):
+                    if not math.isfinite(val):
+                        problems.append(f"missing evidence: {field_name}")
+                elif not isinstance(val, (bool, int, float)):
+                    problems.append(f"missing evidence: {field_name}")
+
+        # Check non-finite optional numeric inputs when supplied
+        for opt in ("changepoint_probability", "lag_confidence", "friction_r", "min_net_ev_r", "entry_tolerance", "execution_price"):
+            if opt in market and market[opt] is not None:
+                try:
+                    v = float(market[opt])
+                    if not math.isfinite(v):
+                        problems.append(f"missing evidence: {opt}")
+                except (TypeError, ValueError):
+                    problems.append(f"missing evidence: {opt}")
+
+        if problems:
+            return None, problems
+
+        return cls(
+            market_open=bool(market["market_open"]),
+            tick_age_ms=float(market["tick_age_ms"]),
+            max_tick_age_ms=float(market["max_tick_age_ms"]),
+            symbol_tradable=bool(market["symbol_tradable"]),
+            spread=float(market["spread"]),
+            max_spread=float(market["max_spread"]),
+            clock_ok=bool(market["clock_ok"]),
+            session_allowed=bool(market["session_allowed"]),
+            liquidity_ok=bool(market["liquidity_ok"]),
+            microstructure_ok=bool(market["microstructure_ok"]),
+            required_data_ok=bool(market["required_data_ok"]),
+            completed_candle=bool(market["completed_candle"]),
+            breakout_event=bool(market["breakout_event"]),
+            stop_distance=float(market["stop_distance"]),
+            min_stop_distance=float(market["min_stop_distance"]),
+            high_impact_news=bool(market["high_impact_news"]),
+            setup_cooldown_seconds=float(market["setup_cooldown_seconds"]),
+            raw=dict(market),
+        ), []
+
+
 @dataclass
 class ValidationResult:
     approved: bool
@@ -1194,6 +1291,10 @@ class DeterministicValidator:
 
     def validate(self, proposal: TradeProposal, market: Dict[str, Any]) -> ValidationResult:
         reasons: List[str] = []
+        evidence, problems = MarketEvidence.parse(market)
+        if problems:
+            reasons.extend(problems)
+
         from core.kill_switch import entries_blocked
         blocked, block_reason = entries_blocked(self.store)
         kill_switch_active = blocked
@@ -1202,28 +1303,40 @@ class DeterministicValidator:
         try:
             tick_age = float(market.get("tick_age_ms", 10**9))
             max_tick_age = float(market.get("max_tick_age_ms", 5_000))
-            tick_fresh = tick_age <= max_tick_age
+            tick_fresh = math.isfinite(tick_age) and math.isfinite(max_tick_age) and 0 <= tick_age <= max_tick_age
         except (TypeError, ValueError):
             tick_age, max_tick_age, tick_fresh = None, None, False
         try:
             spread = float(market.get("spread", float("inf")))
             max_spread = float(market.get("max_spread", 0))
-            spread_ok = spread <= max_spread
+            spread_ok = math.isfinite(spread) and math.isfinite(max_spread) and 0 <= spread <= max_spread
         except (TypeError, ValueError):
             spread, max_spread, spread_ok = None, None, False
         if not market.get("market_open"): reasons.append("market not open")
         if not tick_fresh: reasons.append("stale tick")
-        if not market.get("clock_ok", True): reasons.append("broker/local clock health rejected tick")
+        if not market.get("clock_ok"): reasons.append("broker/local clock health rejected tick")
         if not market.get("symbol_tradable"): reasons.append("symbol not tradable")
         if not spread_ok: reasons.append("spread too wide")
-        if not market.get("session_allowed", True): reasons.append("session/rollover no-trade filter")
-        if not market.get("liquidity_ok", True): reasons.append("liquidity filter rejected entry")
-        if not market.get("microstructure_ok", True): reasons.append("microstructure filter rejected entry")
-        if not market.get("required_data_ok", True): reasons.extend(str(reason) for reason in market.get("required_data_reasons", []) if reason)
+        if not market.get("session_allowed"): reasons.append("session/rollover no-trade filter")
+        if not market.get("liquidity_ok"): reasons.append("liquidity filter rejected entry")
+        if not market.get("microstructure_ok"): reasons.append("microstructure filter rejected entry")
+        if not market.get("required_data_ok"):
+            req_reasons = [str(r) for r in market.get("required_data_reasons", []) if r]
+            if req_reasons:
+                reasons.extend(req_reasons)
+            else:
+                reasons.append("required data incomplete")
         reasons.extend(str(reason) for reason in market.get("market_condition_reasons", []) if reason)
         reasons.extend(str(reason) for reason in market.get("microstructure_reasons", []) if reason)
         try:
-            planned_entry_ok = bool(market.get("breakout_event")) or abs(float(market.get("execution_price", proposal.entry)) - proposal.entry) <= float(market.get("entry_tolerance", 0))
+            raw_exec = market.get("execution_price", proposal.entry)
+            raw_tol = market.get("entry_tolerance", 0)
+            exec_p = float(raw_exec) if raw_exec is not None else proposal.entry
+            tol = float(raw_tol) if raw_tol is not None else 0.0
+            if not (math.isfinite(exec_p) and math.isfinite(tol)):
+                planned_entry_ok = False
+            else:
+                planned_entry_ok = bool(market.get("breakout_event")) or abs(exec_p - proposal.entry) <= tol
         except (TypeError, ValueError):
             planned_entry_ok = False
         if not planned_entry_ok:
@@ -1231,22 +1344,28 @@ class DeterministicValidator:
         completed_or_breakout = bool(market.get("completed_candle")) or bool(market.get("breakout_event"))
         if not completed_or_breakout: reasons.append("no completed-candle/breakout trigger")
         try:
-            stop_distance = float(market.get("stop_distance", 0))
-            min_stop_distance = float(market.get("min_stop_distance", 0))
-            stop_ok = stop_distance >= min_stop_distance
+            raw_stop = market.get("stop_distance")
+            raw_min_stop = market.get("min_stop_distance")
+            if raw_stop is None or raw_min_stop is None:
+                stop_distance, min_stop_distance, stop_ok = None, None, False
+            else:
+                stop_distance = float(raw_stop)
+                min_stop_distance = float(raw_min_stop)
+                stop_ok = math.isfinite(stop_distance) and math.isfinite(min_stop_distance) and stop_distance >= min_stop_distance
         except (TypeError, ValueError):
             stop_distance, min_stop_distance, stop_ok = None, None, False
         if not stop_ok: reasons.append("stop too close")
         required_rr = max(self.min_rr, float(market.get("setup_min_rr", self.min_rr) or self.min_rr))
         reward_risk_ok = proposal.reward_risk >= required_rr
         if not reward_risk_ok: reasons.append(f"reward/risk below setup minimum {required_rr:.2f}")
-        event_window_ok = not (market.get("setup_event_exclusion", False) and market.get("high_impact_news", True))
+        hin = market.get("high_impact_news")
+        event_window_ok = not (market.get("setup_event_exclusion", False) and (hin is not False))
         if not event_window_ok:
             reasons.append("setup excludes high-impact event window")
         score = self.confluence(proposal.features, proposal.side)
         confluence_ok = score >= self.min_confluence
         if not confluence_ok: reasons.append("insufficient deterministic confluence")
-        news_safe = not bool(market.get("high_impact_news", True))
+        news_safe = (hin is False)
         if not news_safe: reasons.append("news data missing or high-impact event")
         setup_recent = self.store.setup_seen_recently(proposal.setup_key(), market.get("setup_cooldown_seconds", 900))
         setup_cooldown_ok = not setup_recent
@@ -1314,9 +1433,9 @@ class DeterministicValidator:
                 changepoint_probability = float(market.get("changepoint_probability"))
                 cp_threshold = float(market.get("max_changepoint_probability",
                                                 self.max_changepoint_probability))
-                changepoint_ok = not (
+                changepoint_ok = (
                     math.isfinite(changepoint_probability)
-                    and changepoint_probability > cp_threshold)
+                    and changepoint_probability <= cp_threshold)
             except (TypeError, ValueError):
                 changepoint_probability, changepoint_ok = None, False
             if not changepoint_ok:
@@ -1350,7 +1469,10 @@ class DeterministicValidator:
                 wfe_value = float(wfe_raw.get("wfe", 0.0))
                 n_folds = int(wfe_raw.get("n_folds", 0))
                 mean_test = float(wfe_raw.get("mean_test_sharpe", 0.0))
-                if n_folds >= 2 and mean_test <= 0.0:
+                if not (math.isfinite(wfe_value) and math.isfinite(mean_test)):
+                    wfe_ok = False
+                    reasons.append("walk-forward efficiency REJECT: non-finite WFE or mean test Sharpe")
+                elif n_folds >= 2 and mean_test <= 0.0:
                     wfe_ok = False
                     reasons.append(
                         f"walk-forward efficiency REJECT: OOS unprofitable "
@@ -1361,7 +1483,8 @@ class DeterministicValidator:
                         f"walk-forward efficiency REJECT: WFE {wfe_value:.3f} "
                         f"below floor {self.min_walk_forward_efficiency:.2f}")
             except (TypeError, ValueError):
-                wfe_value, wfe_ok = None, True
+                wfe_value, wfe_ok = None, False
+                reasons.append("walk-forward efficiency REJECT: invalid WFE structure")
 
         # --- Overfit Gate (UAQP P0) ---
         overfit_ok = True

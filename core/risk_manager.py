@@ -274,13 +274,17 @@ class RiskManager(StoreBackedState):
         """Level 1 Circuit Breaker: Returns False if daily loss >= 3.0R (e.g. 3%).
         On breach, halts new entries for 24h and marks protective flatten request.
         """
-        if self.daily_start_equity <= 0:
-            return True
+        if not self._finite(self.daily_start_equity, positive=True):
+            logging.warning("Daily drawdown check failed closed: daily_start_equity=%s is invalid", self.daily_start_equity)
+            return False
         equity = current_equity
         if equity is None:
             equity = self._account_equity()
         if equity is None:
             equity = self.balance
+        if not self._finite(equity, positive=False):
+            logging.warning("Daily drawdown check failed closed: equity=%s is non-finite", equity)
+            return False
         current_dd = (self.daily_start_equity - equity) / self.daily_start_equity
         if current_dd >= self.max_daily_loss:
             reason = f"daily_loss_limit:{current_dd:.2%}>={self.max_daily_loss:.2%}"
@@ -452,7 +456,7 @@ class RiskManager(StoreBackedState):
         if equity is None:
             equity = self.balance
         if not self._finite(equity, positive=True) or not self._finite(self.peak_equity, positive=True):
-            return 1.0
+            return 0.0
         dd = (float(self.peak_equity) - float(equity)) / float(self.peak_equity)
         if dd < 0.05:
             return 1.0

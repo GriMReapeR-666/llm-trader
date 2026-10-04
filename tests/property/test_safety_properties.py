@@ -78,7 +78,6 @@ def test_p1_position_risk_never_exceeds_one_r(equity, entry, stop_frac, tick_siz
 
 
 # ------------------------------------------------- P2 drawdown ladder (monotone, fail-closed)
-@pytest.mark.xfail(strict=True, reason="TS-P2: invalid equity sizes at 100 %")
 @SETTINGS
 @given(peak=st.floats(1, 1e7), equity=st.one_of(st.floats(-1e7, 1e7), st.just(math.nan), st.just(0.0)))
 def test_p2_drawdown_ladder_monotone_and_fail_closed(peak, equity, monkeypatch, tmp_path_factory):
@@ -112,7 +111,9 @@ def _market():
             "symbol_tradable": True, "spread": .0001, "max_spread": .001,
             "completed_candle": True, "breakout_event": False,
             "stop_distance": .01, "min_stop_distance": .0001,
-            "high_impact_news": False, "setup_cooldown_seconds": 0}
+            "high_impact_news": False, "setup_cooldown_seconds": 0,
+            "clock_ok": True, "session_allowed": True, "liquidity_ok": True,
+            "microstructure_ok": True, "required_data_ok": True}
 
 
 NAN = float("nan")
@@ -137,7 +138,6 @@ PERTURBATIONS = {
 }
 
 
-@pytest.mark.xfail(strict=True, reason="TS-P3: NaN changepoint probability is approved")
 @settings(max_examples=200, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(keys=st.lists(st.sampled_from(sorted(PERTURBATIONS)), min_size=1, max_size=3, unique=True))
 def test_p3_validator_rejects_any_failing_gate(keys, tmp_path_factory):

@@ -179,12 +179,15 @@ def test_validator_rejects_with_news_kill_switch_latched(tmp_path, monkeypatch):
         "max_tick_age_ms": 1000,
         "clock_ok": True,
         "completed_candle": True,
+        "breakout_event": False,
+        "required_data_ok": True,
         "stop_distance": 50,
         "min_stop_distance": 10,
         "high_impact_news": False,
         "session_allowed": True,
         "liquidity_ok": True,
         "microstructure_ok": True,
+        "setup_cooldown_seconds": 900.0,
     }
 
     # Unlatched -> approved

@@ -7598,15 +7598,22 @@ class LLMOrchestrator:
                 return {"action": "HOLD",
                         "reasoning": f"Data quality gate rejected: {_dq_reasons}"}, 0.0
         except Exception as _dq_exc:
-            log.debug("DataQualityGate check skipped (fail-open): %s", _dq_exc)
+            log.warning("DataQualityGate check failed (fail-closed to HOLD): %s", _dq_exc)
+            try:
+                self.operations.release_task(cycle_key, reason="data_quality_exception")
+            except Exception:
+                pass
+            return {"action": "HOLD",
+                    "reasoning": f"Data quality gate exception: {_dq_exc}"}, 0.0
 
         # --- NEWS TRADING GATE ---
         # Block entries during pre-spike / spike blackout phases
         # Also fetch live FRED indicators for NFP/CPI predictions and ESI
+        _corr_engine = None
+        _news_events = []
         try:
             from core.news_trading import NewsTradingGate, get_news_trading_context
             # Wire correlation engine for dynamic blackout windows
-            _corr_engine = None
             try:
                 from core.news_regime_correlation import NewsRegimeCorrelation
                 if not hasattr(self, '_news_corr_engine'):
@@ -7725,7 +7732,13 @@ class LLMOrchestrator:
                 "cpi_bias": _news_ctx.get("cpi_prediction", {}).get("directional_bias", "N/A") if _news_ctx.get("cpi_prediction") else "N/A",
             }, cycle_num, symbol)
         except Exception as _news_exc:
-            log.debug("NewsTradingGate check skipped (fail-open): %s", _news_exc)
+            log.warning("NewsTradingGate check failed (fail-closed to HOLD): %s", _news_exc)
+            try:
+                self.operations.release_task(cycle_key, reason="news_gate_exception")
+            except Exception:
+                pass
+            return {"action": "HOLD",
+                    "reasoning": f"News trading gate exception: {_news_exc}"}, 0.0
 
         self._v2_seam("cycle.seams.causal_ready")
 
