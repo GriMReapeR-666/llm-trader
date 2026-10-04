@@ -15,9 +15,9 @@ def test_l0_raw_trace_secret_redaction(tmp_path):
     ops = AgentOperations(db_file)
     
     payload = {
-        "headers": {"Authorization": "Bearer rm-1234567890abcdef12345678"},
-        "api_key": "sk-TESTFIXTURE0000000000000000000000000000REDACTED",
-        "secret_assignment": "ROUTESME_KEY=rm-da4790ea1631c5cd82303e2a1173a3208750a22a5f27c6b6",
+        "headers": {"Authorization": "Bearer rm-1234567890abcdef12345678"},  # secret-scan: allow
+        "api_key": "sk-TESTFIXTURE0000000000000000000000000000REDACTED",  # secret-scan: allow
+        "secret_assignment": "ROUTESME_KEY=rm-TESTFIXTURE000000000000000000000000000000000000",  # secret-scan: allow
         "normal_field": "EURUSD_BUY_PROPOSAL",
     }
     
@@ -28,9 +28,9 @@ def test_l0_raw_trace_secret_redaction(tmp_path):
         row = con.execute("SELECT payload FROM raw_traces WHERE trace_id=?", (trace_id,)).fetchone()
     
     redacted_json = row["payload"]
-    assert "rm-1234567890abcdef12345678" not in redacted_json
-    assert "sk-TESTFIXTURE0000000000000000000000000000REDACTED" not in redacted_json
-    assert "rm-da4790ea1631c5cd82303e2a1173a3208750a22a5f27c6b6" not in redacted_json
+    assert "rm-1234567890abcdef12345678" not in redacted_json  # secret-scan: allow
+    assert "sk-TESTFIXTURE0000000000000000000000000000REDACTED" not in redacted_json  # secret-scan: allow
+    assert "rm-TESTFIXTURE000000000000000000000000000000000000" not in redacted_json  # secret-scan: allow
     assert "EURUSD_BUY_PROPOSAL" in redacted_json
 
 

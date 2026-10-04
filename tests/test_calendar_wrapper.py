@@ -140,6 +140,7 @@ class TestMT5CalendarWrapper(unittest.TestCase):
             with self.assertRaises(MT5CalendarConnectionError):
                 MT5CalendarWrapper()
     
+    @pytest.mark.skipif(sys.platform != "win32", reason="ctypes.WinDLL exists only on Windows")
     def test_initialize_success(self):
         """Test successful initialization"""
         with patch('ctypes.WinDLL') as mock_dll:
@@ -155,6 +156,7 @@ class TestMT5CalendarWrapper(unittest.TestCase):
             self.assertTrue(wrapper._initialized)
             mock_dll.assert_called_once_with("test.dll")
     
+    @pytest.mark.skipif(sys.platform != "win32", reason="ctypes.WinDLL exists only on Windows")
     def test_initialize_failure(self):
         """Test initialization failure"""
         with patch('ctypes.WinDLL', side_effect=Exception("DLL error")):

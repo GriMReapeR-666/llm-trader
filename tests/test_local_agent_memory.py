@@ -49,7 +49,7 @@ def test_remember_event_and_query_pit(memory):
     early = memory.remember_event(
         actor="RiskController",
         event_type="proposal_validated",
-        payload={"approved": False, "password": "secret-pass", "api_key": "sk-abc"},
+        payload={"approved": False, "password": "secret-pass", "api_key": "sk-abc"},  # secret-scan: allow
         observed_at="2025-06-01T12:00:00+00:00",
         correlation_id="setup-1",
     )

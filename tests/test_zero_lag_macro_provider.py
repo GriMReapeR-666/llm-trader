@@ -78,8 +78,10 @@ def test_alternative_data_provider_zero_lag_routing():
     assert obs_ais.payload.get("kind") == "zero_lag_physical_proxy"
 
 
-def test_nowcast_snapshot_golden_eight():
-    alt_provider = AlternativeDataProvider()
+def test_nowcast_snapshot_golden_eight(tmp_path):
+    # Private cache: the shared artifacts/ cache let a parallel worker's
+    # snapshot stand in for this one (intermittent under -n).
+    alt_provider = AlternativeDataProvider(cache_path=str(tmp_path / "nowcast_cache.json"))
     snapshot = alt_provider.fetch_nowcast_snapshot(include_stubs=True)
     assert snapshot["execution_authority"] is False
     assert snapshot["live_count"] > 0

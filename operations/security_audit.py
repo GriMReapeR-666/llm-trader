@@ -13,6 +13,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -25,6 +26,8 @@ DEFAULT_EXCLUDED_DIRS = {
     "trading_knowledge_base", "quant_knowledge_framework",
     "backups", "artifacts", ".kilo", "graphify-out",
 }
+ALLOW_MARKER = "secret-scan: allow"
+
 DEFAULT_EXCLUDED_FILES = {
     ".env.example", "security_audit.py", "graph.json",
 }
@@ -141,17 +144,25 @@ def _git_history_risky_files(root: Path) -> List[str]:
 
 def _iter_files(root: Path, include_untracked: bool) -> Iterable[Path]:
     seen = set()
-    paths = _git_tracked(root) if include_untracked else []
-    for relative in paths:
+    skip_exts = {".pyc", ".db", ".log", ".png", ".jpg", ".jpeg", ".zip", ".pdf", ".gz",
+                 ".safetensors", ".pt", ".index", ".vtt", ".srt"}
+    # Tracked files are always scanned; include_untracked only adds the walk.
+    # (This used to be inverted, so a tracked-only audit scanned zero files.)
+    for relative in _git_tracked(root):
         path = (root / relative).resolve()
-        if path.is_file() and path not in seen:
-            seen.add(path)
-            yield path
+        if path in seen or Path(relative).suffix.lower() in skip_exts or Path(relative).name in DEFAULT_EXCLUDED_FILES:
+            continue
+        try:
+            if not path.is_file() or path.stat().st_size > 2_000_000:
+                continue
+        except OSError:
+            continue
+        seen.add(path)
+        yield path
     if include_untracked:
         # Use os.walk with top-down pruning so excluded subtrees (tui_pi/,
         # vendor/, etc.) are never entered — rglob("*") would descend into
         # them first and then discard every child, which is O(total_tree).
-        skip_exts = {".pyc", ".db", ".log", ".png", ".jpg", ".zip"}
         for dirpath, dirnames, filenames in os.walk(root, topdown=True):
             # Prune excluded directories in-place so os.walk never descends.
             dirnames[:] = [
@@ -182,6 +193,12 @@ def _scan_file(path: Path) -> List[str]:
         stripped = line.lstrip()
         if not stripped or stripped.startswith(("#", ";", "//")):
             continue
+        # Deliberate key-shaped test fixtures must say so on the same line.
+        if ALLOW_MARKER in line:
+            continue
+        for name, pattern in _INLINE_PATTERNS:
+            if pattern.search(line):
+                findings.append(name)
         for name, pattern in _ASSIGNMENT_KEYS.items():
             match = pattern.match(line)
             if match and _looks_like_secret(match.group("value")):
@@ -192,9 +209,6 @@ def _scan_file(path: Path) -> List[str]:
         password_key = _PASSWORD_KEY.search(line)
         if password_key and _looks_like_secret(password_key.group("value")):
             findings.append("PASSWORD_ASSIGNMENT")
-    for name, pattern in _INLINE_PATTERNS:
-        if pattern.search(text):
-            findings.append(name)
     return sorted(set(findings))
 
 
@@ -367,6 +381,51 @@ def audit(root: str | os.PathLike[str] = ".", include_untracked: bool = True) ->
     return result
 
 
+def scan_paths(paths: Iterable[str]) -> List[Dict[str, Any]]:
+    """Scan specific files (e.g. staged files); no cache, no tree walk."""
+    findings = []
+    for raw in paths:
+        path = Path(raw)
+        if path.name in DEFAULT_EXCLUDED_FILES or not path.is_file():
+            continue
+        types = _scan_file(path)
+        if types:
+            findings.append({"path": str(raw), "types": types})
+    return findings
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """CLI for the pre-commit hook and CI.
+
+    --paths F...         scan only these files (pre-commit: the staged files)
+    --fail-on-findings   exit 1 on any credential-shaped value, fixtures
+                         included (mark deliberate fakes with ALLOW_MARKER)
+    """
+    import argparse
+    ap = argparse.ArgumentParser(prog="python -m operations.security_audit")
+    ap.add_argument("--paths", nargs="*", default=None)
+    ap.add_argument("--fail-on-findings", action="store_true")
+    args = ap.parse_args(argv)
+    if args.paths is not None:
+        findings = scan_paths(args.paths)
+        if findings:
+            print(json.dumps({"files_scanned": len(args.paths), "findings": findings}, indent=2))
+    else:
+        root = Path(".").resolve()
+        findings = [
+            {"path": str(p.relative_to(root)), "types": t}
+            for p in _iter_files(root, include_untracked=False)
+            if (t := _scan_file(p))
+        ]
+        report = audit(root, include_untracked=False)
+        report["findings_including_fixtures"] = findings
+        print(json.dumps(report, indent=2, default=str))
+    if args.fail_on_findings and findings:
+        print(f"secret scan: {len(findings)} file(s) contain credential-shaped values; "
+              f"rotate real ones, mark deliberate fakes with '# {ALLOW_MARKER}'", file=sys.stderr)
+        return 1
+    return 0
+
+
 if __name__ == "__main__":
-    import json
-    print(json.dumps(audit(), indent=2))
+    sys.exit(main())

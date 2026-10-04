@@ -177,7 +177,7 @@ def test_raw_trace_redacts_inline_secrets_and_account_ids(tmp_path):
     ops = AgentOperations(str(tmp_path / "state.db"))
     trace_id = ops.record_raw_trace(
         "llm_prompt",
-        {"content": "password=super-secret login=99023225 Bearer abc.def.ghi sk-1234567890123456"},
+        {"content": "password=super-secret login=99023225 Bearer abc.def.ghi sk-1234567890123456"},  # secret-scan: allow
     )
     with ops._con() as con:
         payload = con.execute("SELECT payload FROM raw_traces WHERE trace_id=?", (trace_id,)).fetchone()["payload"]
@@ -449,7 +449,7 @@ def test_operations_summary_recovers_abandoned_runs_before_reporting(tmp_path):
 def test_working_memory_is_restart_safe_redacted_and_point_in_time(tmp_path):
     path = tmp_path / "working-memory.db"
     ops = AgentOperations(str(path))
-    ops.put_working_memory("cycle", "position", "password=hidden", kind="position",
+    ops.put_working_memory("cycle", "position", "password=hidden", kind="position",  # secret-scan: allow
                            priority=90, source_ids=["trade:1"])
     cutoff = datetime.now(timezone.utc).isoformat()
     future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()

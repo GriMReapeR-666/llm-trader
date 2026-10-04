@@ -46,22 +46,23 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 
 ## Phase 1: Safety net and test hygiene
 - [ ] 🟠 `P1-C5` **Rotate the RoutesMe key** (it's in public git history). Replace the fixture with an obvious fake. *Owner: you.*
-- [ ] 🟡 Add a secret-scan pre-commit hook and CI step (detect-secrets/gitleaks).
-- [ ] 🟠 `TS-1` Validator "break exactly one gate" table tests (every reason string, plus an all-pass fixture).
-- [ ] 🟠 `TS-2` Arbiter boundary tests: daily, weekly and open-risk at, below and above the limit.
-- [ ] 🟠 `TS-3` Order-geometry table tests (BUY/SELL × SL/TP sides, 5 % and 0.5 ATR bounds, NaN/inf).
-- [ ] 🟠 `TS-4` Margin threshold tests, one per constant and one per malformed-input reason.
-- [ ] 🟠 `TS-5` Risk-ladder tests: drawdown and streak multipliers, including NaN, 0 and negative equity.
-- [ ] 🟠 `TS-6` Latch persistence tests (corrupt file → stays latched; write from copy A, read from copy B).
-- [ ] 🟡 `TS-8` Mutation-score ratchet in CI on the six safety modules (baseline 48 %).
+- [x] 🟡 Add a secret-scan pre-commit hook (CI step: PR 1.4) (detect-secrets/gitleaks).
+- [x] 🟠 `TS-1` Validator "break exactly one gate" table tests (every reason string, plus an all-pass fixture).
+- [x] 🟠 `TS-2` Arbiter boundary tests: daily, weekly and open-risk at, below and above the limit.
+- [x] 🟠 `TS-3` Order-geometry table tests (BUY/SELL × SL/TP sides, 5 % and 0.5 ATR bounds, NaN/inf).
+- [x] 🟠 `TS-4` Margin threshold tests, one per constant and one per malformed-input reason.
+- [x] 🟠 `TS-5` Risk-ladder tests: drawdown and streak multipliers, including NaN, 0 and negative equity.
+- [x] 🟠 `TS-6` Latch persistence tests (corrupt file → stays latched; write from copy A, read from copy B).
+- [x] 🟡 `TS-8` Mutation-score ratchet in CI on the six safety modules (weekly, `--min-score 50`). Measured at the end of Phase 1: **52.2 %**, short of the 75 % target. See `work/04_test_strength.md` § Phase 1 re-measure.
+- [ ] 🟡 `TS-9` Raise the safety mutation score to ≥ 75 %. Most of the remaining survivors are in `order_execution` (place_pending_order and emergency_market_exit, which Phase 2 rewrites) and `calc_position_size` (Phase 4). Re-measure after each of those phases and raise the ratchet.
 - [ ] 🟠 `P1-H6` Raise order-path coverage (`order_execution` 40 %): an end-to-end proposal → `order_send` test on the bridge's fake broker.
-- [ ] 🟠 Part 2 §9b: tests overwrite committed `artifacts/` and `data/` evidence. Move evidence to a read-only location, and point every test store at `tmp_path`.
-- [ ] 🟡 Part 2 §9b: parallel collection races the `trade_labels` migration (make `ACTIVE_KNOWLEDGE_AGENT` lazy; idempotent migration under `BEGIN IMMEDIATE`).
-- [ ] 🟠 Part 2 §9b: tests must never reach an MT5 terminal without an explicit opt-in flag.
-- [ ] 🟡 Part 1 M7: stray files (`--db`, `..tmp`, `:memory:`) at the repo root; Windows-only tests marked `skipif`.
-- [ ] 🟡 Flaky `test_p0_gates.py::test_overfit_critical_blocks_trade` (depends on ambient state).
-- [ ] 🟡 `P1-M8` Commit `tui_opentui/bun.lock` (un-ignore it from the `*.lock` pattern).
-- [ ] 🟡 Part 1 §6: CI workflow (pytest, both `tsc` checks, the double-import guard, secret scan, graphify update).
+- [x] 🟠 Part 2 §9b: tests overwrite committed `artifacts/` and `data/` evidence. Move evidence to a read-only location, and point every test store at `tmp_path`.
+- [x] 🟡 Part 2 §9b: parallel collection races the `trade_labels` migration (make `ACTIVE_KNOWLEDGE_AGENT` lazy; idempotent migration under `BEGIN IMMEDIATE`).
+- [x] 🟠 Part 2 §9b: tests must never reach an MT5 terminal without an explicit opt-in flag.
+- [x] 🟡 Part 1 M7: stray files (`--db`, `..tmp`, `:memory:`) at the repo root; Windows-only tests marked `skipif`.
+- [x] ~~Flaky `test_p0_gates.py::test_overfit_critical_blocks_trade`~~: not flaky (0/8 failures); the earlier failure was a mutation-harness artifact.
+- [x] 🟡 `P1-M8` Commit `tui_opentui/bun.lock` (un-ignore it from the `*.lock` pattern).
+- [x] 🟡 Part 1 §6: CI workflow (pytest, both `tsc` checks, the double-import guard, secret scan, graphify update).
 
 ## Phase 2: One door to the broker
 - [ ] 🔴 Build the **OrderGateway**: validate → atomic risk reservation (counting pending orders) → journal write-ahead → send → reconcile. One MT5 lock inside it. Fixes `CC-F1` (risk cap check-then-act), `CC-F2` (MT5 from 4 threads, no lock), `CC-F8` (trade lock never acquired).
@@ -74,6 +75,7 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [ ] 🟠 `1b-R2` = `LA-B4` The backtest engine writes trades, memories, playbook rules and promotions into the production journal. Give it its own DB.
 - [ ] 🔴 `P1-C2` Finish API auth (started in `f218887`): token generated at install, sent by the deck and web GUI, mandatory, CORS allowlist, Host check, no `?token=` in URLs.
 - [ ] 🟡 `1a-F19` The send-time margin re-check has the wrong signature and never runs.
+- [ ] 🟠 `PH1-N3` (found by the Phase 1 pinning tests) `validate_order_params` skips **every** check for an order with no stop-loss (`sl=None` or `0`) or an unknown side (`"long"`). The gateway must require both. Pinned in `tests/safety/test_order_geometry.py`.
 - [ ] 🟠 `CC-F10` Guardian flatten vs concurrent entries (TOCTOU): block entries via the gateway while flattening.
 - [ ] 🟡 `TL-S2` The Prometheus exporter binds `0.0.0.0` by default.
 
@@ -90,6 +92,8 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [ ] ⚪ `CC-F14` Shutdown ordering (daemon threads killed mid-write).
 - [ ] 🟠 `P1-H4` Validator approves on missing evidence: a typed `MarketEvidence` with no pass-defaults. Includes `TS-P3` (NaN changepoint approved).
 - [ ] 🟠 `TS-P2` NaN, zero or negative equity gives drawdown multiplier 1.0 → fail closed (0.0).
+- [ ] 🟠 `PH1-N1` (found by the Phase 1 pinning tests) An explicit `high_impact_news=None` (news feed returned nothing) is treated as **safe**; a missing key is treated as unsafe. Pinned as a strict xfail in `tests/safety/test_validator_single_gate.py`.
+- [ ] 🟠 `PH1-N2` (found by the Phase 1 pinning tests) `RiskManager.check_daily_drawdown` allows trading when `daily_start_equity` is 0 or negative, or when equity is NaN. Pinned in `tests/safety/test_risk_ladders.py`.
 - [ ] 🟡 `1a-F15` Pre-trade gates that fail open on exception (data quality, news gate, pending-order guardian) → HOLD.
 - [ ] 🟠 `P1-H2` Enforce stage deadlines (`run_stage_with_deadline`) and honour `hold_only`.
 - [ ] 🟡 Part 1 §7.2 **Persistent safety status bar** in the deck (PAPER/LIVE, autonomy, kill switch and latch, daily P&L vs limit, feed age, bridge, LLM circuit).

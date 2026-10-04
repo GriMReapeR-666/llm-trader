@@ -9,6 +9,7 @@ Verifies:
 """
 from datetime import datetime, timedelta, timezone
 import json
+import os
 import sqlite3
 import numpy as np
 import pytest
@@ -147,8 +148,14 @@ def test_e2e_avellaneda_stoikov_inventory_adjustment():
 
 
 def test_e2e_backward_compatibility_with_150_journal_trades(tmp_path):
-    """Ensure all 150 historical scalp trades in trading_state.db remain 100% compliant."""
-    conn = sqlite3.connect("trading_state.db")
+    """Ensure all 150 historical scalp trades (synthetic fixtures) remain 100% compliant.
+
+    Reads the committed evidence snapshot read-only; the runtime trading_state.db
+    is not part of the repo and must never be opened by tests."""
+    evidence = os.path.join(os.path.dirname(__file__), "..", "data", "evidence", "trading_state_evidence.db")
+    if not os.path.exists(evidence):
+        pytest.skip("evidence snapshot not present")
+    conn = sqlite3.connect(f"file:{os.path.abspath(evidence)}?mode=ro", uri=True)
     cursor = conn.cursor()
     cursor.execute("SELECT setup_id, payload FROM trades WHERE strategy='scalp'")
     rows = cursor.fetchall()

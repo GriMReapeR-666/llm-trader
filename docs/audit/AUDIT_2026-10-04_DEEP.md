@@ -159,7 +159,7 @@ Full detail in [work/04_test_strength.md](work/04_test_strength.md). 1,357 mutan
 - lot rounding exceeds the 1 % cap by up to 12.5 %;
 - NaN prices pass `validate_order_params`.
 
-**Also:** `test_p0_gates.py::test_overfit_critical_blocks_trade` is flaky (it failed on unmodified code in 1 of 4 identical copies).
+**Correction:** `test_p0_gates.py::test_overfit_critical_blocks_trade` is not flaky. Its one failure came from a mutation worker copy that still held an aborted mutant.
 
 **Highest-value fix:** a table-driven "break exactly one gate" test for the validator, arbiter, geometry and margin. It's cheap to write and would kill about 150 of the 626 survivors.
 

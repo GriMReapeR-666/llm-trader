@@ -77,6 +77,70 @@ for _k in ("OPENROUTER_API_KEY", "TOKENROUTER_KEY", "TOKENROUTER_API_KEY",
     os.environ.pop(_k, None)
 
 # ---------------------------------------------------------------------------
+# Hermetic broker tests: no test may attach a real MT5 terminal.
+#
+# With a terminal running (Windows) or the macOS bridge up, tests that call
+# MetaTrader5.initialize() attached to the operator's real account (seen in
+# the bridge log during a full run). Point the bridge at nothing and make
+# initialize()/login() refuse on the module object itself, which every
+# import path shares. Tests that need a fake broker inject one. Opt in to a
+# real terminal explicitly with LLM_TRADER_TEST_ALLOW_TERMINAL=1.
+# ---------------------------------------------------------------------------
+if os.environ.get("LLM_TRADER_TEST_ALLOW_TERMINAL") != "1":
+    os.environ["MT5_BRIDGE_KEY"] = ""
+    os.environ["MT5_BRIDGE_KEY_FILE"] = os.devnull
+    os.environ["MT5_BRIDGE_PORT"] = "9"  # discard port; nothing listens
+    try:
+        import MetaTrader5 as _mt5_for_tests
+    except Exception:
+        _mt5_for_tests = None
+    if _mt5_for_tests is not None:
+        def _terminal_blocked_in_tests(*_args, **_kwargs):
+            return False
+        _mt5_for_tests.initialize = _terminal_blocked_in_tests
+        _mt5_for_tests.login = _terminal_blocked_in_tests
+
+
+# ---------------------------------------------------------------------------
+# Tests must not modify tracked files.
+#
+# A full run used to rewrite committed evidence (trial ledgers, caches,
+# scheduler reports). The sandbox fixtures below cover the known writers;
+# this check catches every other one: the session fails and lists the files.
+# Runs on the xdist controller (or a non-xdist session) only.
+# ---------------------------------------------------------------------------
+def _tracked_changes():
+    import subprocess
+    try:
+        out = subprocess.run(
+            ["git", "-C", root_dir, "status", "--porcelain", "--untracked-files=no"],
+            capture_output=True, text=True, timeout=60, check=True,
+        ).stdout
+    except Exception:
+        return None
+    return set(out.splitlines())
+
+
+def pytest_sessionstart(session):
+    if not hasattr(session.config, "workerinput"):
+        session.config._tracked_before = _tracked_changes()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    before = getattr(session.config, "_tracked_before", None)
+    if before is None or hasattr(session.config, "workerinput"):
+        return
+    after = _tracked_changes() or set()
+    changed = sorted(after - before)
+    if changed:
+        reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+        lines = ["TESTS MODIFIED TRACKED FILES (restore with: git checkout -- <file>):"]
+        lines += [f"  {line}" for line in changed[:50]]
+        if reporter:
+            reporter.write_line("\n".join(lines), red=True)
+        session.exitstatus = 1
+
+# ---------------------------------------------------------------------------
 # Meta-loop singleton isolation (production-corpus protection).
 #
 # The production meta_corpus.db is append-only hash-chained evidence. Tests

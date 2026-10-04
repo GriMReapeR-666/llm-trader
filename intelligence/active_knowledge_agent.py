@@ -20,6 +20,7 @@ import os
 import random
 import re
 import sqlite3
+import threading
 import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
 
@@ -688,5 +689,18 @@ class ActiveKnowledgeAgent:
             """, (utcnow_iso(), channel, json.dumps(payload, default=str), error_msg, retry_count))
 
 
-# Global singleton instance for high-speed active agent operations
-ACTIVE_KNOWLEDGE_AGENT = ActiveKnowledgeAgent()
+# Global singleton, created on first use. Building it at import time opened
+# trading_state.db and ran schema migrations as a side effect of importing
+# this module, which raced across parallel test workers.
+_ACTIVE_KNOWLEDGE_AGENT: Optional["ActiveKnowledgeAgent"] = None
+_ACTIVE_KNOWLEDGE_AGENT_LOCK = threading.Lock()
+
+
+def __getattr__(name: str):
+    if name == "ACTIVE_KNOWLEDGE_AGENT":
+        global _ACTIVE_KNOWLEDGE_AGENT
+        with _ACTIVE_KNOWLEDGE_AGENT_LOCK:
+            if _ACTIVE_KNOWLEDGE_AGENT is None:
+                _ACTIVE_KNOWLEDGE_AGENT = ActiveKnowledgeAgent()
+        return _ACTIVE_KNOWLEDGE_AGENT
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
