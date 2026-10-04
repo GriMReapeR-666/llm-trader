@@ -40,8 +40,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 for p in ("", "data", "intelligence"):
     sys.path.insert(0, os.path.join(ROOT, p) if p else ROOT)
 
-from kill_switch_latch import KillSwitchLatch  # noqa: E402
-from kill_switch_latch import CONFIRM_WINDOW_S, REARM_COOLDOWN_S  # noqa: E402
+from data.kill_switch_latch import KillSwitchLatch  # noqa: E402
+from data.kill_switch_latch import CONFIRM_WINDOW_S, REARM_COOLDOWN_S  # noqa: E402
 
 REPORT = os.path.join("artifacts", "d9_escalation_safety_report.json")
 N_BATCHES = 6_000
