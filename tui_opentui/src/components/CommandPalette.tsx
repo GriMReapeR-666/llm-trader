@@ -377,38 +377,56 @@ export function ConfirmDialog() {
 
 async function applyIntervention(action: "pause" | "flatten" | "kill" | "stop"): Promise<void> {
   const live = store.get().transport === "live"
-  let ok = true
-  if (live) {
-    const { sendControl } = await import("../transport/live")
-    if (action === "stop") {
-      ok = await sendControl("stop")
-    } else {
-      ok = await sendControl(action === "kill" ? "killswitch" : action)
-    }
+  if (!live) {
+    // Honest feedback (D1): without a control channel nothing was applied.
+    store.pushAlert("critical", `${action.toUpperCase()} NOT SENT — control channel offline; nothing was applied`)
+    return
   }
-  if (!live || ok) {
-    if (action === "kill") store.set({ halted: true })
-    if (action === "pause") store.set({ halted: true })
-    if (action === "stop") {
-      store.pushOpEvent({
-        ts: Date.now(),
-        actor: "OPERATOR",
-        type: "ENGINE_STOP",
-        severity: "critical",
-        payload: `via ${live ? "control channel" : "local state"}`,
-      })
-      store.pushAlert("critical", "ENGINE STOPPED — trading process terminated (positions untouched)")
-    } else {
-      store.pushOpEvent({
-        ts: Date.now(),
-        actor: "OPERATOR",
-        type: action.toUpperCase(),
-        severity: action === "pause" ? "warn" : "critical",
-        payload: `via ${live ? "control channel" : "local state"}`,
-      })
-      store.pushAlert(action === "pause" ? "warn" : "critical", `${action.toUpperCase()} executed by operator`)
-    }
-  } else {
+  const { sendControl } = await import("../transport/live")
+  const target = action === "stop" ? "stop" : action === "kill" ? "killswitch" : action
+  const ok = await sendControl(target)
+  if (!ok) {
     store.pushAlert("critical", `${action.toUpperCase()} FAILED — control channel refused`)
+    return
   }
+  if (action === "pause") {
+    // pause/resume are applied synchronously by the control plane.
+    store.set({ halted: true })
+    store.pushOpEvent({
+      ts: Date.now(),
+      actor: "OPERATOR",
+      type: "PAUSE",
+      severity: "warn",
+      payload: "via control channel (applied)",
+    })
+    store.pushAlert("warn", "PAUSE applied — autonomy state updated")
+    return
+  }
+  if (action === "stop") {
+    store.pushOpEvent({
+      ts: Date.now(),
+      actor: "OPERATOR",
+      type: "ENGINE_STOP",
+      severity: "critical",
+      payload: "via control channel",
+    })
+    store.pushAlert("critical", "ENGINE STOPPED — trading process terminated (positions untouched)")
+    return
+  }
+  // flatten / killswitch are QUEUED here; the engine applies them on its
+  // next cycle and reports CONTROL_EXECUTED / CONTROL_FAILED (D1).  We must
+  // not claim positions are closed before that confirmation arrives.
+  store.pushOpEvent({
+    ts: Date.now(),
+    actor: "OPERATOR",
+    type: action.toUpperCase(),
+    severity: "critical",
+    payload: "via control channel (queued — awaiting engine apply)",
+  })
+  store.pushAlert(
+    "critical",
+    action === "kill"
+      ? "KILLSWITCH QUEUED — engine applies and confirms on next cycle"
+      : "FLATTEN QUEUED — engine closes positions on next cycle",
+  )
 }

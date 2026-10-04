@@ -54,6 +54,16 @@ for _sub in ["core", "intelligence", "operations", "research", "data", "ui"]:
     if os.path.isdir(_p) and _p not in sys.path:
         sys.path.insert(0, _p)
 
+# Single import root (C1): bare and package-qualified imports of the same
+# file resolve to ONE module object (one kill-switch latch, one set of
+# singletons).  Installed before the first repo import below.
+try:
+    from _import_root import install as _install_import_root
+    _install_import_root()
+except Exception as _ir_exc:  # pragma: no cover - bootstrap must never die here
+    import warnings as _warnings
+    _warnings.warn(f"single-import-root install failed: {_ir_exc}")
+
 import time
 import json
 import logging

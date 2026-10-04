@@ -23,6 +23,7 @@ References:
 """
 from __future__ import annotations
 
+import _thread
 import atexit
 import json
 import logging
@@ -118,33 +119,77 @@ class CrashRecoveryManager:
         self._register_shutdown_hooks()
 
     def _register_shutdown_hooks(self) -> None:
-        """Register atexit and signal handlers for graceful shutdown."""
+        """Register atexit and signal handlers for graceful shutdown.
+
+        Signal handlers ONLY set a flag (K4).  Running shutdown() inline from
+        a signal handler deadlocks whenever the signal lands while the main
+        thread already holds GraphStatePersistence._lock (stack captured in
+        AUDIT_2026-10-04_DEEP 06 F4), and swallowing the signal left the
+        engine running after SIGTERM.  A dedicated watcher thread performs
+        the real shutdown when it observes the flag.
+        """
         atexit.register(self._atexit_shutdown)
 
-        # SIGTERM — graceful shutdown
+        self._signal_requested: Optional[int] = None
+        self._original_signal_handlers: Dict[int, Any] = {}
+
         if hasattr(signal, "SIGTERM"):
-            original_sigterm = signal.getsignal(signal.SIGTERM)
+            self._original_signal_handlers[signal.SIGTERM] = signal.getsignal(signal.SIGTERM)
+            signal.signal(signal.SIGTERM, self._signal_flag_handler)
 
-            def _sigterm_handler(signum, frame):
-                logger.warning("SIGTERM received — initiating graceful shutdown")
-                self.shutdown()
-                # Call original handler if it's not the default
-                if callable(original_sigterm):
-                    original_sigterm(signum, frame)
-
-            signal.signal(signal.SIGTERM, _sigterm_handler)
-
-        # SIGINT (Ctrl+C) — graceful shutdown
         if hasattr(signal, "SIGINT"):
-            original_sigint = signal.getsignal(signal.SIGINT)
+            self._original_signal_handlers[signal.SIGINT] = signal.getsignal(signal.SIGINT)
+            signal.signal(signal.SIGINT, self._signal_flag_handler)
 
-            def _sigint_handler(signum, frame):
-                logger.warning("SIGINT received — initiating graceful shutdown")
+        watcher = threading.Thread(
+            target=self._signal_watcher,
+            name="shutdown-signal-watcher",
+            daemon=True,
+        )
+        self._signal_watcher_thread = watcher
+        watcher.start()
+
+    def _signal_flag_handler(self, signum, frame) -> None:
+        """Signal handler body: set a flag and return. Nothing else (K4).
+
+        No locks, no logging, no I/O — a plain attribute write is the only
+        operation that cannot deadlock against the interrupted thread.
+        """
+        self._signal_requested = signum
+
+    def _signal_watcher(self) -> None:
+        """Perform the flag-driven shutdown outside signal context."""
+        try:
+            while self._signal_requested is None and not self._shutdown_event.is_set():
+                time.sleep(0.1)
+            if self._signal_requested is None:
+                return
+            signum = self._signal_requested
+            logger.warning("signal %s received — flag set; performing graceful shutdown", signum)
+            try:
                 self.shutdown()
-                if callable(original_sigint):
-                    original_sigint(signum, frame)
+            except Exception as exc:
+                logger.error("signal-driven shutdown failed: %s", exc)
+            self._after_signal_shutdown(signum)
+        except Exception as exc:  # the watcher must never die silently
+            logger.error("shutdown signal watcher failed: %s", exc)
 
-            signal.signal(signal.SIGINT, _sigint_handler)
+    def _after_signal_shutdown(self, signum: int) -> None:
+        """End the process after the graceful shutdown has completed.
+
+        The old handler returned after saving its snapshot, which left the
+        engine running — SIGTERM was effectively swallowed.  Re-interrupting
+        the main thread lets the main loop unwind through its normal
+        KeyboardInterrupt path (which runs the full cleanup `finally`), and
+        any handler we replaced gets a chance to run first.
+        """
+        original = self._original_signal_handlers.get(signum)
+        if callable(original):
+            try:
+                original(signum, None)
+            except BaseException as exc:  # noqa: BLE001 - chained handlers may raise
+                logger.debug("original signal handler for %s ended with %r", signum, exc)
+        _thread.interrupt_main()
 
     def check_on_startup(self) -> RecoveryResult:
         """Check system state on startup and recommend recovery action.

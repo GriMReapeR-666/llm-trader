@@ -15,6 +15,15 @@ from itertools import zip_longest
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+
+# Single import root (C1): bare and package-qualified imports of the same
+# file resolve to ONE module object.  Must run before the first repo import.
+try:
+    from core._import_root import install as _install_import_root
+    _install_import_root()
+except Exception as _ir_exc:  # pragma: no cover - bootstrap must never die here
+    warnings.warn(f"single-import-root install failed: {_ir_exc}")
+
 class _UIState:
     """Self-contained UI state — replaces broken shared_state import."""
     def __init__(self):
@@ -1702,8 +1711,17 @@ def deck_control(action: str, payload: dict = _Body(default={})):
             source=str(payload.get("source") or "command-deck"),
         )
         if result.get("ok"):
-            event_bridge.emit("CONTROL_ISSUED", {"action": action, **payload})
-            event_bridge.emit("CONTROL_EXECUTED", {"action": action, **payload})
+            # CONTROL_ISSUED only: this HTTP 200 means the control was
+            # QUEUED (or locally applied for pause/resume) — never that
+            # positions were closed.  The engine emits CONTROL_EXECUTED /
+            # CONTROL_PENDING / CONTROL_FAILED after it actually applies the
+            # control (C4/D1).
+            event_bridge.emit("CONTROL_ISSUED", {
+                "action": action,
+                "status": result.get("status"),
+                "actor": payload.get("actor"),
+                "source": payload.get("source"),
+            })
         return result
     except Exception as exc:
         return {"ok": False, "reason": str(exc)}

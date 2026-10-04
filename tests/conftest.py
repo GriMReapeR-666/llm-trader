@@ -14,6 +14,12 @@ for subpkg in ["core", "intelligence", "operations", "research", "data", "ui"]:
     if os.path.isdir(pkg_path) and pkg_path not in sys.path:
         sys.path.insert(0, pkg_path)
 
+# Single import root (C1): install the canonicalising finder before any
+# repository module is imported, so bare and package-qualified imports share
+# module state and tests/test_single_import_root.py can guard the invariant.
+from core._import_root import install as _install_import_root
+_install_import_root()
+
 
 import pytest
 

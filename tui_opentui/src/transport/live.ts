@@ -882,13 +882,38 @@ function handleEnvelope(msg: any): void {
     case "EXECUTOR_FAILED":
       store.pushAlert("warn", `executor ${payload?.schedule} failed (${payload?.principal})`)
       break
-    case "CONTROL_EXECUTED":
+    case "CONTROL_EXECUTED": {
+      // Emitted by the engine ONLY after the control was actually applied
+      // (status: applied | partial) — this is the confirmation that may use
+      // past tense (D1).
+      const status = String(payload?.status ?? "applied")
       store.pushStream({
         ts, kind: "system", agent: "OPERATOR",
-        title: `control executed: ${payload?.action}`,
-        lines: [`actor ${payload?.actor} · source ${payload?.source ?? "engine"}`],
+        title: `control ${status}: ${payload?.action}`,
+        lines: [`actor ${payload?.actor ?? "operator"} · source ${payload?.source ?? "engine"}`],
       })
+      if (status === "partial") {
+        store.pushAlert("critical", `CONTROL ${String(payload?.action ?? "").toUpperCase()} PARTIAL — check engine log for remaining work`)
+      }
       // Autonomy state changed → re-pull so every control screen reflects it.
+      void refreshSnapshot()
+      break
+    }
+    case "CONTROL_PENDING":
+      // Queued by the control plane; the engine has not applied it yet.
+      store.pushStream({
+        ts, kind: "system", agent: "OPERATOR",
+        title: `control queued: ${payload?.action}`,
+        lines: [`actor ${payload?.actor ?? "operator"} · awaiting engine apply`],
+      })
+      break
+    case "CONTROL_FAILED":
+      store.pushStream({
+        ts, kind: "system", agent: "OPERATOR",
+        title: `control FAILED: ${payload?.action}`,
+        lines: [String(payload?.error ?? "unknown error")],
+      })
+      store.pushAlert("critical", `CONTROL ${String(payload?.action ?? "").toUpperCase()} FAILED — ${String(payload?.error ?? "see engine log")}`)
       void refreshSnapshot()
       break
     case "APPROVAL_DECISION":
