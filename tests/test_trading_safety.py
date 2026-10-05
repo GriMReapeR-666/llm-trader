@@ -12,8 +12,13 @@ def _proposal():
 
 
 def _market():
+    # Complete evidence: the fail-closed validator (P1-H4) rejects any
+    # missing gate input, so fixtures must supply every required field.
     return {"market_open": True, "tick_age_ms": 10, "max_tick_age_ms": 5000,
             "symbol_tradable": True, "spread": .0001, "max_spread": .001,
+            "clock_ok": True, "session_allowed": True,
+            "liquidity_ok": True, "microstructure_ok": True,
+            "required_data_ok": True,
             "completed_candle": True, "breakout_event": False,
             "stop_distance": .01, "min_stop_distance": .0001,
             "high_impact_news": False, "setup_cooldown_seconds": 0}

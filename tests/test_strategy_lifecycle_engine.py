@@ -256,7 +256,8 @@ def test_validator_blocks_frozen_setup(tmp_path):
         "market_open": True, "tick_age_ms": 10, "max_tick_age_ms": 5000,
         "clock_ok": True, "symbol_tradable": True, "spread": 1.0,
         "max_spread": 2.5, "session_allowed": True, "liquidity_ok": True,
-        "microstructure_ok": True, "completed_candle": True,
+        "microstructure_ok": True, "required_data_ok": True,
+        "completed_candle": True,
         "stop_distance": 0.01, "min_stop_distance": 0.0,
         "high_impact_news": False, "news_safe": True,
     }

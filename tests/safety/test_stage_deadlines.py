@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 from unittest.mock import MagicMock, patch
@@ -26,10 +27,41 @@ def clean_pipeline_state():
         autonomy._state["halt_reason"] = ""
         autonomy._state.setdefault("flags", {})
         autonomy._state["flags"]["hold_only"] = False
+    # Hermetic persisted state: the global pause persists to the repo
+    # autonomy_state.json mirror, which xdist workers share. Snapshot it here
+    # and restore afterwards so no test in this file can leak a pause into
+    # other workers' trading_allowed() reads.
+    _repo_state = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "autonomy_state.json",
+    )
+    try:
+        with open(_repo_state, "rb") as _fh:
+            _had_state = _fh.read()
+    except OSError:
+        _had_state = None
     yield
     with _abandoned_threads_lock:
         _abandoned_threads.clear()
     set_tls_hold_only(False)
+    # B4: the leak-bound test trips the global autonomy pause on purpose.
+    # Reset it here so it can never leak into later tests (it polluted the
+    # ablation and golden-replay tests in full runs).
+    _autonomy = get_autonomy()
+    with _autonomy._lock:
+        _autonomy._state["paused"] = False
+        _autonomy._state["pause_reason"] = ""
+        _autonomy._state.setdefault("flags", {})
+        _autonomy._state["flags"]["hold_only"] = False
+    try:
+        if _had_state is None:
+            if os.path.exists(_repo_state):
+                os.remove(_repo_state)
+        else:
+            with open(_repo_state, "wb") as _fh:
+                _fh.write(_had_state)
+    except OSError:
+        pass
 
 
 def _make_context(orch=None):
@@ -218,7 +250,7 @@ def test_legacy_body_checks_hold_only_and_skips_order_submission():
     unsub()
 
 
-def test_leak_bound_trips_autonomy_circuit_on_third_abandonment():
+def test_leak_bound_trips_autonomy_circuit_on_third_abandonment(tmp_path, monkeypatch):
     """At most 2 abandoned threads per stage key; 3rd attempt trips autonomy pause without starting another thread."""
     hung_threads = []
     stop_event = threading.Event()
@@ -233,6 +265,15 @@ def test_leak_bound_trips_autonomy_circuit_on_third_abandonment():
 
     with _abandoned_threads_lock:
         _abandoned_threads["velocity.poll"] = list(hung_threads)
+
+    # Isolated autonomy manager on tmp files: tripping the circuit must not
+    # touch the shared repo autonomy_state.json (xdist workers share it).
+    from operations.autonomy import AutonomyManager
+    isolated = AutonomyManager(
+        str(tmp_path / "leak_autonomy_state.json"),
+        str(tmp_path / "leak_control_plane.jsonl"),
+    )
+    monkeypatch.setattr("operations.autonomy.get_autonomy", lambda: isolated)
 
     worker_started = False
 
@@ -261,12 +302,25 @@ def test_leak_bound_trips_autonomy_circuit_on_third_abandonment():
     # Worker was NOT started because 2 abandoned threads were already alive
     assert not worker_started
 
-    # Autonomy circuit must have been paused!
-    autonomy = get_autonomy()
-    assert autonomy._state["paused"] is True
-    assert "abandon_leak:velocity.poll" in autonomy._state["pause_reason"]
+    # Autonomy circuit must have been paused (on the isolated manager —
+    # the shared singleton and repo files are untouched)!
+    assert isolated._state["paused"] is True
+    assert "abandon_leak:velocity.poll" in isolated._state["pause_reason"]
 
     # Result records abandon_leak error
     assert len(results) == 1
     assert results[0].status == "failed"
     assert "abandon_leak" in results[0].error
+
+
+def test_declared_analysis_stages_are_never_abandonable():
+    """B4: analysis stages re-run the full execute_cycle (validation, sizing,
+    gateway submit), so abandoning one can place an order after the runner
+    gave up. None of them may be abandonable; only read-only maintenance
+    stages (velocity.poll, memory.dispatch) may be abandoned."""
+    from core.harness.pipeline_v2 import analysis_stages
+    for spec in analysis_stages():
+        if spec.key.startswith("analysis."):
+            assert spec.abandonable is False, (
+                f"{spec.key} must not be abandonable: it can submit orders"
+            )

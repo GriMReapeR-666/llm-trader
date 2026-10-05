@@ -17,9 +17,9 @@ import pandas as pd
 logger = logging.getLogger("MarketData")
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _p in (_PROJECT_ROOT, os.path.join(_PROJECT_ROOT, "core"), os.path.join(_PROJECT_ROOT, "data"), os.path.join(_PROJECT_ROOT, "research"), os.path.join(_PROJECT_ROOT, "operations"), os.path.join(_PROJECT_ROOT, "intelligence")):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 # Validated-candidate state written by core.alpha_discovery; the rotation
 # block reads it as its promotion-candidate feed (single connection point).

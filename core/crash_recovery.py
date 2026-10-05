@@ -143,7 +143,8 @@ class CrashRecoveryManager:
         # Flag-only SIGTERM handler (CC-F4): never acquires locks or writes DB in handler
         if hasattr(signal, "SIGTERM"):
             def _sigterm_handler(signum, frame):
-                logger.warning("SIGTERM received — setting shutdown event")
+                # Pure flag: no logging here — the logging lock may be held
+                # by the interrupted code (Low cleanup item).
                 _shutdown_event.set()
 
             try:
@@ -154,9 +155,9 @@ class CrashRecoveryManager:
         # Flag-only SIGINT handler (CC-F4): sets event; second SIGINT raises KeyboardInterrupt
         if hasattr(signal, "SIGINT"):
             def _sigint_handler(signum, frame):
+                # Pure flag: no logging here (see SIGTERM note above).
                 global _sigint_count
                 _sigint_count += 1
-                logger.warning("SIGINT received (count=%d) — setting shutdown event", _sigint_count)
                 _shutdown_event.set()
                 if _sigint_count >= 2:
                     raise KeyboardInterrupt

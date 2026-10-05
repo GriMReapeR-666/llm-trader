@@ -17,10 +17,9 @@ import math
 import traceback
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-for sub in ["core", "research", "intelligence", "data", "operations", ""]:
-    p = str(ROOT / sub) if sub else str(ROOT)
-    if p not in sys.path:
-        sys.path.insert(0, p)
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd

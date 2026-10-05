@@ -87,16 +87,38 @@ def test_market_evidence_parse_non_finite_and_negative_tick_age():
 
 
 def test_producer_validate_proposal_supplies_all_required_evidence():
-    """Assert that _validate_proposal supplies every field in MarketEvidence.REQUIRED_FIELDS."""
-    import inspect
-    from intelligence.llm_orchestrator import LLMOrchestrator
+    """Structural: the market dict _validate_proposal builds must carry every field.
 
-    src = inspect.getsource(LLMOrchestrator._validate_proposal)
-    # The market dictionary definition inside _validate_proposal must mention all required fields
-    for field in MarketEvidence.REQUIRED_FIELDS:
-        assert f'"{field}"' in src or f"'{field}'" in src, (
-            f"_validate_proposal producer drops required evidence field: {field}"
-        )
+    Parses the producer's AST, extracts the string keys of the `market = {...}`
+    literal it passes to the validator, and asserts MarketEvidence.REQUIRED_FIELDS
+    is a subset. Deleting or renaming a key breaks this — unlike a substring
+    grep, it verifies the constructed dict, not the source text. The paper-mode
+    overlay only narrows numeric bounds, never drops keys.
+    """
+    import ast
+    import inspect
+    from intelligence import llm_orchestrator as _orch_mod
+
+    tree = ast.parse(inspect.getsource(_orch_mod))
+    market_keys: set = set()
+    found = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "_validate_proposal":
+            for sub in ast.walk(node):
+                if (
+                    isinstance(sub, ast.Assign)
+                    and len(sub.targets) == 1
+                    and isinstance(sub.targets[0], ast.Name)
+                    and sub.targets[0].id == "market"
+                    and isinstance(sub.value, ast.Dict)
+                ):
+                    found = True
+                    for k in sub.value.keys:
+                        if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                            market_keys.add(k.value)
+    assert found, "no `market = {...}` literal found in _validate_proposal"
+    missing = [f for f in MarketEvidence.REQUIRED_FIELDS if f not in market_keys]
+    assert not missing, f"_validate_proposal market dict drops required evidence: {missing}"
 
 
 import threading

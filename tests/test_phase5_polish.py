@@ -145,6 +145,9 @@ def test_end_to_end_trade_lifecycle_without_mt5(tmp_path):
     market = {
         "market_open": True, "tick_age_ms": 10, "max_tick_age_ms": 5000,
         "symbol_tradable": True, "spread": 0.0001, "max_spread": 0.001,
+        "clock_ok": True, "session_allowed": True,
+        "liquidity_ok": True, "microstructure_ok": True,
+        "required_data_ok": True,
         "completed_candle": True, "breakout_event": False,
         "stop_distance": abs(proposal.entry - proposal.stop_loss),
         "min_stop_distance": 0.0001,

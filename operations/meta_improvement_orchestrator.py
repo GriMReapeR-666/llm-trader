@@ -38,12 +38,10 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("MetaImprovementOrchestrator")
 
-# Mirror mt5_trader: subpackages import siblings by bare name (core, intelligence).
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _sub in ("core", "intelligence", "operations", "research", "data", "ui"):
-    _p = os.path.join(_ROOT, _sub)
-    if os.path.isdir(_p) and _p not in sys.path:
-        sys.path.insert(0, _p)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
 
 class MetaImprovementOrchestrator:

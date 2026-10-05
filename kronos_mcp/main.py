@@ -78,7 +78,10 @@ def main(args: Optional[list[str]] = None) -> None:
     try:
         from pathlib import Path as P
         import sys
-        sys.path.insert(0, str(P(__file__).resolve().parent.parent / "research"))
+        # Single import root (P1-C1/M3): repo root only, never subpackage folders.
+        _root = str(P(__file__).resolve().parent.parent)
+        if _root not in sys.path:
+            sys.path.insert(0, _root)
         from research.kronos_bridge import KronosPredictor
         probe = KronosPredictor(model_name=os.getenv("KRONOS_MODEL","kronos-mini"))
         logger.info("Kronos probe backend=%s weights=%s reason=%s", probe.backend, probe.weights_loaded, probe.load_reason)

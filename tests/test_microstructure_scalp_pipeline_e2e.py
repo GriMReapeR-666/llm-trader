@@ -49,9 +49,14 @@ def _mock_indicators():
 
 
 def _market_env():
+    # Complete evidence (P1-H4): the fail-closed validator rejects any
+    # missing gate input.
     return {
         "market_open": True, "tick_age_ms": 15, "max_tick_age_ms": 5000,
         "symbol_tradable": True, "spread": 0.0001, "max_spread": 0.0005,
+        "clock_ok": True, "session_allowed": True,
+        "liquidity_ok": True, "microstructure_ok": True,
+        "required_data_ok": True,
         "completed_candle": True, "breakout_event": True,
         "stop_distance": 0.0020, "min_stop_distance": 0.0005,
         "high_impact_news": False, "setup_cooldown_seconds": 0,

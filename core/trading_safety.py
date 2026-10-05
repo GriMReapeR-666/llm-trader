@@ -40,6 +40,12 @@ SWING_MAGIC = 460001
 SCALP_MAGIC = 460002
 NEOCORTEX_MAGIC = 460003
 
+#: Every magic number the engine itself issues. Operator flatten, kill-switch
+#: cancellation, position management, risk limits and reconciliation must all
+#: use this set: anything outside it is manual trading and is left alone by
+#: owned-only actions (the guardian's RED trip still flattens everything).
+BOT_MAGICS = frozenset({SWING_MAGIC, SCALP_MAGIC, NEOCORTEX_MAGIC})
+
 
 @dataclass(frozen=True)
 class TradeProposal:
@@ -74,7 +80,10 @@ class TradeProposal:
 class MarketEvidence:
     """Frozen typed market evidence required by DeterministicValidator (P1-H4).
 
-    Every gate input is a required field with no default.
+    Every gate input is a required field with no default — except
+    `breakout_event` (an optional trigger; absent means False) and
+    `setup_cooldown_seconds` (configuration with a 900 s default), which
+    are not evidence (M6). Both still fail safe when absent.
     """
     market_open: bool
     tick_age_ms: float
@@ -88,11 +97,11 @@ class MarketEvidence:
     microstructure_ok: bool
     required_data_ok: bool
     completed_candle: bool
-    breakout_event: bool
-    stop_distance: float
-    min_stop_distance: float
-    high_impact_news: bool
-    setup_cooldown_seconds: float
+    breakout_event: bool = False
+    stop_distance: float = 0.0
+    min_stop_distance: float = 0.0
+    high_impact_news: bool = False
+    setup_cooldown_seconds: float = 900.0
     raw: Dict[str, Any] = field(default_factory=dict)
 
     REQUIRED_FIELDS = (
@@ -108,12 +117,13 @@ class MarketEvidence:
         "microstructure_ok",
         "required_data_ok",
         "completed_candle",
-        "breakout_event",
         "stop_distance",
         "min_stop_distance",
         "high_impact_news",
-        "setup_cooldown_seconds",
     )
+
+    # Optional non-evidence inputs: validated when supplied, defaulted when absent.
+    OPTIONAL_FIELDS = ("breakout_event", "setup_cooldown_seconds")
 
     @classmethod
     def parse(cls, market: Any) -> Tuple[Optional["MarketEvidence"], List[str]]:
@@ -145,6 +155,18 @@ class MarketEvidence:
         if problems:
             return None, problems
 
+        def _optional_bool(name: str, default: bool = False) -> bool:
+            val = market.get(name, default)
+            return bool(val) if isinstance(val, (bool, int, float)) else default
+
+        def _optional_float(name: str, default: float) -> float:
+            val = market.get(name, default)
+            try:
+                num = float(val) if val is not None else default
+                return num if math.isfinite(num) else default
+            except (TypeError, ValueError):
+                return default
+
         return cls(
             market_open=bool(market["market_open"]),
             tick_age_ms=float(market["tick_age_ms"]),
@@ -158,11 +180,11 @@ class MarketEvidence:
             microstructure_ok=bool(market["microstructure_ok"]),
             required_data_ok=bool(market["required_data_ok"]),
             completed_candle=bool(market["completed_candle"]),
-            breakout_event=bool(market["breakout_event"]),
+            breakout_event=_optional_bool("breakout_event", False),
             stop_distance=float(market["stop_distance"]),
             min_stop_distance=float(market["min_stop_distance"]),
             high_impact_news=bool(market["high_impact_news"]),
-            setup_cooldown_seconds=float(market["setup_cooldown_seconds"]),
+            setup_cooldown_seconds=_optional_float("setup_cooldown_seconds", 900.0),
             raw=dict(market),
         ), []
 
@@ -546,6 +568,82 @@ class TradingStore:
                 con.rollback()
                 raise
 
+    #: A control request older than this with a stale/missing engine
+    #: heartbeat means the engine is down: surface EXPIRED (H4).
+    CONTROL_EXPIRY_S = 60.0
+    #: Engine heartbeat older than this counts as offline (H4).
+    ENGINE_HEARTBEAT_STALE_S = 90.0
+
+    def engine_heartbeat_age_s(self) -> Optional[float]:
+        """Age of the freshest agent_runs heartbeat, or None when unknown."""
+        try:
+            with self._connect() as con:
+                tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+                if "agent_runs" not in tables:
+                    return None
+                row = con.execute("SELECT MAX(heartbeat_at) AS hb FROM agent_runs").fetchone()
+                if not row or not row["hb"]:
+                    return None
+                try:
+                    hb_dt = datetime.fromisoformat(str(row["hb"]))
+                except (TypeError, ValueError):
+                    return None
+                if hb_dt.tzinfo is None:
+                    hb_dt = hb_dt.replace(tzinfo=timezone.utc)
+                return max(0.0, (datetime.now(timezone.utc) - hb_dt).total_seconds())
+        except Exception:
+            return None
+
+    def _engine_offline_for_control(self, issued_at: Optional[str]) -> bool:
+        """H4: expiry keys off engine liveness, never request age alone.
+
+        A control expires only when it is older than CONTROL_EXPIRY_S *and*
+        the engine heartbeat is stale or absent (engine down). While the
+        engine lives, even an old request is still claimed — dropping an
+        operator flatten is worse than running it late.
+        """
+        try:
+            if not issued_at:
+                return True
+            born = datetime.fromisoformat(str(issued_at))
+            if born.tzinfo is None:
+                born = born.replace(tzinfo=timezone.utc)
+            age_s = (datetime.now(timezone.utc) - born).total_seconds()
+            if age_s < self.CONTROL_EXPIRY_S:
+                return False
+            hb_age = self.engine_heartbeat_age_s()
+            return hb_age is None or hb_age > self.ENGINE_HEARTBEAT_STALE_S
+        except Exception:
+            return True
+
+    def recover_stale_controls(self) -> int:
+        """H4: at engine boot, fail rows a dead engine left ACKNOWLEDGED.
+
+        An ACKNOWLEDGED row predating this boot means the previous engine
+        claimed the control and died before applying it. Re-running it
+        blindly could double-apply; mark FAILED so the operator re-issues
+        deliberately. Returns the recovered count.
+        """
+        now_iso = datetime.now(timezone.utc).isoformat()
+        try:
+            with self._connect() as con:
+                con.execute("BEGIN IMMEDIATE")
+                try:
+                    cur = con.execute(
+                        """UPDATE operator_controls
+                           SET status='FAILED', applied_at=?,
+                               result_json='{"error": "engine restarted before applying (stale ACKNOWLEDGED recovered)"}'
+                           WHERE status='ACKNOWLEDGED'""",
+                        (now_iso,),
+                    )
+                    con.commit()
+                    return int(cur.rowcount or 0)
+                except Exception:
+                    con.rollback()
+                    raise
+        except Exception:
+            return 0
+
     def get_operator_control(self, control_id: int) -> Optional[Dict[str, Any]]:
         with self._connect() as con:
             row = con.execute(
@@ -565,6 +663,28 @@ class TradingStore:
             if res.get("action") == "killswitch" and res.get("status") == "REQUESTED":
                 if self.is_kill_switch_active():
                     res["status"] = "ACKNOWLEDGED"
+            # H4 read-side expiry: with the engine down nobody runs the
+            # claim sweep, so surface EXPIRED here — otherwise the deck polls
+            # a REQUESTED row forever and never sees a terminal state.
+            if res.get("status") == "REQUESTED" and self._engine_offline_for_control(res.get("issued_at")):
+                try:
+                    con.execute("BEGIN IMMEDIATE")
+                    try:
+                        cur = con.execute(
+                            """UPDATE operator_controls
+                               SET status='EXPIRED',
+                                   result_json='{"error": "engine offline: not acknowledged within expiry window"}'
+                               WHERE id=? AND status='REQUESTED'""",
+                            (int(control_id),),
+                        )
+                        con.commit()
+                        if cur.rowcount == 1:
+                            res["status"] = "EXPIRED"
+                            res["result"] = {"error": "engine offline: not acknowledged within expiry window"}
+                    except Exception:
+                        con.rollback()
+                except Exception:
+                    pass
             return res
 
     def get_open_operator_controls(self) -> List[Dict[str, Any]]:
@@ -596,15 +716,22 @@ class TradingStore:
         with self._connect() as con:
             con.execute("BEGIN IMMEDIATE")
             try:
-                # 1. Expire stale requested controls
-                cutoff = (now_dt - timedelta(seconds=expiry_seconds)).isoformat()
-                con.execute(
-                    """UPDATE operator_controls
-                       SET status = 'EXPIRED',
-                           result_json = '{"error": "engine offline: not acknowledged within expiry window"}'
-                       WHERE status = 'REQUESTED' AND issued_at < ?""",
-                    (cutoff,),
-                )
+                # 1. Expire stale requested controls — but only when the
+                # engine is actually offline (H4). This sweep runs inside
+                # the live engine, whose heartbeat is normally fresh, so in
+                # practice nothing expires here: even an old request is
+                # still claimed below. Dropping an operator flatten because
+                # a cycle ran long is worse than running it late.
+                hb_age = self.engine_heartbeat_age_s()
+                if hb_age is None or hb_age > self.ENGINE_HEARTBEAT_STALE_S:
+                    cutoff = (now_dt - timedelta(seconds=expiry_seconds)).isoformat()
+                    con.execute(
+                        """UPDATE operator_controls
+                           SET status = 'EXPIRED',
+                               result_json = '{"error": "engine offline: not acknowledged within expiry window"}'
+                           WHERE status = 'REQUESTED' AND issued_at < ?""",
+                        (cutoff,),
+                    )
                 # 2. Select pending requested controls
                 query = """SELECT id, action, actor, source, issued_at, idempotency_key
                            FROM operator_controls
@@ -641,6 +768,12 @@ class TradingStore:
         status: str,
         result: Optional[Dict[str, Any]] = None,
     ) -> None:
+        """Mark a control terminal (APPLIED/FAILED/EXPIRED), exactly once (M5).
+
+        Compare-and-set against non-terminal states: a late APPLIED must not
+        overwrite an EXPIRED or FAILED row, and a second drainer cannot
+        re-complete a finished control. Terminal rows are immutable.
+        """
         now_iso = datetime.now(timezone.utc).isoformat()
         res_json = json.dumps(result or {})
         with self._connect() as con:
@@ -649,7 +782,7 @@ class TradingStore:
                 con.execute(
                     """UPDATE operator_controls
                        SET status = ?, applied_at = ?, result_json = ?
-                       WHERE id = ?""",
+                       WHERE id = ? AND status IN ('REQUESTED', 'ACKNOWLEDGED')""",
                     (status, now_iso, res_json, int(control_id)),
                 )
                 con.commit()

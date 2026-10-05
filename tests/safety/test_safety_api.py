@@ -70,12 +70,23 @@ def test_safety_endpoint_engine_up(client, auth_token, temp_env):
 
     try:
         store = TradingStore(path=temp_env["db_file"])
+        # H2: journal scope is the honest mode source — seed PAPER scope so
+        # the strip reads it back from the journal (not from env).
+        store = TradingStore(path=temp_env["db_file"], mode="PAPER")
+        # H2: seed persisted risk state; pnl/limit stay null without a broker.
+        store.update_state("risk_manager_state", lambda _c: {
+            "start_equity": 10000.0, "trading_day": "2026-10-05",
+            "day_basis": "broker", "flatten_reason": "",
+        })
         from operations.agent_operations import AgentOperations
         ops = AgentOperations(db_path=temp_env["db_file"])
         run_id = ops.start_run("test_agent")
 
         headers = {"Authorization": f"Bearer {auth_token}"}
-        resp = client.get("/api/safety", headers=headers)
+        # Enter lifespan so the real startup path attaches the journal store
+        # (B1 wiring — autonomy/latch snapshots are journal-backed, not guesses).
+        with client:
+            resp = client.get("/api/safety", headers=headers)
         assert resp.status_code == 200
         data = resp.json()
 
@@ -135,10 +146,17 @@ def test_safety_endpoint_active_latches_and_controls(client, auth_token, temp_en
 
         from data.kill_switch_latch import get_kill_switch_latch
         latch = get_kill_switch_latch()
+        # Attach-once (H5): bind this test's journal explicitly, like
+        # production boot does — entries_blocked and the endpoint never
+        # re-point a live backend.
+        latch.attach_store(store)
         latch.apply_market_data(halt_flag=True)
 
         headers = {"Authorization": f"Bearer {auth_token}"}
-        resp = client.get("/api/safety", headers=headers)
+        # Enter lifespan so the real startup path attaches the journal store
+        # (B1 wiring — autonomy/latch snapshots are journal-backed, not guesses).
+        with client:
+            resp = client.get("/api/safety", headers=headers)
         assert resp.status_code == 200
         data = resp.json()
 

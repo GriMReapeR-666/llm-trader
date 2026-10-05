@@ -125,6 +125,12 @@ class TestDeterministicValidatorGates:
             "min_stop_distance": 0.001,
             "high_impact_news": False,
             "required_data_ok": True,
+            # Complete evidence (P1-H4): the fail-closed validator rejects
+            # any missing gate input.
+            "clock_ok": True,
+            "session_allowed": True,
+            "liquidity_ok": True,
+            "microstructure_ok": True,
         }
         result = v.validate(proposal, market)
         assert result.approved

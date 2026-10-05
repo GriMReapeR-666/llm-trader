@@ -65,7 +65,7 @@ from core.risk_manager import RiskManager
 from core.trade_manager import TradeManager
 from research.rl_trainer import RLTrainer
 from core.trading_safety import (DeterministicValidator, PortfolioRiskArbiter,
-                            TradeProposal, TradingStore, ValidationResult,
+                            BOT_MAGICS, TradeProposal, TradingStore, ValidationResult,
                             safe_risk_fraction, exposure_buckets)
 from intelligence.trading_memory import TradingMemory
 from operations.journal_audit import audit as audit_journal, baseline_metrics, qualified_metrics, write_report, write_audit_export
@@ -88,6 +88,7 @@ try:
 except ImportError:
     from research.setup_registry import classify as classify_setup
 from core.broker_preflight import persist_preflight, validate_envelope
+from core.order_gateway import get_default_gateway, configure_default_gateway
 from core.execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
 from intelligence.feature_builder import build_snapshot as build_feature_snapshot
 try:
@@ -1354,6 +1355,25 @@ def _acknowledge_stop_file() -> str:
     return reason
 
 
+def _resolve_drain_broker_client(orch: Any) -> Any:
+    """Return orch.client only if it is a listable broker module (B2).
+
+    The orchestrator's `client` is usually a connection wrapper (MT5Client)
+    with no positions_get/orders_get. Passing it to the gateway used to
+    produce empty snapshots and a false APPLIED. Unlistable clients are
+    dropped so the gateway falls back to its bound live client; when even
+    that cannot list, the control is marked FAILED.
+    """
+    candidate = getattr(orch, "client", None)
+    if (
+        candidate is not None
+        and hasattr(candidate, "positions_get")
+        and hasattr(candidate, "orders_get")
+    ):
+        return candidate
+    return None
+
+
 def _drain_operator_controls(orch: Any) -> None:
     """Drain and execute pending operator controls from the journal.
 
@@ -1383,8 +1403,8 @@ def _drain_operator_controls(orch: Any) -> None:
                 if gw is None:
                     from core.order_gateway import get_default_gateway
                     gw = get_default_gateway()
-                owned_magics = getattr(orch, "owned_magics", None) or {460001}
-                mt5_client = getattr(orch, "client", None)
+                owned_magics = getattr(orch, "owned_magics", None) or set(BOT_MAGICS)
+                mt5_client = _resolve_drain_broker_client(orch)
                 outcome = gw.execute_flatten(owned_magics=owned_magics, mt5_client=mt5_client)
                 outcome_dict = outcome.to_dict() if hasattr(outcome, "to_dict") else {
                     "closed": getattr(outcome, "closed", len(outcome)),
@@ -1393,10 +1413,13 @@ def _drain_operator_controls(orch: Any) -> None:
                     "remaining": getattr(outcome, "remaining", 0),
                     "sweeps": getattr(outcome, "sweeps", 1),
                 }
-                store.complete_operator_control(cid, "APPLIED", outcome_dict)
+                # B2: APPLIED only when the broker was listed and nothing
+                # owned remains. Anything else is FAILED with the counts.
+                final_status = "APPLIED" if getattr(outcome, "applied", outcome_dict.get("remaining") == 0 and not outcome_dict.get("listing_error")) else "FAILED"
+                store.complete_operator_control(cid, final_status, outcome_dict)
                 logging.getLogger("main").warning(
-                    "FLATTEN applied by operator:%s: closed=%s cancelled=%s failed=%s remaining=%s sweeps=%s",
-                    actor, outcome_dict.get("closed"), outcome_dict.get("cancelled"),
+                    "FLATTEN %s by operator:%s: closed=%s cancelled=%s failed=%s remaining=%s sweeps=%s",
+                    final_status, actor, outcome_dict.get("closed"), outcome_dict.get("cancelled"),
                     outcome_dict.get("failed"), outcome_dict.get("remaining"), outcome_dict.get("sweeps")
                 )
 
@@ -1407,14 +1430,37 @@ def _drain_operator_controls(orch: Any) -> None:
                 if gw is None:
                     from core.order_gateway import get_default_gateway
                     gw = get_default_gateway()
-                owned_magics = getattr(orch, "owned_magics", None) or {460001}
-                mt5_client = getattr(orch, "client", None)
-                cancelled_results = gw.cancel_all_owned_pending(owned_magics=owned_magics, mt5_client=mt5_client)
+                owned_magics = getattr(orch, "owned_magics", None) or set(BOT_MAGICS)
+                mt5_client = _resolve_drain_broker_client(orch)
+                try:
+                    cancelled_results = gw.cancel_all_owned_pending(owned_magics=owned_magics, mt5_client=mt5_client)
+                except Exception as cancel_exc:
+                    # B2: unlistable broker (BrokerUnlistableError) or any
+                    # cancel failure fails the control loudly.
+                    store.complete_operator_control(cid, "FAILED", {"error": str(cancel_exc), "kill_switch": True})
+                    logging.getLogger("main").warning(
+                        "KILLSWITCH FAILED by operator:%s: %s", actor, cancel_exc
+                    )
+                    continue
                 cancelled_count = sum(1 for r in cancelled_results if getattr(r, "success", False))
-                store.complete_operator_control(cid, "APPLIED", {"cancelled": cancelled_count, "kill_switch": True})
-                logging.getLogger("main").warning(
-                    "KILLSWITCH applied by operator:%s: cancelled %d pending orders", actor, cancelled_count
-                )
+                failed_count = sum(1 for r in cancelled_results if not getattr(r, "success", False))
+                # Verify against the broker: owned pending must actually be gone.
+                remaining, remaining_error = gw.count_owned_pending(mt5_client, owned_magics)
+                if remaining_error is not None:
+                    store.complete_operator_control(cid, "FAILED", {"cancelled": cancelled_count, "kill_switch": True, "error": remaining_error})
+                    logging.getLogger("main").warning(
+                        "KILLSWITCH FAILED by operator:%s: %s", actor, remaining_error
+                    )
+                elif remaining > 0 or failed_count > 0:
+                    store.complete_operator_control(cid, "FAILED", {"cancelled": cancelled_count, "failed": failed_count, "remaining": remaining, "kill_switch": True})
+                    logging.getLogger("main").warning(
+                        "KILLSWITCH FAILED by operator:%s: cancelled %d, failed %d, remaining %d", actor, cancelled_count, failed_count, remaining
+                    )
+                else:
+                    store.complete_operator_control(cid, "APPLIED", {"cancelled": cancelled_count, "kill_switch": True})
+                    logging.getLogger("main").warning(
+                        "KILLSWITCH applied by operator:%s: cancelled %d pending orders", actor, cancelled_count
+                    )
 
             elif action == "killswitch_off":
                 if hasattr(store, "set_kill_switch"):
@@ -1768,8 +1814,8 @@ def main() -> None:
     parser_latch.add_argument("--journal-path", default="trading_state.db")
 
     parser_flatten = sub.add_parser("flatten", help="Offline flatten owned positions and cancel owned pending orders")
-    parser_flatten.add_argument("--owned", action="store_true", help="Flatten owned positions and orders only")
-    parser_flatten.add_argument("--confirm", required=True, help="Confirmation token (account login or FLATTEN)")
+    parser_flatten.add_argument("--owned", action="store_true", help="Flatten owned positions and orders only (default: owned-only; manual positions are never touched)")
+    parser_flatten.add_argument("--confirm", required=True, help="Typed confirmation: must be exactly FLATTEN")
     parser_flatten.add_argument("--journal-path", default="trading_state.db")
     parser_flatten.add_argument("--paper", action="store_true", help="Flatten paper broker positions")
 
@@ -2260,19 +2306,42 @@ def main() -> None:
         return
 
     if args.cmd == "flatten":
-        from core.order_gateway import get_default_gateway, configure_default_gateway
-        from core.trading_safety import TradingStore
-        if not args.confirm:
-            print("Error: Confirmation required. Pass --confirm <account login or FLATTEN>")
+        # NOTE: TradingStore / gateway helpers are module-level; never add a
+        # local import here — it would shadow the module names for the whole
+        # of main() (UnboundLocalError on earlier uses).
+        # H6: typed confirmation (exactly FLATTEN, like deck/API).
+        if args.confirm != "FLATTEN":
+            print("Error: Confirmation required. Pass --confirm FLATTEN (typed confirmation).")
             return
-        store = TradingStore(args.journal_path)
-        gw_mode = "PAPER" if getattr(args, "paper", False) else "LIVE"
-        configure_default_gateway(store, mode=gw_mode)
-        gw = get_default_gateway()
-        store.set_kill_switch(True, f"offline_flatten:{args.confirm}")
-        outcome = gw.execute_flatten(owned_magics={460001} if args.owned else None)
-        print(json.dumps(outcome.to_dict(), indent=2))
-        return
+        # H6: never race a running engine — take the engine lock first.
+        from core.file_lock import FileLock as _FlattenFileLock
+        _flatten_lock_path = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.lock")
+        _flatten_lock = _FlattenFileLock(_flatten_lock_path)
+        if not _flatten_lock.acquire(non_blocking=True):
+            print("Error: engine is running (engine.lock held). Use the API / deck flatten instead of the offline command.")
+            return
+        try:
+            store = TradingStore(args.journal_path)
+            gw_mode = "PAPER" if getattr(args, "paper", False) else "LIVE"
+            configure_default_gateway(store, mode=gw_mode)
+            gw = get_default_gateway()
+            # H6: bind the real broker module when present so live reads see
+            # the account (otherwise the gateway fails loudly with
+            # listing_error instead of reporting an empty APPLIED).
+            try:
+                gw.bind_live_client(sys.modules.get("MetaTrader5"))
+            except Exception:
+                pass
+            store.set_kill_switch(True, f"offline_flatten:{args.confirm}")
+            # H6: owned-only always — manual positions are never touched.
+            outcome = gw.execute_flatten(owned_magics=set(BOT_MAGICS))
+            print(json.dumps(outcome.to_dict(), indent=2))
+            return
+        finally:
+            try:
+                _flatten_lock.release()
+            except Exception:
+                pass
 
     if args.cmd == "provider-circuit":
         circuit = ProviderCircuitBreaker(TradingStore(args.journal_path))
@@ -4260,6 +4329,20 @@ def execute_skill(**kwargs):
                 orch = None
         if orch is None:
             orch = LLMOrchestrator(**orch_kwargs)
+        # H4: fail rows a dead engine left ACKNOWLEDGED. They were claimed
+        # but never applied; re-running them blindly could double-apply, so
+        # the operator re-issues deliberately.
+        try:
+            _boot_store = getattr(orch, "store", None)
+            if _boot_store is not None and hasattr(_boot_store, "recover_stale_controls"):
+                _recovered = _boot_store.recover_stale_controls()
+                if _recovered:
+                    logging.getLogger("main").warning(
+                        "Recovered %d stale ACKNOWLEDGED control(s) as FAILED (previous engine died mid-apply)",
+                        _recovered,
+                    )
+        except Exception as _rec_exc:
+            logging.getLogger("main").debug("Stale control recovery skipped: %s", _rec_exc)
         # Wire TradeManager & QuantWorkflowEngine from harness context to orchestrator
         if harness_ctx is not None:
             orch.harness_ctx = harness_ctx
@@ -4584,6 +4667,25 @@ def execute_skill(**kwargs):
 
         try:
             cycle_count = 0
+            # --- DEDICATED CONTROL THREAD (H4) ---
+            # Drains operator controls every second, independent of strategy
+            # cycles: the main thread can be blocked inside execute_cycle for
+            # 70-180 s, and a flatten requested mid-cycle must not wait for it
+            # (nor be dropped by the expiry). Gateway calls are lock-safe.
+            _control_stop = threading.Event()
+
+            def _control_thread_loop() -> None:
+                while not _control_stop.is_set():
+                    try:
+                        _drain_operator_controls(orch)
+                    except Exception as _ctl_exc:
+                        logging.getLogger("main").debug("Control thread drain failed: %s", _ctl_exc)
+                    _control_stop.wait(1.0)
+
+            _control_thread = threading.Thread(
+                target=_control_thread_loop, name="operator-controls", daemon=True,
+            )
+            _control_thread.start()
             while args.continuous or cycle_count < args.loops:
 
                 # --- DRAIN OPERATOR CONTROLS (PR 3.3) ---
@@ -4930,26 +5032,14 @@ def execute_skill(**kwargs):
                     except Exception as _pulse_ingest_exc:
                         logging.getLogger("main").debug("Pre-pulse macro ingest skipped: %s", _pulse_ingest_exc)
 
-                # Step 5b: Market-data clear on main path: each engine pulse applies fresh VIX when macro feed has one
-                try:
-                    from data.kill_switch_latch import get_kill_switch_latch
-                    _latch = get_kill_switch_latch()
-                    if getattr(_latch, "_store", None) is None and hasattr(orch, "store") and orch.store is not None:
-                        _latch.attach_store(orch.store)
-                    _macro_vix = None
-                    if hasattr(orch, "macro_provider") and orch.macro_provider is not None:
-                        _snap = getattr(orch.macro_provider, "latest_snapshot", None)
-                        if isinstance(_snap, dict):
-                            _macro_vix = _snap.get("vix")
-                    if _macro_vix is None and hasattr(orch, "_pulse_macro_cache"):
-                        _cache = getattr(orch, "_pulse_macro_cache", {}).get(current_symbol, {})
-                        _macro_data = _cache.get("macro_observations_ingest", {}).get("macro_data", {})
-                        if isinstance(_macro_data, dict):
-                            _macro_vix = _macro_data.get("vix")
-                    if _macro_vix is not None:
-                        _latch.apply_market_data(vix=float(_macro_vix), halt_flag=False)
-                except Exception as _pulse_vix_exc:
-                    logging.getLogger("main").debug("Pulse latch VIX check skipped: %s", _pulse_vix_exc)
+                # NOTE (H5): no speculative VIX clear here. An earlier revision
+                # read a VIX out of the pulse macro cache, but no producer
+                # writes a timestamped VIX there and orch.macro_provider does
+                # not exist, so the block could never run — while looking like
+                # a live clearing path. Market-data clearing happens where a
+                # real VIX exists (the shadow deliberative graph, opt-in);
+                # the always-available clear is the operator path
+                # (POST /api/latch/clear, `mt5_trader.py latch --clear`).
 
                 if len(strategy_cycles) > 1:
                     from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed as _AC
@@ -5809,13 +5899,29 @@ def execute_skill(**kwargs):
             run_status = "FAILED"
             logging.getLogger("main").exception("Critical error in main loop")
         finally:
-            # --- Shutdown order (CC-F14): Stop cycles -> join sched-bounded -> velocity -> orchestrator -> guardian stop LAST -> CrashRecovery ---
+            # --- Shutdown order (CC-F14): Stop control thread -> cycles -> join sched-bounded -> velocity -> orchestrator -> guardian stop LAST -> CrashRecovery ---
+            # 0. Stop the operator-control thread first so no new control
+            # applies mid-shutdown, then drain once more for stragglers.
+            try:
+                if "_control_stop" in locals() and _control_stop is not None:
+                    _control_stop.set()
+                if "_control_thread" in locals() and _control_thread is not None:
+                    _control_thread.join(timeout=5.0)
+                if "orch" in locals() and orch is not None:
+                    _drain_operator_controls(orch)
+            except Exception as _ct_exc:
+                logging.getLogger("main").debug("Control thread stop skipped: %s", _ct_exc)
             if 'orch' in locals() and orch is not None:
-                # 1. Join bounded scheduler (10s bound)
+                # 1. Join bounded scheduler (10 s bound) via the real worker
+                # reference (M1: the old bounded_pipeline.join was dead code).
                 try:
-                    bounded_sched = getattr(orch, "bounded_pipeline", None) or getattr(orch, "scheduler", None)
-                    if hasattr(bounded_sched, "join"):
-                        bounded_sched.join(timeout=10.0)
+                    _joiner = getattr(orch, "join_schedule_batch", None)
+                    if callable(_joiner):
+                        _joiner(timeout=10.0)
+                    else:
+                        bounded_sched = getattr(orch, "bounded_pipeline", None) or getattr(orch, "scheduler", None)
+                        if hasattr(bounded_sched, "join"):
+                            bounded_sched.join(timeout=10.0)
                 except Exception as _b_exc:
                     logging.getLogger("main").debug("Bounded scheduler join skipped: %s", _b_exc)
 

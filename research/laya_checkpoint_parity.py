@@ -24,8 +24,9 @@ from collections import Counter
 
 # NOTE: FAST_TEST deliberately NOT set — this run needs the real checkpoint.
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for p in ("", "data", "intelligence"):
-    sys.path.insert(0, os.path.join(ROOT, p) if p else ROOT)
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
 from data.news_triage import (  # noqa: E402
     D0_1_SourceCredibility,

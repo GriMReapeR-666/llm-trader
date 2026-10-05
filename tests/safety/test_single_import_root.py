@@ -27,8 +27,29 @@ def test_import_guard_reports_zero_duplicates():
     assert "modules loaded twice: 0" in proc.stdout
 
 
+def _enclosing_loops(tree: ast.AST, target: ast.AST) -> list:
+    """For/While nodes lexically enclosing target (M3: loop-built inserts)."""
+    found: list = []
+
+    def _visit(node: ast.AST, stack: list) -> None:
+        if node is target:
+            found.extend(n for n in stack if isinstance(n, (ast.For, ast.AsyncFor, ast.While)))
+            return
+        for child in ast.iter_child_nodes(node):
+            _visit(child, stack + [node])
+
+    _visit(tree, [])
+    return found
+
+
 def test_no_production_sys_path_subpackage_inserts():
-    """AST check: no production file may add subpackage folders to sys.path."""
+    """AST check: no production file may add subpackage folders to sys.path.
+
+    Catches direct inserts, os.path.join-built inserts AND loop-built
+    inserts (M3: `for _sub in ("core", ...): sys.path.insert(0, _p)` evaded
+    the old check because the subpackage names live in the loop header,
+    not in the call arguments).
+    """
     subpackages = set(PROD_PACKAGES)
     violations = []
 
@@ -41,6 +62,11 @@ def test_no_production_sys_path_subpackage_inserts():
     # Repo root production files
     for f in ROOT.glob("*.py"):
         prod_files.append(f)
+
+    # kronos_mcp is a production package with its own sys.path inserts.
+    _kronos_dir = ROOT / "kronos_mcp"
+    if _kronos_dir.is_dir():
+        prod_files.extend(_kronos_dir.rglob("*.py"))
 
     for py_file in prod_files:
         try:
@@ -72,5 +98,15 @@ def test_no_production_sys_path_subpackage_inserts():
                             if isinstance(sub_node, ast.Constant) and isinstance(sub_node.value, str):
                                 if sub_node.value in subpackages:
                                     violations.append((py_file.relative_to(ROOT), node.lineno, sub_node.value))
+                    # Loop-built inserts: scan enclosing loop headers for
+                    # subpackage constants (for _sub in ("core", ...)).
+                    for loop in _enclosing_loops(tree, node):
+                        src = ast.dump(loop)
+                        for sub in subpackages:
+                            if f"'{sub}'" in src or f'"{sub}"' in src:
+                                violations.append(
+                                    (py_file.relative_to(ROOT), node.lineno, f"loop-built:{sub}")
+                                )
+                                break
 
     assert not violations, f"Found production sys.path subpackage inserts: {violations}"

@@ -99,30 +99,33 @@ def test_drill_1_and_2_operator_flatten_paper_via_api(tmp_path, client, auth_tok
     store = TradingStore(path=db_path)
     paper = PaperBroker()
 
-    # 1. Populate paper broker with 3 open positions and 1 pending order
+    # 1. Populate paper broker with 3 open positions (one per bot magic) + 1 pending order
     t1 = paper.market_order("EURUSD", "BUY", 0.01, 1.0500, sl=1.0400, tp=1.0600, comment="drill_pos_1", magic=460001)
-    t2 = paper.market_order("GBPUSD", "SELL", 0.02, 1.2500, sl=1.2600, tp=1.2400, comment="drill_pos_2", magic=460001)
-    t3 = paper.market_order("USDJPY", "BUY", 0.01, 150.00, sl=149.00, tp=151.00, comment="drill_pos_3", magic=460001)
-    t_pend = paper.pending_order("EURUSD", "buy_limit", 1.0450, 0.01, sl=1.0400, tp=1.0600, comment="drill_pend_1", magic=460001)
+    t2 = paper.market_order("GBPUSD", "SELL", 0.02, 1.2500, sl=1.2600, tp=1.2400, comment="drill_pos_2", magic=460002)
+    t3 = paper.market_order("USDJPY", "BUY", 0.01, 150.00, sl=149.00, tp=151.00, comment="drill_pos_3", magic=460003)
+    t_pend = paper.pending_order("EURUSD", "buy_limit", 1.0450, 0.01, sl=1.0400, tp=1.0600, comment="drill_pend_1", magic=460002)
 
     assert len(paper.positions) == 3
     assert len(paper.orders) == 1
 
     gateway = OrderGateway(store=store, mode="PAPER", adapter=PaperAdapter(paper))
 
-    # Mock engine orchestrator that drains controls
+    # Mock engine orchestrator that drains controls. NOTE: no hand-wired
+    # autonomy store here — the API attaches its own journal store at startup
+    # (B1), so this drill exercises the real API wiring end to end.
+    from core.trading_safety import BOT_MAGICS
     orch = SimpleNamespace(
         store=store,
         client=paper,
         paper_broker=paper,
         order_gateway=gateway,
-        owned_magics={460001},
+        owned_magics=set(BOT_MAGICS),
     )
 
-    # Attach store to autonomy manager so API inserts into this exact store
-    from operations.autonomy import get_autonomy
-    autonomy = get_autonomy()
-    autonomy.store = store
+    # NOTE: the API attaches its own journal store at startup from
+    # LLM_TRADER_JOURNAL_PATH (B1). No hand-wiring here on purpose: the
+    # drill must exercise the real API wiring, including the 503 path when
+    # the journal is unavailable.
 
     # 2. Start background engine pulse loop draining operator controls
     stop_event = threading.Event()
@@ -137,30 +140,34 @@ def test_drill_1_and_2_operator_flatten_paper_via_api(tmp_path, client, auth_tok
 
     start_time = time.monotonic()
     try:
-        # Request flatten through API
-        headers = {"Authorization": f"Bearer {auth_token}"}
-        post_resp = client.post(
-            "/api/control/flatten",
-            headers=headers,
-            json={"confirm": "FLATTEN", "idempotency_key": "drill-flatten-idemp-1"},
-        )
-        assert post_resp.status_code == 200, post_resp.text
-        resp_data = post_resp.json()
-        assert resp_data["ok"] is True
-        cid = resp_data["control_id"]
+        # Request flatten through API inside the lifespan context so the
+        # real startup path attaches the journal store (B1 wiring, no mocks).
+        with client:
+            # Request flatten through API
+            headers = {"Authorization": f"Bearer {auth_token}"}
+            post_resp = client.post(
+                "/api/control/flatten",
+                headers=headers,
+                json={"confirm": "FLATTEN", "idempotency_key": "drill-flatten-idemp-1"},
+            )
+            assert post_resp.status_code == 200, post_resp.text
+            resp_data = post_resp.json()
+            assert resp_data["ok"] is True
+            cid = resp_data.get("control_id")
+            assert cid is not None, f"flatten issued without control_id: {resp_data}"
 
-        # Poll status until APPLIED with timeout SLA of 5.0 seconds
-        applied = False
-        final_ctrl: dict[str, Any] = {}
-        while time.monotonic() - start_time < 5.0:
-            get_resp = client.get(f"/api/control/{cid}", headers=headers)
-            assert get_resp.status_code == 200
-            ctrl_data = get_resp.json()
-            if ctrl_data.get("status") == "APPLIED":
-                applied = True
-                final_ctrl = ctrl_data
-                break
-            time.sleep(0.05)
+            # Poll status until APPLIED with timeout SLA of 5.0 seconds
+            applied = False
+            final_ctrl: dict[str, Any] = {}
+            while time.monotonic() - start_time < 5.0:
+                get_resp = client.get(f"/api/control/{cid}", headers=headers)
+                assert get_resp.status_code == 200
+                ctrl_data = get_resp.json()
+                if ctrl_data.get("status") == "APPLIED":
+                    applied = True
+                    final_ctrl = ctrl_data
+                    break
+                time.sleep(0.05)
 
         elapsed = time.monotonic() - start_time
         assert applied is True, f"Flatten did not reach APPLIED within 5.0s (elapsed={elapsed:.2f}s)"
@@ -179,6 +186,63 @@ def test_drill_1_and_2_operator_flatten_paper_via_api(tmp_path, client, auth_tok
     finally:
         stop_event.set()
         worker.join(timeout=2.0)
+
+
+# ---------------------------------------------------------------------------
+# Drill 2b: Live Flatten on FakeMT5 across all bot magics (B2/B3/M4)
+# ---------------------------------------------------------------------------
+@pytest.mark.drill
+def test_drill_2b_live_flatten_fake_mt5_all_magics(tmp_path, monkeypatch):
+    """Drill 2b: live flatten on FakeMT5 closes owned 460001/2/3, spares manual.
+
+    Uses the real drain path (_drain_operator_controls) with a listable
+    broker client (B2) and the central BOT_MAGICS set (B3). A manual-magic
+    position must survive an owned-only flatten.
+    """
+    from types import SimpleNamespace as NS
+    from tests.fakes.fake_mt5 import FakeMT5
+
+    db_path = str(tmp_path / "drill_live_state.db")
+    store = TradingStore(path=db_path)
+    fake = FakeMT5()
+    fake.positions = [
+        NS(ticket=101, symbol="EURUSD", volume=0.10, type=0, magic=460001),
+        NS(ticket=102, symbol="GBPUSD", volume=0.10, type=1, magic=460002),
+        NS(ticket=103, symbol="USDJPY", volume=0.10, type=0, magic=460003),
+        NS(ticket=104, symbol="EURUSD", volume=0.10, type=0, magic=999999),
+    ]
+    fake.orders = [
+        NS(ticket=201, symbol="EURUSD", magic=460002),
+        NS(ticket=202, symbol="EURUSD", magic=999999),
+    ]
+
+    from core.order_gateway import LiveMT5Adapter, OrderGateway
+    from core.trading_safety import BOT_MAGICS
+    gateway = OrderGateway(store=store, mode="LIVE", adapter=LiveMT5Adapter(fake))
+
+    cid = store.create_operator_control(action="flatten", actor="operator", source="drill-2b")
+    orch = SimpleNamespace(
+        store=store,
+        client=fake,
+        paper_broker=None,
+        order_gateway=gateway,
+        owned_magics=set(BOT_MAGICS),
+    )
+    _drain_operator_controls(orch)
+
+    ctrl = store.get_operator_control(cid)
+    assert ctrl is not None
+    assert ctrl["status"] == "APPLIED", f"flatten not APPLIED: {ctrl}"
+    result = ctrl.get("result", {})
+    assert result.get("closed") == 3, result
+    assert result.get("cancelled") == 1, result
+    assert result.get("remaining") == 0, result
+
+    # Manual positions/orders survive an owned-only flatten.
+    remaining_tickets = {getattr(p, "ticket", None) for p in fake.positions}
+    assert remaining_tickets == {104}, remaining_tickets
+    remaining_orders = {getattr(o, "ticket", None) for o in fake.orders}
+    assert remaining_orders == {202}, remaining_orders
 
 
 # ---------------------------------------------------------------------------

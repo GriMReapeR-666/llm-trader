@@ -13,10 +13,6 @@ import json
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if WORKSPACE_ROOT not in sys.path:
     sys.path.insert(0, WORKSPACE_ROOT)
-for subpkg in ["core", "intelligence", "operations", "research", "data", "ui"]:
-    pkg_path = os.path.join(WORKSPACE_ROOT, subpkg)
-    if os.path.isdir(pkg_path) and pkg_path not in sys.path:
-        sys.path.insert(0, pkg_path)
 
 from research.decision_models.extended_taxonomy import (
     TAXONOMY_REGISTRY,

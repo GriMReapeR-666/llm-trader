@@ -305,60 +305,72 @@ class AutonomyManager(StoreBackedState):
         action = action.lower().strip()
         if action not in CONTROL_ACTIONS:
             return {"ok": False, "reason": f"unsupported action {action}"}
+        # Fail closed (B1): without a journal store there is nowhere to put
+        # the control and no engine to drain it. Reporting ok would be a lie.
+        if self.store is None or not hasattr(self.store, "create_operator_control"):
+            logger.error("issue_control(%s) refused: autonomy manager has no journal store", action)
+            return {"ok": False, "reason": "engine journal unavailable: control not issued"}
         with self._lock:
-            control_id = None
-            if self.store is not None and hasattr(self.store, "create_operator_control"):
-                try:
-                    control_id = self.store.create_operator_control(
-                        action=action,
-                        actor=actor,
-                        source=source,
-                        idempotency_key=idempotency_key,
-                    )
-                except Exception as exc:
-                    logger.warning("Failed to insert into operator_controls: %s", exc)
+            try:
+                control_id = self.store.create_operator_control(
+                    action=action,
+                    actor=actor,
+                    source=source,
+                    idempotency_key=idempotency_key,
+                )
+            except Exception as exc:
+                logger.warning("Failed to insert into operator_controls: %s", exc)
+                return {"ok": False, "reason": f"control journal write failed: {exc}"}
+            if control_id is None:
+                return {"ok": False, "reason": "control journal write failed: no id returned"}
 
             self._record_locked("CONTROL_ISSUED", {"action": action, "actor": actor, "source": source, "control_id": control_id})
 
             if action == "pause":
                 self._state["paused"] = True
                 self._state["pause_reason"] = f"operator:{actor}"
-                if self.store is not None and hasattr(self.store, "set_autonomy_paused"):
-                    try:
-                        self.store.set_autonomy_paused(True, actor=actor, reason=f"operator:{actor}")
-                    except Exception:
-                        pass
+                try:
+                    self.store.set_autonomy_paused(True, actor=actor, reason=f"operator:{actor}")
+                except Exception as exc:
+                    logger.warning("set_autonomy_paused failed: %s", exc)
+                    return {"ok": False, "control_id": control_id, "reason": f"pause not persisted: {exc}"}
                 self._persist_locked()
-                if control_id is not None and hasattr(self.store, "complete_operator_control"):
+                try:
                     self.store.complete_operator_control(control_id, "APPLIED", {"action": "pause", "paused": True})
+                except Exception as exc:
+                    return {"ok": False, "control_id": control_id, "reason": f"pause applied but not recorded: {exc}"}
             elif action == "resume":
                 self._state["paused"] = False
                 self._state["pause_reason"] = ""
                 self._state["halted"] = False
                 self._state["halt_reason"] = ""
-                if self.store is not None and hasattr(self.store, "set_autonomy_paused"):
-                    try:
-                        self.store.set_autonomy_paused(False, actor=actor)
-                    except Exception:
-                        pass
+                try:
+                    self.store.set_autonomy_paused(False, actor=actor)
+                except Exception as exc:
+                    logger.warning("set_autonomy_paused failed: %s", exc)
+                    return {"ok": False, "control_id": control_id, "reason": f"resume not persisted: {exc}"}
                 self._persist_locked()
-                if control_id is not None and hasattr(self.store, "complete_operator_control"):
+                try:
                     self.store.complete_operator_control(control_id, "APPLIED", {"action": "resume", "paused": False})
+                except Exception as exc:
+                    return {"ok": False, "control_id": control_id, "reason": f"resume applied but not recorded: {exc}"}
             elif action == "killswitch":
-                if self.store is not None and hasattr(self.store, "set_kill_switch"):
-                    try:
-                        self.store.set_kill_switch(True, f"operator:{actor}")
-                    except Exception:
-                        pass
+                try:
+                    self.store.set_kill_switch(True, f"operator:{actor}")
+                except Exception as exc:
+                    logger.warning("set_kill_switch failed: %s", exc)
+                    return {"ok": False, "control_id": control_id, "reason": f"kill switch not set: {exc}"}
                 self._record_locked("CONTROL_ACK_QUEUED", {"action": action, "control_id": control_id})
             elif action == "killswitch_off":
-                if self.store is not None and hasattr(self.store, "set_kill_switch"):
-                    try:
-                        self.store.set_kill_switch(False, f"operator:{actor}")
-                    except Exception:
-                        pass
-                if control_id is not None and hasattr(self.store, "complete_operator_control"):
+                try:
+                    self.store.set_kill_switch(False, f"operator:{actor}")
+                except Exception as exc:
+                    logger.warning("set_kill_switch failed: %s", exc)
+                    return {"ok": False, "control_id": control_id, "reason": f"kill switch not cleared: {exc}"}
+                try:
                     self.store.complete_operator_control(control_id, "APPLIED", {"action": "killswitch_off"})
+                except Exception as exc:
+                    return {"ok": False, "control_id": control_id, "reason": f"killswitch_off applied but not recorded: {exc}"}
             elif action == "flatten":
                 self._record_locked("CONTROL_ACK_QUEUED", {"action": action, "control_id": control_id})
 

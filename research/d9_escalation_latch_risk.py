@@ -37,8 +37,9 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for p in ("", "data", "intelligence"):
-    sys.path.insert(0, os.path.join(ROOT, p) if p else ROOT)
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
 from data.kill_switch_latch import KillSwitchLatch  # noqa: E402
 from data.kill_switch_latch import CONFIRM_WINDOW_S, REARM_COOLDOWN_S  # noqa: E402

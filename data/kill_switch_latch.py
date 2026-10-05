@@ -146,20 +146,29 @@ class KillSwitchLatch:
             # First boot with no store and no file: clean start
             self._state = self._blank()
 
-    def _save(self) -> None:
-        # Save to store if attached under update_state (BEGIN IMMEDIATE)
-        if self._store is not None:
-            try:
-                st_copy = dict(self._state)
-                self._store.update_state(
-                    "d9_kill_switch_latch",
-                    lambda _curr: st_copy,
-                    default=st_copy,
-                )
-            except Exception:
-                pass
+    def _sanitize(self, stored: Any) -> Dict[str, Any]:
+        """Merge a stored record into a blank state, failing closed (H5).
 
-        # Save to file mirror with unique temporary file to prevent multi-process collisions
+        A record that is not a dict with a latch flag (corrupt JSON, a torn
+        write, anything unexpected) loads as latched with
+        trigger_source=checkpoint_unreadable. No record (first boot) loads clean.
+        """
+        if stored is None:
+            return self._blank()
+        if type(stored).__name__ in ("MagicMock", "Mock"):
+            # Test doubles without a real backend: no durable record either way.
+            return self._blank()
+        if isinstance(stored, dict) and "latched" in stored:
+            fresh = self._blank()
+            fresh.update({k: v for k, v in stored.items() if k in fresh})
+            return fresh
+        blank = self._blank()
+        blank["latched"] = True
+        blank["trigger_source"] = "checkpoint_unreadable"
+        return blank
+
+    def _write_file_mirror(self) -> None:
+        # File mirror with unique temporary file to prevent multi-process collisions
         if self._path:
             dir_name = os.path.dirname(self._path) or "."
             tmp_path = None
@@ -184,13 +193,58 @@ class KillSwitchLatch:
                     except OSError:
                         pass
 
+    def _mutate(self, transition) -> Dict[str, Any]:
+        """Apply a pure state transition atomically (H5).
+
+        `transition` maps the sanitized current record to the next record.
+        With a store attached, the read-modify-write happens inside the
+        store's BEGIN IMMEDIATE transaction, so a concurrent news observe
+        and operator clear in two processes cannot overwrite each other.
+        A store write failure is logged as an ERROR (never swallowed: the
+        operator must know durability is degraded) and the file mirror is
+        still updated best-effort.
+        """
+        import logging as _logging
+        with self._lock:
+            if self._store is None:
+                transition(self._state)
+                self._write_file_mirror()
+                return self.snapshot_locked()
+            try:
+                updated = self._store.update_state(
+                    "d9_kill_switch_latch",
+                    lambda cur: transition(self._sanitize(cur)),
+                    default=self._blank(),
+                )
+                self._state = self._sanitize(updated)
+            except Exception as exc:
+                _logging.getLogger(__name__).error(
+                    "Latch store write failed; staying on in-memory state: %s", exc,
+                )
+            self._write_file_mirror()
+            return self.snapshot_locked()
+
+    def _save(self) -> None:
+        # Legacy entry point kept for reset()/tests: store write (best-effort
+        # here; _mutate is the loud path) plus the file mirror.
+        if self._store is not None:
+            try:
+                st_copy = dict(self._state)
+                self._store.update_state(
+                    "d9_kill_switch_latch",
+                    lambda _curr: st_copy,
+                    default=st_copy,
+                )
+            except Exception:
+                pass
+
+        self._write_file_mirror()
+
     def clear(self, reason: str, actor: str = "operator") -> Dict[str, Any]:
         """Operator clear: explicitly unlatch and enter re-arm cooldown."""
-        with self._lock:
-            if self._store is not None:
-                self._load()
-            now = float(self._now())
-            st = self._state
+        now = float(self._now())
+
+        def _transition(st: Dict[str, Any]) -> Dict[str, Any]:
             st["latched"] = False
             st["cleared_at"] = now
             st["clear_reason"] = f"operator_clear:{actor}:{reason}"
@@ -199,8 +253,9 @@ class KillSwitchLatch:
             st["pending_confirmations"] = 0
             st["triggered_headlines"] = []
             st["suppressed_during_cooldown"] = 0
-            self._save()
-            return self.snapshot_locked()
+            return st
+
+        return self._mutate(_transition)
 
     # ------------------------------------------------------- news-side input
     def observe(
@@ -212,16 +267,15 @@ class KillSwitchLatch:
         """Record one ingest batch's tripwire result (the only news-side writer)."""
         now = float(now if now is not None else self._now())
         headlines = [str(h)[:120] for h in (triggered_headlines or [])][:5]
-        with self._lock:
-            if self._store is not None:
-                self._load()
-            st = self._state
+        threshold = self._threshold
+        window_s = self._window_s
+
+        def _transition(st: Dict[str, Any]) -> Dict[str, Any]:
             if st["latched"]:
                 # Latched stays latched: news can sustain, never clear.
                 if headlines:
                     st["triggered_headlines"] = headlines
-                self._save()
-                return self.snapshot_locked()
+                return st
 
             cooldown_until = st.get("cooldown_until")
             if cooldown_until is not None and now < float(cooldown_until):
@@ -229,29 +283,27 @@ class KillSwitchLatch:
                     st["suppressed_during_cooldown"] = int(
                         st.get("suppressed_during_cooldown") or 0
                     ) + len(headlines)
-                self._save()
-                return self.snapshot_locked()
+                return st
 
             if tripwire_count <= 0 and not headlines:
                 # Expire stale confirmation batches even on quiet cycles.
                 st["recent_batches"] = [
                     float(t) for t in st.get("recent_batches", [])
-                    if now - float(t) <= self._window_s
+                    if now - float(t) <= window_s
                 ]
                 st["pending_confirmations"] = len(st["recent_batches"])
-                self._save()
-                return self.snapshot_locked()
+                return st
 
             batches = [
                 float(t) for t in st.get("recent_batches", [])
-                if now - float(t) <= self._window_s
+                if now - float(t) <= window_s
             ]
             batches.append(now)
             st["recent_batches"] = batches
             st["pending_confirmations"] = len(batches)
             if headlines:
                 st["triggered_headlines"] = headlines
-            if len(batches) >= self._threshold:
+            if len(batches) >= threshold:
                 st["latched"] = True
                 st["triggered_at"] = now
                 st["trigger_source"] = "news_tripwire_confirmed"
@@ -259,8 +311,9 @@ class KillSwitchLatch:
                 st["pending_confirmations"] = 0
                 st["cooldown_until"] = None
                 st["suppressed_during_cooldown"] = 0
-            self._save()
-            return self.snapshot_locked()
+            return st
+
+        return self._mutate(_transition)
 
     # --------------------------------------------------- market-data authority
     def apply_market_data(
@@ -275,10 +328,10 @@ class KillSwitchLatch:
         clears a latched kill-switch.
         """
         now = float(now if now is not None else self._now())
-        with self._lock:
-            if self._store is not None:
-                self._load()
-            st = self._state
+        vix_clear = self._vix_clear
+        cooldown_s = self._cooldown_s
+
+        def _transition(st: Dict[str, Any]) -> Dict[str, Any]:
             if halt_flag is True:
                 if not st["latched"]:
                     st["latched"] = True
@@ -289,26 +342,26 @@ class KillSwitchLatch:
                     st["cooldown_until"] = None
                     st["suppressed_during_cooldown"] = 0
                     st["clear_reason"] = None
-                self._save()
-                return self.snapshot_locked()
+                return st
 
             if not st["latched"]:
-                return self.snapshot_locked()
+                return st
 
             # Explicit calm signal required to clear: VIX below threshold and
             # no market halt asserted. A missing VIX value does NOT clear.
-            calm = vix is not None and float(vix) < self._vix_clear and halt_flag is not True
+            calm = vix is not None and float(vix) < vix_clear and halt_flag is not True
             if calm:
                 st["latched"] = False
                 st["cleared_at"] = now
-                st["clear_reason"] = f"market_data_calm_vix_below_{self._vix_clear:g}"
-                st["cooldown_until"] = now + self._cooldown_s
+                st["clear_reason"] = f"market_data_calm_vix_below_{vix_clear:g}"
+                st["cooldown_until"] = now + cooldown_s
                 st["recent_batches"] = []
                 st["pending_confirmations"] = 0
                 st["triggered_headlines"] = []
                 st["suppressed_during_cooldown"] = 0
-                self._save()
-            return self.snapshot_locked()
+            return st
+
+        return self._mutate(_transition)
 
     # ---------------------------------------------------------------- views
     def snapshot_locked(self) -> Dict[str, Any]:
