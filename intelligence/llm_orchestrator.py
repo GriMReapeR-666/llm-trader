@@ -705,6 +705,7 @@ class LLMOrchestrator:
         self.growth_controller = AccountGrowthController(
             self.store, base_risk=float(getattr(self.risk, "risk_per_trade", 0.01) or 0.01),
         )
+        self._base_risk_per_trade = float(getattr(self.risk, "base_risk_per_trade", getattr(self.risk, "risk_per_trade", 0.01)) or 0.01)
         # NOTE: TradeManager safety attachment is deferred to wire_trade_manager()
         # which is called by mt5_trader.py after the orchestrator is constructed.
         # 2026-10-01: mistralai/mistral-7b-instruct-v0.2 was decommissioned
@@ -2650,9 +2651,9 @@ class LLMOrchestrator:
                                             },
                                             run_id=self.run_id, correlation_id=proposal.setup_key(), severity="CRITICAL")
                 return proposal, result
-            # Scale down the proposal size proportionally
-            proposal.lots = round(proposal.lots * _scale, 2)
-            if proposal.lots <= 0:
+            # Record scale for sizing stage (TL-T7)
+            proposal.features["cpcv_position_scale"] = _scale
+            if _scale <= 0.0:
                 result = ValidationResult(False, ["CPCV escalation: lots scaled to 0.0"],
                                           self.validator.confluence(proposal.features, proposal.side), {
                     "cpcv_escalation": {"scale": _scale, "streak": _cpcv_esc.get("degradation_streak", 0)},
@@ -2775,9 +2776,8 @@ class LLMOrchestrator:
         if isinstance(_exec_cost, dict) and isinstance(_exec_cost.get("cost_aware_position_scale"), (int, float)):
             _exec_scale = float(_exec_cost["cost_aware_position_scale"])
             if _exec_scale < 1.0:
-                proposal.lots = round(proposal.lots * _exec_scale, 2)
                 proposal.features["execution_cost_position_scale"] = _exec_scale
-                if proposal.lots <= 0:
+                if _exec_scale <= 0.0:
                     result = ValidationResult(
                         False, [f"Execution cost: position scaled to 0.0 (scale={_exec_scale})"],
                         self.validator.confluence(proposal.features, proposal.side),
@@ -2791,9 +2791,8 @@ class LLMOrchestrator:
         if isinstance(_meta_override, dict) and _meta_override.get("position_scale", 1.0) != 1.0:
             _pos_scale = float(_meta_override["position_scale"])
             if _pos_scale < 1.0:
-                proposal.lots = round(proposal.lots * _pos_scale, 2)
                 proposal.features["meta_adaptive_position_scale"] = _pos_scale
-                if proposal.lots <= 0:
+                if _pos_scale <= 0.0:
                     result = ValidationResult(
                         False, [f"Meta-adaptive: position scaled to 0.0 (scale={_pos_scale})"],
                         self.validator.confluence(proposal.features, proposal.side),
@@ -2942,7 +2941,7 @@ class LLMOrchestrator:
             }
             constraint_eval = constraint_engine.evaluate(
                 {"action": side, "entry": entry, "stop_loss": sl, "take_profit": tp,
-                 "lots": proposal.lots, "symbol": symbol},
+                 "lots": getattr(proposal, "lots", 0.0), "symbol": symbol},
                 constraint_context,
             )
             proposal.features["constraint_engine_verdict"] = constraint_eval.overall_verdict.value
@@ -2966,14 +2965,13 @@ class LLMOrchestrator:
             if constraint_eval.overall_verdict == ConstraintVerdict.REDUCE:
                 # Apply reduce instructions
                 for instr in constraint_eval.reduce_instructions:
-                    if instr.get("action") == "REDUCE" and instr.get("field") == "lots":
-                        new_lots = round(float(instr.get("to", proposal.lots)), 2)
-                        if new_lots > 0:
-                            proposal.lots = new_lots
-                        else:
+                    if instr.get("action") == "REDUCE":
+                        reduce_scale = float(instr.get("scale", 0.5))
+                        proposal.features["constraint_position_scale"] = reduce_scale
+                        if reduce_scale <= 0.0:
                             result = ValidationResult(
                                 False,
-                                [f"Boolean constraint: reduced lots to {new_lots}"],
+                                ["Boolean constraint: reduced size to 0.0"],
                                 self.validator.confluence(proposal.features, proposal.side),
                                 {"constraint_engine": constraint_eval.to_dict()},
                             )
@@ -3138,15 +3136,12 @@ class LLMOrchestrator:
             try:
                 copula_heat_val = float(copula_heat)
                 if math.isfinite(copula_heat_val):
-                    base_heat = getattr(self.risk, "_base_heat_budget_r", None)
-                    if base_heat is None:
-                        base_heat = getattr(self.risk, "max_portfolio_heat_r", 4.0)
-                        setattr(self.risk, "_base_heat_budget_r", base_heat)
+                    base_heat = getattr(self.risk, "base_heat_budget_r", getattr(self.risk, "_base_heat_budget_r", 4.0))
                     target_heat = min(base_heat, copula_heat_val)
-                    if target_heat < getattr(self.risk, "max_portfolio_heat_r", 4.0):
+                    if hasattr(self.risk, "set_heat_budget_r"):
                         self.risk.set_heat_budget_r(target_heat)
                         logging.getLogger("LLMOrchestrator").info(
-                            "Copula tail risk compressed heat budget to %.2fR (state=%s)",
+                            "Copula tail risk set heat budget to %.2fR (state=%s)",
                             target_heat, copula_state,
                         )
             except Exception as _copula_exc:
@@ -4748,33 +4743,32 @@ class LLMOrchestrator:
 
             # --- 1. META-ADAPTIVE: adjust risk parameters ---
             meta = results.get("meta_adaptive", {})
+            meta_mult = 1.0
             if meta.get("status") != "ERROR" and isinstance(meta.get("adapted_profile"), dict):
                 profile = meta["adapted_profile"]
                 risk_mult = float(profile.get("risk_multiplier", 1.0))
                 pos_scale = float(profile.get("position_scale", 1.0))
                 if risk_mult != 1.0:
-                    # Apply to risk_per_trade (bounded 0.002 - 0.02)
-                    base_risk = float(getattr(self.risk, "risk_per_trade", 0.01))
-                    adapted_risk = max(0.002, min(0.02, base_risk * risk_mult))
                     adaptive_allowed = self._research_influence_allowed("adaptive", paper_mode=paper_mode)
-                    if adaptive_allowed:
-                        self.risk.risk_per_trade = adapted_risk
+                    if risk_mult > 1.0 and not adaptive_allowed:
+                        meta_mult = 1.0
                         log.info(
-                            "Meta-adaptive: risk_per_trade %.4f -> %.4f (mult=%.2f, regime=%s)",
-                            base_risk, adapted_risk, risk_mult, meta.get("current_regime", "?"),
+                            "Meta-adaptive advisory only: suggested risk multiplier %.2f unapproved; unmutated", risk_mult
                         )
                     else:
+                        meta_mult = risk_mult
                         log.info(
-                            "Meta-adaptive advisory only: suggested risk %.4f -> %.4f (mult=%.2f); unmutated without research approval",
-                            base_risk, adapted_risk, risk_mult,
+                            "Meta-adaptive: risk multiplier %.2f applied (regime=%s)",
+                            meta_mult, meta.get("current_regime", "?"),
                         )
+                    adapted_risk = max(0.002, min(0.02, self._base_risk_per_trade * meta_mult))
                     toon["meta_adaptive_override"] = {
                         "risk_multiplier": risk_mult,
                         "adapted_risk_per_trade": adapted_risk,
                         "position_scale": pos_scale,
                         "regime": meta.get("current_regime", "UNKNOWN"),
                         "transition_detected": meta.get("transition_detected", False),
-                        "applied": adaptive_allowed,
+                        "applied": (meta_mult != 1.0),
                     }
 
             # --- 2. SELF-IMPROVEMENT: apply validated param changes ---
@@ -4789,11 +4783,10 @@ class LLMOrchestrator:
                     if 0.002 <= new_risk <= 0.02:
                         si_allowed = self._research_influence_allowed("adaptive", paper_mode=paper_mode)
                         if si_allowed:
-                            self.risk.risk_per_trade = new_risk
-                            log.info("Self-improvement: risk_per_trade -> %.4f", new_risk)
+                            toon["self_improvement_risk_override"] = new_risk
+                            log.info("Self-improvement: effective risk override -> %.4f", new_risk)
                         else:
                             log.info("Self-improvement advisory only: suggested risk -> %.4f; unmutated without research approval", new_risk)
-                        toon["self_improvement_risk_override"] = new_risk
                 if "max_drawdown_pct" in params:
                     toon["self_improvement_max_dd"] = float(params["max_drawdown_pct"])
                 log.info(
@@ -4884,6 +4877,7 @@ class LLMOrchestrator:
 
             # --- 7. CRASH DETECTOR (Logic-Q neuro-symbolic) ---
             crash = results.get("crash_detector", {})
+            crash_mult = 1.0
             if isinstance(crash, dict) and crash.get("trend") and crash.get("status") != "ERROR":
                 trend = crash.get("trend", "OSCILLATION")
                 risk_mult = float(crash.get("risk_multiplier", 1.0))
@@ -4902,14 +4896,20 @@ class LLMOrchestrator:
                     "crash_streak": crash_streak,
                 }
 
-                # Apply crash detector risk multiplier (layered on top of meta-adaptive)
+                # Apply crash detector risk multiplier (gated for increases > 1.0)
                 if risk_mult != 1.0:
-                    base_risk = float(getattr(self.risk, "risk_per_trade", 0.01))
-                    crash_risk = max(0.001, min(0.02, base_risk * risk_mult))
-                    self.risk.risk_per_trade = crash_risk
+                    if risk_mult > 1.0:
+                        crash_allowed = self._research_influence_allowed("adaptive", paper_mode=paper_mode)
+                        if crash_allowed:
+                            crash_mult = risk_mult
+                        else:
+                            crash_mult = 1.0
+                            log.info("Crash detector advisory only: suggested risk multiplier %.2f unapproved; unmutated", risk_mult)
+                    else:
+                        crash_mult = risk_mult
                     log.info(
-                        "Crash detector: risk_per_trade -> %.4f (trend=%s, streak=%d)",
-                        crash_risk, trend, crash_streak,
+                        "Crash detector: risk multiplier -> %.2f (trend=%s, streak=%d)",
+                        crash_mult, trend, crash_streak,
                     )
 
                 # CRITICAL: Block entries on RAPID_DESCEND or crash streak >= 3
@@ -4919,6 +4919,13 @@ class LLMOrchestrator:
                         "Crash detector: HOLD bias active (trend=%s, streak=%d)",
                         trend, crash_streak,
                     )
+
+            # Compute cycle effective risk without writing back to self.risk (1a-F3)
+            combined_mult = meta_mult * crash_mult
+            effective_risk = max(0.001, min(0.02, self._base_risk_per_trade * combined_mult))
+            if "self_improvement_risk_override" in toon:
+                effective_risk = float(toon["self_improvement_risk_override"])
+            toon["cycle_effective_risk"] = effective_risk
 
             # --- 8. CAUSAL FILTER (CRL-ABSO) ---
             causal = results.get("causal_filter", {})
@@ -7720,9 +7727,10 @@ class LLMOrchestrator:
             # Wire correlation engine for dynamic blackout windows
             try:
                 from core.news_regime_correlation import NewsRegimeCorrelation
-                if not hasattr(self, '_news_corr_engine'):
-                    self._news_corr_engine = NewsRegimeCorrelation()
-                _corr_engine = self._news_corr_engine
+                with self._cycle_state_lock:
+                    if not hasattr(self, '_news_corr_engine'):
+                        self._news_corr_engine = NewsRegimeCorrelation()
+                    _corr_engine = self._news_corr_engine
             except Exception as _corr_exc:
                 log.debug("NewsRegimeCorrelation init skipped: %s", _corr_exc)
             _news_gate = NewsTradingGate(correlation_engine=_corr_engine)
@@ -7778,11 +7786,12 @@ class LLMOrchestrator:
             if self.data_provider.api_manager:
                 try:
                     from core.news_indicator_fetcher import LiveIndicatorFetcher
-                    if not hasattr(self, '_live_indicator_fetcher'):
-                        self._live_indicator_fetcher = LiveIndicatorFetcher(
-                            api_manager=self.data_provider.api_manager,
-                        )
-                    _live_fetcher = self._live_indicator_fetcher
+                    with self._cycle_state_lock:
+                        if not hasattr(self, '_live_indicator_fetcher'):
+                            self._live_indicator_fetcher = LiveIndicatorFetcher(
+                                api_manager=self.data_provider.api_manager,
+                            )
+                        _live_fetcher = self._live_indicator_fetcher
                 except Exception as _fetcher_exc:
                     log.debug("LiveIndicatorFetcher init skipped: %s", _fetcher_exc)
             # Store news context in toon for LLM prompt (with live indicators)
@@ -7794,8 +7803,9 @@ class LLMOrchestrator:
             toon["news_gate"] = {"phase": _news_result.phase, "allowed": True}
             # ── News Execution Engine (Blind Spot #10) ───────────────────────
             try:
-                if not hasattr(self, '_news_exec_engine') and NewsExecutionEngine is not None:
-                    self._news_exec_engine = NewsExecutionEngine()
+                with self._cycle_state_lock:
+                    if not hasattr(self, '_news_exec_engine') and NewsExecutionEngine is not None:
+                        self._news_exec_engine = NewsExecutionEngine()
                 if hasattr(self, '_news_exec_engine') and _news_events:
                     for _evt in _news_events:
                         _evt_actual = _evt.get("actual") or _evt.get("value")
@@ -9167,7 +9177,20 @@ Total Trades: {len(closed_trades)}"""
                     trade_direction=action,
                     alpha_overall_ic=_alpha_ic,
                     alpha_confidence=_alpha_conf,
+                    risk_per_trade=toon.get("cycle_effective_risk", getattr(self, "_base_risk_per_trade", 0.01)),
                 )
+                
+                # Apply proposal feature sizing reductions (TL-T7)
+                sizing_scale = 1.0
+                for _k in ("cpcv_position_scale", "execution_cost_position_scale", "meta_adaptive_position_scale", "constraint_position_scale"):
+                    if _k in proposal.features:
+                        try:
+                            sizing_scale *= float(proposal.features[_k])
+                        except (TypeError, ValueError):
+                            pass
+                if sizing_scale < 1.0:
+                    safe_vol = safe_vol * max(0.0, sizing_scale)
+                    log.info("Applied proposal feature sizing reduction scale: %.2fx -> volume %.2f", sizing_scale, safe_vol)
                 
                 # Cap position size
                 MAX_FOREX_LOT = 1.0
@@ -9382,14 +9405,15 @@ Total Trades: {len(closed_trades)}"""
                     if self.enable_rl and rl_market_state:
                         decision["rl_state"] = rl_market_state
                         decision["rl_action"] = action
-                        self.rl_state_history.append({
-                            "state": rl_market_state,
-                            "action": action,
-                            "symbol": symbol,
-                            "timestamp": time.time()
-                        })
-                        if len(self.rl_state_history) > 1000:
-                            self.rl_state_history = self.rl_state_history[-1000:]
+                        with getattr(self, "_cycle_state_lock", threading.Lock()):
+                            self.rl_state_history.append({
+                                "state": rl_market_state,
+                                "action": action,
+                                "symbol": symbol,
+                                "timestamp": time.time()
+                            })
+                            if len(self.rl_state_history) > 1000:
+                                self.rl_state_history = self.rl_state_history[-1000:]
 
                     # EXECUTE TRADE
                     try:

@@ -57,7 +57,6 @@ def _rm(tmpdir, equity, spec, monkeypatch):
     min_mult=st.integers(1, 10),
     side=st.sampled_from([1, -1]),
 )
-@pytest.mark.xfail(strict=True, reason="TS-P1 / F-RM-1: lot rounding can exceed the 1 % risk cap")
 def test_p1_position_risk_never_exceeds_one_r(equity, entry, stop_frac, tick_size, tick_value, step, min_mult,
                                               side, monkeypatch, tmp_path_factory):
     """Dollar risk of the returned volume must never exceed equity * risk_per_trade

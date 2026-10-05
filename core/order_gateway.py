@@ -619,6 +619,52 @@ class OrderGateway:
                         con.execute("ROLLBACK")
                         return GatewayResult(False, "REJECTED", error=f"Portfolio open-risk limit breached: {new_total:.2f} > {cap:.2f}")
 
+                    # D3b: Correlated open risk limit (2% cap) inside reservation transaction
+                    from core.trading_safety import exposure_buckets
+                    active_positions: List[Dict[str, Any]] = []
+                    if trades_exists:
+                        t_rows = con.execute("SELECT symbol, side, risk_amount FROM trades WHERE closed_at IS NULL").fetchall()
+                        for r in t_rows:
+                            active_positions.append({
+                                "symbol": str(r[0]),
+                                "side": str(r[1]),
+                                "risk_amount": float(r[2] or 0.0),
+                            })
+                    for pl in reserving_intent_payloads(con, exclude_key=intent.intent_key):
+                        active_positions.append({
+                            "symbol": str(pl.get("symbol", "")),
+                            "side": str(pl.get("side", "")),
+                            "risk_amount": float(pl.get("risk_amount", 0.0) or 0.0),
+                        })
+
+                    intent_buckets = exposure_buckets(intent.symbol, intent.side)
+                    correlated_risk = 0.0
+                    for pos in active_positions:
+                        if intent_buckets & exposure_buckets(pos["symbol"], pos["side"]):
+                            correlated_risk += pos["risk_amount"]
+                    max_corr_fraction = 0.02
+                    if self.arbiter:
+                        max_corr_fraction = getattr(self.arbiter, "max_correlated_risk_fraction", 0.02)
+                    corr_cap = equity * max_corr_fraction
+                    new_corr_total = correlated_risk + float(intent.risk_amount or 0.0)
+                    if new_corr_total > corr_cap + 1e-6:
+                        con.execute("ROLLBACK")
+                        return GatewayResult(False, "REJECTED", error=f"Correlated open-risk limit breached: {new_corr_total:.2f} > {corr_cap:.2f}")
+
+                    # D3b: FX netting permit inside reservation transaction
+                    if intent.symbol and intent.side:
+                        from core.fx_portfolio_netting import evaluate_fx_netting_permit
+                        max_usd_beta = getattr(self.arbiter, "max_net_usd_beta_fraction", 0.04) if self.arbiter else 0.04
+                        max_single_ccy = getattr(self.arbiter, "max_single_currency_fraction", 0.03) if self.arbiter else 0.03
+                        ok_netting, netting_reason, _ = evaluate_fx_netting_permit(
+                            active_positions, intent.symbol, intent.side, float(intent.risk_amount or 0.0), equity,
+                            max_net_usd_beta_fraction=max_usd_beta,
+                            max_single_currency_fraction=max_single_ccy,
+                        )
+                        if not ok_netting:
+                            con.execute("ROLLBACK")
+                            return GatewayResult(False, "REJECTED", error=f"FX netting permit refused: {netting_reason}")
+
                     if existing is None:
                         payload_json = json.dumps({
                             "symbol": intent.symbol,

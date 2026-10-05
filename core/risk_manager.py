@@ -45,6 +45,7 @@ class RiskManager(StoreBackedState):
         if not isinstance(max_consecutive_losses, int) or max_consecutive_losses <= 0:
             raise ValueError("max_consecutive_losses must be a positive integer")
         self.balance = float(balance)
+        self.base_risk_per_trade = float(risk_per_trade)
         self.risk_per_trade = float(risk_per_trade) # User desired 1% (0.01)
         self.max_drawdown = float(max_drawdown)
         self.cooldown_seconds = cooldown_seconds
@@ -72,6 +73,7 @@ class RiskManager(StoreBackedState):
         # Portfolio heat budget in R units (sum of open |entry-sl| value over
         # planned 1R$). Compressible at runtime via set_heat_budget_r(), e.g.
         # from the copula tail-crisis state (4R normal -> 1R contagion).
+        self.base_heat_budget_r = 4.0
         self.max_portfolio_heat_r = 4.0
         # Opportunity cost of capital hurdle in R units (Masoumian, 2026)
         self.opportunity_cost_hurdle_r: float = 0.05
@@ -787,6 +789,10 @@ class RiskManager(StoreBackedState):
         if math.isfinite(value) and 0.5 <= value <= 10.0:
             self.max_portfolio_heat_r = value
 
+    def reset_heat_budget_r(self) -> None:
+        """Reset the portfolio heat budget back to base."""
+        self.max_portfolio_heat_r = self.base_heat_budget_r
+
     def open_portfolio_heat_r(self) -> Optional[float]:
         """Measured open heat in R units; None when it cannot be measured."""
         if self._portfolio_heat_provider is not None:
@@ -887,7 +893,8 @@ class RiskManager(StoreBackedState):
                            alpha_overall_ic: float = 0.0,
                            alpha_confidence: str = "unknown",
                            market: Optional[dict] = None,
-                           meta_health_multiplier: Optional[float] = None) -> float:
+                           meta_health_multiplier: Optional[float] = None,
+                           risk_per_trade: Optional[float] = None) -> float:
         if (not self._finite(entry, positive=True) or not self._finite(sl, positive=True)
                 or not self._finite(confidence) or float(confidence) < 0 or float(confidence) > 1):
             return 0.0
@@ -1182,12 +1189,13 @@ class RiskManager(StoreBackedState):
             except (TypeError, ValueError):
                 pass
 
-        # Use configured risk per trade (e.g. 0.01) * Multiplier
-        risk_amt = equity * self.risk_per_trade * size_multiplier
+        # Use configured risk per trade (or proposal-specific effective risk) * Multiplier
+        effective_base_risk = self.base_risk_per_trade if risk_per_trade is None else float(risk_per_trade)
+        risk_amt = equity * effective_base_risk * size_multiplier
         # Only log if > 0 to avoid spam on rejections
         if risk_amt > 0:
              logging.getLogger("RiskManager").info(
-                 f"Risk Logic: Base {self.risk_per_trade:.1%} * Conf {confidence:.2f} * Circuit {circuit_multiplier:.2f} "
+                 f"Risk Logic: Base {effective_base_risk:.1%} * Conf {confidence:.2f} * Circuit {circuit_multiplier:.2f} "
                  f"* DD {dd_multiplier:.2f} * Streak {streak_multiplier:.2f} * Kelly {kelly_multiplier:.2f} (x{size_multiplier}) = Risk ${risk_amt:.2f}"
              )
         
@@ -1230,17 +1238,27 @@ class RiskManager(StoreBackedState):
         
         volume = risk_amt / loss_per_lot
         
-        # 5. Normalize & Clip
+        # 5. Normalize & Clip (TS-P1: Never round up past the risk cap)
+        decimals = 2
         if step > 0:
-            # Avoid binary floating-point truncation (0.10 / 0.01 can be
-            # represented as 9.999999...), which would silently undersize a
-            # correctly calculated risk amount.
-            volume = math.floor((volume / step) + 1e-9) * step
-            
-        if not self._finite(volume, positive=True) or volume < float(min_vol):
+            steps = math.floor((volume / step) + 1e-9)
+            volume = steps * step
+            step_str = f"{step:.8f}".rstrip("0")
+            decimals = len(step_str.split(".")[1]) if "." in step_str else 0
+            volume = round(volume, decimals)
+
+        # Enforce strict dollar risk cap: volume * loss_per_lot must never exceed risk_amt
+        if volume * loss_per_lot > risk_amt * (1.0 + 1e-6):
+            if step > 0:
+                steps = max(0, int(round(volume / step)) - 1)
+                volume = round(steps * step, decimals)
+            else:
+                volume = 0.0
+
+        if not self._finite(volume, positive=True) or volume < float(min_vol) - 1e-9:
             # Rounding up to the broker minimum would exceed the requested
-            # dollar risk, so refuse the trade instead of over-risking it.
+            # dollar risk, so refuse the trade instead of over-risking it (TS-P1).
             return 0.0
         volume = float(min(volume, max_vol))
-        return float(f"{volume:.2f}")
+        return volume
 

@@ -86,12 +86,16 @@ class DualVelocityExecutor:
         """Collect completed results without raising worker exceptions."""
         if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
             raise ValueError("poll limit must be a positive integer")
-        completed: list[Dict[str, Any]] = []
+        claimed: list[_Job] = []
         with self._lock:
-            jobs = list(self._jobs.values())
-        for job in jobs:
-            if len(completed) >= limit or not job.future.done():
-                continue
+            for key, job in list(self._jobs.items()):
+                if len(claimed) >= limit:
+                    break
+                if job.future.done():
+                    self._jobs.pop(key, None)
+                    claimed.append(job)
+        completed: list[Dict[str, Any]] = []
+        for job in claimed:
             try:
                 result = job.future.result()
                 status, error = "COMPLETED", ""
@@ -102,10 +106,6 @@ class DualVelocityExecutor:
                     "latency_seconds": max(0.0, monotonic() - job.submitted_at),
                     "execution_authority": False}
             completed.append(item)
-            with self._lock:
-                current = self._jobs.get(job.key)
-                if current is job:
-                    self._jobs.pop(job.key, None)
         return completed
 
     def status(self) -> Dict[str, Any]:

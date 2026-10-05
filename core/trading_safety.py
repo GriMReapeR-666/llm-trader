@@ -1172,17 +1172,24 @@ class TradingStore:
         return float(row["total"])
 
     def open_positions_for_netting(self) -> List[Dict[str, Any]]:
-        """Return all open positions with symbol, side, and risk_amount for FX netting."""
+        """Return all open positions and active reserving intents for FX netting (D3b)."""
         with self._connect() as con:
             rows = con.execute("SELECT symbol, side, risk_amount FROM trades WHERE closed_at IS NULL").fetchall()
-        return [
-            {
-                "symbol": str(r["symbol"]),
-                "side": str(r["side"]),
-                "risk_amount": float(r["risk_amount"] or 0.0),
-            }
-            for r in rows
-        ]
+            res = [
+                {
+                    "symbol": str(r["symbol"]),
+                    "side": str(r["side"]),
+                    "risk_amount": float(r["risk_amount"] or 0.0),
+                }
+                for r in rows
+            ]
+            for pl in reserving_intent_payloads(con):
+                sym = str(pl.get("symbol", "") or "")
+                side = str(pl.get("side", "") or "")
+                risk = float(pl.get("risk_amount", 0.0) or 0.0)
+                if sym and side:
+                    res.append({"symbol": sym, "side": side, "risk_amount": risk})
+            return res
 
 
 def check_selective_activation(

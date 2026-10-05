@@ -1531,7 +1531,7 @@ class MarketDataProvider:
                     cop = clayton_copula_tail_risk(mat, normal_heat_budget_r=4.0, crisis_heat_budget_r=1.0)
                     # Wire to RiskManager heat budget
                     adj = float(cop.get("adjusted_heat_budget_r", 4.0))
-                    if hasattr(self.risk, "set_heat_budget_r") and abs(adj - 4.0) > 0.01:
+                    if hasattr(self.risk, "set_heat_budget_r"):
                         self.risk.set_heat_budget_r(adj)
                         log.info("Copula tail heat wired: %s tail_dep=%.3f -> heat %.1fR",
                                  cop.get("tail_risk_state"), cop.get("avg_tail_dependence"), adj)
