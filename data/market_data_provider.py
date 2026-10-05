@@ -930,29 +930,31 @@ class MarketDataProvider:
             try:
                 from core.execution_safety_supervisor import get_execution_safety_supervisor
                 _safety = get_execution_safety_supervisor()
-                _tick = None
-                # Time the tick fetch: it is a real broker round-trip and the only
-                # honest latency signal available before dispatch. This used to be a
-                # hardcoded 50.0, so the supervisor's 250ms guard never saw real
-                # latency on the market-order path.
-                _latency = 0.0
+                _mt5 = _get_mt5()
+                if _mt5 is None:
+                    raise RuntimeError("MetaTrader5 module unavailable for live market order safety check")
+                _lat_t0 = time.perf_counter()
                 try:
-                    _lat_t0 = time.perf_counter()
-                    _tick = _symbol_tick(symbol)
-                    _latency = (time.perf_counter() - _lat_t0) * 1000.0
+                    _tick = _mt5.symbol_info_tick(symbol)
                 except Exception:
-                    pass
-                _current_spread = 0.0
-                if _tick is not None:
-                    bid = float(getattr(_tick, 'bid', 0) or 0)
-                    ask = float(getattr(_tick, 'ask', 0) or 0)
-                    if bid > 0 and ask > 0:
-                        _current_spread = (ask - bid) / max(bid, 1e-10) * 10000
+                    _tick = None
+                _latency = (time.perf_counter() - _lat_t0) * 1000.0
+                if _tick is None:
+                    raise RuntimeError(f"ExecutionSafetySupervisor: tick unavailable for live order on {symbol}")
+                bid = float(getattr(_tick, 'bid', 0) or 0)
+                ask = float(getattr(_tick, 'ask', 0) or 0)
+                if not (bid > 0 and ask > 0 and ask >= bid):
+                    raise RuntimeError(f"ExecutionSafetySupervisor: invalid live prices for {symbol}: bid={bid}, ask={ask}")
+                _info = _mt5.symbol_info(symbol) if hasattr(_mt5, "symbol_info") else None
+                point = float(getattr(_info, "point", 0.00001) or 0.00001) if _info else 0.00001
+                _current_spread_points = (ask - bid) / point if point > 0 else (ask - bid)
+                from core.order_execution import _get_rolling_spread_avg_points
+                _avg_spread_points = _get_rolling_spread_avg_points(symbol, _current_spread_points, point)
                 _safety_result = _safety.validate_pre_trade_safety(
                     symbol=symbol,
                     requested_volume=float(volume),
-                    current_spread_pips=_current_spread,
-                    historical_avg_spread_pips=max(_current_spread * 0.8, 0.5),
+                    current_spread_pips=_current_spread_points,
+                    historical_avg_spread_pips=_avg_spread_points,
                     roundtrip_latency_ms=_latency,
                 )
                 if not _safety_result.get("is_approved", False):
@@ -1115,18 +1117,19 @@ class MarketDataProvider:
                 if df.empty:
                     continue
                 df = compute_indicators(df, ["RSI", "MACD", "EMA(50)", "ATR(14)"])
+                _idx = -2 if len(df) >= 2 else -1
                 data[tf] = {
-                    "current_price": df["close"].iloc[-1],
+                    "current_price": df["close"].iloc[_idx],
                     "ohlc_last_3": ohlc_records(df.tail(3)),
-                    "rsi": df["rsi_14"].iloc[-1],
+                    "rsi": df["rsi_14"].iloc[_idx],
                     "macd": {
-                        "line": df["macd_line"].iloc[-1],
-                        "signal": df["macd_signal"].iloc[-1],
-                        "hist": df["macd_hist"].iloc[-1],
+                        "line": df["macd_line"].iloc[_idx],
+                        "signal": df["macd_signal"].iloc[_idx],
+                        "hist": df["macd_hist"].iloc[_idx],
                     },
-                    "ema_50": df["ema_50"].iloc[-1],
-                    "atr": df["atr_14"].iloc[-1],
-                    "trend": "BULLISH" if df["close"].iloc[-1] > df["ema_50"].iloc[-1] else "BEARISH",
+                    "ema_50": df["ema_50"].iloc[_idx],
+                    "atr": df["atr_14"].iloc[_idx],
+                    "trend": "BULLISH" if df["close"].iloc[_idx] > df["ema_50"].iloc[_idx] else "BEARISH",
                 }
             except Exception as e:
                 logging.getLogger("MarketData").warning(f"Failed to fetch {tf} data: {e}")
@@ -1147,8 +1150,9 @@ class MarketDataProvider:
                     df = fetch_fn(symbol, tf, count=100)
                     if df.empty:
                         continue
+                    _idx = -2 if len(df) >= 2 else -1
                     if current_price is None:
-                        current_price = df["close"].iloc[-1]
+                        current_price = df["close"].iloc[_idx]
                     df["ma_50"] = df["close"].rolling(50).mean()
                     df["ma_200"] = df["close"].rolling(200).mean()
                     df["rsi_14"] = rsi(df["close"], 14)
@@ -1163,8 +1167,8 @@ class MarketDataProvider:
                             tf_signals["near_sr"] = True
                             confluence_score += 1
                             break
-                    ma_50 = df["ma_50"].iloc[-1]
-                    ma_200 = df["ma_200"].iloc[-1]
+                    ma_50 = df["ma_50"].iloc[_idx]
+                    ma_200 = df["ma_200"].iloc[_idx]
                     if not pd.isna(ma_50) and not pd.isna(ma_200):
                         if ma_50 > ma_200:
                             tf_signals["ma_alignment"] = "BULLISH"
@@ -1172,7 +1176,7 @@ class MarketDataProvider:
                         elif ma_50 < ma_200:
                             tf_signals["ma_alignment"] = "BEARISH"
                             confluence_score += 1
-                    rsi_val = df["rsi_14"].iloc[-1]
+                    rsi_val = df["rsi_14"].iloc[_idx]
                     if not pd.isna(rsi_val):
                         if rsi_val < 30:
                             tf_signals["rsi_signal"] = "OVERSOLD"
@@ -1291,11 +1295,12 @@ class MarketDataProvider:
             df_htf = fetch_fn(symbol, htf, count=100)
             df_htf["ema_50"] = ema(df_htf["close"], 50)
             df_htf["rsi_14"] = rsi(df_htf["close"], 14)
-            htf_trend = "BULLISH" if df_htf["close"].iloc[-1] > df_htf["ema_50"].iloc[-1] else "BEARISH"
+            _htf_idx = -2 if len(df_htf) >= 2 else -1
+            htf_trend = "BULLISH" if df_htf["close"].iloc[_htf_idx] > df_htf["ema_50"].iloc[_htf_idx] else "BEARISH"
             htf_data = {
                 "timeframe": htf,
                 "trend": htf_trend,
-                "rsi": df_htf["rsi_14"].iloc[-1],
+                "rsi": df_htf["rsi_14"].iloc[_htf_idx],
             }
         except Exception as e:
             log.warning(f"HTF analysis failed: {e}")
@@ -1351,8 +1356,9 @@ class MarketDataProvider:
             log.warning("MT5 DOM unavailable; retaining missing-data state")
 
         df["hma_200"] = self._calculate_hma(df["close"], 200)
-        current_price = df["close"].iloc[-1]
-        hma_val = df["hma_200"].iloc[-1] if not df["hma_200"].empty else 0.0
+        _idx = -2 if len(df) >= 2 else -1
+        current_price = df["close"].iloc[_idx]
+        hma_val = df["hma_200"].iloc[_idx] if not df["hma_200"].empty else 0.0
         trend_status = "BULLISH" if current_price > hma_val else "BEARISH"
         sr_levels = self._identify_support_resistance(df)
         volume_data = self._analyze_volume(df)
@@ -1469,9 +1475,10 @@ class MarketDataProvider:
                 )
             _hp_engine = self._hierarchical_portfolio_engine
             _close_prices = df["close"].dropna().tolist()
-            _adx_val = float(df["adx_14"].iloc[-1]) if "adx_14" in df and len(df) > 0 else 25.0
+            _idx = -2 if len(df) >= 2 else -1
+            _adx_val = float(df["adx_14"].iloc[_idx]) if "adx_14" in df and len(df) > 0 else 25.0
             _atr_history = df["atr_14"].dropna().tolist() if "atr_14" in df else []
-            _atr_current = float(df["atr_14"].iloc[-1]) if "atr_14" in df and len(df) > 0 else 0.0010
+            _atr_current = float(df["atr_14"].iloc[_idx]) if "atr_14" in df and len(df) > 0 else 0.0010
             _strategy_type = "TREND_MOMENTUM"
             _open_r = 0.0
             if hasattr(self.risk, "open_positions") and self.risk.open_positions:

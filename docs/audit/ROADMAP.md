@@ -115,22 +115,22 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [x] 🔴 `1a-F2` Live reconciliation books open trades as closed at 0 P&L, plus an `IndexError` (`TL-T8` sqlite Row `.get` is in the same method).
 - [x] 🔴 `CC-F3` = `1a-F7` Concurrent reconciliation double-counts closes and the streak breaker (per-ticket CAS).
 - [x] 🟠 `1a-F3` `risk_per_trade` compounds every cycle, ungated, and is shared across strategies.
-- [ ] 🟠 `1a-F5` = `TL-T2` The spread-explosion guard can never fire; `_symbol_tick` is undefined.
+- [x] 🟠 `1a-F5` = `TL-T2` The spread-explosion guard can never fire; `_symbol_tick` is undefined.
 - [x] 🟠 `P1-H1` The daily limit resets on restart (local vs UTC; **EV: 37 resets in 11 days**). Use the broker server day.
 - [x] 🟡 `1a-F10` = `LA-A3` Server time vs UTC across positions, deals and ticks (**EV: "bar later than capture time" rejections**).
-- [ ] 🟡 `1a-F9` Pyramid and time-stop R basis use the current SL.
-- [ ] 🟡 `1a-F11` Paper SL updates hit every position with the same symbol and magic; no monotonic guard.
+- [x] 🟡 `1a-F9` Pyramid and time-stop R basis use the current SL.
+- [x] 🟡 `1a-F11` Paper SL updates hit every position with the same symbol and magic; no monotonic guard.
 - [x] 🟡 `1a-F16` The copula heat budget latches at its crisis value.
-- [ ] 🟡 `1a-F18` A second position-management engine with a dead partial close (pick one engine).
+- [x] 🟡 `1a-F18` A second position-management engine with a dead partial close (pick one engine).
 - [x] 🟡 `1a-F14` `captured_at` is stamped after slow work, so the freshness check measures nothing.
 - [x] 🟠 `CC-F6` LLM budget reservation is check-then-insert.
 - [x] 🟡 `PH4-N1` (found while planning) 60 broker read calls bypass the gateway's MT5 lock (`CC-F2`, read half); route them through one locked read facade.
 - [x] 🟡 `CC-F11` Unguarded orchestrator state; `CC-F12` SQLite configuration inconsistencies.
 - [x] 🟡 `TS-P1` = prior F-RM-1 Lot rounding exceeds the 1 % cap (refuse at broker minimum lot).
-- [ ] ⚪ `TS-P5` NaN prices pass `validate_order_params`.
+- [x] ⚪ `TS-P5` NaN prices pass `validate_order_params`.
 - [x] 🟡 `TL-T7` Writes to the frozen `TradeProposal` in size reduction.
-- [ ] 🟡 `LA-A1` / `LA-A2` Live SMC and context fields read the forming bar.
-- [ ] ⚪ `1a-F12` Smaller trade_manager defects (filling mode, failed-close flagging, per-position try, journal growth, initial-R cache).
+- [x] 🟡 `LA-A1` / `LA-A2` Live SMC and context fields read the forming bar.
+- [x] ⚪ `1a-F12` Smaller trade_manager defects (filling mode, failed-close flagging, per-position try, journal growth, initial-R cache).
 - [x] 🟠 `TL-T4` Live `reconciliation-run` always fails (`_get_mt5` undefined).
 - [ ] 🟠 **Last:** `1a-F13` (data-quality fields set too late; server time treated as UTC) and `P1-H3`/`TL-T1` (`ConstraintVerdict.HOLD` missing). These two currently block all live trading.
 

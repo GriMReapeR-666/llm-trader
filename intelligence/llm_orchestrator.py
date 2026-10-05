@@ -4171,32 +4171,10 @@ class LLMOrchestrator:
                     _pm_actions = self.position_manager.manage(
                         current_price=midpoint, atr=atr,
                     )
+                    # 1a-F18: PositionManager is advisory/telemetry only; TradeManager executes.
                     for _act in _pm_actions:
-                        if _act.action == "MODIFY_SL" and _act.new_sl:
-                            logger.info("PositionManager: MODIFY_SL #%d -> %.5f (%s)",
-                                        _act.ticket, _act.new_sl, _act.reason)
-                            try:
-                                self.data_provider.trade_manager._modify_sl(
-                                    _act.ticket, _act.new_sl, _act.reason)
-                            except Exception as _mod_exc:
-                                logger.debug("PM SL modify failed: %s", _mod_exc)
-                        elif _act.action == "PARTIAL_CLOSE":
-                            logger.info("PositionManager: PARTIAL_CLOSE #%d frac=%.2f (%s)",
-                                        _act.ticket, _act.close_fraction or 0, _act.reason)
-                            try:
-                                self.data_provider.trade_manager._execute_partial_close(
-                                    self.data_provider.trade_manager._find_pos(_act.ticket),
-                                    fraction=_act.close_fraction or 0.5)
-                            except Exception as _pc_exc:
-                                logger.debug("PM partial close failed: %s", _pc_exc)
-                        elif _act.action == "FULL_CLOSE":
-                            logger.info("PositionManager: FULL_CLOSE #%d (%s)",
-                                        _act.ticket, _act.reason)
-                            try:
-                                self.data_provider.trade_manager._close_position(
-                                    _act.ticket, _act.symbol, _act.reason[:31])
-                            except Exception as _fc_exc:
-                                logger.debug("PM full close failed: %s", _fc_exc)
+                        logger.debug("PositionManager (advisory only): %s #%d (%s)",
+                                     _act.action, _act.ticket, _act.reason)
                 except Exception as _pm_exc:
                     logger.debug("PositionManager tick failed: %s", _pm_exc)
             observed = 0
@@ -7937,11 +7915,13 @@ class LLMOrchestrator:
                 range_position,
             )
             _ohlc_bars = toon.get("ohlc", [])
-            if len(_ohlc_bars) >= 5:
-                _h = [float(b.get("high", 0) or 0) for b in _ohlc_bars if isinstance(b, dict)]
-                _l = [float(b.get("low", 0) or 0) for b in _ohlc_bars if isinstance(b, dict)]
-                _c = [float(b.get("close", 0) or 0) for b in _ohlc_bars if isinstance(b, dict)]
-                _o = [float(b.get("open", 0) or 0) for b in _ohlc_bars if isinstance(b, dict)]
+            # LA-A1: Exclude the forming (currently ticking) bar from SMC structure
+            _completed_bars = _ohlc_bars[:-1] if len(_ohlc_bars) >= 6 else _ohlc_bars
+            if len(_completed_bars) >= 5:
+                _h = [float(b.get("high", 0) or 0) for b in _completed_bars if isinstance(b, dict)]
+                _l = [float(b.get("low", 0) or 0) for b in _completed_bars if isinstance(b, dict)]
+                _c = [float(b.get("close", 0) or 0) for b in _completed_bars if isinstance(b, dict)]
+                _o = [float(b.get("open", 0) or 0) for b in _completed_bars if isinstance(b, dict)]
 
                 _smc_events = detect_structure(_h, _l, _c)
                 _obs = find_order_blocks(_o, _h, _l, _c)

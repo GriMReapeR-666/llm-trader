@@ -426,7 +426,7 @@ class PaperAdapter(BaseBrokerAdapter):
     def modify_protection(self, ticket: int, symbol: str, sl: float, tp: float, mt5_client: Any = None) -> Dict[str, Any]:
         pos = getattr(self.paper, "positions", {}).get(int(ticket), None)
         magic = int((pos or {}).get("magic", 0) or 0)
-        ok = self.paper.modify_position_sltp(symbol=symbol, sl=sl, tp=tp, magic=magic) if hasattr(self.paper, "modify_position_sltp") else self.paper.modify_position(ticket, sl=sl, tp=tp)
+        ok = self.paper.modify_position_sltp(symbol=symbol, sl=sl, tp=tp, magic=magic, ticket=int(ticket)) if hasattr(self.paper, "modify_position_sltp") else self.paper.modify_position(ticket, sl=sl, tp=tp)
         if isinstance(ok, int):
             return {"retcode": 10009 if ok > 0 else -1}
         return {"retcode": 10009 if ok else -1}
