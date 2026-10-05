@@ -873,10 +873,8 @@ class TradingStore:
     def record_close(self, ticket: int, exit_price: float, pnl: float, reason: str, *,
                      gross_pnl: Optional[float] = None, commission: float = 0.0,
                      swap: float = 0.0, financing: float = 0.0,
-                     closed_at: Optional[Any] = None) -> None:
-        # The broker-execution close is a reliable terminal mark.  Writing it
-        # before calculating excursions prevents a missing final observation
-        # from silently understating MFE/MAE.
+                     closed_at: Optional[Any] = None) -> bool:
+        # The broker-execution close is a reliable terminal mark.
         close_stamp = datetime.now(timezone.utc)
         if closed_at is not None:
             try:
@@ -888,20 +886,31 @@ class TradingStore:
                                if close_stamp.tzinfo is None else close_stamp.astimezone(timezone.utc))
             except (TypeError, ValueError, OverflowError):
                 raise ValueError("closed_at must be an ISO timestamp or datetime") from None
+
+        with self._connect() as con:
+            cur = con.execute(
+                "UPDATE trades SET closed_at=?,exit_price=?,pnl=?,exit_reason=?,gross_pnl=?,commission=?,swap=?,financing=? WHERE ticket=? AND closed_at IS NULL",
+                (close_stamp.isoformat(), exit_price, pnl, reason,
+                 pnl if gross_pnl is None else gross_pnl, commission, swap, financing, ticket),
+            )
+            if cur.rowcount == 0:
+                return False
+
         self.record_position_observation(
             ticket, exit_price, pnl, source="mt5_close_execution", mark_quality="BROKER_EXECUTION",
             observed_at=close_stamp,
         )
-        with self._connect() as con:
-            con.execute("UPDATE trades SET closed_at=?,exit_price=?,pnl=?,exit_reason=?,gross_pnl=?,commission=?,swap=?,financing=? WHERE ticket=?", (
-                close_stamp.isoformat(), exit_price, pnl, reason,
-                pnl if gross_pnl is None else gross_pnl, commission, swap, financing, ticket))
         self.transition_setup_for_ticket(ticket, "CLOSED", reason=reason, payload={"exit_price": exit_price, "pnl": pnl})
         self.log_lifecycle_event(ticket, "", "CLOSED", "reconciler", {
             "exit_price": exit_price, "pnl": pnl, "gross_pnl": pnl if gross_pnl is None else gross_pnl,
             "commission": commission, "swap": swap, "financing": financing, "reason": reason,
             **self.excursions(ticket),
         })
+        return True
+
+    def flag_execution_review(self, ticket: int, reason: str) -> None:
+        """Flag a trade for operator execution review when broker outcome is missing/ambiguous."""
+        self.log_lifecycle_event(int(ticket), "", "UNRESOLVED", "reconciler", {"reason": reason})
 
     def record_position_observation(self, ticket: int, price: float, unrealized_pnl: float = 0.0, *,
                                     source: str = "unknown", quote_time_msc: Optional[int] = None,
@@ -1137,6 +1146,11 @@ class TradingStore:
             if include_pending_intents:
                 total += sum(float(pl.get("risk_amount", 0.0) or 0.0) for pl in reserving_intent_payloads(con))
         return total
+
+    def reserving_intents_count(self) -> int:
+        """Count of active intents currently reserving risk before fill."""
+        with self._connect() as con:
+            return len(reserving_intent_payloads(con))
 
     def open_bucket_risk(self, bucket: str, include_pending_intents: bool = True) -> float:
         with self._connect() as con:

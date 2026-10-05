@@ -528,8 +528,11 @@ class LLMOrchestrator:
         self.client = client
         self.risk = risk_manager
         self.perf = perf_monitor
+        self.journal_mode = str(journal_mode or "PAPER").upper()
+        self._reconcile_lock = threading.Lock()
+        self._reconcile_misses: Dict[int, int] = {}
         self.data_provider = MarketDataProvider(client, risk_manager, api_key)
-        if str(journal_mode or "").upper() == "PAPER":
+        if self.journal_mode == "PAPER":
             # Paper sessions perform no authenticated MT5 login (client is
             # often None), so account evidence is legitimately absent and
             # the decision protocol deadlocks every cycle on "missing
@@ -807,17 +810,28 @@ class LLMOrchestrator:
         except Exception:
             self.lesson_distiller = None
 
-        # Paper Broker
-        try:
-            self.paper_broker = PaperBroker()
+        # Paper Broker vs Live Broker Wiring (PR 4.1 / 1a-F1)
+        if self.journal_mode == "PAPER":
+            try:
+                self.paper_broker = PaperBroker()
+                if getattr(self.data_provider, "trade_manager", None) is not None:
+                    self.data_provider.trade_manager.attach_paper_broker(self.paper_broker)
+                if hasattr(self.risk, "set_active_positions_provider"):
+                    self.risk.set_active_positions_provider(
+                        lambda: len(getattr(self.paper_broker, "positions", {})) + (getattr(self.store, "reserving_intents_count", lambda: 0)() if hasattr(self, "store") and self.store else 0)
+                    )
+                if hasattr(self.risk, "set_portfolio_heat_provider"):
+                    self.risk.set_portfolio_heat_provider(self._calc_paper_portfolio_heat)
+            except NameError:
+                self.paper_broker = None
+        else:
+            self.paper_broker = None
             if getattr(self.data_provider, "trade_manager", None) is not None:
-                self.data_provider.trade_manager.attach_paper_broker(self.paper_broker)
+                self.data_provider.trade_manager.paper_broker = None
             if hasattr(self.risk, "set_active_positions_provider"):
-                self.risk.set_active_positions_provider(lambda: len(getattr(self.paper_broker, "positions", {})))
+                self.risk.set_active_positions_provider(self._calc_live_active_positions)
             if hasattr(self.risk, "set_portfolio_heat_provider"):
-                self.risk.set_portfolio_heat_provider(self._calc_paper_portfolio_heat)
-        except NameError:
-             self.paper_broker = None
+                self.risk.set_portfolio_heat_provider(self._calc_live_portfolio_heat)
 
         # Single-door OrderGateway: process-wide broker door (Phase 2).
         # Configured once here so order_execution / trade_manager / guardian
@@ -862,12 +876,14 @@ class LLMOrchestrator:
         if trade_manager is None:
             return
         self.data_provider.set_trade_manager(trade_manager)
-        # Attach paper broker if available
-        if self.paper_broker is not None:
+        # Attach paper broker ONLY in PAPER mode (1a-F1)
+        if self.journal_mode == "PAPER" and self.paper_broker is not None:
             try:
                 trade_manager.attach_paper_broker(self.paper_broker)
             except Exception as exc:
                 logger.warning("Failed to attach paper broker to TradeManager: %s", exc)
+        else:
+            trade_manager.paper_broker = None
         # Attach safety (store + arbiter) if available
         _arbiter = getattr(self, "arbiter", None)
         try:
@@ -875,13 +891,77 @@ class LLMOrchestrator:
         except Exception as exc:
             logger.error("Failed to attach safety arbiter to TradeManager: %s; trades will lack safety validation!", exc)
 
+    def _calc_live_active_positions(self) -> int:
+        """Count of owned live MT5 positions plus active reserving intents."""
+        count = 0
+        try:
+            broker = getattr(self, "client", None) or _get_mt5()
+            if broker is not None:
+                positions = broker.positions_get() or ()
+                magics = getattr(self, "owned_magics", {460001, 460002})
+                count = sum(1 for p in positions if getattr(p, "magic", 0) in magics)
+        except Exception:
+            pass
+        if hasattr(self, "store") and self.store and hasattr(self.store, "reserving_intents_count"):
+            try:
+                count += self.store.reserving_intents_count()
+            except Exception:
+                pass
+        return count
+
+    def _calc_live_portfolio_heat(self) -> Optional[float]:
+        """Measured open live portfolio heat in R units across positions and pending orders."""
+        if not self.risk:
+            return 0.0
+        try:
+            broker = getattr(self, "client", None) or _get_mt5()
+            if broker is None:
+                return 0.0
+            positions = list(broker.positions_get() or [])
+            orders = list(broker.orders_get() or [])
+        except Exception:
+            return 0.0
+        equity = self.risk._account_equity() or self.risk.balance
+        if equity is None or equity <= 0:
+            return 0.0
+        unit = equity * self.risk.risk_per_trade
+        if unit <= 0:
+            return 0.0
+        managed = getattr(self, "owned_magics", {460001, 460002})
+        owned_items = [p for p in positions if getattr(p, "magic", 0) in managed] + [
+            o for o in orders if getattr(o, "magic", 0) in managed
+        ]
+        total_loss = 0.0
+        for item in owned_items:
+            try:
+                sl = float(getattr(item, "sl", 0.0) or 0.0)
+                entry_px = float(getattr(item, "price_open", getattr(item, "price", 0.0)) or 0.0)
+                volume = float(getattr(item, "volume", getattr(item, "volume_initial", 0.0)) or 0.0)
+                dist = abs(entry_px - sl) if entry_px > 0 and sl > 0 else 0.0
+                if dist <= 0:
+                    continue
+                symbol = getattr(item, "symbol", "")
+                spec = self.risk._symbol_spec(symbol) if hasattr(self.risk, "_symbol_spec") else None
+                if spec and spec.trade_tick_size and spec.trade_tick_value:
+                    loss_per_lot = (dist / spec.trade_tick_size) * spec.trade_tick_value
+                else:
+                    loss_per_lot = dist * 100000.0
+                total_loss += loss_per_lot * max(volume, 0.01)
+            except Exception:
+                continue
+        return total_loss / unit
+
     def _calc_paper_portfolio_heat(self) -> Optional[float]:
         """Measured open paper portfolio heat in R units.
 
         Calculates sum of (entry - SL) risk across all open paper positions
-        divided by the 1R account risk amount.
+        and pending orders divided by the 1R account risk amount.
         """
-        if not self.paper_broker or not getattr(self.paper_broker, "positions", None):
+        if not self.paper_broker:
+            return 0.0
+        items = list(getattr(self.paper_broker, "positions", {}).values())
+        items.extend(list(getattr(self.paper_broker, "orders", {}).values()))
+        if not items:
             return 0.0
         equity = float(getattr(self.risk, "balance", 10000.0) or 10000.0)
         risk_per_trade = float(getattr(self.risk, "risk_per_trade", 0.01) or 0.01)
@@ -889,11 +969,11 @@ class LLMOrchestrator:
         if unit <= 0:
             return None
         total_loss = 0.0
-        for pos in self.paper_broker.positions.values():
+        for pos in items:
             try:
                 sl = float(pos.get("sl") or 0.0)
-                entry_px = float(pos.get("price_open") or 0.0)
-                volume = float(pos.get("volume") or 0.0)
+                entry_px = float(pos.get("price_open", pos.get("price", 0.0)) or 0.0)
+                volume = float(pos.get("volume", pos.get("volume_initial", 0.0)) or 0.0)
                 dist = abs(entry_px - sl) if entry_px > 0 and sl > 0 else 0.0
                 if dist <= 0:
                     continue
@@ -5179,51 +5259,66 @@ class LLMOrchestrator:
         """
         if not self.perf: return
         if not self.client and not self.paper_broker: return
-        
-        # Get actual positions (paper or MT5)
-        if self.paper_broker:
-            actual_tickets = set(self.paper_broker.positions.keys())
-        else:
-            actual_positions = mt5.positions_get() if mt5 is not None else []
-            actual_tickets = {p.ticket for p in actual_positions} if actual_positions else set()
-
-        # SQLite is authoritative after a restart; include the in-memory
-        # monitor only for compatibility with trades created before migration.
-        durable = {int(row["ticket"]): row for row in self.store.open_trade_rows()}
-        for trade in self.perf.history:
-            if trade.get("status") == "OPEN":
-                durable.setdefault(int(trade["ticket"]), trade)
-        if not durable:
+        if not self._reconcile_lock.acquire(blocking=False):
+            logging.getLogger("LLMOrchestrator").debug("Reconciler already running; skipping pulse")
             return
+        try:
+            is_paper = (self.journal_mode == "PAPER")
 
-        for ticket, trade in durable.items():
-            
-            # If ticket is NOT in actual positions, it MUST be closed (or never existed)
-            if ticket not in actual_tickets:
-                if self.paper_broker:
-                    deals = [d for d in getattr(self.paper_broker, "history", []) if int(d.get("ticket", 0)) == int(ticket)]
-                    if deals:
-                        last_deal = deals[-1]
-                        gross_pnl = float(last_deal.get("profit", 0.0))
-                        swap = 0.0
-                        commission = 0.0
-                        total_pnl = gross_pnl
-                        exit_price = float(last_deal.get("price_close", 0.0))
-                        close_time = datetime.fromtimestamp(float(last_deal.get("close_time", time.time())), tz=timezone.utc)
-                    else:
-                        gross_pnl = 0.0
-                        swap = 0.0
-                        commission = 0.0
-                        total_pnl = 0.0
-                        exit_price = float(trade.get("open_price", 0.0))
-                        close_time = datetime.now(timezone.utc)
-                else:
-                    # Retrieve history to find PnL (Lookback 7 days to be safe)
-                    from_date = datetime.now() - timedelta(days=7)
-                    deals = mt5.history_deals_get(position=ticket, date_from=from_date) if mt5 is not None else []
+            # Get actual positions (paper or MT5)
+            if is_paper:
+                actual_tickets = set(self.paper_broker.positions.keys()) if self.paper_broker else set()
+            else:
+                broker = getattr(self, "client", None) or _get_mt5()
+                actual_positions = broker.positions_get() if broker is not None else []
+                actual_tickets = {p.ticket for p in actual_positions} if actual_positions else set()
+
+            # SQLite is authoritative after a restart; include the in-memory
+            # monitor only for compatibility with trades created before migration.
+            durable = {int(row["ticket"]): dict(row) for row in self.store.open_trade_rows()}
+            for trade in self.perf.history:
+                if trade.get("status") == "OPEN":
+                    durable.setdefault(int(trade["ticket"]), dict(trade) if not isinstance(trade, dict) else trade)
+            if not durable:
+                return
+
+            for ticket, trade in durable.items():
+                # If ticket is in actual positions, it is still OPEN on broker!
+                if ticket in actual_tickets:
+                    continue
+
+                # If ticket is NOT in actual positions, find broker deals
+                if is_paper:
+                    deals = [d for d in getattr(self.paper_broker, "history", []) if int(d.get("ticket", 0)) == int(ticket)] if self.paper_broker else []
                     if not deals:
+                        logging.getLogger("LLMOrchestrator").warning(
+                            "Trade #%s absent from paper positions but no paper deal history; keeping unresolved.", ticket)
                         continue
-                    # Calculate total PnL for this position (entry + exit deals)
+                    last_deal = deals[-1]
+                    gross_pnl = float(last_deal.get("profit", 0.0))
+                    swap = 0.0
+                    commission = 0.0
+                    total_pnl = gross_pnl
+                    exit_price = float(last_deal.get("price_close", 0.0))
+                    close_time = datetime.fromtimestamp(float(last_deal.get("close_time", time.time())), tz=timezone.utc)
+                else:
+                    # Live / Demo: Retrieve history to find PnL (Lookback 7 days to be safe)
+                    from_date = datetime.now() - timedelta(days=7)
+                    broker = getattr(self, "client", None) or _get_mt5()
+                    deals = list(broker.history_deals_get(position=ticket, date_from=from_date) or []) if broker is not None else []
+                    if not deals:
+                        misses = self._reconcile_misses.get(ticket, 0) + 1
+                        self._reconcile_misses[ticket] = misses
+                        if misses >= 3:
+                            msg = f"Position absent from MT5 without history deals for {misses} cycles"
+                            if hasattr(self, "operations") and self.operations and hasattr(self.operations, "flag_execution_review"):
+                                self.operations.flag_execution_review(f"ticket:{ticket}", msg, severity="CRITICAL")
+                            if hasattr(self.store, "flag_execution_review"):
+                                self.store.flag_execution_review(ticket, msg)
+                        logging.getLogger("LLMOrchestrator").warning(
+                            "Trade #%s absent from MT5 positions with no deal history (misses=%s); keeping unresolved.", ticket, misses)
+                        continue
+                    self._reconcile_misses.pop(ticket, None)
                     gross_pnl = sum(float(getattr(d, "profit", 0) or 0) for d in deals)
                     swap = sum(float(getattr(d, "swap", 0) or 0) for d in deals)
                     commission = sum(float(getattr(d, "commission", 0) or 0) for d in deals)
@@ -5241,132 +5336,138 @@ class LLMOrchestrator:
                     except (TypeError, ValueError, OverflowError, OSError):
                         close_time = None
 
+                # Atomically close in store with CAS (CC-F3 = 1a-F7)
+                closed = self.store.record_close(
+                    ticket, exit_price, total_pnl, "History reconciliation",
+                    gross_pnl=gross_pnl, commission=commission, swap=swap,
+                    closed_at=close_time,
+                )
+                if not closed:
+                    # Already closed by another reconciler / thread
+                    continue
+
                 logging.getLogger("LLMOrchestrator").info(f"🔎 Detected external/SLTP close for #{ticket}. PnL: {total_pnl}")
                 for monitor_item in self.perf.history:
                     if int(monitor_item.get("ticket", 0)) == int(ticket):
                         monitor_item["broker_reconciled"] = True
                 self.perf.close_trade(ticket, exit_price, total_pnl)
-                self.store.record_close(ticket, exit_price, total_pnl, "History reconciliation",
-                                        gross_pnl=gross_pnl, commission=commission, swap=swap,
-                                        closed_at=close_time)
                 if hasattr(self.risk, "record_trade_outcome"):
                     self.risk.record_trade_outcome(total_pnl)
+                closing_deals = []
+                if deals:
                     closing_deals = [deal for deal in deals if (deal.get("entry") if isinstance(deal, dict) else getattr(deal, "entry", None)) == getattr(mt5, "DEAL_ENTRY_OUT", 1)] or [deals[-1]]
-                    for deal in closing_deals:
-                        is_d = isinstance(deal, dict)
-                        order_t = deal.get("order", 0) if is_d else getattr(deal, "order", 0)
-                        deal_t = deal.get("ticket", 0) if is_d else getattr(deal, "ticket", 0)
-                        pos_t = deal.get("position_id", ticket) if is_d else getattr(deal, "position_id", ticket)
-                        f_price = deal.get("price_close", deal.get("price", exit_price)) if is_d else getattr(deal, "price", exit_price)
-                        f_vol = deal.get("volume", 0) if is_d else getattr(deal, "volume", 0)
-                        comm = deal.get("commission", 0.0) if is_d else getattr(deal, "commission", 0.0)
-                        swp = deal.get("swap", 0.0) if is_d else getattr(deal, "swap", 0.0)
-                        pft = deal.get("profit", 0.0) if is_d else getattr(deal, "profit", 0.0)
-                        self.store.record_execution_report(
-                            event_type="CLOSED", order_ticket=int(order_t or 0) or None,
-                            deal_ticket=int(deal_t or 0) or None,
-                            position_ticket=int(pos_t or ticket),
-                            filled_price=float(f_price or 0) or None,
-                            filled_volume=float(f_vol or 0) or None,
-                            commission=float(comm or 0),
-                            swap=float(swp or 0),
-                            payload={"profit": float(pft or 0), "reason": "History reconciliation"},
-                        )
-                    risk_amount = self.store.trade_risk(ticket)
-                    label = self.trade_memory.label_closed_trade(ticket, total_pnl, risk_amount, "MT5 history reconciliation")
-                    self.trade_memory.resolve_retrieval_outcome(ticket, label["label"])
-                    self._apply_causal_trade_feedback(ticket, total_pnl, risk_amount, label)
-                    self.trade_memory.save_narrative({"ticket": ticket, "label": label["label"]}, f"Trade {ticket}: {label['label']} at {label['r_multiple']:.2f}R. {label['rationale']}")
-                    self.trade_memory.rebuild_scenarios()
-                    # Distill lesson from this trade outcome
-                    if self.lesson_distiller:
-                        try:
-                            self.lesson_distiller.distill_from_trace({
-                                "symbol": trade.get("symbol", ""),
-                                "strategy": trade.get("strategy", ""),
-                                "regime": trade.get("regime", ""),
-                                "outcome": label["label"],
-                                "r_multiple": label.get("r_multiple"),
-                                "setup_description": label.get("rationale", ""),
-                                "close_reason": "MT5 history reconciliation",
-                            })
-                            self.lesson_distiller.save()
-                        except Exception as _ld_err:
-                            logging.getLogger("LLMOrchestrator").debug("Lesson distill failed: %s", _ld_err)
-                    # GAP-10: ensure RL learns from reconciled closes even if the
-                    # PerformanceMonitor callback path missed state fields.
+                for deal in closing_deals:
+                    is_d = isinstance(deal, dict)
+                    order_t = deal.get("order", 0) if is_d else getattr(deal, "order", 0)
+                    deal_t = deal.get("ticket", 0) if is_d else getattr(deal, "ticket", 0)
+                    pos_t = deal.get("position_id", ticket) if is_d else getattr(deal, "position_id", ticket)
+                    f_price = deal.get("price_close", deal.get("price", exit_price)) if is_d else getattr(deal, "price", exit_price)
+                    f_vol = deal.get("volume", 0) if is_d else getattr(deal, "volume", 0)
+                    comm = deal.get("commission", 0.0) if is_d else getattr(deal, "commission", 0.0)
+                    swp = deal.get("swap", 0.0) if is_d else getattr(deal, "swap", 0.0)
+                    pft = deal.get("profit", 0.0) if is_d else getattr(deal, "profit", 0.0)
+                    self.store.record_execution_report(
+                        event_type="CLOSED", order_ticket=int(order_t or 0) or None,
+                        deal_ticket=int(deal_t or 0) or None,
+                        position_ticket=int(pos_t or ticket),
+                        filled_price=float(f_price or 0) or None,
+                        filled_volume=float(f_vol or 0) or None,
+                        commission=float(comm or 0),
+                        swap=float(swp or 0),
+                        payload={"profit": float(pft or 0), "reason": "History reconciliation"},
+                    )
+                risk_amount = self.store.trade_risk(ticket)
+                label = self.trade_memory.label_closed_trade(ticket, total_pnl, risk_amount, "MT5 history reconciliation")
+                self.trade_memory.resolve_retrieval_outcome(ticket, label["label"])
+                self._apply_causal_trade_feedback(ticket, total_pnl, risk_amount, label)
+                self.trade_memory.save_narrative({"ticket": ticket, "label": label["label"]}, f"Trade {ticket}: {label['label']} at {label['r_multiple']:.2f}R. {label['rationale']}")
+                self.trade_memory.rebuild_scenarios()
+                # Distill lesson from this trade outcome
+                if self.lesson_distiller:
                     try:
-                        decision = {}
-                        for monitor_item in self.perf.history:
-                            if int(monitor_item.get("ticket", 0)) == int(ticket):
-                                decision = monitor_item.get("decision") or {}
-                                break
-                        self.update_rl_from_trade({
+                        self.lesson_distiller.distill_from_trace({
+                            "symbol": trade.get("symbol", ""),
+                            "strategy": trade.get("strategy", ""),
+                            "regime": trade.get("regime", ""),
+                            "outcome": label["label"],
+                            "r_multiple": label.get("r_multiple"),
+                            "setup_description": label.get("rationale", ""),
+                            "close_reason": "MT5 history reconciliation",
+                        })
+                        self.lesson_distiller.save()
+                    except Exception as _ld_err:
+                        logging.getLogger("LLMOrchestrator").debug("Lesson distill failed: %s", _ld_err)
+                # GAP-10: ensure RL learns from reconciled closes even if the
+                # PerformanceMonitor callback path missed state fields.
+                try:
+                    decision = {}
+                    for monitor_item in self.perf.history:
+                        if int(monitor_item.get("ticket", 0)) == int(ticket):
+                            decision = monitor_item.get("decision") or {}
+                            break
+                    self.update_rl_from_trade({
+                        "ticket": ticket,
+                        "pnl": total_pnl,
+                        "risk": risk_amount,
+                        "r_multiple": label.get("r_multiple"),
+                        "confluence_score": decision.get("confluence_score", 0),
+                        "news_aligned": decision.get("news_aligned", False),
+                        "max_drawdown": 0.0,
+                        "rl_state": decision.get("rl_state"),
+                        "rl_action": decision.get("rl_action") or decision.get("action") or trade.get("action"),
+                        "action": trade.get("action"),
+                        "broker_reconciled": True,
+                        "exit_state": {"position": "FLAT", "realized_pnl": total_pnl,
+                                       "r_multiple": label.get("r_multiple")},
+                    })
+                except Exception as exc:
+                    logging.getLogger("LLMOrchestrator").warning("RL close update failed: %s", exc)
+                self.operations.enqueue_memory("closed_trade", str(ticket), {
+                    "ticket": ticket, "pnl": total_pnl, "r_multiple": label["r_multiple"],
+                    "label": label["label"], "reason": label["rationale"],
+                })
+                self.operations.event("reconciler", "trade_closed", {"ticket": ticket, "pnl": total_pnl, "label": label["label"]}, run_id=self.run_id, correlation_id=str(ticket))
+                try:
+                    from intelligence.local_agent_memory import maybe_remember_trade_cycle
+                    maybe_remember_trade_cycle(
+                        cycle_key=str(ticket),
+                        stage="closed",
+                        payload={
                             "ticket": ticket,
                             "pnl": total_pnl,
-                            "risk": risk_amount,
-                            "r_multiple": label.get("r_multiple"),
-                            "confluence_score": decision.get("confluence_score", 0),
-                            "news_aligned": decision.get("news_aligned", False),
-                            "max_drawdown": 0.0,
-                            "rl_state": decision.get("rl_state"),
-                            "rl_action": decision.get("rl_action") or decision.get("action") or trade.get("action"),
-                            "action": trade.get("action"),
-                            "broker_reconciled": True,
-                            "exit_state": {"position": "FLAT", "realized_pnl": total_pnl,
-                                           "r_multiple": label.get("r_multiple")},
-                        })
-                    except Exception as exc:
-                        logging.getLogger("LLMOrchestrator").warning("RL close update failed: %s", exc)
-                    self.operations.enqueue_memory("closed_trade", str(ticket), {
-                        "ticket": ticket, "pnl": total_pnl, "r_multiple": label["r_multiple"],
-                        "label": label["label"], "reason": label["rationale"],
-                    })
-                    self.operations.event("reconciler", "trade_closed", {"ticket": ticket, "pnl": total_pnl, "label": label["label"]}, run_id=self.run_id, correlation_id=str(ticket))
-                    try:
-                        from intelligence.local_agent_memory import maybe_remember_trade_cycle
-                        maybe_remember_trade_cycle(
-                            cycle_key=str(ticket),
-                            stage="closed",
-                            payload={
-                                "ticket": ticket,
-                                "pnl": total_pnl,
-                                "r_multiple": label["r_multiple"],
-                                "label": label["label"],
-                                "reason": label["rationale"],
-                            },
-                            ticket=ticket,
-                            run_id=self.run_id or "",
-                            memory_links={
-                                "L1": str(ticket),
-                                "L2": "scenario_rebuild",
-                                "narrative": str(ticket),
-                                "verified_memory": str(ticket),
-                            },
-                        )
-                    except Exception as exc:
-                        logging.getLogger("LLMOrchestrator").debug("Trade memory event for ticket %s failed: %s", ticket, exc)
-                    # Slow-Lane Memory Reflection: update equity, label trade,
-                    # consolidate scenarios, and apply macro causal feedback.
-                    self.velocity.submit_slow(
-                        f"reflection_{ticket}",
-                        self._run_reflection_graph,
+                            "r_multiple": label["r_multiple"],
+                            "label": label["label"],
+                            "reason": label["rationale"],
+                        },
                         ticket=ticket,
-                        symbol=str(trade.get("symbol", "")),
-                        strategy=str(trade.get("strategy", "")),
-                        open_time=str(trade.get("opened_at", "")),
-                        close_time=str(close_time or utcnow_iso()),
-                        entry_price=float(trade.get("open_price", 0.0)),
-                        close_price=float(exit_price),
-                        realized_pnl=float(total_pnl),
-                        realized_r_multiple=float(label.get("r_multiple", 0.0)),
-                        outcome_label=str(label.get("label", "UNKNOWN")),
+                        run_id=self.run_id or "",
+                        memory_links={
+                            "L1": str(ticket),
+                            "L2": "scenario_rebuild",
+                            "narrative": str(ticket),
+                            "verified_memory": str(ticket),
+                        },
                     )
-                else:
-                    # Do not fabricate a zero-PnL outcome.  Keep it open and
-                    # retry history lookup on the next cycle.
-                    logging.getLogger("LLMOrchestrator").warning(
-                        f"⚠️ Trade #{ticket} is absent from positions but no MT5 history is available; keeping it unresolved.")
+                except Exception as exc:
+                    logging.getLogger("LLMOrchestrator").debug("Trade memory event for ticket %s failed: %s", ticket, exc)
+                # Slow-Lane Memory Reflection: update equity, label trade,
+                # consolidate scenarios, and apply macro causal feedback.
+                self.velocity.submit_slow(
+                    f"reflection_{ticket}",
+                    self._run_reflection_graph,
+                    ticket=ticket,
+                    symbol=str(trade.get("symbol", "")),
+                    strategy=str(trade.get("strategy", "")),
+                    open_time=str(trade.get("opened_at", "")),
+                    close_time=str(close_time or utcnow_iso()),
+                    entry_price=float(trade.get("open_price", 0.0)),
+                    close_price=float(exit_price),
+                    realized_pnl=float(total_pnl),
+                    realized_r_multiple=float(label.get("r_multiple", 0.0)),
+                    outcome_label=str(label.get("label", "UNKNOWN")),
+                )
+        finally:
+            self._reconcile_lock.release()
 
     def reconcile_daily_broker_history(self, day_start: Optional[datetime] = None) -> Dict[str, Any]:
         """Persist a bot-owned MT5 deal-versus-journal daily comparison.

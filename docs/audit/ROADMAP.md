@@ -111,9 +111,9 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 
 ## Phase 4: Live-mode correctness (fix together; only then remove the two accidental blocks)
 Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
-- [ ] 🔴 `1a-F1` The PaperBroker is attached in every mode, so live positions are invisible to management, the position limit and heat.
-- [ ] 🔴 `1a-F2` Live reconciliation books open trades as closed at 0 P&L, plus an `IndexError` (`TL-T8` sqlite Row `.get` is in the same method).
-- [ ] 🔴 `CC-F3` = `1a-F7` Concurrent reconciliation double-counts closes and the streak breaker (per-ticket CAS).
+- [x] 🔴 `1a-F1` The PaperBroker is attached in every mode, so live positions are invisible to management, the position limit and heat.
+- [x] 🔴 `1a-F2` Live reconciliation books open trades as closed at 0 P&L, plus an `IndexError` (`TL-T8` sqlite Row `.get` is in the same method).
+- [x] 🔴 `CC-F3` = `1a-F7` Concurrent reconciliation double-counts closes and the streak breaker (per-ticket CAS).
 - [ ] 🟠 `1a-F3` `risk_per_trade` compounds every cycle, ungated, and is shared across strategies.
 - [ ] 🟠 `1a-F5` = `TL-T2` The spread-explosion guard can never fire; `_symbol_tick` is undefined.
 - [ ] 🟠 `P1-H1` The daily limit resets on restart (local vs UTC; **EV: 37 resets in 11 days**). Use the broker server day.
@@ -131,7 +131,7 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [ ] 🟡 `TL-T7` Writes to the frozen `TradeProposal` in size reduction.
 - [ ] 🟡 `LA-A1` / `LA-A2` Live SMC and context fields read the forming bar.
 - [ ] ⚪ `1a-F12` Smaller trade_manager defects (filling mode, failed-close flagging, per-position try, journal growth, initial-R cache).
-- [ ] 🟠 `TL-T4` Live `reconciliation-run` always fails (`_get_mt5` undefined).
+- [x] 🟠 `TL-T4` Live `reconciliation-run` always fails (`_get_mt5` undefined).
 - [ ] 🟠 **Last:** `1a-F13` (data-quality fields set too late; server time treated as UTC) and `P1-H3`/`TL-T1` (`ConstraintVerdict.HOLD` missing). These two currently block all live trading.
 
 ## Phase 5: Honest numbers

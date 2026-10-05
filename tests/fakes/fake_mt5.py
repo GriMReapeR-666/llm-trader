@@ -21,6 +21,8 @@ class FakeMT5:
         self.bid, self.ask, self.equity = bid, ask, equity
         self.sent = []          # every order_send request, in order
         self.positions = []
+        self.orders = []
+        self.deals = []
 
     # --- account / market -------------------------------------------------
     def initialize(self, *a, **k):
@@ -46,7 +48,10 @@ class FakeMT5:
         return list(self.positions)
 
     def orders_get(self, *a, **k):
-        return []
+        return list(self.orders)
+
+    def history_deals_get(self, *a, **k):
+        return list(self.deals)
 
     def order_calc_margin(self, *a, **k):
         return 100.0

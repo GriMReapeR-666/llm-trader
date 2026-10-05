@@ -451,7 +451,7 @@ from core.order_execution import (
     PaperBroker, _symbol_tick, _broker_market_filling_mode,
     validate_order_params, validate_pending_entry_geometry,
     place_market_order, emergency_market_exit, place_pending_order,
-    modify_order_sltp, cancel_pending_order,
+    modify_order_sltp, cancel_pending_order, _get_mt5,
 )
 from data.market_data_provider import (
     TIMEFRAME_MAP, tf_const, fetch_ohlc, collect_calendar_event_rows,
@@ -4298,6 +4298,16 @@ def execute_skill(**kwargs):
             orch.wire_bounded_autonomy(enabled=True, audit_log_path=audit_log)
             print(f"≡ Bounded-Autonomy Pipeline Active (NZE 2026: R ∘ V_LLM ∘ S) -> Audit: {audit_log}")
         risk.set_store(orch.store)
+
+        if str(journal_mode).upper() in ("LIVE", "DEMO"):
+            tm = getattr(orch.data_provider, "trade_manager", None)
+            if tm is not None:
+                assert tm.paper_broker is None, (
+                    f"Boot assertion failed: {journal_mode} mode TradeManager has paper_broker attached!"
+                )
+            assert orch.paper_broker is None, (
+                f"Boot assertion failed: {journal_mode} mode LLMOrchestrator has paper_broker attached!"
+            )
         
         print(f"Starting LLM Trader on {args.symbol} ({args.timeframe})...")
         print(f"Mode: {journal_mode}")

@@ -717,6 +717,11 @@ class RiskManager(StoreBackedState):
                 if positions is not None:
                     managed = getattr(self, "managed_magics", None) or {460001, 460002}
                     owned_count = sum(1 for p in positions if getattr(p, "magic", 0) in managed)
+                    if getattr(self, "store", None) is not None and hasattr(self.store, "reserving_intents_count"):
+                        try:
+                            owned_count += self.store.reserving_intents_count()
+                        except Exception:
+                            pass
                     return owned_count < self.max_active_positions
                 else:
                     logging.getLogger("RiskManager").warning("mt5.positions_get() returned None; failing closed on active position check")
@@ -791,6 +796,7 @@ class RiskManager(StoreBackedState):
             return None
         try:
             positions = list(mt5.positions_get() or [])
+            orders = list(mt5.orders_get() or [])
         except Exception:
             return None
         equity = self._account_equity() or self.balance
@@ -799,24 +805,29 @@ class RiskManager(StoreBackedState):
         unit = equity * self.risk_per_trade
         if unit <= 0:
             return None
-        if not positions:
+        managed = getattr(self, "managed_magics", None) or {460001, 460002}
+        owned_items = [p for p in positions if getattr(p, "magic", 0) in managed] + [
+            o for o in orders if getattr(o, "magic", 0) in managed
+        ]
+        if not owned_items:
             return 0.0
         total_loss = 0.0
-        for pos in positions:
+        for item in owned_items:
             try:
-                sl = float(getattr(pos, "sl", 0.0) or 0.0)
-                entry_px = float(getattr(pos, "price_open", 0.0) or 0.0)
-                volume = float(getattr(pos, "volume", 0.0) or 0.0)
+                sl = float(getattr(item, "sl", 0.0) or 0.0)
+                entry_px = float(getattr(item, "price_open", getattr(item, "price", 0.0)) or 0.0)
+                volume = float(getattr(item, "volume", getattr(item, "volume_initial", 0.0)) or 0.0)
                 dist = abs(entry_px - sl) if entry_px > 0 and sl > 0 else 0.0
                 if dist <= 0:
                     continue
-                spec = self._symbol_spec(pos.symbol)
+                symbol = getattr(item, "symbol", "")
+                spec = self._symbol_spec(symbol)
                 if spec and spec.trade_tick_size and spec.trade_tick_value:
                     loss_per_lot = (dist / spec.trade_tick_size) * spec.trade_tick_value
                 else:
                     contract = 100000.0
                     try:
-                        info = mt5.symbol_info(pos.symbol)
+                        info = mt5.symbol_info(symbol)
                         if info and getattr(info, "trade_contract_size", 0) > 0:
                             contract = float(info.trade_contract_size)
                     except Exception:
