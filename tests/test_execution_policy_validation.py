@@ -3,7 +3,7 @@ import math
 
 import pytest
 
-from execution_policy import validate
+from core.execution_policy import validate
 
 
 def _policy():

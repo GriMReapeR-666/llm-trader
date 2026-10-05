@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from journal_audit import audit
-from trading_safety import TradingStore
+from operations.journal_audit import audit
+from core.trading_safety import TradingStore
 
 
 def test_market_tick_journal_keeps_fresh_quote_and_spread(tmp_path: Path):

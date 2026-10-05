@@ -1810,17 +1810,63 @@ export async function startLive(): Promise<() => void> {
   }
 }
 
-export async function sendControl(action: string, payload?: Record<string, any>): Promise<boolean> {
+export interface ControlResponse {
+  ok: boolean
+  control_id?: number
+  action?: string
+  status?: string
+  reason?: string
+}
+
+export interface ControlStatus {
+  ok: boolean
+  control_id: number
+  action: string
+  actor?: string
+  source?: string
+  status: "REQUESTED" | "ACKNOWLEDGED" | "APPLIED" | "FAILED" | "EXPIRED" | string
+  issued_at?: string
+  acked_at?: string
+  applied_at?: string
+  result?: {
+    closed?: number
+    cancelled?: number
+    failed?: number
+    remaining?: number
+    sweeps?: number
+    error?: string
+    [key: string]: any
+  }
+}
+
+export async function sendControl(action: string, payload?: Record<string, any>): Promise<ControlResponse> {
   try {
     const res = await apiFetch(`${API}/api/control/${action}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ actor: "operator", source: "command-deck", ...(payload ?? {}) }),
+      body: JSON.stringify({ source: "command-deck", ...(payload ?? {}) }),
     })
+    const data: any = await res.json().catch(() => ({}))
     if (res.ok) void refreshSnapshot()
-    return res.ok
+    return {
+      ok: res.ok && data.ok !== false,
+      control_id: data.control_id,
+      action: data.action ?? action,
+      status: data.status,
+      reason: data.reason ?? data.detail,
+    }
+  } catch (err: any) {
+    return { ok: false, reason: err?.message ?? "network error" }
+  }
+}
+
+export async function getControlStatus(controlId: number): Promise<ControlStatus | null> {
+  try {
+    const res = await apiFetch(`${API}/api/control/${controlId}`)
+    if (!res.ok) return null
+    return (await res.json()) as ControlStatus | null
   } catch {
-    return false
+    return null
   }
 }
 

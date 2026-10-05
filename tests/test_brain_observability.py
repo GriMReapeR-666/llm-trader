@@ -1,11 +1,11 @@
 """Tests for Brain observability and MacroStateVector."""
-from macro_state_vector import build_macro_state_vector
-from brain_observability import (
+from intelligence.macro_state_vector import build_macro_state_vector
+from intelligence.brain_observability import (
     memory_health,
     economic_dynamics_health,
     full_observability,
 )
-from trading_memory import TradingMemory
+from intelligence.trading_memory import TradingMemory
 
 
 def test_macro_state_vector_from_observations_and_regime():
@@ -67,8 +67,8 @@ def test_full_observability_shape(tmp_path):
 
 
 def test_realtime_news_summary_reads_store(tmp_path):
-    from trading_safety import TradingStore
-    from brain_observability import realtime_news_summary
+    from core.trading_safety import TradingStore
+    from intelligence.brain_observability import realtime_news_summary
 
     path = str(tmp_path / "news_state.db")
     store = TradingStore(path)

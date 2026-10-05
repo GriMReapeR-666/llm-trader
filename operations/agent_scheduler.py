@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 try:
     from operations.agent_contracts import validate_schedule_agents
 except ImportError:
-    from agent_contracts import validate_schedule_agents
+    from operations.agent_contracts import validate_schedule_agents
 
 
 SCHEDULES: List[Dict[str, Any]] = [

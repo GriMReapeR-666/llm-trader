@@ -57,7 +57,7 @@ class ImprovementPipeline:
 
             _db = str(self._base_dir / "trading_state.db")
             try:
-                from research_validation import broker_reconciled_tickets
+                from research.research_validation import broker_reconciled_tickets
             except ImportError:
                 from research.research_validation import broker_reconciled_tickets
             _tickets = sorted(broker_reconciled_tickets(_db))

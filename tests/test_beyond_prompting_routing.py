@@ -14,7 +14,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "research"))
 
-from beyond_prompting_adapter import (  # noqa: E402
+from research.beyond_prompting_adapter import (  # noqa: E402
     HYPOTHESIS_TEMPLATES,
     BeyondPromptingAdapter,
     _hypothesis_alignment_score,
@@ -53,7 +53,7 @@ def test_default_llm_fn_is_router_adapter():
 def test_hypothesis_uses_llm_fn_without_explicit_injection(monkeypatch):
     """No explicit llm_fn given: hypothesis generation must still hit the
     router adapter (this is the regression the wiring fixes)."""
-    import beyond_prompting_adapter as bpa
+    from research import beyond_prompting_adapter as bpa
     calls = []
 
     def fake_router(prompt):
@@ -69,7 +69,7 @@ def test_hypothesis_uses_llm_fn_without_explicit_injection(monkeypatch):
 
 
 def test_router_failure_degrades_to_template(monkeypatch):
-    import beyond_prompting_adapter as bpa
+    from research import beyond_prompting_adapter as bpa
     import core.alpha_discovery as ad
 
     def boom(prompt):
@@ -88,7 +88,7 @@ def test_router_failure_degrades_to_template(monkeypatch):
         def generate(self, *a, **kw):
             raise RuntimeError("all providers down")
 
-    import llm_router as _lr
+    from data import llm_router as _lr
     # _router_llm_generate imports get_router inside the function body, so the
     # patch has to land on the source module, not on alpha_discovery.
     monkeypatch.setattr(_lr, "get_router", lambda: _DownRouter(), raising=False)
@@ -97,7 +97,7 @@ def test_router_failure_degrades_to_template(monkeypatch):
 
 
 def test_explicit_llm_fn_still_wins(monkeypatch):
-    import beyond_prompting_adapter as bpa
+    from research import beyond_prompting_adapter as bpa
     seen = []
 
     def explicit_fn(prompt):
@@ -118,7 +118,7 @@ def test_run_iteration_routes_factors_through_engine_default(monkeypatch):
     sandbox-validated count is data-dependent on synthetic bars, so the
     contract asserted here is the ROUTING (forwarded fn, real cycle run,
     LLM-sourced hypothesis), not factor quality."""
-    import beyond_prompting_adapter as bpa
+    from research import beyond_prompting_adapter as bpa
 
     def factor_fn(prompt):
         if "autonomous alpha factor researcher" in prompt:

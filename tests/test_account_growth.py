@@ -1,6 +1,6 @@
 import pytest
 
-from account_growth import (
+from operations.account_growth import (
     equity_curve,
     growth_report_from_r_multiples,
     project_growth,
@@ -109,7 +109,7 @@ def test_growth_report_from_r_multiples_end_to_end():
 
 
 def test_growth_controller_refresh_and_scale():
-    from account_growth import AccountGrowthController
+    from operations.account_growth import AccountGrowthController
 
     class Store:
         def __init__(self):

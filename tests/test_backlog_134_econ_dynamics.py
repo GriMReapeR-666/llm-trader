@@ -3,23 +3,23 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from autonomous_causal_engine import AutonomousCausalValidator, MIN_REACTION_SAMPLES
-from economic_dynamics_measure import (
+from intelligence.autonomous_causal_engine import AutonomousCausalValidator, MIN_REACTION_SAMPLES
+from intelligence.economic_dynamics_measure import (
     classify_runtime_event,
     mirror_runtime_reaction_to_catalog,
     run_catalog_measurement_pass,
 )
-from economic_dynamics_seed import seed_economic_dynamics
-from edge_lifecycle import advance_lifecycle, current_lifecycle
-from historical_regime_replay import (
+from intelligence.economic_dynamics_seed import seed_economic_dynamics
+from research.edge_lifecycle import advance_lifecycle, current_lifecycle
+from research.historical_regime_replay import (
     ingest_observation_batch,
     list_regime_observations,
     regime_research_package,
     replay_regime_with_bars,
 )
-from macro_graph import MacroGraph
-from opportunity_bus import opportunity_from_stat_pass_edge, publish_from_stat_pass_edges
-from trading_safety import TradingStore
+from intelligence.macro_graph import MacroGraph
+from intelligence.opportunity_bus import opportunity_from_stat_pass_edge, publish_from_stat_pass_edges
+from core.trading_safety import TradingStore
 
 
 def test_classify_runtime_event_tokens():

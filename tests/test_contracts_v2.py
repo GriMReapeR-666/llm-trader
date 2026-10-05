@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agent_contracts import (  # noqa: E402
+from operations.agent_contracts import (  # noqa: E402
     CONTRACTS, PRINCIPAL_SPECS, ContractViolation, can_scope, require_scope,
     require_order_authority, spec, validate_schedule_agents,
 )

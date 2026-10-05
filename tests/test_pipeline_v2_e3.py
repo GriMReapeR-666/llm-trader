@@ -223,8 +223,8 @@ SCENARIOS = [
 
 
 def _build_orchestrator(tmp_path, scenario, db_name="journal.db"):
-    from agent_operations import AgentOperations
-    from trading_safety import TradingStore
+    from operations.agent_operations import AgentOperations
+    from core.trading_safety import TradingStore
     from mt5_trader import LLMOrchestrator
 
     name, llm_action, holiday, dq_pass, broker_ok, has_entry_sl = scenario

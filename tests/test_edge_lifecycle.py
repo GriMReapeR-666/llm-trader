@@ -1,5 +1,5 @@
-from edge_lifecycle import advance_lifecycle, can_transition, current_lifecycle, normalize_lifecycle
-from macro_graph import MacroGraph
+from research.edge_lifecycle import advance_lifecycle, can_transition, current_lifecycle, normalize_lifecycle
+from intelligence.macro_graph import MacroGraph
 
 
 def test_normalize_and_transitions():

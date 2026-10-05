@@ -2,8 +2,8 @@ import math
 
 import pytest
 
-from adaptive_models import OnlineGarch, OnlineHMM, fractional_bayesian_kelly
-from model_family_gate import evaluation_plan
+from research.adaptive_models import OnlineGarch, OnlineHMM, fractional_bayesian_kelly
+from research.model_family_gate import evaluation_plan
 
 
 def test_model_family_plan_rejects_weak_configuration(tmp_path):

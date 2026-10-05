@@ -1,4 +1,4 @@
-from agent_operations import AgentOperations
+from operations.agent_operations import AgentOperations
 from datetime import datetime, timedelta, timezone
 import sqlite3
 import hashlib

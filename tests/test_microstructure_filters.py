@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timezone, timedelta
-from market_microstructure import MicrostructureMonitor
+from intelligence.market_microstructure import MicrostructureMonitor
 
 class MockStore:
     def __init__(self):

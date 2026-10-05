@@ -15,17 +15,17 @@ import re
 from typing import Any, Dict
 
 try:
-    from research_validation import promotion_gate
+    from research.research_validation import promotion_gate
 except ImportError:
     from research.research_validation import promotion_gate
 
 try:
-    from sample_gate import report as sample_gate_report
+    from research.sample_gate import report as sample_gate_report
 except ImportError:
     from research.sample_gate import report as sample_gate_report
 
 try:
-    from trading_safety import TradingStore
+    from core.trading_safety import TradingStore
 except ImportError:
     from core.trading_safety import TradingStore
 

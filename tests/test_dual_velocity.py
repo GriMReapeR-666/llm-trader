@@ -1,7 +1,7 @@
 from threading import Event
 from time import sleep
 
-from dual_velocity import DualVelocityExecutor
+from operations.dual_velocity import DualVelocityExecutor
 
 
 def test_slow_jobs_are_deduplicated_and_polled_without_raising(tmp_path):

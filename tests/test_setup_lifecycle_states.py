@@ -1,6 +1,6 @@
 import sqlite3
 
-from trading_safety import TradeProposal, TradingStore
+from core.trading_safety import TradeProposal, TradingStore
 
 
 def test_setup_instance_tracks_fill_management_partial_and_close(tmp_path):

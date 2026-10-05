@@ -1,8 +1,8 @@
 import pytest
 from datetime import datetime, timezone
 
-from trading_safety import TradingStore
-from daily_reconciliation import compare_day
+from core.trading_safety import TradingStore
+from operations.daily_reconciliation import compare_day
 
 
 def test_manual_activity_logging_and_query(tmp_path):

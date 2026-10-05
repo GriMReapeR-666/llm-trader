@@ -1,6 +1,6 @@
-from baseline_research import baseline_report
-from contextual_bandit import bandit_report
-from supervised_training import train
+from research.baseline_research import baseline_report
+from research.contextual_bandit import bandit_report
+from research.supervised_training import train
 
 
 def test_baseline_bandit_and_supervised_reject_weak_research_configuration(tmp_path):

@@ -14,8 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "intelligence"))
 
-import news_triage
-from news_triage import (
+from data import news_triage
+from data.news_triage import (
     D9_KILL_SWITCH_ACTIVE,
     D9_KILL_SWITCH_NORMAL,
     TriageGate,
@@ -26,7 +26,7 @@ from news_triage import (
     triage_article,
     triage_articles,
 )
-from realtime_news_ingest import ingest_articles
+from data.realtime_news_ingest import ingest_articles
 
 
 def _article(title="Fed holds rates steady at 4.25 percent", key="k1", url="https://www.reuters.com/world/us/"):
@@ -204,7 +204,7 @@ def test_d5a_model_escalates_but_never_deescalates():
 
 
 def _d5a_rank(label):
-    from news_triage import D5A_RANK
+    from data.news_triage import D5A_RANK
     return D5A_RANK[label]
 
 
@@ -283,7 +283,7 @@ def _GraphStub():
 
 
 def test_ingest_articles_end_to_end_with_injected_model(monkeypatch):
-    monkeypatch.setattr("news_triage._get_laya", lambda: _FakeLaya(_det_parity()))
+    monkeypatch.setattr("data.news_triage._get_laya", lambda: _FakeLaya(_det_parity()))
     graph = _GraphStub()
     result = ingest_articles(graph, [_article(key="e1")])
     assert result["triage"]["counts"]["INGEST"] == 1
@@ -293,7 +293,7 @@ def test_ingest_articles_end_to_end_with_injected_model(monkeypatch):
 def test_dedupe_key_formula_shared_across_paths():
     # The realtime projector and the narrative projector must produce the
     # identical key for identical (url, title) — cross-path D0_2 collision.
-    from data_source_pipeline import _normalize_narrative_row
+    from data.data_source_pipeline import _normalize_narrative_row
 
     url, title = "https://reuters.com/economy/cpi", "US CPI rose 0.3 percent"
     rt = {"title": title, "url": url}

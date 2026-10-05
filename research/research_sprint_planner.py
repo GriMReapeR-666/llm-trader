@@ -11,12 +11,12 @@ import hashlib
 from typing import Any, Dict, List, Optional
 
 try:
-    from research_runs import record as record_research_run
+    from research.research_runs import record as record_research_run
 except ImportError:
     from research.research_runs import record as record_research_run
 
 try:
-    from research_validation import (
+    from research.research_validation import (
         MIN_PROMOTION_EXPECTANCY_R,
         MIN_PROMOTION_PROFIT_FACTOR,
         MIN_RESEARCH_SAMPLE,
@@ -80,7 +80,7 @@ def plan_research_sprints(
         floor_reasons = list(metric.get("floor_reasons") or [])
         if not floor_reasons and metric.get("floors_passed") is not True:
             try:
-                from research_validation import _setup_floor_reasons
+                from research.research_validation import _setup_floor_reasons
             except ImportError:
                 from research.research_validation import _setup_floor_reasons
             floor_reasons = _setup_floor_reasons(metric, minimum_closed=required_n)

@@ -11,8 +11,8 @@ import os
 import sqlite3
 from typing import Any, Dict
 
-from trading_memory import TradingMemory
-from trading_safety import SCALP_MAGIC, SWING_MAGIC, TradingStore
+from intelligence.trading_memory import TradingMemory
+from core.trading_safety import SCALP_MAGIC, SWING_MAGIC, TradingStore
 
 
 def _iso(value: Any) -> str:

@@ -22,7 +22,7 @@ import time
 
 import pytest
 
-import state_persistence as sp
+from core import state_persistence as sp
 from core.risk_manager import RiskManager
 from core.trading_safety import TradingStore
 

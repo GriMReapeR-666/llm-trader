@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any, Callable, Union
 import pandas as pd
 import logging
 
-from mt5_calendar_wrapper import (
+from data.mt5_calendar_wrapper import (
     MT5CalendarWrapper, CalendarCountry, CalendarEvent, CalendarValue,
     CalendarEventImportance, CalendarEventImpact, create_calendar_wrapper,
     MT5CalendarError, MT5CalendarConnectionError, MT5CalendarDataError

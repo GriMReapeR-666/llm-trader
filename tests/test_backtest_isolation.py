@@ -14,7 +14,7 @@ import pandas as pd
 import numpy as np
 
 from operations.journal_scope import ensure_scope
-from trading_safety import TradingStore
+from core.trading_safety import TradingStore
 from research.mt5_backtest_engine import (
     MT5BrokerBacktestEngine,
     BacktestMetrics,

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from trading_memory import TradingMemory
+from intelligence.trading_memory import TradingMemory
 
 
 def test_fact_retrieval_excludes_proposed_expired_and_future_facts(tmp_path: Path):

@@ -36,7 +36,7 @@ def duplicated_modules():
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--max", type=int, default=25)
+    ap.add_argument("--max", type=int, default=0)
     a = ap.parse_args(argv)
     dups = duplicated_modules()
     for path, names in sorted(dups.items()):

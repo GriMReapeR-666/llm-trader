@@ -281,7 +281,7 @@ def emit_terminal_trade_rewards(
     except (TypeError, ValueError):
         ticket_i = None
 
-    from reward_attribution import causal_credit_shares, eligible_edge_ids
+    from operations.reward_attribution import causal_credit_shares, eligible_edge_ids
 
     raw_edges = trade_result.get("causal_edge_ids") or []
     if not isinstance(raw_edges, list):

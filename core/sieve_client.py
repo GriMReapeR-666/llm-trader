@@ -42,12 +42,12 @@ from urllib.parse import urljoin
 logger = logging.getLogger("SieveClient")
 
 try:  # flat import under the repo's sys.path setup
-    from http_retry import request_with_retry
+    from core.http_retry import request_with_retry
 except ImportError:  # pragma: no cover - package import path
     from core.http_retry import request_with_retry
 
 try:
-    from secure_store import retrieve_secret, store_secret
+    from core.secure_store import retrieve_secret, store_secret
 except ImportError:  # pragma: no cover - package import path
     from core.secure_store import retrieve_secret, store_secret
 

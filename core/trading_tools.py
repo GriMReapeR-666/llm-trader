@@ -33,7 +33,7 @@ def _bounded_tool_call(fn, budget_env: str, default_s: float, source: str):
     ok, result, err = run_bounded(fn, float(os.getenv(budget_env, str(default_s))))
     if not ok:
         try:
-            from boot_datasheet import boot_datasheet_enabled, get_datasheet
+            from intelligence.boot_datasheet import boot_datasheet_enabled, get_datasheet
             if boot_datasheet_enabled():
                 get_datasheet().record_degraded(source, "SKIP", str(err)[:60])
         except Exception:
@@ -317,7 +317,7 @@ def search_historical_scenarios(symbol: str, setup_pattern: str, limit: int = 3)
             from core.trading_safety import TradingStore
             store = TradingStore()
             try:
-                from research_validation import broker_reconciled_tickets
+                from research.research_validation import broker_reconciled_tickets
             except ImportError:
                 from research.research_validation import broker_reconciled_tickets
             tickets = sorted(broker_reconciled_tickets(getattr(store, "path", "trading_state.db")))
@@ -456,7 +456,7 @@ def query_fred_macro_series(series_id: str, limit: int = 5) -> Dict[str, Any]:
     # Fallback to journal cache (ingested FRED observations) if available
     if values is None:
         try:
-            from macro_observations import get_fred_observations  # type: ignore
+            from intelligence.macro_observations import get_fred_observations  # type: ignore
             obs = get_fred_observations(sid, limit=lim)  # type: ignore
             if obs:
                 vals = [float(o.get("value")) for o in obs if o.get("value") not in (None,".")]

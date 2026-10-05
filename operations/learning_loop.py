@@ -26,7 +26,7 @@ def run_session_review(payload: Dict[str, Any], context: Optional[Any] = None) -
         "execution_authority": False,
     }
     try:
-        from strategy_accuracy import build_strategy_accuracy_scorecard
+        from research.strategy_accuracy import build_strategy_accuracy_scorecard
     except ImportError:
         try:
             from intelligence.strategy_accuracy import build_strategy_accuracy_scorecard
@@ -97,7 +97,7 @@ def run_weekly_research(payload: Dict[str, Any], context: Optional[Any] = None) 
 
     sprint: Dict[str, Any] = {"status": "SKIPPED", "execution_authority": False}
     try:
-        from research_sprint_planner import plan_and_persist as plan_research_sprints
+        from research.research_sprint_planner import plan_and_persist as plan_research_sprints
     except ImportError:
         try:
             from intelligence.research_sprint_planner import plan_and_persist as plan_research_sprints
@@ -129,7 +129,7 @@ def run_self_improvement(payload: Dict[str, Any], context: Optional[Any] = None)
         "execution_authority": False,
     }
     try:
-        from profitability_foundation import report as profitability_report
+        from research.profitability_foundation import report as profitability_report
     except ImportError:
         try:
             from intelligence.profitability_foundation import report as profitability_report

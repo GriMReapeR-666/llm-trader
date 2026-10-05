@@ -22,9 +22,9 @@ import urllib.error
 import urllib.request
 from typing import Any, Callable, Dict, List, Optional
 
-from alert_outbox import acknowledge as acknowledge_alert
-from alert_outbox import claim as claim_alerts
-from alert_outbox import recover_expired as recover_expired_leases
+from operations.alert_outbox import acknowledge as acknowledge_alert
+from operations.alert_outbox import claim as claim_alerts
+from operations.alert_outbox import recover_expired as recover_expired_leases
 
 
 WEBHOOK_ENV_URL = "TRADING_ALERT_WEBHOOK_URL"

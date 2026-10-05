@@ -1,4 +1,4 @@
-from scanner import MarketScanner
+from ui.scanner import MarketScanner
 
 
 def test_offline_scanner_returns_no_synthetic_opportunity():

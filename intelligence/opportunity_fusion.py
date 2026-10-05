@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional, Set
 
-from event_policy import symbol_currencies
+from operations.event_policy import symbol_currencies
 
 _APPROVED_EDGE_STATUSES = frozenset({"APPROVED", "AUTO_APPROVED", "STAT_PASS"})
 _MACRO_PREFIX = "macro_"

@@ -1,8 +1,8 @@
 """Integration tests for the LangGraph Slow-Lane Reflection Graph."""
 import pytest
-from reflection_graph import build_reflection_graph
-from graph_checkpointer import SqliteCheckpointSaver
-from graph_state import MemoryReflectionState, utcnow_iso
+from intelligence.reflection_graph import build_reflection_graph
+from intelligence.graph_checkpointer import SqliteCheckpointSaver
+from intelligence.graph_state import MemoryReflectionState, utcnow_iso
 
 
 def test_reflection_graph_execution(tmp_path):

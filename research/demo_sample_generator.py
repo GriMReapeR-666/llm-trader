@@ -15,7 +15,7 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from feature_schema import FEATURE_SCHEMA_VERSION, SCHEMA_HASHES, REQUIRED_VALUES, values_hash
+from intelligence.feature_schema import FEATURE_SCHEMA_VERSION, SCHEMA_HASHES, REQUIRED_VALUES, values_hash
 
 
 def _random_feature_values() -> Dict[str, Any]:

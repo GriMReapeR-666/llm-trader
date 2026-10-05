@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from dashboard_report import build
-from trading_safety import TradingStore
+from ui.dashboard_report import build
+from core.trading_safety import TradingStore
 
 
 def test_dashboard_report_is_qualified_and_non_authoritative(tmp_path: Path):

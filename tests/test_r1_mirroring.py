@@ -9,15 +9,15 @@ from __future__ import annotations
 
 import pytest
 
-from economic_dynamics_measure import (
+from intelligence.economic_dynamics_measure import (
     _R1_ENTITY_MAP,
     classify_runtime_event,
     mirror_recent_reactions,
     mirror_runtime_reaction_to_catalog,
     post_validate_r1_routing,
 )
-from economic_dynamics_seed import seed_economic_dynamics
-from macro_graph import MacroGraph
+from intelligence.economic_dynamics_seed import seed_economic_dynamics
+from intelligence.macro_graph import MacroGraph
 
 
 def _seeded_graph(tmp_path):
@@ -72,7 +72,7 @@ def test_empty_article_rejected():
 
 
 def test_r1_entity_map_covers_all_concrete_classes():
-    from news_triage import R1_HeadlineEventRouting
+    from data.news_triage import R1_HeadlineEventRouting
 
     concrete = {
         m.value for m in R1_HeadlineEventRouting
@@ -80,7 +80,7 @@ def test_r1_entity_map_covers_all_concrete_classes():
     }
     assert set(_R1_ENTITY_MAP) == concrete
     # Every mapped entity is a real catalog EVENT_CLASS used by the token map.
-    from economic_dynamics_measure import _EVENT_TOKEN_MAP
+    from intelligence.economic_dynamics_measure import _EVENT_TOKEN_MAP
 
     catalog_entities = {entity for _, entity in _EVENT_TOKEN_MAP}
     assert set(_R1_ENTITY_MAP.values()) == catalog_entities

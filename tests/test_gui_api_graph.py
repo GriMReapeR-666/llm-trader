@@ -1,7 +1,7 @@
 import os
 import pytest
 from fastapi.testclient import TestClient
-from gui_api import app, ui_state
+from ui.gui_api import app, ui_state
 
 
 @pytest.fixture(autouse=True)
@@ -181,4 +181,4 @@ def test_gui_api_no_fake_data_and_laya_registry():
         assert len(growth_data["monteCarloSims"]) == 0
     else:
         assert len(growth_data["monteCarloSims"]) > 0
-
+

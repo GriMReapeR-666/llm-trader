@@ -319,7 +319,7 @@ class StoreBackedState(StatefulModule):
 def _resolve_store(store: Any) -> Any:
     """Accept a TradingStore instance or a DB path; construct lazily to avoid cycles."""
     if isinstance(store, str):
-        from trading_safety import TradingStore
+        from core.trading_safety import TradingStore
 
         return TradingStore(store)
     return store

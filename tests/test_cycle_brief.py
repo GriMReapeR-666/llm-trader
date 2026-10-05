@@ -1,5 +1,5 @@
 """CycleBrief schema + persist (advisory observability only)."""
-from cycle_brief import SCHEMA_VERSION, build, persist, load_latest
+from intelligence.cycle_brief import SCHEMA_VERSION, build, persist, load_latest
 
 
 class _Store:

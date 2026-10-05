@@ -38,6 +38,13 @@ class DirectOrderExecutionForbidden(RuntimeError):
     pass
 
 
+class BrokerUnlistableError(RuntimeError):
+    """Raised when broker positions/orders cannot be listed (B2).
+
+    Callers must treat this as a failed control, never as an empty account.
+    """
+
+
 # Private send-context flag. Only code inside this module may set it (via
 # _gateway_send_context). Any other module calling mt5.order_send directly
 # — including via a smuggled LiveMT5Adapter — is rejected by the guard.
@@ -176,6 +183,53 @@ class GatewayResult:
     action: str = ""
     error: Optional[str] = None
     details: Dict[str, Any] = field(default_factory=dict)
+
+
+class FlattenOutcome(list):
+    """Structured outcome of an OrderGateway flatten operation.
+
+    Subclasses list[GatewayResult] for backwards compatibility with callers
+    expecting a list of GatewayResult, while providing structured status counts:
+    closed, cancelled, failed, remaining, and sweeps.
+    """
+
+    def __init__(
+        self,
+        items: Optional[List[GatewayResult]] = None,
+        closed: int = 0,
+        cancelled: int = 0,
+        failed: int = 0,
+        remaining: int = 0,
+        sweeps: int = 0,
+        listing_error: Optional[str] = None,
+    ):
+        super().__init__(items or [])
+        self.closed = closed
+        self.cancelled = cancelled
+        self.failed = failed
+        # remaining == -1 means unknown: the broker could not be listed, so
+        # no claim is made about what is left. Callers must treat this (and
+        # any listing_error) as FAILED, never APPLIED.
+        self.remaining = remaining
+        self.sweeps = sweeps
+        self.listing_error = listing_error
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {
+            "closed": self.closed,
+            "cancelled": self.cancelled,
+            "failed": self.failed,
+            "remaining": self.remaining,
+            "sweeps": self.sweeps,
+        }
+        if self.listing_error:
+            d["listing_error"] = self.listing_error
+        return d
+
+    @property
+    def applied(self) -> bool:
+        """True only when the broker was listed and nothing owned remains."""
+        return not self.listing_error and self.remaining == 0
 
 
 class BaseBrokerAdapter:
@@ -494,12 +548,12 @@ class OrderGateway:
         # 1. Preconditions
         if self.flattening:
             return GatewayResult(False, "REJECTED", error="Refused: flattening in progress")
-        try:
-            if self.store is not None and self.store.is_kill_switch_active():
+        from core.kill_switch import entries_blocked
+        blocked, block_reason = entries_blocked(self.store)
+        if blocked:
+            if block_reason == "kill switch active":
                 return GatewayResult(False, "REJECTED", error="Refused: kill switch is active")
-        except Exception as exc:
-            # Fail closed: an unreadable kill switch must not admit new risk.
-            return GatewayResult(False, "REJECTED", error=f"Refused: kill-switch unreadable ({exc})")
+            return GatewayResult(False, "REJECTED", error=f"Refused: {block_reason}")
 
         side = str(intent.side or "").upper()
         if side not in ("BUY", "SELL"):
@@ -904,59 +958,286 @@ class OrderGateway:
             self._resolve_by_ticket(int(ticket), "UNRESOLVED", error=f"cancel not confirmed: {res.get('error') or retcode}")
         return GatewayResult(ok, "CANCELLED" if ok else "ERROR", ticket=int(ticket), action="CANCEL", error=res.get("error"), details=res)
 
-    def execute_flatten(self, owned_magics: Optional[Set[int]] = None, mt5_client: Any = None) -> List[GatewayResult]:
-        """Execute guardian flatten while setting flattening flag (CC-F10)."""
-        self.flattening = True
-        results: List[GatewayResult] = []
+    def count_owned_pending(
+        self,
+        mt5_client: Any = None,
+        owned_magics: Optional[Set[int]] = None,
+    ) -> tuple:
+        """Count owned pending orders at the broker: (count, error).
+
+        B2 verification read for the killswitch drain path. error is None on
+        a successful listing; otherwise count is -1 (unknown).
+        """
         try:
-            # If paper adapter, close all paper positions with their own symbols.
             if isinstance(self.adapter, PaperAdapter):
-                for ticket, pos in list(getattr(self.adapter.paper, "positions", {}).items()):
-                    symbol = str((pos or {}).get("symbol", "") or "EURUSD")
-                    if owned_magics:
+                orders = list(getattr(self.adapter.paper, "orders", {}).items())
+                if owned_magics is not None:
+                    magics = set(owned_magics)
+                    orders = [(t, o) for t, o in orders if int((o or {}).get("magic", 0) or 0) in magics]
+                return len(orders), None
+            client = self._resolve_live_client(mt5_client)
+            if client is None:
+                return -1, "broker orders cannot be listed: no listable MT5 client"
+            with get_mt5_lock():
+                with _gateway_send_context():
+                    orders = list(client.orders_get() or [])
+            if owned_magics is not None:
+                magics = set(owned_magics)
+                orders = [o for o in orders if int(getattr(o, "magic", 0) or 0) in magics]
+            return len(orders), None
+        except Exception as exc:
+            return -1, str(exc)
+
+    def cancel_all_owned_pending(
+        self,
+        owned_magics: Optional[Set[int]] = None,
+        mt5_client: Any = None,
+    ) -> List[GatewayResult]:
+        """Cancel all pending orders owned by us and return the results.
+
+        B2: raises BrokerUnlistableError when the live broker cannot be
+        listed — an unlistable broker is a failed control, not an empty book.
+        """
+        if isinstance(self.adapter, PaperAdapter):
+            orders = list(getattr(self.adapter.paper, "orders", {}).items())
+            if owned_magics is not None:
+                magics_set = set(owned_magics)
+                orders = [(t, o) for t, o in orders if int((o or {}).get("magic", 0) or 0) in magics_set]
+            for ticket, _ in orders:
+                results.append(self.cancel_pending(int(ticket)))
+        else:
+            client = self._resolve_live_client(mt5_client)
+            if client is None:
+                raise BrokerUnlistableError("broker orders cannot be listed: no listable MT5 client")
+            orders = []
+            if client is not None and hasattr(client, "orders_get"):
+                with get_mt5_lock():
+                    with _gateway_send_context():
                         try:
-                            if int((pos or {}).get("magic", 0) or 0) not in set(owned_magics):
-                                continue
-                        except (TypeError, ValueError):
-                            continue
-                    res = self.submit_exit(int(ticket), symbol, comment="guardian_flatten")
-                    results.append(res)
-            else:
-                # MT5 adapter
-                client = mt5_client or getattr(self.adapter, "client", None) or getattr(self.adapter, "_get_mt5", lambda: None)()
-                if client is not None and hasattr(client, "positions_get"):
-                    with get_mt5_lock():
-                        with _gateway_send_context():
-                            try:
-                                positions = client.positions_get() or []
-                            except TypeError:
-                                positions = []
-                    for pos in positions:
+                            orders = list(client.orders_get() or [])
+                        except Exception:
+                            orders = []
+            if owned_magics is not None:
+                magics_set = set(owned_magics)
+                orders = [o for o in orders if int(getattr(o, "magic", 0) or 0) in magics_set]
+            for order in orders:
+                try:
+                    t = int(getattr(order, "ticket", 0) or 0)
+                    results.append(self.cancel_pending(t, mt5_client=client))
+                except Exception as exc:
+                    results.append(GatewayResult(False, "ERROR", error=str(exc)))
+        return results
+
+    def _resolve_live_client(self, mt5_client: Any = None) -> Any:
+        """Return a broker client that can actually be listed, or None.
+
+        B2: callers used to pass connection wrappers (MT5Client) that have
+        no positions_get/orders_get. A flatten against such a client sees an
+        empty account and reports APPLIED with nothing closed. Only clients
+        exposing both listing methods are accepted; otherwise the gateway's
+        own bound client (or the importable MT5 module) is used.
+        """
+        def _listable(client: Any) -> bool:
+            return (
+                client is not None
+                and hasattr(client, "positions_get")
+                and hasattr(client, "orders_get")
+            )
+
+        if _listable(mt5_client):
+            return mt5_client
+        bound = getattr(self.adapter, "client", None)
+        if _listable(bound):
+            return bound
+        try:
+            fallback = self.adapter._get_mt5(None)  # type: ignore[attr-defined]
+        except Exception:
+            fallback = None
+        if _listable(fallback):
+            return fallback
+        return None
+
+    def execute_flatten(
+        self,
+        owned_magics: Optional[Set[int]] = None,
+        mt5_client: Any = None,
+    ) -> FlattenOutcome:
+        """Execute guardian flatten while setting flattening flag (CC-F10).
+
+        Performs a re-sweep loop (max 5 sweeps) until 2 consecutive empty snapshots
+        occur, closing owned positions and cancelling owned pending orders.
+
+        B2: when the broker cannot be listed at all, no claim is made —
+        the outcome carries listing_error with remaining=-1 and callers must
+        mark the control FAILED.
+        """
+        self.flattening = True
+        all_results: List[GatewayResult] = []
+        closed_count = 0
+        cancelled_count = 0
+        failed_count = 0
+        consecutive_empty = 0
+        sweeps = 0
+        closed_tickets: Set[int] = set()
+        cancelled_tickets: Set[int] = set()
+
+        live_client: Any = None
+        if not isinstance(self.adapter, PaperAdapter):
+            live_client = self._resolve_live_client(mt5_client)
+            if live_client is None:
+                self.flattening = False
+                return FlattenOutcome(
+                    [], closed=0, cancelled=0, failed=0, remaining=-1, sweeps=0,
+                    listing_error="broker positions cannot be listed: no listable MT5 client",
+                )
+
+        try:
+            for sweep in range(1, 6):
+                sweeps = sweep
+                if isinstance(self.adapter, PaperAdapter):
+                    positions = list(getattr(self.adapter.paper, "positions", {}).items())
+                    orders = list(getattr(self.adapter.paper, "orders", {}).items())
+                    if owned_magics is not None:
+                        magics_set = set(owned_magics)
+                        positions = [(t, p) for t, p in positions if int((p or {}).get("magic", 0) or 0) in magics_set]
+                        orders = [(t, o) for t, o in orders if int((o or {}).get("magic", 0) or 0) in magics_set]
+
+                    unhandled_positions = [(t, p) for t, p in positions if int(t) not in closed_tickets]
+                    unhandled_orders = [(t, o) for t, o in orders if int(t) not in cancelled_tickets]
+
+                    if not unhandled_positions and not unhandled_orders:
+                        consecutive_empty += 1
+                        if consecutive_empty >= 2:
+                            break
+                        continue
+                    else:
+                        consecutive_empty = 0
+
+                    for ticket, pos in unhandled_positions:
+                        symbol = str((pos or {}).get("symbol", "") or "EURUSD")
+                        res = self.submit_exit(int(ticket), symbol, comment="guardian_flatten")
+                        all_results.append(res)
+                        if res.success:
+                            closed_count += 1
+                            closed_tickets.add(int(ticket))
+                        else:
+                            failed_count += 1
+
+                    for ticket, order in unhandled_orders:
+                        res = self.cancel_pending(int(ticket))
+                        all_results.append(res)
+                        if res.success:
+                            cancelled_count += 1
+                            cancelled_tickets.add(int(ticket))
+                        else:
+                            failed_count += 1
+
+                else:
+                    # live_client was verified listable up front (B2).
+                    client = live_client
+                    positions = []
+                    orders = []
+                    if client is not None and hasattr(client, "positions_get"):
+                        with get_mt5_lock():
+                            with _gateway_send_context():
+                                try:
+                                    positions = list(client.positions_get() or [])
+                                except TypeError:
+                                    positions = []
+                    if client is not None and hasattr(client, "orders_get"):
+                        with get_mt5_lock():
+                            with _gateway_send_context():
+                                try:
+                                    orders = list(client.orders_get() or [])
+                                except Exception:
+                                    orders = []
+
+                    if owned_magics is not None:
+                        magics_set = set(owned_magics)
+                        positions = [p for p in positions if int(getattr(p, "magic", 0) or 0) in magics_set]
+                        orders = [o for o in orders if int(getattr(o, "magic", 0) or 0) in magics_set]
+
+                    unhandled_positions = [p for p in positions if int(getattr(p, "ticket", 0) or 0) not in closed_tickets]
+                    unhandled_orders = [o for o in orders if int(getattr(o, "ticket", 0) or 0) not in cancelled_tickets]
+
+                    if not unhandled_positions and not unhandled_orders:
+                        consecutive_empty += 1
+                        if consecutive_empty >= 2:
+                            break
+                        continue
+                    else:
+                        consecutive_empty = 0
+
+                    for pos in unhandled_positions:
                         try:
-                            if owned_magics and int(getattr(pos, "magic", 0) or 0) not in set(owned_magics):
-                                continue
-                            res = self.submit_exit(int(getattr(pos, "ticket", 0) or 0), str(getattr(pos, "symbol", "")), comment="guardian_flatten", mt5_client=client, owned_magics=owned_magics)
-                            results.append(res)
+                            t = int(getattr(pos, "ticket", 0) or 0)
+                            sym = str(getattr(pos, "symbol", ""))
+                            res = self.submit_exit(t, sym, comment="guardian_flatten", mt5_client=client, owned_magics=owned_magics)
+                            all_results.append(res)
+                            if res.success:
+                                closed_count += 1
+                                closed_tickets.add(t)
+                            else:
+                                failed_count += 1
                         except Exception as exc:
-                            results.append(GatewayResult(False, "ERROR", error=str(exc)))
-                # Cancel pending orders owned by us.
-                if client is not None and hasattr(client, "orders_get"):
-                    with get_mt5_lock():
-                        with _gateway_send_context():
-                            try:
-                                orders = client.orders_get() or []
-                            except Exception:
-                                orders = []
-                    for order in orders or []:
+                            all_results.append(GatewayResult(False, "ERROR", error=str(exc)))
+                            failed_count += 1
+
+                    for order in unhandled_orders:
                         try:
-                            if owned_magics and int(getattr(order, "magic", 0) or 0) not in set(owned_magics):
-                                continue
-                            results.append(self.cancel_pending(int(getattr(order, "ticket", 0) or 0), mt5_client=client))
+                            t = int(getattr(order, "ticket", 0) or 0)
+                            res = self.cancel_pending(t, mt5_client=client)
+                            all_results.append(res)
+                            if res.success:
+                                cancelled_count += 1
+                                cancelled_tickets.add(t)
+                            else:
+                                failed_count += 1
                         except Exception as exc:
-                            results.append(GatewayResult(False, "ERROR", error=str(exc)))
+                            all_results.append(GatewayResult(False, "ERROR", error=str(exc)))
+                            failed_count += 1
+
         finally:
             self.flattening = False
-        return results
+
+        remaining = 0
+        if isinstance(self.adapter, PaperAdapter):
+            rem_pos = list(getattr(self.adapter.paper, "positions", {}).items())
+            rem_ord = list(getattr(self.adapter.paper, "orders", {}).items())
+            if owned_magics is not None:
+                magics_set = set(owned_magics)
+                rem_pos = [(t, p) for t, p in rem_pos if int((p or {}).get("magic", 0) or 0) in magics_set]
+                rem_ord = [(t, o) for t, o in rem_ord if int((o or {}).get("magic", 0) or 0) in magics_set]
+            rem_pos = [(t, p) for t, p in rem_pos if int(t) not in closed_tickets]
+            rem_ord = [(t, o) for t, o in rem_ord if int(t) not in cancelled_tickets]
+            remaining = len(rem_pos) + len(rem_ord)
+        else:
+            # live_client was verified listable up front (B2); re-resolve
+            # defensively in case the adapter was rebound mid-flatten.
+            client = live_client or self._resolve_live_client(mt5_client)
+            if client is not None:
+                try:
+                    with get_mt5_lock():
+                        p_list = list(client.positions_get() or []) if hasattr(client, "positions_get") else []
+                        o_list = list(client.orders_get() or []) if hasattr(client, "orders_get") else []
+                    if owned_magics is not None:
+                        magics_set = set(owned_magics)
+                        p_list = [p for p in p_list if int(getattr(p, "magic", 0) or 0) in magics_set]
+                        o_list = [o for o in o_list if int(getattr(o, "magic", 0) or 0) in magics_set]
+                    p_list = [p for p in p_list if int(getattr(p, "ticket", 0) or 0) not in closed_tickets]
+                    o_list = [o for o in o_list if int(getattr(o, "ticket", 0) or 0) not in cancelled_tickets]
+                    remaining = len(p_list) + len(o_list)
+                except Exception:
+                    pass
+
+        return FlattenOutcome(
+            all_results,
+            closed=closed_count,
+            cancelled=cancelled_count,
+            failed=failed_count,
+            remaining=remaining,
+            sweeps=sweeps,
+        )
 
     def _resolve_intent(self, intent_key: str, status: str, ticket: Optional[int] = None, error: Optional[str] = None) -> bool:
         """Apply one legal intent transition (review R5: never a free-form overwrite)."""

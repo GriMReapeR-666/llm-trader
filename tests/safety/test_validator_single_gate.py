@@ -13,7 +13,7 @@ import math
 
 import pytest
 
-from trading_safety import DeterministicValidator, TradeProposal, TradingStore
+from core.trading_safety import DeterministicValidator, TradeProposal, TradingStore
 
 NAN = float("nan")
 
@@ -145,7 +145,7 @@ FAIL_OPEN = [
 
 
 @pytest.mark.parametrize("overrides,roadmap_id", [
-    pytest.param(o, rid, id=i, marks=pytest.mark.xfail(strict=True, reason=f"{rid}: gate fails open"))
+    pytest.param(o, rid, id=i)
     for i, o, rid in FAIL_OPEN
 ])
 def test_missing_or_nan_evidence_fails_closed(validator, overrides, roadmap_id):

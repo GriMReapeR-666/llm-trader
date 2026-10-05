@@ -1,11 +1,11 @@
 """Event-aligned backtest floors for STAT_PASS → REPLAY_PASS."""
-from macro_graph import MacroGraph
-from autonomous_causal_engine import (
+from intelligence.macro_graph import MacroGraph
+from intelligence.autonomous_causal_engine import (
     MIN_REACTION_SAMPLES,
     AutonomousCausalValidator,
     CausalEdgeBacktestOptimizer,
 )
-from edge_lifecycle import current_lifecycle
+from research.edge_lifecycle import current_lifecycle
 
 
 def _primary_source(graph: MacroGraph, title: str = "Fed Policy Rate Decision") -> str:

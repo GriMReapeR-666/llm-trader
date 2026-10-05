@@ -178,7 +178,7 @@ class TestOrchestratorStoreParam:
         """When store=None, orchestrator creates its own (backward compat)."""
         from core.harness.kernel import TradingContext
         from core.harness.quant_models_plugins import mount_profile
-        from trading_safety import TradingStore
+        from core.trading_safety import TradingStore
 
         ctx = TradingContext(name="paper_ctx")
         mount_profile(ctx, "paper")

@@ -1,24 +1,24 @@
 """Tests for Economic Dynamics catalog, seed, and regime classifier."""
 from __future__ import annotations
 
-from causal_setup_map import resolve_causal_setup
-from economic_dynamics_catalog import (
+from intelligence.causal_setup_map import resolve_causal_setup
+from intelligence.economic_dynamics_catalog import (
     CAUSAL_EDGES,
     CORRELATION_REGIMES,
     catalog_summary,
     edges_for_regime,
     validate_catalog,
 )
-from economic_dynamics_seed import seed_economic_dynamics
-from historical_regimes import get_template, template_registry
-from intermarket_regime import (
+from intelligence.economic_dynamics_seed import seed_economic_dynamics
+from research.historical_regimes import get_template, template_registry
+from intelligence.intermarket_regime import (
     build_intermarket_regime_snapshot,
     classify_intermarket_regime,
     filter_edges_for_live_regime,
     resolve_entity_proxies,
 )
-from macro_graph import MacroGraph
-from correlation_risk import CorrelationRisk
+from intelligence.macro_graph import MacroGraph
+from intelligence.correlation_risk import CorrelationRisk
 from datetime import datetime, timezone, timedelta
 
 

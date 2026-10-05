@@ -11,17 +11,17 @@ import json
 from typing import Any, Dict, Iterable, List
 
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     from intelligence.macro_graph import MacroGraph
 
 try:
-    from macro_source_policy import assess_source
+    from intelligence.macro_source_policy import assess_source
 except ImportError:
     from intelligence.macro_source_policy import assess_source
 
 try:
-    from trading_memory import TradingMemory
+    from intelligence.trading_memory import TradingMemory
 except ImportError:
     from intelligence.trading_memory import TradingMemory
 

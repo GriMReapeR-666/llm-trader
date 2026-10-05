@@ -20,7 +20,7 @@ import sqlite3
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, Iterable, List
-from setup_labeling import classify_setup_outcome, ensure_setup_label_table, persist_setup_label
+from research.setup_labeling import classify_setup_outcome, ensure_setup_label_table, persist_setup_label
 
 
 def _add_column(con: sqlite3.Connection, statement: str) -> None:
@@ -534,7 +534,7 @@ class TradingMemory:
         # Optional advisory remote mirror mirror; local SQLite row is already committed.
         if status == "APPROVED":
             try:
-                from remote_memory_mirror import maybe_mirror_semantic_record
+                from intelligence.remote_memory_mirror import maybe_mirror_semantic_record
                 maybe_mirror_semantic_record(
                     record_id=f"narrative:{narrative_id}",
                     layer="narrative",
@@ -578,7 +578,7 @@ class TradingMemory:
         memory_id = int(cursor.lastrowid)
         if status == "APPROVED":
             try:
-                from remote_memory_mirror import maybe_mirror_semantic_record
+                from intelligence.remote_memory_mirror import maybe_mirror_semantic_record
                 maybe_mirror_semantic_record(
                     record_id=f"verified:{memory_id}",
                     layer="verified",
@@ -1123,7 +1123,7 @@ class TradingMemory:
         def _semantic() -> List[Any]:
             # Structured filters/statuses are applied inside the local semantic
             # retriever before cosine ranking; source-linked approved records only.
-            from semantic_memory import search as semantic_search
+            from intelligence.semantic_memory import search as semantic_search
             return semantic_search(self.db_path, tags, semantic_limit, as_of=cutoff)
 
         def _meta_loop() -> List[Any]:

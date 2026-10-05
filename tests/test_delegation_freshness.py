@@ -5,7 +5,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agent_operations import AgentOperations  # noqa: E402
+from operations.agent_operations import AgentOperations  # noqa: E402
 from operations.delegation import Delegator, spawn_fanout  # noqa: E402
 from operations.supervisor import Supervisor  # noqa: E402
 from operations import executors as exec_registry  # noqa: E402

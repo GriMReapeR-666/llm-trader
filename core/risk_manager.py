@@ -13,9 +13,11 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple, Optional, Callable
 
 try:
-    from state_persistence import StoreBackedState
+    from core.state_persistence import StoreBackedState
 except ImportError:
     from core.state_persistence import StoreBackedState
+
+from core.trading_safety import BOT_MAGICS
 
 class RiskManager(StoreBackedState):
     store_key = "risk_manager_state"
@@ -75,7 +77,7 @@ class RiskManager(StoreBackedState):
         self.opportunity_cost_hurdle_r: float = 0.05
         # Maximum concurrent open positions enforced per strategy/bot
         self.max_active_positions = 2
-        self.managed_magics = {460001, 460002}
+        self.managed_magics = set(BOT_MAGICS)
         self._active_positions_provider: Optional[Callable[[], int]] = None
         self._portfolio_heat_provider: Optional[Callable[[], Optional[float]]] = None
         # When daily loss or peak DD trips, open positions must flatten — not only block entries.
@@ -274,13 +276,17 @@ class RiskManager(StoreBackedState):
         """Level 1 Circuit Breaker: Returns False if daily loss >= 3.0R (e.g. 3%).
         On breach, halts new entries for 24h and marks protective flatten request.
         """
-        if self.daily_start_equity <= 0:
-            return True
+        if not self._finite(self.daily_start_equity, positive=True):
+            logging.warning("Daily drawdown check failed closed: daily_start_equity=%s is invalid", self.daily_start_equity)
+            return False
         equity = current_equity
         if equity is None:
             equity = self._account_equity()
         if equity is None:
             equity = self.balance
+        if not self._finite(equity, positive=False):
+            logging.warning("Daily drawdown check failed closed: equity=%s is non-finite", equity)
+            return False
         current_dd = (self.daily_start_equity - equity) / self.daily_start_equity
         if current_dd >= self.max_daily_loss:
             reason = f"daily_loss_limit:{current_dd:.2%}>={self.max_daily_loss:.2%}"
@@ -452,7 +458,7 @@ class RiskManager(StoreBackedState):
         if equity is None:
             equity = self.balance
         if not self._finite(equity, positive=True) or not self._finite(self.peak_equity, positive=True):
-            return 1.0
+            return 0.0
         dd = (float(self.peak_equity) - float(equity)) / float(self.peak_equity)
         if dd < 0.05:
             return 1.0
@@ -711,7 +717,7 @@ class RiskManager(StoreBackedState):
             if mt5 is not None:
                 positions = mt5.positions_get()
                 if positions is not None:
-                    managed = getattr(self, "managed_magics", None) or {460001, 460002}
+                    managed = getattr(self, "managed_magics", None) or BOT_MAGICS
                     owned_count = sum(1 for p in positions if getattr(p, "magic", 0) in managed)
                     return owned_count < self.max_active_positions
                 else:

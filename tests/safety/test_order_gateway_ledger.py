@@ -148,7 +148,7 @@ def test_partial_fill_is_accepted_and_keeps_reserving(store):
 
 # -------------------------------------------- R1 closed trades release budget
 def test_closed_trade_releases_its_reservation(store):
-    from agent_operations import AgentOperations
+    from operations.agent_operations import AgentOperations
     ops = AgentOperations(store.path)
     proposal = TradeProposal(strategy="s", symbol="EURUSD", side="BUY", entry=1.1, stop_loss=1.09,
                              take_profit=1.12, confidence=.8, features={"setup_id": "x"})
@@ -298,7 +298,7 @@ def test_place_market_order_accepts_the_evidence_kwargs():
 # --------------------------------------------- D1 no per-call transport swap
 def test_trade_manager_never_switches_the_shared_gateway(store):
     from core import order_gateway
-    from trade_manager import TradeManager
+    from core.trade_manager import TradeManager
     shared = order_gateway.configure_default_gateway(store, mode="PAPER")
     adapter_before = shared.adapter
     manager = TradeManager.__new__(TradeManager)

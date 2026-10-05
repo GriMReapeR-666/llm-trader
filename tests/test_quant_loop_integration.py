@@ -131,7 +131,7 @@ class _FakeOperations:
 
 
 def _make_orchestrator(store, operations=None):
-    from llm_orchestrator import LLMOrchestrator
+    from intelligence.llm_orchestrator import LLMOrchestrator
 
     orch = LLMOrchestrator.__new__(LLMOrchestrator)
     orch.store = store

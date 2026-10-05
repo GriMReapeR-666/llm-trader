@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from trading_memory import TradingMemory
-from trading_safety import TradeProposal, TradingStore
+from intelligence.trading_memory import TradingMemory
+from core.trading_safety import TradeProposal, TradingStore
 
 
 def test_weekly_narrative_and_core_consolidation_are_restart_safe(tmp_path: Path):

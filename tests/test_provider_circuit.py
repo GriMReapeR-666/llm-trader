@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from provider_circuit import ProviderCircuitBreaker
+from data.provider_circuit import ProviderCircuitBreaker
 
 
 class _Store:

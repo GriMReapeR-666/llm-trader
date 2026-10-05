@@ -1,7 +1,7 @@
 """Unit tests for SQLite checkpointer in LangGraph."""
 import pytest
 import sqlite3
-from graph_checkpointer import SqliteCheckpointSaver
+from intelligence.graph_checkpointer import SqliteCheckpointSaver
 from langgraph.checkpoint.base import Checkpoint, CheckpointMetadata
 
 

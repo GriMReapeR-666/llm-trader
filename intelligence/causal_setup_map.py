@@ -11,7 +11,7 @@ from dataclasses import asdict
 from typing import Any, Dict, FrozenSet, Optional, Tuple
 
 try:
-    from setup_registry import SETUPS
+    from research.setup_registry import SETUPS
 except ImportError:
     from research.setup_registry import SETUPS
 

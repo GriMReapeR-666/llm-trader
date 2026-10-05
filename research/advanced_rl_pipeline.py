@@ -118,7 +118,7 @@ class AdvancedRLPipeline:
         """Lazy-load RL trainer."""
         if self._rl_trainer is None:
             try:
-                from rl_trainer import RLTrainer
+                from research.rl_trainer import RLTrainer
                 self._rl_trainer = RLTrainer(
                     model_path=os.path.join(self.artifacts_dir, "rl_model.json")
                 )
@@ -130,7 +130,7 @@ class AdvancedRLPipeline:
         """Lazy-load PPO trainer."""
         if self._ppo_trainer is None:
             try:
-                from ppo_trainer import PPOTrainer
+                from research.ppo_trainer import PPOTrainer
                 self._ppo_trainer = PPOTrainer()
             except Exception as exc:
                 log.debug("PPO trainer unavailable: %s", exc)
@@ -140,7 +140,7 @@ class AdvancedRLPipeline:
         """Lazy-load regime classifier."""
         if self._regime_classifier is None:
             try:
-                from regime_classifier import MacroRegimeClassifier
+                from intelligence.regime_classifier import MacroRegimeClassifier
                 self._regime_classifier = MacroRegimeClassifier()
             except Exception as exc:
                 log.debug("Regime classifier unavailable: %s", exc)
@@ -249,7 +249,7 @@ class AdvancedRLPipeline:
 
         try:
             try:
-                from research_validation import broker_reconciled_tickets
+                from research.research_validation import broker_reconciled_tickets
             except ImportError:
                 from research.research_validation import broker_reconciled_tickets
             tickets = sorted(broker_reconciled_tickets(db_path))

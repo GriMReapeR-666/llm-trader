@@ -13,7 +13,7 @@ import math
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Optional
 
-from trading_safety import SCALP_MAGIC, SWING_MAGIC
+from core.trading_safety import SCALP_MAGIC, SWING_MAGIC
 
 DISCRETE_ACTIONS = frozenset({"BUY", "SELL", "HOLD"})
 

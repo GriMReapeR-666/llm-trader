@@ -1,8 +1,8 @@
 import pytest
 import math
 
-from setup_registry import SETUPS, classify
-from setup_governance import change_gate, retirement_gate
+from research.setup_registry import SETUPS, classify
+from research.setup_governance import change_gate, retirement_gate
 
 
 def test_setup_registry_all_5_setups_classified():

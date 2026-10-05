@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from kronos_trading_integrator import MANAGEMENT_ACTIONS
+from research.kronos_trading_integrator import MANAGEMENT_ACTIONS
 
 try:
     import torch
@@ -331,12 +331,12 @@ def _make_simulator(
     seed: int,
 ):
     if backend == "mt5":
-        from kronos_mt5_adapter import MT5KronosRLSimulator
+        from research.kronos_mt5_adapter import MT5KronosRLSimulator
 
         return MT5KronosRLSimulator(
             symbol=symbol, regime=regime, max_steps=max_steps, seed=seed
         )
-    from kronos_trading_integrator import KronosRLMarketSimulator
+    from research.kronos_trading_integrator import KronosRLMarketSimulator
 
     return KronosRLMarketSimulator(
         symbol=symbol, regime=regime, max_steps=max_steps, force_heuristic=True, seed=seed
@@ -507,7 +507,7 @@ def train_ppo_offline(
         ),
     }
     try:
-        from reward_sustainability import cvar_mixture_objective
+        from operations.reward_sustainability import cvar_mixture_objective
         ep_rewards = [float(e["reward"]) for e in all_episode_details]
         report["sustainability_objective"] = cvar_mixture_objective(
             ep_rewards, alpha=0.05, mean_weight=0.5

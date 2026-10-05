@@ -13,7 +13,7 @@ import json
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 try:
-    from economic_dynamics_catalog import (
+    from intelligence.economic_dynamics_catalog import (
         CATALOG_VERSION,
         CAUSAL_EDGES,
         CITATION_PUBLISHER,
@@ -36,7 +36,7 @@ except ImportError:
     )
 
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     from intelligence.macro_graph import MacroGraph
 

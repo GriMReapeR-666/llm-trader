@@ -6,7 +6,7 @@ boundaries are exact in floating point.
 """
 import pytest
 
-from order_execution import validate_order_params, validate_pending_entry_geometry
+from core.order_execution import validate_order_params, validate_pending_entry_geometry
 
 NAN = float("nan")
 

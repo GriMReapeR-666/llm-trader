@@ -3,13 +3,13 @@ import sqlite3
 
 import pytest
 
-from reward_ledger import (
+from operations.reward_ledger import (
     compute_terminal_reward,
     emit_reward_event,
     emit_terminal_trade_rewards,
     list_reward_events,
 )
-from rl_trainer import RLTrainer
+from research.rl_trainer import RLTrainer
 
 
 def test_compute_terminal_reward_blocks_unreconciled():

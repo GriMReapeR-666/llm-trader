@@ -37,7 +37,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-from state_persistence import StoreBackedState
+from core.state_persistence import StoreBackedState
 
 logger = logging.getLogger(__name__)
 

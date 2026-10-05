@@ -17,9 +17,9 @@ import pandas as pd
 logger = logging.getLogger("MarketData")
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _p in (_PROJECT_ROOT, os.path.join(_PROJECT_ROOT, "core"), os.path.join(_PROJECT_ROOT, "data"), os.path.join(_PROJECT_ROOT, "research"), os.path.join(_PROJECT_ROOT, "operations"), os.path.join(_PROJECT_ROOT, "intelligence")):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 # Validated-candidate state written by core.alpha_discovery; the rotation
 # block reads it as its promotion-candidate feed (single connection point).
@@ -31,7 +31,7 @@ except ImportError:
     mt5 = None
 
 try:
-    from technical_indicators import (
+    from core.technical_indicators import (
         adx, atr, compute_indicators, ema, hma, macd, rsi, wma
     )
 except ImportError:
@@ -40,19 +40,19 @@ except ImportError:
     )
 
 try:
-    from order_execution import place_market_order, place_pending_order
+    from core.order_execution import place_market_order, place_pending_order
 except ImportError:
     from core.order_execution import place_market_order, place_pending_order
 
 try:
-    from api_manager import APIManager
+    from data.api_manager import APIManager
     API_MANAGER_AVAILABLE = True
 except ImportError:
     API_MANAGER_AVAILABLE = False
     APIManager = None
 
 try:
-    from trade_manager import TradeManager
+    from core.trade_manager import TradeManager
     TRADE_MANAGER_AVAILABLE = True
 except ImportError:
     TRADE_MANAGER_AVAILABLE = False
@@ -62,7 +62,7 @@ try:
     from data.data_source_pipeline import catalog_fred_series
 except Exception:
     try:
-        from data_source_pipeline import catalog_fred_series
+        from data.data_source_pipeline import catalog_fred_series
     except Exception:
         def catalog_fred_series(*args, **kwargs):
             return {}
@@ -808,7 +808,7 @@ class MarketDataProvider:
             self.api_manager = api_manager
         
         try:
-            from mt5_calendar_enhanced import create_enhanced_calendar_wrapper
+            from data.mt5_calendar_enhanced import create_enhanced_calendar_wrapper
             mt5_inst = _get_mt5()
             terminal_info = mt5_inst.terminal_info() if mt5_inst else None
             dll_path = None
@@ -888,7 +888,7 @@ class MarketDataProvider:
                 if not _name or not _expr:
                     continue
                 try:
-                    from alpha_rotation import SourceCandidate
+                    from core.alpha_rotation import SourceCandidate
                     out.append(SourceCandidate(
                         name=str(_name),
                         ic_mean=float(_a.get("ic_mean", 0.0) or 0.0),
@@ -1069,7 +1069,12 @@ class MarketDataProvider:
         except ImportError:
             pass
         except Exception as _g_exc:
-            log.warning("Ψ Guardian check failed (fail-open): %s", _g_exc)
+            log.warning("Ψ Guardian check failed (fail-closed): %s", _g_exc)
+            return {
+                "retcode": 0, "order": 0, "rejected": True,
+                "rejection_reason": f"Ψ_GUARDIAN_CHECK_FAILED:{type(_g_exc).__name__}",
+                "source": "ExternalGuardian",
+            }
 
         log.info(
             "Placing planned %s %s @ %s (%s)", otype, symbol, price, "paper" if paper else "MT5"
@@ -1415,7 +1420,7 @@ class MarketDataProvider:
         _rotation_active = []
         try:
             if self._alpha_rotation_engine is None:
-                from alpha_rotation import AlphaRotationEngine
+                from core.alpha_rotation import AlphaRotationEngine
                 self._alpha_rotation_engine = AlphaRotationEngine(store=self._state_store())
             _rotation_active = self._alpha_rotation_engine.get_active_set()
         except Exception as exc:
@@ -1509,7 +1514,7 @@ class MarketDataProvider:
         regime_allocation = {}
         try:
             if self._hierarchical_portfolio_engine is None:
-                from hierarchical_portfolio import HierarchicalMetaPortfolioEngine
+                from core.hierarchical_portfolio import HierarchicalMetaPortfolioEngine
                 self._hierarchical_portfolio_engine = HierarchicalMetaPortfolioEngine(
                     base_risk_pct=self.risk.risk_per_trade,
                     min_master_ev=0.20,
@@ -1603,7 +1608,7 @@ class MarketDataProvider:
         # --- Compute alpha ensemble composite signal (regime now live, alphas shifted) ---
         alpha_ensemble = {}
         try:
-            from alpha_ensemble import combine_alphas, interpret_composite, format_quality_report
+            from core.alpha_ensemble import combine_alphas, interpret_composite, format_quality_report
             if alpha_cols and len(df) >= 60:
                 # Pass previous cycle's decay health to suppress dead/degraded alphas
                 prev_decay = getattr(self, '_prev_decay_health', None)
@@ -1659,7 +1664,7 @@ class MarketDataProvider:
         alpha_decay_health = {}
         try:
             if self._alpha_decay_monitor is None:
-                from alpha_decay_monitor import AlphaDecayMonitor
+                from core.alpha_decay_monitor import AlphaDecayMonitor
                 self._alpha_decay_monitor = AlphaDecayMonitor(
                     ic_window=60,
                     decay_threshold=0.02,
@@ -1689,7 +1694,7 @@ class MarketDataProvider:
         alpha_rotation_status = {}
         try:
             if self._alpha_rotation_engine is None:
-                from alpha_rotation import AlphaRotationEngine
+                from core.alpha_rotation import AlphaRotationEngine
                 self._alpha_rotation_engine = AlphaRotationEngine(store=self._state_store())
             if alpha_decay_health:
                 health_dict = alpha_decay_health.get("summary", {}).get("alphas", {})
@@ -1824,7 +1829,7 @@ class MarketDataProvider:
         try:
             if self._auto_quant_tools is None:
                 try:
-                    from auto_quant_tools import AutoQuantTools
+                    from core.auto_quant_tools import AutoQuantTools
                 except ImportError:
                     from core.auto_quant_tools import AutoQuantTools
                 self._auto_quant_tools = AutoQuantTools(state_file="auto_quant_tools_state.json", store=self._state_store())
@@ -1839,7 +1844,7 @@ class MarketDataProvider:
         regime_duration = {}
         try:
             if self._regime_duration_tracker is None:
-                from regime_duration_tracker import RegimeDurationTracker
+                from core.regime_duration_tracker import RegimeDurationTracker
                 self._regime_duration_tracker = RegimeDurationTracker(state_file="regime_duration_state.json", store=self._state_store())
             self._regime_duration_tracker.update(cycle_num, regime_allocation.get("regime", {}))
             regime_duration = self._regime_duration_tracker.get_status()

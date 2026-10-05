@@ -13,7 +13,7 @@ import os
 import sqlite3
 from typing import Any, Dict, List, Optional
 
-from trading_safety import TradingStore
+from core.trading_safety import TradingStore
 
 
 def _now() -> str:
@@ -183,7 +183,7 @@ def activation_status(path: str = "trading_state.db", *, model_id: int) -> Dict[
             reasons.append(f"artifact_uri does not exist on disk: {artifact_uri}")
 
         training_hash = str(model.get("training_data_hash") or "").strip().lower()
-        from research_runs import list_runs as list_validation_runs
+        from research.research_runs import list_runs as list_validation_runs
         runs = list_validation_runs(path, limit=500)
         corroborating = []
         for run in runs:

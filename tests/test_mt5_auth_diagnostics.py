@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 
-from mt5_auth_diagnostics import classify_error, configuration_shape, probe_terminal
+from operations.mt5_auth_diagnostics import classify_error, configuration_shape, probe_terminal
 
 
 def test_configuration_shape_never_reads_values_into_report(tmp_path):

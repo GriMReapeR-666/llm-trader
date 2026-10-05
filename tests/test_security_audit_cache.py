@@ -27,8 +27,8 @@ for _p in (str(ROOT), str(ROOT / "operations")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import security_audit as sa  # noqa: E402
-import readiness_report  # noqa: E402
+from operations import security_audit as sa
+from operations import readiness_report
 
 
 @pytest.fixture(autouse=True)

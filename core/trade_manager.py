@@ -13,8 +13,8 @@ except ImportError:
     # management path still requires an authenticated MT5 terminal.
     mt5 = None
 
-from trading_safety import PortfolioRiskArbiter, exposure_buckets
-from state_persistence import StoreBackedState
+from core.trading_safety import BOT_MAGICS, PortfolioRiskArbiter, exposure_buckets
+from core.state_persistence import StoreBackedState
 
 RETCODE_MESSAGES = {
     10004: "REQUOTE",
@@ -73,7 +73,7 @@ class TradeManager(StoreBackedState):
             self.paper_broker = client
         # Never manage manually-opened trades.  Initial bot orders are tagged
         # by the execution engine and only those magic numbers are eligible.
-        self.managed_magics = set(managed_magics or {460001, 460002})
+        self.managed_magics = set(managed_magics or BOT_MAGICS)
         self.log = logging.getLogger("TradeManager")
         
         # Configuration — R-multiple management ladder:

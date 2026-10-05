@@ -73,6 +73,7 @@ def run_stage_with_deadline(
     fn: Callable[[], Any],
     *,
     budgets: Optional[Dict[str, float]] = None,
+    timeout_s: Optional[float] = None,
     emit_event: Optional[Callable[[str, Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
     """Run one boot-fetch stage under its deadline; fail open on timeout.
@@ -84,8 +85,13 @@ def run_stage_with_deadline(
     additionally emits a ``boot_fetch_stage_timeout`` event when an emitter
     is provided.
     """
-    resolved = budgets or stage_budgets()
-    budget_s = float(resolved.get(stage, _DEFAULT_STAGE_BUDGETS.get(stage, 30.0)))
+    if timeout_s is not None:
+        budget_s = float(timeout_s)
+    elif budgets is not None and stage in budgets:
+        budget_s = float(budgets[stage])
+    else:
+        resolved = budgets or stage_budgets()
+        budget_s = float(resolved.get(stage, _DEFAULT_STAGE_BUDGETS.get(stage, 30.0)))
     started = time.monotonic()
     outcome: Dict[str, Any] = {
         "stage": stage, "ok": False, "result": None, "error": None,
@@ -104,6 +110,7 @@ def run_stage_with_deadline(
     worker.start()
     worker.join(timeout=budget_s)
     outcome["elapsed_s"] = round(time.monotonic() - started, 3)
+    outcome["worker"] = worker
 
     if worker.is_alive():
         # Deadline missed: abandon the worker (daemon thread; cannot be
@@ -126,6 +133,7 @@ def run_stage_with_deadline(
 
     if "error" in box:
         outcome["error"] = str(box["error"])
+        outcome["error_obj"] = box["error"]
         logger.debug("Boot fetch stage '%s' failed: %s", stage, box["error"])
     else:
         outcome["ok"] = True

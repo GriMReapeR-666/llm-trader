@@ -8,14 +8,14 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from agent_operations import AgentOperations
-from trading_safety import TradeProposal, TradingStore
+from operations.agent_operations import AgentOperations
+from core.trading_safety import TradeProposal, TradingStore
 
 
 @pytest.fixture
 def orchestrator(tmp_path):
     from core.order_execution import PaperBroker
-    from llm_orchestrator import LLMOrchestrator
+    from intelligence.llm_orchestrator import LLMOrchestrator
     store = TradingStore(str(tmp_path / "s.db"))
     orch = LLMOrchestrator.__new__(LLMOrchestrator)
     orch.store, orch.paper_broker = store, PaperBroker()
@@ -31,7 +31,7 @@ def test_paper_market_fill_becomes_a_trade_and_releases_on_close(orchestrator):
     store, broker, ops = orchestrator.store, orchestrator.paper_broker, orchestrator.operations
     proposal = TradeProposal(strategy="scalp", symbol="EURUSD", side="BUY", entry=1.1, stop_loss=1.09,
                              take_profit=1.12, confidence=.8, features={"setup_id": "x"})
-    from trading_safety import ValidationResult
+    from core.trading_safety import ValidationResult
     store.log_proposal(proposal, ValidationResult(True, [], 5))
     fill = broker.market_order("EURUSD", "BUY", 0.1, 1.1, 1.09, 1.12, "llm_auto", magic=460001)
     ops.create_order_intent("k", {"symbol": "EURUSD", "side": "BUY", "entry": 1.1, "volume": 0.1,

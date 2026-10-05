@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from state_persistence import (
+from core.state_persistence import (
     STATE_REGISTRY,
     StoreBackedState,
     atomic_write_json,
@@ -12,7 +12,7 @@ from state_persistence import (
     read_json_dict,
     state_migration_status,
 )
-from trading_safety import TradingStore
+from core.trading_safety import TradingStore
 
 
 CANONICAL_FILES = [

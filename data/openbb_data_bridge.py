@@ -17,7 +17,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from openbb_provider_registry import (
+from data.openbb_provider_registry import (
     PROVIDERS,
     ProviderConfig,
     FetcherEndpoint,
@@ -58,7 +58,7 @@ else:
 
 # ── import-safe MacroGraph ──────────────────────────────────────────────────
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     MacroGraph = None  # type: ignore[misc,assignment]
 
@@ -266,7 +266,7 @@ class OpenBBDataBridge:
             pass
 
         try:
-            from http_retry import call_with_retry
+            from core.http_retry import call_with_retry
 
             budget = time_budget_s if time_budget_s is not None else self._default_time_budget_s
             if budget and budget > 0:

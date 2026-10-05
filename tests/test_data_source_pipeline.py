@@ -1,6 +1,6 @@
 """Data source pipeline feeds observations + causal graph (advisory only)."""
-from macro_graph import MacroGraph
-from data_source_pipeline import (
+from intelligence.macro_graph import MacroGraph
+from data.data_source_pipeline import (
     catalog_fred_series,
     process_cycle_data_sources,
     ingest_fred_into_graph,

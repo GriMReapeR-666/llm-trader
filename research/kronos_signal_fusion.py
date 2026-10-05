@@ -88,7 +88,7 @@ class KronosSignalFusion:
         """Lazy-load Kronos predictor."""
         if self._predictor is None:
             try:
-                from kronos_bridge import KronosPredictor
+                from research.kronos_bridge import KronosPredictor
                 self._predictor = KronosPredictor()
             except Exception as exc:
                 log.debug("Kronos predictor unavailable: %s", exc)
@@ -98,7 +98,7 @@ class KronosSignalFusion:
         """Lazy-load regime classifier."""
         if self._regime_classifier is None:
             try:
-                from regime_classifier import MacroRegimeClassifier
+                from intelligence.regime_classifier import MacroRegimeClassifier
                 self._regime_classifier = MacroRegimeClassifier()
             except Exception as exc:
                 log.debug("Regime classifier unavailable: %s", exc)

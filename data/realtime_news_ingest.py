@@ -12,22 +12,22 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 from urllib.request import Request, urlopen
 
 try:
-    from economic_dynamics_catalog import EVENT_TEMPLATES, resolve_entity_alias
+    from intelligence.economic_dynamics_catalog import EVENT_TEMPLATES, resolve_entity_alias
 except ImportError:
     from intelligence.economic_dynamics_catalog import EVENT_TEMPLATES, resolve_entity_alias
 
 try:
-    from macro_source_policy import assess_source
+    from intelligence.macro_source_policy import assess_source
 except ImportError:
     from intelligence.macro_source_policy import assess_source
 
 try:
-    from news_triage import TriageGate, project_article, summarize_cycle_evidence
+    from data.news_triage import TriageGate, project_article, summarize_cycle_evidence
 except ImportError:
     from data.news_triage import TriageGate, project_article, summarize_cycle_evidence
 
 try:
-    from kill_switch_latch import get_kill_switch_latch
+    from data.kill_switch_latch import get_kill_switch_latch
 except ImportError:
     from data.kill_switch_latch import get_kill_switch_latch
 
@@ -356,8 +356,8 @@ def extract_and_persist_claims(
             "edge_ids": [],
             "execution_authority": False,
         }
-    from macro_extraction import extract_candidates, persist_candidates
-    from economic_dynamics_catalog import resolve_entity_alias as resolve_alias
+    from intelligence.macro_extraction import extract_candidates, persist_candidates
+    from intelligence.economic_dynamics_catalog import resolve_entity_alias as resolve_alias
 
     extracted = 0
     edge_ids: List[int] = []
@@ -469,7 +469,18 @@ def run(
             continue
         v = a.get("triage") or {}
         if str(v.get("d9_kill_switch") or "").upper() == "EMERGENCY_HALT_ACTIVE":
-            kill_headlines.append(str(a.get("title") or "")[:120])
+            url = str(a.get("url") or a.get("link") or "")
+            publisher = str(a.get("publisher") or a.get("source") or "")
+            assessment = assess_source(url=url, publisher=publisher)
+            # H3: only PRIMARY sources and wire-service hosts count toward
+            # the latch — aggregators and publisher-name matches never do.
+            try:
+                from intelligence.macro_source_policy import counts_toward_latch
+                _counts = counts_toward_latch(assessment)
+            except Exception:
+                _counts = bool(assessment.get("allowed")) and assessment.get("tier") == "PRIMARY"
+            if _counts:
+                kill_headlines.append(str(a.get("title") or "")[:120])
     # Latch: one batch of tripwire headlines is a *pending confirmation*, not
     # an active kill-switch; the latch requires N batches within its window.
     # Once latched, quiet cycles never clear it — only explicit market data

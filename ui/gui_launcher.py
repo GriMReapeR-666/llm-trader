@@ -5,7 +5,7 @@ import time
 import argparse
 
 # Import the dashboard
-from gui_dashboard import dashboard, GUIDashboard
+from ui.gui_dashboard import dashboard, GUIDashboard
 
 # Import the trader (we will patch it)
 import mt5_trader

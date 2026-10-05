@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from boot_fetch_watchdog import run_stage_with_deadline, stage_budgets
+from intelligence.boot_fetch_watchdog import run_stage_with_deadline, stage_budgets
 
 
 # ---------------------------------------------------------------------------

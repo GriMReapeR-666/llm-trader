@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable, List, Optional
 
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     from intelligence.macro_graph import MacroGraph
 
@@ -80,7 +80,7 @@ def _merged_regimes() -> Dict[str, Dict[str, Any]]:
     """Base historical templates plus decade shocks from Economic Dynamics SoT."""
     merged = dict(HISTORICAL_REGIMES)
     try:
-        from economic_dynamics_catalog import DECADE_SHOCK_TEMPLATES
+        from intelligence.economic_dynamics_catalog import DECADE_SHOCK_TEMPLATES
     except ImportError:
         return merged
     for key, value in DECADE_SHOCK_TEMPLATES.items():

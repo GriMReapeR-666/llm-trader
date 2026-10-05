@@ -20,8 +20,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from reward_ledger import compute_terminal_reward
-from reward_sustainability import cvar_mixture_objective
+from operations.reward_ledger import compute_terminal_reward
+from operations.reward_sustainability import cvar_mixture_objective
 
 log = logging.getLogger("GRPOProposer")
 

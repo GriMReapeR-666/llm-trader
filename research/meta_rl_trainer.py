@@ -19,8 +19,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from kronos_trading_integrator import MANAGEMENT_ACTIONS
-from ppo_trainer import (
+from research.kronos_trading_integrator import MANAGEMENT_ACTIONS
+from research.ppo_trainer import (
     N_ACTIONS,
     OBS_DIM_KRONOS,
     _make_simulator,

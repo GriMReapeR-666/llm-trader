@@ -20,7 +20,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from state_persistence import StoreBackedState
+from core.state_persistence import StoreBackedState
 
 logger = logging.getLogger(__name__)
 

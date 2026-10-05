@@ -17,10 +17,11 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for p in ("", "data", "intelligence"):
-    sys.path.insert(0, os.path.join(ROOT, p) if p else ROOT)
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
-from news_triage import _D9_KILL_PATTERN, _deterministic_d9  # noqa: E402
+from data.news_triage import _D9_KILL_PATTERN, _deterministic_d9  # noqa: E402
 
 TEST_FILES = [
     "tests/test_news_triage.py",

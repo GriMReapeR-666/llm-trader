@@ -79,7 +79,7 @@ def validate_registry() -> None:
     try:
         from operations.agent_contracts import CONTRACTS
     except ImportError:
-        from agent_contracts import CONTRACTS  # flat import parity with scheduler
+        from operations.agent_contracts import CONTRACTS  # flat import parity with scheduler
 
     for spec_item in REGISTRY.values():
         if spec_item.principal not in CONTRACTS:

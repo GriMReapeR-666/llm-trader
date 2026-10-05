@@ -9,11 +9,6 @@ root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-for subpkg in ["core", "intelligence", "operations", "research", "data", "ui"]:
-    pkg_path = os.path.join(root_dir, subpkg)
-    if os.path.isdir(pkg_path) and pkg_path not in sys.path:
-        sys.path.insert(0, pkg_path)
-
 
 import pytest
 
@@ -296,6 +291,15 @@ def isolate_runtime_state_singletons(tmp_path, monkeypatch):
         for attr in ("state_file", "control_file"):
             if hasattr(aut, attr):
                 monkeypatch.setattr(aut, attr, str(tmp_path / ("autonomy_" + attr)))
+        # The singleton loaded the repo-root autonomy_state.json when it was
+        # created, and trading_allowed() now re-reads state on every check,
+        # so start each test from clean defaults with no store attached.
+        fresh = autonomy_mod.AutonomyManager(
+            state_file=str(tmp_path / "autonomy_fresh_state.json"),
+            control_file=str(tmp_path / "autonomy_fresh_control"),
+        )
+        monkeypatch.setattr(aut, "_state", fresh._state)
+        monkeypatch.setattr(aut, "store", None)
     except Exception:
         pass
     # Snapshot shared runtime state files before each test and restore them
@@ -354,6 +358,25 @@ def isolate_runtime_state_singletons(tmp_path, monkeypatch):
 # artifacts/ and graph-internal state files are deliberately left alone.
 # ---------------------------------------------------------------------------
 @pytest.fixture(autouse=True)
+def isolated_kill_switch_latch(tmp_path, monkeypatch):
+    """Give every test a fresh news kill-switch latch.
+
+    The latch is enforced on the validator and gateway (Phase 3), and it
+    persists by design, so one test that trips it would otherwise block
+    entries for every later test in the same xdist worker.
+    """
+    import sys as _sys
+
+    path = str(tmp_path / "d9_kill_switch_latch.json")
+    monkeypatch.setenv("D9_LATCH_PATH", path)
+    yield
+    registry = getattr(_sys, "_d9_kill_switch_latch_registry", None)
+    if isinstance(registry, dict):
+        for token in [t for t in registry if t.endswith(path)]:
+            registry.pop(token, None)
+
+
+@pytest.fixture(autouse=True)
 def sandbox_ambient_runtime_state(tmp_path, monkeypatch):
     sandbox = tmp_path / "ambient_runtime_state"
     sandbox.mkdir(parents=True, exist_ok=True)
@@ -378,8 +401,8 @@ def sandbox_ambient_runtime_state(tmp_path, monkeypatch):
     def _sboxed(path) -> str:
         return os.path.join(str(sandbox), os.path.basename(str(path)))
 
-    import state_persistence as _sp
-    import trading_safety as _ts
+    import core.state_persistence as _sp
+    import core.trading_safety as _ts
     # Dual-import discovery: conftest puts both the repo root and each package
     # dir on sys.path, so 'trading_safety' and 'core.trading_safety' (etc.) can
     # be DISTINCT module objects with distinct classes. Discover every loaded

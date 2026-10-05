@@ -2,8 +2,8 @@ from types import SimpleNamespace
 
 from unittest.mock import MagicMock, patch
 
-from trade_manager import TradeManager
-from trading_safety import TradingStore
+from core.trade_manager import TradeManager
+from core.trading_safety import TradingStore
 
 
 def test_partial_management_writes_lifecycle_and_execution_evidence(tmp_path):
@@ -23,7 +23,7 @@ def test_partial_management_writes_lifecycle_and_execution_evidence(tmp_path):
         ORDER_TYPE_SELL=1,
         TRADE_ACTION_DEAL=1,
     )
-    with patch("trade_manager.mt5", fake_mt5):
+    with patch("core.trade_manager.mt5", fake_mt5):
         assert manager.execute_partial_close(321, 0.5, "take partial") is True
 
     con = store._connect()
@@ -59,7 +59,7 @@ def test_sl_modification_lifecycle_journaling(tmp_path):
         TRADE_ACTION_SLTP=3,
         POSITION_TYPE_BUY=0,
     )
-    with patch("trade_manager.mt5", fake_mt5):
+    with patch("core.trade_manager.mt5", fake_mt5):
         assert manager._modify_sl(101, 1.05, "Trailing") is True
 
     con = store._connect()
@@ -90,7 +90,7 @@ def test_partial_close_lifecycle_journaling(tmp_path):
         ORDER_TYPE_SELL=1,
         TRADE_ACTION_DEAL=1,
     )
-    with patch("trade_manager.mt5", fake_mt5):
+    with patch("core.trade_manager.mt5", fake_mt5):
         manager._execute_partial_close(position)
 
     con = store._connect()
@@ -137,7 +137,7 @@ def test_pyramid_lifecycle_journaling(tmp_path, monkeypatch):
         ORDER_TIME_GTC=0,
         ORDER_FILLING_IOC=1,
     )
-    with patch("trade_manager.mt5", fake_mt5):
+    with patch("core.trade_manager.mt5", fake_mt5):
         manager._execute_pyramid_order(position)
 
     assert fake_mt5.order_send.call_count == 0
@@ -174,7 +174,7 @@ def test_pyramid_blocked_when_arbiter_rejects(tmp_path, monkeypatch):
         order_send=MagicMock(),
         ORDER_TYPE_BUY=0,
     )
-    with patch("trade_manager.mt5", fake_mt5):
+    with patch("core.trade_manager.mt5", fake_mt5):
         manager._execute_pyramid_order(position)
     assert fake_mt5.order_send.call_count == 0
     con = store._connect()
@@ -205,7 +205,7 @@ def test_breakeven_and_trailing_stop_trigger_records(tmp_path):
         TRADE_ACTION_SLTP=3,
         POSITION_TYPE_BUY=0,
     )
-    with patch("trade_manager.mt5", fake_mt5):
+    with patch("core.trade_manager.mt5", fake_mt5):
         manager._manage_position(position, 1.3, 0.05)
 
     con = store._connect()
@@ -235,7 +235,7 @@ def test_trade_manager_state_persistence_roundtrip(tmp_path):
 
 
 def test_protective_flatten_closes_owned_positions(tmp_path):
-    from risk_manager import RiskManager
+    from core.risk_manager import RiskManager
 
     store = TradingStore(str(tmp_path / "state.db"))
     risk = RiskManager(balance=10000.0, max_daily_loss=0.03, state_file=str(tmp_path / "risk.json"))
@@ -268,7 +268,7 @@ def test_protective_flatten_closes_owned_positions(tmp_path):
         ORDER_TYPE_SELL=1,
         TRADE_ACTION_DEAL=1,
     )
-    with patch("trade_manager.mt5", fake_mt5), patch("risk_manager.mt5", fake_mt5):
+    with patch("core.trade_manager.mt5", fake_mt5), patch("core.risk_manager.mt5", fake_mt5):
         assert manager.enforce_protective_flatten() is True
     assert fake_mt5.order_send.call_count == 1
     assert risk.pending_flatten_reason() is None

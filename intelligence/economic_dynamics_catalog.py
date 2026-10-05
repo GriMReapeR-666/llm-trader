@@ -745,7 +745,7 @@ try:
     from data.alternative_data_registry import ALTERNATIVE_DATA_BINDINGS, NOWCAST_MODELING_PRINCIPLES
 except ImportError:
     try:
-        from alternative_data_registry import ALTERNATIVE_DATA_BINDINGS, NOWCAST_MODELING_PRINCIPLES
+        from data.alternative_data_registry import ALTERNATIVE_DATA_BINDINGS, NOWCAST_MODELING_PRINCIPLES
     except ImportError:
         ALTERNATIVE_DATA_BINDINGS = []  # type: ignore[assignment,no-redef]
         NOWCAST_MODELING_PRINCIPLES = ()  # type: ignore[assignment,no-redef]
@@ -1004,7 +1004,7 @@ TRADABLE_TARGET_TYPES = frozenset({
 def tradable_setup_gaps() -> List[Tuple[str, str]]:
     """Return (relation, target_type) pairs for tradable edges lacking setup maps."""
     try:
-        from causal_setup_map import resolve_causal_setup
+        from intelligence.causal_setup_map import resolve_causal_setup
     except ImportError:
         try:
             from intelligence.causal_setup_map import resolve_causal_setup

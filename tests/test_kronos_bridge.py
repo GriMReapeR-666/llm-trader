@@ -1,6 +1,6 @@
 """Unit tests for kronos_bridge.py."""
 import pytest
-from kronos_bridge import (
+from research.kronos_bridge import (
     BACKEND_HEURISTIC,
     BACKEND_NEURAL,
     CandleForecast,

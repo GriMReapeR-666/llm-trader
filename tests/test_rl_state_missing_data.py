@@ -1,4 +1,4 @@
-from rl_trainer import RLTrainer
+from research.rl_trainer import RLTrainer
 
 
 def test_rl_state_key_preserves_unknown_missing_features():

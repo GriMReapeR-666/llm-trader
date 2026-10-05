@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from data_quality import DataQualityGate
+from data.data_quality import DataQualityGate
 import math
 import pytest
 

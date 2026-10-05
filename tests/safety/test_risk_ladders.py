@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from risk_manager import RiskManager
+from core.risk_manager import RiskManager
 from tests.safety._clock import freeze
 
 NAN = float("nan")
@@ -28,7 +28,6 @@ def test_drawdown_multiplier_ladder(rm, equity, expected):
     assert rm.get_drawdown_multiplier(equity) == expected
 
 
-@pytest.mark.xfail(strict=True, reason="TS-P2: invalid equity sizes at 100 % instead of 0")
 @pytest.mark.parametrize("equity", [NAN, 0.0, -100.0], ids=["nan", "zero", "negative"])
 def test_drawdown_multiplier_fails_closed_on_invalid_equity(rm, equity):
     rm.peak_equity = 10_000.0
@@ -76,7 +75,6 @@ def test_daily_loss_breaker_boundary(rm, equity, ok):
     assert (rm.pending_flatten_reason() is None) is ok
 
 
-@pytest.mark.xfail(strict=True, reason="PLAN-1.3: daily breaker allows trading when its baseline or equity is invalid")
 @pytest.mark.parametrize("start,equity", [(0.0, 9_000.0), (-1.0, 9_000.0), (10_000.0, NAN)],
                          ids=["zero_baseline", "negative_baseline", "nan_equity"])
 def test_daily_loss_breaker_fails_closed_on_invalid_inputs(rm, start, equity):

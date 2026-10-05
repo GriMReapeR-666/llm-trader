@@ -13,7 +13,7 @@ for p in (str(ROOT), str(ROOT / "data"), str(ROOT / "intelligence"),
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from llm_router import LLMRouter  # noqa: E402
+from data.llm_router import LLMRouter  # noqa: E402
 
 # Exact outbox row (read-only)
 con = sqlite3.connect(f"file:{ROOT / 'trading_state.db'}?mode=ro", uri=True)

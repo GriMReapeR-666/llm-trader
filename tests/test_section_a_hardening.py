@@ -5,12 +5,12 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from security_audit import audit as run_security_audit
-from broker_preflight import has_contract_changed, fingerprint, validate_envelope
-from execution_policy import load as load_policy, candidate_template, validate as validate_policy
-from trade_manager import translate_retcode, TradeManager, RETCODE_MESSAGES
-from readiness_report import build as generate_readiness_report
-from trading_safety import TradingStore
+from operations.security_audit import audit as run_security_audit
+from core.broker_preflight import has_contract_changed, fingerprint, validate_envelope
+from core.execution_policy import load as load_policy, candidate_template, validate as validate_policy
+from core.trade_manager import translate_retcode, TradeManager, RETCODE_MESSAGES
+from operations.readiness_report import build as generate_readiness_report
+from core.trading_safety import TradingStore
 
 
 def test_security_audit_scans_all_providers_and_routesme_tokens(tmp_path):

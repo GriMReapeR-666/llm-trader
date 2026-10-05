@@ -13,11 +13,11 @@ from types import SimpleNamespace
 import pytest
 from hypothesis import given, settings, strategies as st, HealthCheck, assume, example
 
-import risk_manager
-from risk_manager import RiskManager
-from trading_safety import DeterministicValidator, TradeProposal, TradingStore, PortfolioRiskArbiter
-from order_execution import validate_order_params, validate_pending_entry_geometry
-from kill_switch_latch import KillSwitchLatch
+from core import risk_manager
+from core.risk_manager import RiskManager
+from core.trading_safety import DeterministicValidator, TradeProposal, TradingStore, PortfolioRiskArbiter
+from core.order_execution import validate_order_params, validate_pending_entry_geometry
+from data.kill_switch_latch import KillSwitchLatch
 
 SETTINGS = settings(max_examples=300, deadline=None, derandomize=True, database=None,
                     suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow])
@@ -78,7 +78,6 @@ def test_p1_position_risk_never_exceeds_one_r(equity, entry, stop_frac, tick_siz
 
 
 # ------------------------------------------------- P2 drawdown ladder (monotone, fail-closed)
-@pytest.mark.xfail(strict=True, reason="TS-P2: invalid equity sizes at 100 %")
 @SETTINGS
 @given(peak=st.floats(1, 1e7), equity=st.one_of(st.floats(-1e7, 1e7), st.just(math.nan), st.just(0.0)))
 def test_p2_drawdown_ladder_monotone_and_fail_closed(peak, equity, monkeypatch, tmp_path_factory):
@@ -112,7 +111,9 @@ def _market():
             "symbol_tradable": True, "spread": .0001, "max_spread": .001,
             "completed_candle": True, "breakout_event": False,
             "stop_distance": .01, "min_stop_distance": .0001,
-            "high_impact_news": False, "setup_cooldown_seconds": 0}
+            "high_impact_news": False, "setup_cooldown_seconds": 0,
+            "clock_ok": True, "session_allowed": True, "liquidity_ok": True,
+            "microstructure_ok": True, "required_data_ok": True}
 
 
 NAN = float("nan")
@@ -137,7 +138,6 @@ PERTURBATIONS = {
 }
 
 
-@pytest.mark.xfail(strict=True, reason="TS-P3: NaN changepoint probability is approved")
 @settings(max_examples=200, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(keys=st.lists(st.sampled_from(sorted(PERTURBATIONS)), min_size=1, max_size=3, unique=True))
 def test_p3_validator_rejects_any_failing_gate(keys, tmp_path_factory):
@@ -224,7 +224,6 @@ def test_p5b_pending_geometry_never_marketable(otype, entry, bid, spread):
     st.tuples(st.just("vix"), st.one_of(st.none(), st.just(NAN), st.floats(20, 80))),
     st.tuples(st.just("restart"), st.booleans()),
 ), max_size=12))
-@pytest.mark.xfail(strict=True, reason="TS-P6: corrupt latch checkpoint loads unlatched")
 def test_p6_latch_only_clears_on_explicit_calm(ops, tmp_path_factory):
     path = str(tmp_path_factory.mktemp("p6") / "latch.json")
     t = [1000.0]

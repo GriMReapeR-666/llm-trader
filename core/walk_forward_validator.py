@@ -67,7 +67,7 @@ import numpy as np
 try:
     from core.state_persistence import StoreBackedState
 except ImportError:
-    from state_persistence import StoreBackedState
+    from core.state_persistence import StoreBackedState
 
 logger = logging.getLogger("WalkForward")
 
@@ -622,7 +622,7 @@ class WalkForwardValidator(StoreBackedState):
         try:
             from core.math_utils import compute_sharpe
         except ImportError:
-            from math_utils import compute_sharpe
+            from core.math_utils import compute_sharpe
         ann = 252.0 if annualize else 1.0
         return compute_sharpe(returns.tolist() if hasattr(returns, 'tolist') else list(returns), ann)
     

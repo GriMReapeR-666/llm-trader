@@ -1,11 +1,11 @@
 import os
 import pytest
 
-from security_audit import audit as security_audit
-from journal_scope import ensure_scope
-from journal_backup import create_backup, create_encrypted_backup, verify_backup
-from trading_safety import TradingStore
-import incident_drills
+from operations.security_audit import audit as security_audit
+from operations.journal_scope import ensure_scope
+from operations.journal_backup import create_backup, create_encrypted_backup, verify_backup
+from core.trading_safety import TradingStore
+from operations import incident_drills
 
 
 def test_security_audit_preflight(tmp_path):

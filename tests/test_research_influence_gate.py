@@ -1,5 +1,5 @@
-from research_influence_gate import MIN_SAMPLE, evidence_fingerprint, status, approve, revoke
-from trading_safety import TradingStore
+from operations.research_influence_gate import MIN_SAMPLE, evidence_fingerprint, status, approve, revoke
+from core.trading_safety import TradingStore
 
 
 def test_research_influence_is_fail_closed_without_sample_or_approval(tmp_path):

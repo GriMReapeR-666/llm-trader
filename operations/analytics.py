@@ -143,7 +143,7 @@ def _curve_from_trades_table(db_path: str):
         # claim: only broker-evidenced tickets may feed it. Local import
         # because research_validation imports ``audit`` from journal_audit.
         try:
-            from research_validation import broker_reconciled_tickets
+            from research.research_validation import broker_reconciled_tickets
         except ImportError:
             from research.research_validation import broker_reconciled_tickets
         tickets = sorted(broker_reconciled_tickets(db_path))

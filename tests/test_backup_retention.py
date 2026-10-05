@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 
-from journal_backup import prune_backups
+from operations.journal_backup import prune_backups
 
 
 def test_backup_retention_is_dry_run_by_default_and_preserves_minimum(tmp_path):

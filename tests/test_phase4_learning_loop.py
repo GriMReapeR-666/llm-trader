@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from lag_delay_engine import SlippageCalibrator, SmithPredictorEngine
-from rl_action_bridge import (
+from intelligence.lag_delay_engine import SlippageCalibrator, SmithPredictorEngine
+from research.rl_action_bridge import (
     BridgedExecutionParams,
     bridge_rl_action,
     merge_bridge_into_decision,
 )
-from rl_trainer import RLTrainer
-from trading_safety import SCALP_MAGIC, SWING_MAGIC
+from research.rl_trainer import RLTrainer
+from core.trading_safety import SCALP_MAGIC, SWING_MAGIC
 
 
 def test_bridge_maps_buy_to_continuous_params():

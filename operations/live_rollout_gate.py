@@ -15,7 +15,7 @@ import hashlib
 import os
 from typing import Any, Dict, Iterable, Optional
 
-from trading_safety import TradingStore
+from core.trading_safety import TradingStore
 
 
 CONFIRMATION = "APPROVE_TINY_LIVE"

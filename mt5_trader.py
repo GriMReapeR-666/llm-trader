@@ -46,13 +46,10 @@ os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 
-# Ensure all subpackages are directly on sys.path for seamless imports
 _root_dir = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = _root_dir  # Alias for backward compatibility with RL training pipeline
-for _sub in ["core", "intelligence", "operations", "research", "data", "ui"]:
-    _p = os.path.join(_root_dir, _sub)
-    if os.path.isdir(_p) and _p not in sys.path:
-        sys.path.insert(0, _p)
+if _root_dir not in sys.path:
+    sys.path.insert(0, _root_dir)
 
 import time
 import json
@@ -64,120 +61,121 @@ from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime, timedelta, timezone # Added timezone for UTC support
 
 # IMPORT REFACTORED MODULES
-from risk_manager import RiskManager
-from trade_manager import TradeManager
-from rl_trainer import RLTrainer
-from trading_safety import (DeterministicValidator, PortfolioRiskArbiter,
-                            TradeProposal, TradingStore, ValidationResult,
+from core.risk_manager import RiskManager
+from core.trade_manager import TradeManager
+from research.rl_trainer import RLTrainer
+from core.trading_safety import (DeterministicValidator, PortfolioRiskArbiter,
+                            BOT_MAGICS, TradeProposal, TradingStore, ValidationResult,
                             safe_risk_fraction, exposure_buckets)
-from trading_memory import TradingMemory
-from journal_audit import audit as audit_journal, baseline_metrics, qualified_metrics, write_report, write_audit_export
-from journal_migration import migrate as migrate_legacy_journal
-from agent_operations import AgentOperations
-from local_llm_memory import process_outbox as process_local_memory_outbox
+from intelligence.trading_memory import TradingMemory
+from operations.journal_audit import audit as audit_journal, baseline_metrics, qualified_metrics, write_report, write_audit_export
+from operations.journal_migration import migrate as migrate_legacy_journal
+from operations.agent_operations import AgentOperations
+from intelligence.local_llm_memory import process_outbox as process_local_memory_outbox
 try:
-    from research_validation import (promotion_gate as research_promotion_gate,
+    from research.research_validation import (promotion_gate as research_promotion_gate,
                                      labelled_dataset, broker_reconciled_tickets)
 except ImportError:
     from research.research_validation import (promotion_gate as research_promotion_gate,
                                               labelled_dataset, broker_reconciled_tickets)
-from promotion_package import write as write_promotion_package, verify as verify_promotion_package
-from baseline_research import baseline_report
-from adaptive_research_service import AdaptiveResearchService
-from data_quality import DataQualityGate
-from provider_circuit import ProviderCircuitBreaker
+from research.promotion_package import write as write_promotion_package, verify as verify_promotion_package
+from research.baseline_research import baseline_report
+from research.adaptive_research_service import AdaptiveResearchService
+from data.data_quality import DataQualityGate
+from data.provider_circuit import ProviderCircuitBreaker
 try:
-    from setup_registry import classify as classify_setup
+    from research.setup_registry import classify as classify_setup
 except ImportError:
     from research.setup_registry import classify as classify_setup
-from broker_preflight import persist_preflight, validate_envelope
-from execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
-from feature_builder import build_snapshot as build_feature_snapshot
+from core.broker_preflight import persist_preflight, validate_envelope
+from core.order_gateway import get_default_gateway, configure_default_gateway
+from core.execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
+from intelligence.feature_builder import build_snapshot as build_feature_snapshot
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     from intelligence.macro_graph import MacroGraph
-from lag_delay_engine import (
+from intelligence.lag_delay_engine import (
     TimestampedEvent, HeartbeatTracker, ConfidenceDecayEngine, SmithPredictorEngine,
     SlippageCalibrator, utcnow_iso,
 )
-from rl_action_bridge import bridge_rl_action, merge_bridge_into_decision
-from autonomous_causal_engine import AutonomousCausalValidator, CausalChainSetupAnalyzer
-from account_growth import AccountGrowthController
-from strategy_accuracy import build_strategy_accuracy_scorecard
-from research_sprint_planner import plan_and_persist as plan_research_sprints
-from opportunity_bus import (
+from research.rl_action_bridge import bridge_rl_action, merge_bridge_into_decision
+from intelligence.autonomous_causal_engine import AutonomousCausalValidator, CausalChainSetupAnalyzer
+from operations.account_growth import AccountGrowthController
+from research.strategy_accuracy import build_strategy_accuracy_scorecard
+from research.research_sprint_planner import plan_and_persist as plan_research_sprints
+from intelligence.opportunity_bus import (
     publish as publish_opportunities,
     publish_from_scan,
     publish_from_stat_pass_edges,
     opportunity_from_features,
     bus_snapshot,
 )
-from opportunity_fusion import score_opportunity, fusion_block_reasons
-from cycle_brief import build as build_cycle_brief, persist as persist_cycle_brief
-from causal_propagate import propagate as propagate_causal_paths
-from macro_state_vector import build_macro_state_vector
-from data_source_pipeline import (
+from intelligence.opportunity_fusion import score_opportunity, fusion_block_reasons
+from intelligence.cycle_brief import build as build_cycle_brief, persist as persist_cycle_brief
+from intelligence.causal_propagate import propagate as propagate_causal_paths
+from intelligence.macro_state_vector import build_macro_state_vector
+from data.data_source_pipeline import (
     catalog_fred_series,
     process_cycle_data_sources,
 )
-from realtime_news_ingest import run as run_realtime_news_ingest
-from profitability_foundation import report as profitability_report
-from agent_scheduler import bootstrap as bootstrap_schedules
-from dual_velocity import DualVelocityExecutor
-from market_filters import evaluate as evaluate_market_conditions, session_name
-from market_microstructure import MicrostructureMonitor
-from event_policy import evaluate as evaluate_event_policy, symbol_currencies
-from correlation_risk import CorrelationRisk
-from intermarket_regime import (
+from data.realtime_news_ingest import run as run_realtime_news_ingest
+from research.profitability_foundation import report as profitability_report
+from operations.agent_scheduler import bootstrap as bootstrap_schedules
+from operations.dual_velocity import DualVelocityExecutor
+from intelligence.market_filters import evaluate as evaluate_market_conditions, session_name
+from intelligence.market_microstructure import MicrostructureMonitor
+from operations.event_policy import evaluate as evaluate_event_policy, symbol_currencies
+from intelligence.correlation_risk import CorrelationRisk
+from intelligence.intermarket_regime import (
     build_intermarket_regime_snapshot,
     filter_edges_for_live_regime,
 )
-from margin_safety import MarginSafetyGate
-from daily_reconciliation import compare_day as compare_broker_day
-from data_requirements import evaluate as evaluate_data_requirements
-from cost_estimator import assess_costs
-from feature_schema import validate_snapshot as validate_feature_schema
-from model_registry import list_models, register as register_model, review as review_model, drift_report as model_drift_report, activation_status as model_activation_status
-from research_stress import stress_report
-from contextual_bandit import bandit_report
-from semantic_memory import search as semantic_memory_search
-from health_alerts import evaluate as evaluate_health_alerts
-from alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, acknowledge as acknowledge_alert, recover_expired as recover_alerts, status as alert_outbox_status
-from alert_delivery import deliver_pending as deliver_alerts, resolve_webhook_url
-import strategy_lifecycle as lifecycle
-from strategy_evaluation import evaluate as evaluate_strategy_lifecycle
+from core.margin_safety import MarginSafetyGate
+from operations.daily_reconciliation import compare_day as compare_broker_day
+from data.data_requirements import evaluate as evaluate_data_requirements
+from intelligence.cost_estimator import assess_costs
+from intelligence.feature_schema import validate_snapshot as validate_feature_schema
+from research.model_registry import list_models, register as register_model, review as review_model, drift_report as model_drift_report, activation_status as model_activation_status
+from research.research_stress import stress_report
+from research.contextual_bandit import bandit_report
+from intelligence.semantic_memory import search as semantic_memory_search
+from operations.health_alerts import evaluate as evaluate_health_alerts
+from operations.alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, acknowledge as acknowledge_alert, recover_expired as recover_alerts, status as alert_outbox_status
+from operations.alert_delivery import deliver_pending as deliver_alerts, resolve_webhook_url
+from operations import strategy_lifecycle as lifecycle
+from operations.strategy_evaluation import evaluate as evaluate_strategy_lifecycle
 try:
-    from setup_registry import SETUPS as REGISTERED_SETUPS
+    from research.setup_registry import SETUPS as REGISTERED_SETUPS
 except ImportError:
     from research.setup_registry import SETUPS as REGISTERED_SETUPS
-from llm_orchestrator import (
+from intelligence.llm_orchestrator import (
     setup_registry_fingerprint as registered_setup_fingerprint,
     SIGNAL_SYSTEM_PROMPT_TEMPLATE,
 )
-from legacy_reconciliation import report as legacy_reconciliation_report, quarantine as quarantine_legacy_record
-from journal_backup import (
+from operations.legacy_reconciliation import report as legacy_reconciliation_report, quarantine as quarantine_legacy_record
+from operations.journal_backup import (
     create_backup, verify_backup, restore_backup,
     create_encrypted_backup, verify_encrypted_backup, restore_encrypted_backup,
     prune_backups,
 )
-from restart_recovery import smoke as restart_recovery_smoke
-from journal_scope import status as journal_scope_status, ensure_scope
-from historical_regimes import research_status as historical_research_status
-from macro_extraction import status as macro_extraction_status
-from model_family_gate import evaluation_plan as model_family_evaluation_plan
-from execution_policy import load as load_execution_policy, candidate_for_store as execution_policy_candidate, approve_for_store as approve_execution_policy
-from forward_test_report import compare as compare_forward_test
-from security_audit import audit as security_audit
-from supervised_training import train as train_supervised_baseline
-from research_runs import record as record_validation_run, list_runs as list_validation_runs
-from live_rollout_gate import status as live_rollout_status, approve as approve_live_rollout, revoke as revoke_live_rollout, require as require_live_rollout, verify_evidence as verify_live_evidence
-from sample_gate import report as sample_gate_report
-from mt5_auth_diagnostics import report as mt5_auth_report
-from readiness_report import build as readiness_report
-from incident_drills import run as run_incident_drills
-from research_influence_gate import allows as research_influence_allows, status as research_influence_status, approve as approve_research_influence, revoke as revoke_research_influence, evidence_fingerprint as research_evidence_fingerprint
-from dashboard_report import build as dashboard_report
+from operations.restart_recovery import smoke as restart_recovery_smoke
+from operations.journal_scope import status as journal_scope_status, ensure_scope
+from research.historical_regimes import research_status as historical_research_status
+from intelligence.macro_extraction import status as macro_extraction_status
+from research.model_family_gate import evaluation_plan as model_family_evaluation_plan
+from core.execution_policy import load as load_execution_policy, candidate_for_store as execution_policy_candidate, approve_for_store as approve_execution_policy
+from research.forward_test_report import compare as compare_forward_test
+from operations.security_audit import audit as security_audit
+from research.supervised_training import train as train_supervised_baseline
+from research.research_runs import record as record_validation_run, list_runs as list_validation_runs
+from operations.live_rollout_gate import status as live_rollout_status, approve as approve_live_rollout, revoke as revoke_live_rollout, require as require_live_rollout, verify_evidence as verify_live_evidence
+from research.sample_gate import report as sample_gate_report
+from operations.mt5_auth_diagnostics import report as mt5_auth_report
+from operations.readiness_report import build as readiness_report
+from operations.incident_drills import run as run_incident_drills
+from operations.research_influence_gate import allows as research_influence_allows, status as research_influence_status, approve as approve_research_influence, revoke as revoke_research_influence, evidence_fingerprint as research_evidence_fingerprint
+from ui.dashboard_report import build as dashboard_report
 from operations.metrics_persistence import MetricsStore
 from operations.alert_rules import AlertRulesEngine
 from operations.degradation_detector import DegradationDetector
@@ -223,7 +221,7 @@ except ImportError:
     DEMO_ORCH_AVAILABLE = False
 
 try:
-    from llm_router import LLMRouter, get_router, reset_router
+    from data.llm_router import LLMRouter, get_router, reset_router
     LLM_ROUTER_AVAILABLE = True
 except ImportError:
     LLM_ROUTER_AVAILABLE = False
@@ -321,7 +319,7 @@ except ImportError:
 
 # Custom module imports
 try:
-    from api_manager import APIManager
+    from data.api_manager import APIManager
     API_MANAGER_AVAILABLE = True
 except ImportError:
     API_MANAGER_AVAILABLE = False
@@ -337,14 +335,14 @@ DISPLAY_AVAILABLE = False
 TradingDisplay = None
 
 try:
-    from model_selector import ModelSelector
+    from research.model_selector import ModelSelector
     MODEL_SELECTOR_AVAILABLE = True
 except ImportError:
     MODEL_SELECTOR_AVAILABLE = False
     ModelSelector = None
 
 try:
-    from web_dashboard_adapter import dashboard
+    from ui.web_dashboard_adapter import dashboard
     TUI_AVAILABLE = True
 except ImportError:
     TUI_AVAILABLE = False
@@ -354,7 +352,7 @@ except ImportError:
 TRADE_MANAGER_AVAILABLE = True
 
 try:
-    from scanner import MarketScanner
+    from ui.scanner import MarketScanner
 except ImportError:
     MarketScanner = None
 
@@ -447,20 +445,20 @@ def setup_logging(level: str = "INFO", debug_modules: bool = False) -> None:
 
 
 # REFACTORED CORE MODULES RE-EXPORTED FOR BACKWARD COMPATIBILITY
-from technical_indicators import (
+from core.technical_indicators import (
     ema, rsi, macd, atr, wma, hma, adx, compute_indicators,
 )
-from order_execution import (
+from core.order_execution import (
     PaperBroker, _symbol_tick, _broker_market_filling_mode,
     validate_order_params, validate_pending_entry_geometry,
     place_market_order, emergency_market_exit, place_pending_order,
     modify_order_sltp, cancel_pending_order,
 )
-from market_data_provider import (
+from data.market_data_provider import (
     TIMEFRAME_MAP, tf_const, fetch_ohlc, collect_calendar_event_rows,
     DOMCollector, PerformanceMonitor, MarketDataProvider,
 )
-from llm_orchestrator import (
+from intelligence.llm_orchestrator import (
     LLMOrchestrator,
 )
 
@@ -506,7 +504,7 @@ class AccountManager:
     def add_secure_account(name: str, login: int, password: str, server: str, acc_type: str) -> None:
         """Register account with password stored in OS keyring / encrypted file (never plaintext in JSON)."""
         try:
-            from secure_store import store_password
+            from core.secure_store import store_password
         except ImportError:
             from core.secure_store import store_password  # type: ignore
         store_key = store_password(str(login), server, password)
@@ -573,7 +571,7 @@ class AccountManager:
         if store_key:
             try:
                 try:
-                    from secure_store import retrieve_password
+                    from core.secure_store import retrieve_password
                 except ImportError:
                     from core.secure_store import retrieve_password  # type: ignore
                 pw = retrieve_password(store_key)
@@ -584,7 +582,7 @@ class AccountManager:
             # also try derived key if store_key is placeholder
             try:
                 try:
-                    from secure_store import retrieve_password as rp2
+                    from core.secure_store import retrieve_password as rp2
                 except ImportError:
                     from core.secure_store import retrieve_password as rp2  # type: ignore
                 pw2 = rp2(None, login=item.get("login"), server=item.get("server"))
@@ -599,7 +597,7 @@ class AccountManager:
             # secure marker: try to fetch by login/server even if key missing
             try:
                 try:
-                    from secure_store import retrieve_password
+                    from core.secure_store import retrieve_password
                 except ImportError:
                     from core.secure_store import retrieve_password  # type: ignore
                 pw = retrieve_password(None, login=item.get("login"), server=item.get("server"))
@@ -1307,11 +1305,14 @@ def _stop_file_path() -> str:
     """Path of the external stop flag.
 
     Override with MT5_TRADER_STOP_FILE (absolute, or relative to BASE_DIR).
-    Default: <repo>/trader_stop.flag
+    Default: <repo>/stop.flag (or fallback trader_stop.flag)
     """
     override = os.environ.get("MT5_TRADER_STOP_FILE", "").strip()
     if override:
         return override if os.path.isabs(override) else os.path.join(BASE_DIR, override)
+    candidate = os.path.join(BASE_DIR, "stop.flag")
+    if os.path.exists(candidate):
+        return candidate
     return os.path.join(BASE_DIR, "trader_stop.flag")
 
 
@@ -1352,6 +1353,142 @@ def _acknowledge_stop_file() -> str:
             "Stop flag %s could not be retired (%s); it will re-trigger on restart",
             path, exc)
     return reason
+
+
+def _resolve_drain_broker_client(orch: Any) -> Any:
+    """Return orch.client only if it is a listable broker module (B2).
+
+    The orchestrator's `client` is usually a connection wrapper (MT5Client)
+    with no positions_get/orders_get. Passing it to the gateway used to
+    produce empty snapshots and a false APPLIED. Unlistable clients are
+    dropped so the gateway falls back to its bound live client; when even
+    that cannot list, the control is marked FAILED.
+    """
+    candidate = getattr(orch, "client", None)
+    if (
+        candidate is not None
+        and hasattr(candidate, "positions_get")
+        and hasattr(candidate, "orders_get")
+    ):
+        return candidate
+    return None
+
+
+def _drain_operator_controls(orch: Any) -> None:
+    """Drain and execute pending operator controls from the journal.
+
+    Drains once per pulse and inside sleep loops so emergency flatten and
+    kill switch actions are acknowledged and applied within ~1s.
+    """
+    if orch is None:
+        return
+    store = getattr(orch, "store", None)
+    if store is None or not hasattr(store, "claim_pending_operator_controls"):
+        return
+    try:
+        pending = store.claim_pending_operator_controls()
+    except Exception as exc:
+        logging.getLogger("main").warning("Failed to claim pending operator controls: %s", exc)
+        return
+
+    for ctrl in pending:
+        cid = ctrl.get("id")
+        action = str(ctrl.get("action", "")).lower().strip()
+        actor = str(ctrl.get("actor", "operator"))
+        try:
+            if action == "flatten":
+                if hasattr(store, "set_kill_switch"):
+                    store.set_kill_switch(True, f"operator:{actor}")
+                gw = getattr(orch, "order_gateway", None)
+                if gw is None:
+                    from core.order_gateway import get_default_gateway
+                    gw = get_default_gateway()
+                owned_magics = getattr(orch, "owned_magics", None) or set(BOT_MAGICS)
+                mt5_client = _resolve_drain_broker_client(orch)
+                outcome = gw.execute_flatten(owned_magics=owned_magics, mt5_client=mt5_client)
+                outcome_dict = outcome.to_dict() if hasattr(outcome, "to_dict") else {
+                    "closed": getattr(outcome, "closed", len(outcome)),
+                    "cancelled": getattr(outcome, "cancelled", 0),
+                    "failed": getattr(outcome, "failed", 0),
+                    "remaining": getattr(outcome, "remaining", 0),
+                    "sweeps": getattr(outcome, "sweeps", 1),
+                }
+                # B2: APPLIED only when the broker was listed and nothing
+                # owned remains. Anything else is FAILED with the counts.
+                final_status = "APPLIED" if getattr(outcome, "applied", outcome_dict.get("remaining") == 0 and not outcome_dict.get("listing_error")) else "FAILED"
+                store.complete_operator_control(cid, final_status, outcome_dict)
+                logging.getLogger("main").warning(
+                    "FLATTEN %s by operator:%s: closed=%s cancelled=%s failed=%s remaining=%s sweeps=%s",
+                    final_status, actor, outcome_dict.get("closed"), outcome_dict.get("cancelled"),
+                    outcome_dict.get("failed"), outcome_dict.get("remaining"), outcome_dict.get("sweeps")
+                )
+
+            elif action == "killswitch":
+                if hasattr(store, "set_kill_switch"):
+                    store.set_kill_switch(True, f"operator:{actor}")
+                gw = getattr(orch, "order_gateway", None)
+                if gw is None:
+                    from core.order_gateway import get_default_gateway
+                    gw = get_default_gateway()
+                owned_magics = getattr(orch, "owned_magics", None) or set(BOT_MAGICS)
+                mt5_client = _resolve_drain_broker_client(orch)
+                try:
+                    cancelled_results = gw.cancel_all_owned_pending(owned_magics=owned_magics, mt5_client=mt5_client)
+                except Exception as cancel_exc:
+                    # B2: unlistable broker (BrokerUnlistableError) or any
+                    # cancel failure fails the control loudly.
+                    store.complete_operator_control(cid, "FAILED", {"error": str(cancel_exc), "kill_switch": True})
+                    logging.getLogger("main").warning(
+                        "KILLSWITCH FAILED by operator:%s: %s", actor, cancel_exc
+                    )
+                    continue
+                cancelled_count = sum(1 for r in cancelled_results if getattr(r, "success", False))
+                failed_count = sum(1 for r in cancelled_results if not getattr(r, "success", False))
+                # Verify against the broker: owned pending must actually be gone.
+                remaining, remaining_error = gw.count_owned_pending(mt5_client, owned_magics)
+                if remaining_error is not None:
+                    store.complete_operator_control(cid, "FAILED", {"cancelled": cancelled_count, "kill_switch": True, "error": remaining_error})
+                    logging.getLogger("main").warning(
+                        "KILLSWITCH FAILED by operator:%s: %s", actor, remaining_error
+                    )
+                elif remaining > 0 or failed_count > 0:
+                    store.complete_operator_control(cid, "FAILED", {"cancelled": cancelled_count, "failed": failed_count, "remaining": remaining, "kill_switch": True})
+                    logging.getLogger("main").warning(
+                        "KILLSWITCH FAILED by operator:%s: cancelled %d, failed %d, remaining %d", actor, cancelled_count, failed_count, remaining
+                    )
+                else:
+                    store.complete_operator_control(cid, "APPLIED", {"cancelled": cancelled_count, "kill_switch": True})
+                    logging.getLogger("main").warning(
+                        "KILLSWITCH applied by operator:%s: cancelled %d pending orders", actor, cancelled_count
+                    )
+
+            elif action == "killswitch_off":
+                if hasattr(store, "set_kill_switch"):
+                    store.set_kill_switch(False, f"operator:{actor}")
+                store.complete_operator_control(cid, "APPLIED", {"kill_switch": False})
+                logging.getLogger("main").info("KILLSWITCH_OFF applied by operator:%s", actor)
+
+            elif action == "pause":
+                if hasattr(store, "set_autonomy_paused"):
+                    store.set_autonomy_paused(True, actor=actor, reason=f"operator:{actor}")
+                store.complete_operator_control(cid, "APPLIED", {"paused": True})
+                logging.getLogger("main").info("PAUSE applied by operator:%s", actor)
+
+            elif action == "resume":
+                if hasattr(store, "set_autonomy_paused"):
+                    store.set_autonomy_paused(False, actor=actor)
+                store.complete_operator_control(cid, "APPLIED", {"paused": False})
+                logging.getLogger("main").info("RESUME applied by operator:%s", actor)
+
+            else:
+                store.complete_operator_control(cid, "FAILED", {"error": f"unrecognized action: {action}"})
+
+        except Exception as exc:
+            logging.getLogger("main").exception("Error applying operator control %s (%s): %s", cid, action, exc)
+            try:
+                store.complete_operator_control(cid, "FAILED", {"error": str(exc)})
+            except Exception:
+                pass
 
 
 def main() -> None:
@@ -1400,7 +1537,7 @@ def main() -> None:
                         # Settings live in the OpenTUI deck (SYSTEM CONFIG screen)
                         print(" Settings are managed from the OpenTUI deck (SYSTEM CONFIG screen): python mt5_trader.py deck")
                         # after settings, re-enter classic menu
-                        from interactive_menu import InteractiveMenu as _IM2
+                        from ui.interactive_menu import InteractiveMenu as _IM2
                         menu2 = _IM2()
                         config2 = menu2.run()
                         if config2:
@@ -1430,7 +1567,7 @@ def main() -> None:
         except Exception as exc:
             logging.getLogger("mt5_trader").debug("metrics export failed: %s", exc)
         try:
-            from interactive_menu import InteractiveMenu
+            from ui.interactive_menu import InteractiveMenu
             menu = InteractiveMenu()
             config = menu.run()
             if config:
@@ -1667,6 +1804,20 @@ def main() -> None:
     parser_kill.add_argument("action", choices=["status", "enable", "disable"])
     parser_kill.add_argument("--reason", default="manual operator action")
     parser_kill.add_argument("--journal-path", default="trading_state.db")
+
+    parser_latch = sub.add_parser("latch", help="View or clear the D9 news kill-switch latch")
+    parser_latch.add_argument("--status", action="store_true", help="Display latch status")
+    parser_latch.add_argument("--clear", action="store_true", help="Operator clear the latch")
+    parser_latch.add_argument("--reason", default="", help="Reason for clearing the latch")
+    parser_latch.add_argument("--confirm", default="", help="Type CLEAR_LATCH to confirm clear")
+    parser_latch.add_argument("--actor", default="operator", help="Actor recording the clear")
+    parser_latch.add_argument("--journal-path", default="trading_state.db")
+
+    parser_flatten = sub.add_parser("flatten", help="Offline flatten owned positions and cancel owned pending orders")
+    parser_flatten.add_argument("--owned", action="store_true", help="Flatten owned positions and orders only (default: owned-only; manual positions are never touched)")
+    parser_flatten.add_argument("--confirm", required=True, help="Typed confirmation: must be exactly FLATTEN")
+    parser_flatten.add_argument("--journal-path", default="trading_state.db")
+    parser_flatten.add_argument("--paper", action="store_true", help="Flatten paper broker positions")
 
     parser_provider_circuit = sub.add_parser("provider-circuit", help="Inspect or manually reset the persistent LLM provider circuit")
     parser_provider_circuit.add_argument("action", choices=["status", "reset"])
@@ -2046,7 +2197,7 @@ def main() -> None:
                 print(f" Testing MCP login for {cfg2.login}@{cfg2.server} (secure_store backend: ", end="")
                 try:
                     try:
-                        from secure_store import has_store
+                        from core.secure_store import has_store
                     except ImportError:
                         from core.secure_store import has_store
                     print(has_store() + ")")
@@ -2076,7 +2227,7 @@ def main() -> None:
             if sk:
                 try:
                     try:
-                        from secure_store import delete_password
+                        from core.secure_store import delete_password
                     except ImportError:
                         from core.secure_store import delete_password
                     delete_password(sk)
@@ -2134,6 +2285,63 @@ def main() -> None:
             store.set_kill_switch(args.action == "enable", args.reason)
             print(f"Kill switch {'ENABLED' if args.action == 'enable' else 'DISABLED'}.")
         return
+
+    if args.cmd == "latch":
+        from data.kill_switch_latch import get_kill_switch_latch
+        store = TradingStore(args.journal_path)
+        latch = get_kill_switch_latch()
+        latch.attach_store(store)
+        if args.clear:
+            if args.confirm != "CLEAR_LATCH":
+                print("Error: Confirmation required. Pass --confirm CLEAR_LATCH")
+                return
+            if not args.reason.strip():
+                print("Error: Reason required. Pass --reason <reason>")
+                return
+            snap = latch.clear(reason=args.reason.strip(), actor=args.actor)
+            print(f"Latch CLEARED by {args.actor}. Snapshot:\n{json.dumps(snap, indent=2)}")
+            return
+        # Default or --status
+        print(json.dumps(latch.snapshot(), indent=2))
+        return
+
+    if args.cmd == "flatten":
+        # NOTE: TradingStore / gateway helpers are module-level; never add a
+        # local import here — it would shadow the module names for the whole
+        # of main() (UnboundLocalError on earlier uses).
+        # H6: typed confirmation (exactly FLATTEN, like deck/API).
+        if args.confirm != "FLATTEN":
+            print("Error: Confirmation required. Pass --confirm FLATTEN (typed confirmation).")
+            return
+        # H6: never race a running engine — take the engine lock first.
+        from core.file_lock import FileLock as _FlattenFileLock
+        _flatten_lock_path = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.lock")
+        _flatten_lock = _FlattenFileLock(_flatten_lock_path)
+        if not _flatten_lock.acquire(non_blocking=True):
+            print("Error: engine is running (engine.lock held). Use the API / deck flatten instead of the offline command.")
+            return
+        try:
+            store = TradingStore(args.journal_path)
+            gw_mode = "PAPER" if getattr(args, "paper", False) else "LIVE"
+            configure_default_gateway(store, mode=gw_mode)
+            gw = get_default_gateway()
+            # H6: bind the real broker module when present so live reads see
+            # the account (otherwise the gateway fails loudly with
+            # listing_error instead of reporting an empty APPLIED).
+            try:
+                gw.bind_live_client(sys.modules.get("MetaTrader5"))
+            except Exception:
+                pass
+            store.set_kill_switch(True, f"offline_flatten:{args.confirm}")
+            # H6: owned-only always — manual positions are never touched.
+            outcome = gw.execute_flatten(owned_magics=set(BOT_MAGICS))
+            print(json.dumps(outcome.to_dict(), indent=2))
+            return
+        finally:
+            try:
+                _flatten_lock.release()
+            except Exception:
+                pass
 
     if args.cmd == "provider-circuit":
         circuit = ProviderCircuitBreaker(TradingStore(args.journal_path))
@@ -2215,11 +2423,11 @@ def main() -> None:
             print(json.dumps(migrate_legacy_journal(args.source), indent=2))
             return
         if args.action == "migrate-states":
-            from state_persistence import migrate_json_states_to_store
+            from core.state_persistence import migrate_json_states_to_store
             print(json.dumps(migrate_json_states_to_store(args.journal_path, os.getcwd()), indent=2))
             return
         if args.action == "states-status":
-            from state_persistence import state_migration_status
+            from core.state_persistence import state_migration_status
             print(json.dumps(state_migration_status(args.journal_path, os.getcwd()), indent=2))
             return
         if args.action == "audit-export":
@@ -2318,11 +2526,11 @@ def main() -> None:
             }, indent=2))
             return
         if args.action == "lifecycle-audit":
-            from strategy_lifecycle import audit_history
+            from operations.strategy_lifecycle import audit_history
             print(json.dumps(audit_history(args.journal_path), indent=2))
             return
         if args.action == "lifecycle-board":
-            from strategy_lifecycle import status_board
+            from operations.strategy_lifecycle import status_board
             print(json.dumps(status_board(args.journal_path), indent=2, default=str))
             return
         if args.action == "promotion-package":
@@ -2779,7 +2987,7 @@ def main() -> None:
     # Operations not requiring MT5
 
     if args.cmd == "doctor":
-        from system_doctor import run as run_doctor
+        from operations.system_doctor import run as run_doctor
         report = run_doctor()
         if getattr(args, "json", False):
             print(json.dumps(report, indent=2, default=str))
@@ -2832,7 +3040,7 @@ def main() -> None:
         return
 
     if args.cmd == "demo-samples":
-        from demo_sample_generator import inject_samples
+        from research.demo_sample_generator import inject_samples
         result = inject_samples(path=args.path, count=args.count)
         print(json.dumps(result, indent=2, default=str))
         return
@@ -2895,7 +3103,7 @@ def main() -> None:
         return
 
     if args.cmd == "scrub-history":
-        from security_scrub import scrub_history
+        from operations.security_scrub import scrub_history
         ok, msg = scrub_history(Path(args.path).resolve(), dry_run=not args.apply)
         print(msg)
         if not ok and not args.apply:
@@ -3396,7 +3604,7 @@ def execute_skill(**kwargs):
             return
 
         if args.cmd == "diagnose":
-            from system_doctor import run as run_system_doctor
+            from operations.system_doctor import run as run_system_doctor
             print(json.dumps(run_system_doctor(), indent=2))
             return
 
@@ -3734,8 +3942,18 @@ def execute_skill(**kwargs):
 
     # LLM Trading Orchestrator
     if args.cmd == "llm-trade":
-        # Single-instance lifecycle: publish PID so the API/deck can guard
-        # against double-spawn and offer a real stop. Best-effort only.
+        # Single-instance engine lock (CC-F9, PR 3.4):
+        from core.file_lock import FileLock
+        _lock_path = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.lock")
+        global _engine_file_lock
+        _engine_file_lock = FileLock(_lock_path)
+        if not _engine_file_lock.acquire(non_blocking=True):
+            _holder_pid = _engine_file_lock.read_pid()
+            print(f"[lifecycle] engine.lock held by another process (pid {_holder_pid or 'unknown'}); exiting with rc 3.")
+            sys.exit(3)
+        _engine_file_lock.write_pid(os.getpid())
+
+        # Single-instance lifecycle: publish PID so the API/deck can display it.
         _pid_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.pid")
         try:
             import atexit as _atexit
@@ -3746,6 +3964,11 @@ def execute_skill(**kwargs):
                 try:
                     os.remove(_pid_path)
                 except OSError:
+                    pass
+                try:
+                    if _engine_file_lock:
+                        _engine_file_lock.release()
+                except Exception:
                     pass
 
             _atexit.register(_cleanup_pid)
@@ -3927,7 +4150,7 @@ def execute_skill(**kwargs):
         try:
             from core.harness.kernel import TradingContext
             from core.harness.quant_models_plugins import mount_profile
-            from state_persistence import migrate_json_states_to_store
+            from core.state_persistence import migrate_json_states_to_store
             # Auto-migrate JSON state files into the store on first boot
             try:
                 _migration = migrate_json_states_to_store("trading_state.db", os.getcwd())
@@ -4016,7 +4239,7 @@ def execute_skill(**kwargs):
                 "Profile mount failed (%s); creating minimal inline services", e
             )
             try:
-                from state_persistence import migrate_json_states_to_store
+                from core.state_persistence import migrate_json_states_to_store
                 _trading_store = TradingStore("trading_state.db")
                 migrate_json_states_to_store("trading_state.db", os.getcwd())
             except Exception:
@@ -4106,6 +4329,20 @@ def execute_skill(**kwargs):
                 orch = None
         if orch is None:
             orch = LLMOrchestrator(**orch_kwargs)
+        # H4: fail rows a dead engine left ACKNOWLEDGED. They were claimed
+        # but never applied; re-running them blindly could double-apply, so
+        # the operator re-issues deliberately.
+        try:
+            _boot_store = getattr(orch, "store", None)
+            if _boot_store is not None and hasattr(_boot_store, "recover_stale_controls"):
+                _recovered = _boot_store.recover_stale_controls()
+                if _recovered:
+                    logging.getLogger("main").warning(
+                        "Recovered %d stale ACKNOWLEDGED control(s) as FAILED (previous engine died mid-apply)",
+                        _recovered,
+                    )
+        except Exception as _rec_exc:
+            logging.getLogger("main").debug("Stale control recovery skipped: %s", _rec_exc)
         # Wire TradeManager & QuantWorkflowEngine from harness context to orchestrator
         if harness_ctx is not None:
             orch.harness_ctx = harness_ctx
@@ -4430,7 +4667,29 @@ def execute_skill(**kwargs):
 
         try:
             cycle_count = 0
+            # --- DEDICATED CONTROL THREAD (H4) ---
+            # Drains operator controls every second, independent of strategy
+            # cycles: the main thread can be blocked inside execute_cycle for
+            # 70-180 s, and a flatten requested mid-cycle must not wait for it
+            # (nor be dropped by the expiry). Gateway calls are lock-safe.
+            _control_stop = threading.Event()
+
+            def _control_thread_loop() -> None:
+                while not _control_stop.is_set():
+                    try:
+                        _drain_operator_controls(orch)
+                    except Exception as _ctl_exc:
+                        logging.getLogger("main").debug("Control thread drain failed: %s", _ctl_exc)
+                    _control_stop.wait(1.0)
+
+            _control_thread = threading.Thread(
+                target=_control_thread_loop, name="operator-controls", daemon=True,
+            )
+            _control_thread.start()
             while args.continuous or cycle_count < args.loops:
+
+                # --- DRAIN OPERATOR CONTROLS (PR 3.3) ---
+                _drain_operator_controls(orch)
 
                 # --- EXTERNAL STOP FLAG (PU-0161 follow-up 4) ---
                 # Checked FIRST, before any work in the iteration: an external
@@ -4440,11 +4699,12 @@ def execute_skill(**kwargs):
                 # (Guardian stop, supervisor shutdown, orchestrator shutdown,
                 # durable run close, CrashRecovery shutdown snapshot) — the
                 # graceful stop that a hard CTRL_BREAK terminate cannot give.
-                if _stop_file_requested():
-                    _stop_reason = _acknowledge_stop_file()
+                from core.crash_recovery import shutdown_requested
+                if _stop_file_requested() or shutdown_requested():
+                    _stop_reason = _acknowledge_stop_file() if _stop_file_requested() else "signal"
                     _stop_msg = (
-                        "Stop flag requested — winding down gracefully after "
-                        "this checkpoint (reason: {}).".format(_stop_reason or "unspecified")
+                        "Stop requested — winding down gracefully after "
+                        "this checkpoint (reason: {}).".format(_stop_reason or "signal")
                     )
                     logging.getLogger("main").warning(_stop_msg)
                     if display:
@@ -4771,6 +5031,15 @@ def execute_skill(**kwargs):
                         orch.pre_pulse_macro_ingest(current_symbol, paper_mode=args.paper)
                     except Exception as _pulse_ingest_exc:
                         logging.getLogger("main").debug("Pre-pulse macro ingest skipped: %s", _pulse_ingest_exc)
+
+                # NOTE (H5): no speculative VIX clear here. An earlier revision
+                # read a VIX out of the pulse macro cache, but no producer
+                # writes a timestamped VIX there and orch.macro_provider does
+                # not exist, so the block could never run — while looking like
+                # a live clearing path. Market-data clearing happens where a
+                # real VIX exists (the shadow deliberative graph, opt-in);
+                # the always-available clear is the operator path
+                # (POST /api/latch/clear, `mt5_trader.py latch --clear`).
 
                 if len(strategy_cycles) > 1:
                     from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed as _AC
@@ -5112,9 +5381,8 @@ def execute_skill(**kwargs):
                 _rl_train_interval = int(os.environ.get("RL_TRAIN_INTERVAL", "50"))
                 if cycle_count % _rl_train_interval == 0 and cycle_count > 0:
                     try:
-                        sys.path.insert(0, os.path.join(BASE_DIR, "research"))
-                        from rl_trainer import RLTrainer
-                        from model_registry import register as _register_model
+                        from research.rl_trainer import RLTrainer
+                        from research.model_registry import register as _register_model
 
                         _rl = RLTrainer(
                             model_path=os.path.join(BASE_DIR, "rl_model.json"),
@@ -5227,9 +5495,8 @@ def execute_skill(**kwargs):
                 _ppo_train_interval = int(os.environ.get("PPO_TRAIN_INTERVAL", "200"))
                 if cycle_count % _ppo_train_interval == 0 and cycle_count > 0:
                     try:
-                        sys.path.insert(0, os.path.join(BASE_DIR, "research"))
-                        from ppo_trainer import train_ppo_offline
-                        from model_registry import register as _register_model
+                        from research.ppo_trainer import train_ppo_offline
+                        from research.model_registry import register as _register_model
 
                         # Run PPO training on Kronos simulator
                         _ppo_result = train_ppo_offline(
@@ -5612,7 +5879,8 @@ def execute_skill(**kwargs):
                         deadline = time.monotonic() + sleep_time
                         while time.monotonic() < deadline:
                             display.update_heartbeat()
-                            if _stop_file_requested():
+                            _drain_operator_controls(orch)
+                            if _stop_file_requested() or shutdown_requested():
                                 break
                             time.sleep(min(1.0, max(0.05, deadline - time.monotonic())))
                     else:
@@ -5620,7 +5888,8 @@ def execute_skill(**kwargs):
                         # Headless path: same stop-flag poll, same ~1s bound.
                         deadline = time.monotonic() + sleep_time
                         while time.monotonic() < deadline:
-                            if _stop_file_requested():
+                            _drain_operator_controls(orch)
+                            if _stop_file_requested() or shutdown_requested():
                                 break
                             time.sleep(min(1.0, max(0.05, deadline - time.monotonic())))
 
@@ -5630,13 +5899,66 @@ def execute_skill(**kwargs):
             run_status = "FAILED"
             logging.getLogger("main").exception("Critical error in main loop")
         finally:
-            # --- PU-0161 follow-up 4: explicit CrashRecovery shutdown ---
-            # The stop flag leaves the loop NORMALLY, so this is the path it
-            # takes. CrashRecovery also hooks atexit, but calling shutdown()
-            # here makes the graceful contract explicit and immune to atexit
-            # being bypassed (os._exit, interpreter teardown ordering).
-            # shutdown() is idempotent — its _shutdown_in_progress guard means
-            # the later atexit call is a no-op.
+            # --- Shutdown order (CC-F14): Stop control thread -> cycles -> join sched-bounded -> velocity -> orchestrator -> guardian stop LAST -> CrashRecovery ---
+            # 0. Stop the operator-control thread first so no new control
+            # applies mid-shutdown, then drain once more for stragglers.
+            try:
+                if "_control_stop" in locals() and _control_stop is not None:
+                    _control_stop.set()
+                if "_control_thread" in locals() and _control_thread is not None:
+                    _control_thread.join(timeout=5.0)
+                if "orch" in locals() and orch is not None:
+                    _drain_operator_controls(orch)
+            except Exception as _ct_exc:
+                logging.getLogger("main").debug("Control thread stop skipped: %s", _ct_exc)
+            if 'orch' in locals() and orch is not None:
+                # 1. Join bounded scheduler (10 s bound) via the real worker
+                # reference (M1: the old bounded_pipeline.join was dead code).
+                try:
+                    _joiner = getattr(orch, "join_schedule_batch", None)
+                    if callable(_joiner):
+                        _joiner(timeout=10.0)
+                    else:
+                        bounded_sched = getattr(orch, "bounded_pipeline", None) or getattr(orch, "scheduler", None)
+                        if hasattr(bounded_sched, "join"):
+                            bounded_sched.join(timeout=10.0)
+                except Exception as _b_exc:
+                    logging.getLogger("main").debug("Bounded scheduler join skipped: %s", _b_exc)
+
+                # 2. Velocity shutdown & orchestrator shutdown
+                try:
+                    orch.shutdown()
+                except Exception:
+                    logging.getLogger("main").exception("Failed to stop dual-velocity workers")
+
+                # 3. Finish durable agent run
+                try:
+                    orch.operations.finish_run(
+                        orch.run_id,
+                        status=run_status,
+                        payload={"reason": "main_loop_exit"},
+                    )
+                except Exception:
+                    logging.getLogger("main").exception("Failed to close durable agent run")
+
+            # 4. Supervisor shutdown
+            try:
+                from operations.supervisor import get_supervisor as _gs
+                _sup_exit = _gs()
+                _sup_exit.request_shutdown(f"run_status={run_status}")
+                _sup_exit.complete_shutdown()
+            except Exception as exc:
+                logging.getLogger("mt5_trader").debug("shutdown failed: %s", exc)
+
+            # 5. Stop Ψ Guardian LAST (position protection remains alive throughout background shutdown)
+            if _guardian is not None:
+                try:
+                    _guardian.stop()
+                    logging.getLogger("main").info("Ψ Guardian stopped")
+                except Exception:
+                    pass
+
+            # 6. CrashRecovery shutdown snapshot (taken only after all worker threads are idle)
             if _crash_recovery is not None:
                 try:
                     _crash_recovery.shutdown()
@@ -5647,35 +5969,14 @@ def execute_skill(**kwargs):
                     logging.getLogger("main").warning(
                         "CrashRecovery shutdown snapshot skipped: %s", _cr_exc)
 
-            # Stop Ψ Guardian
-            if _guardian is not None:
-                try:
-                    _guardian.stop()
-                    logging.getLogger("main").info("Ψ Guardian stopped")
-                except Exception:
-                    pass
-            try:
-                from operations.supervisor import get_supervisor as _gs
-                _sup_exit = _gs()
-                _sup_exit.request_shutdown(f"run_status={run_status}")
-                _sup_exit.complete_shutdown()
-            except Exception as exc:
-                logging.getLogger("mt5_trader").debug("shutdown failed: %s", exc)
-            if 'orch' in locals() and orch is not None:
-                try:
-                    orch.shutdown()
-                except Exception:
-                    logging.getLogger("main").exception("Failed to stop dual-velocity workers")
-                try:
-                    orch.operations.finish_run(
-                        orch.run_id,
-                        status=run_status,
-                        payload={"reason": "main_loop_exit"},
-                    )
-                except Exception:
-                    logging.getLogger("main").exception("Failed to close durable agent run")
             if display:
                 display.stop()
+
+            if '_engine_file_lock' in globals() and _engine_file_lock is not None:
+                try:
+                    _engine_file_lock.release()
+                except Exception:
+                    pass
                 
             if args.show_metrics:
                 if 'orch' in locals() and orch and orch.perf:

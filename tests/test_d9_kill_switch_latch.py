@@ -6,7 +6,7 @@ import pytest
 
 os.environ.setdefault("FAST_TEST", "1")
 
-from kill_switch_latch import (
+from data.kill_switch_latch import (
     DEFAULT_RELPATH,
     KillSwitchLatch,
     get_kill_switch_latch,
@@ -198,10 +198,10 @@ def test_get_kill_switch_latch_singleton():
 
 def test_run_result_uses_latch_state(tmp_path, monkeypatch):
     import data.realtime_news_ingest as rni
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 
     monkeypatch.setenv("D9_LATCH_PATH", str(tmp_path / "latch.json"))
-    monkeypatch.setattr("news_triage._get_laya", lambda: None)
+    monkeypatch.setattr("data.news_triage._get_laya", lambda: None)
     monkeypatch.setattr(rni, "collect_newsapi_articles", lambda *a, **k: [])
     monkeypatch.setattr(rni, "collect_seeking_alpha_articles", lambda *a, **k: [])
 
@@ -252,7 +252,7 @@ def test_run_result_uses_latch_state(tmp_path, monkeypatch):
 def test_macro_analyst_applies_market_data_to_latch(tmp_path, monkeypatch):
     import intelligence.graph_nodes as gn
     from intelligence.graph_nodes import MacroAnalystNode
-    from kill_switch_latch import KillSwitchLatch
+    from data.kill_switch_latch import KillSwitchLatch
 
     monkeypatch.setenv("D9_LATCH_PATH", str(tmp_path / "latch.json"))
     latch = KillSwitchLatch(path=str(tmp_path / "latch.json"))

@@ -26,7 +26,7 @@ import numpy as np
 
 from core.overfit_detector import detect_overfitting, OverfitResult
 from core.trial_ledger import TrialLedger, DSR_GATE_THRESHOLD
-from state_persistence import StoreBackedState
+from core.state_persistence import StoreBackedState
 
 logger = logging.getLogger(__name__)
 

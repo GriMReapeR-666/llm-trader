@@ -1,6 +1,6 @@
 import pytest
 
-from agent_contracts import can, can_write, require, require_order_authority, require_write
+from operations.agent_contracts import can, can_write, require, require_order_authority, require_write
 
 
 RUNTIME_AGENT_EVENTS = (
