@@ -121,67 +121,13 @@ def tf_const(tf: str) -> int:
     return getattr(mt5_inst, name)
 
 
-# Broker server→UTC offset cache (offset seconds + expiry epoch).
-# 24h TTL: broker timezone changes at most twice a year (DST); weekend closed
-# markets keep the last known offset instead of falling back to 0.
-_SERVER_OFFSET_TTL = 24 * 3600
-_SERVER_OFFSET_CACHE: Dict[str, Any] = {"offset": 0, "expires": 0.0}
-
-
-def _server_utc_offset_seconds(mt5_inst: Any, probe_symbols: Tuple[str, ...] = ("EURUSD", "GBPUSD", "XAUUSD")) -> int:
-    """Estimate the broker server-timezone offset (server ahead of UTC), seconds.
-
-    MT5 bar timestamps are epoch seconds expressed in the BROKER SERVER's
-    timezone, not UTC (e.g. MetaQuotes demo servers run UTC+3). Decoding them
-    naively with ``unit='s'`` presents the completed bar as ~3h in the future,
-    which the feature-lineage validator correctly rejects as look-ahead
-    ("completed bar timestamp is later than capture time") — every proposal
-    blocked, pipeline starved.
-
-    Method: a fresh tick carries the server's *now* in server epoch; compare
-    against true UTC now. Broker clocks are NTP-synced, so the residual after
-    snapping to a 30-minute grid must be small (<5 min) — a frozen/stale tick
-    (market closed) produces a large random residual and is discarded. When 2+
-    independent symbols agree on the offset, it is cached for 24h so closed-
-    market periods (weekends) keep the last known offset. Returns 0 when no
-    trustworthy probe exists — fail-open to the legacy naive behaviour rather
-    than guessing wrong.
-    """
-    now = time.time()
-    if now < _SERVER_OFFSET_CACHE["expires"]:
-        return _SERVER_OFFSET_CACHE["offset"]
-    try:
-        candidates = []  # (offset_seconds, residual_ms)
-        for name in probe_symbols:
-            t = mt5_inst.symbol_info_tick(name)
-            if t is None:
-                continue
-            server_ms = float(getattr(t, "time_msc", 0) or 0)
-            if server_ms <= 0:
-                continue
-            residual_ms = server_ms - now * 1000.0
-            steps = int(round(residual_ms / 1_800_000.0))  # snap to 30-min grid
-            if steps < -28 or steps > 28:                  # clamp to ±14h
-                continue
-            residual = abs(residual_ms - steps * 1_800_000.0)
-            if residual > 300_000:  # frozen/stale tick → untrustworthy clock
-                continue
-            candidates.append((steps * 1800, residual))
-        if not candidates:
-            return 0
-        from collections import Counter
-        offset, votes = Counter(off for off, _ in candidates).most_common(1)[0]
-        if votes < 2:
-            # single candidate: only trust a very tight residual
-            if candidates[0][1] > 120_000:
-                return 0
-        logger.info("MT5 server-timezone offset detected: %+ds (UTC%+g)",
-                    offset, offset / 3600.0)
-        _SERVER_OFFSET_CACHE["offset"] = int(offset)
-        _SERVER_OFFSET_CACHE["expires"] = now + _SERVER_OFFSET_TTL
-        return int(offset)
-    except Exception:
-        return 0
+from core.broker_time import (
+    _server_utc_offset_seconds,
+    broker_epoch_to_utc,
+    broker_trading_day,
+    broker_trading_week,
+    get_broker_utc_offset_seconds,
+)
 
 
 def _ensure_mt5_attached(mt5_inst: Any) -> bool:
@@ -1365,6 +1311,7 @@ class MarketDataProvider:
                 break
             time.sleep(0.2)
         dom_collector.unsubscribe()
+        quote_captured_at = dom_data.get("captured_at") or datetime.now(timezone.utc).isoformat()
         
         # ── Liquidity Vacuum Detection (Blind Spot audit) ────────────────────
         if _LiqVacDetector is not None:
@@ -1901,7 +1848,7 @@ class MarketDataProvider:
                 "symbol": symbol,
                 "timeframe": timeframe,
                 "now_utc": datetime.now(timezone.utc).isoformat(),
-                "captured_at": datetime.now(timezone.utc).isoformat(),
+                "captured_at": quote_captured_at,
                 "market_data_source": "mt5" if self.client else "paper_simulation",
                 "source_identity": source_identity,
                 "data_status": self.check_data_sources(),

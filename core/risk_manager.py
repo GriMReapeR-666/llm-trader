@@ -12,6 +12,8 @@ import math
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple, Optional, Callable
 
+from core.broker_time import broker_trading_day, broker_trading_week
+
 try:
     from core.state_persistence import StoreBackedState
 except ImportError:
@@ -95,16 +97,16 @@ class RiskManager(StoreBackedState):
         
         # Reset if new day / week
         now_dt = datetime.now(timezone.utc)
-        self.current_date = now_dt.date().isoformat()
-        self.current_week = f"{now_dt.isocalendar()[0]}-W{now_dt.isocalendar()[1]}"
+        self.day_basis = "broker"
+        self.current_date = broker_trading_day(now_dt)
+        self.current_week = broker_trading_week(now_dt)
         if self.state_date != self.current_date:
-            self.reset_daily_limits()
+            self.reset_daily_limits(now_dt)
         if self.state_week != self.current_week:
-            self.reset_weekly_limits()
+            self.reset_weekly_limits(now_dt)
 
-    def reset_weekly_limits(self):
-        now_dt = datetime.now(timezone.utc)
-        self.state_week = f"{now_dt.isocalendar()[0]}-W{now_dt.isocalendar()[1]}"
+    def reset_weekly_limits(self, now_dt: Optional[datetime] = None):
+        self.state_week = broker_trading_week(now_dt)
         self.weekly_circuit_step_down = False
         self.weekly_recovered_r = 0.0
         try:
@@ -114,8 +116,9 @@ class RiskManager(StoreBackedState):
             self.weekly_start_equity = self.balance
         self.save_state()
 
-    def reset_daily_limits(self):
-        self.state_date = datetime.now().date().isoformat()
+    def reset_daily_limits(self, now_dt: Optional[datetime] = None):
+        self.state_date = broker_trading_day(now_dt)
+        self.day_basis = "broker"
         self._flatten_reason = None
         
         # Get current equity as start point
@@ -151,7 +154,8 @@ class RiskManager(StoreBackedState):
                 self.weekly_start_equity = data.get("weekly_start_equity", self.balance)
                 self.weekly_recovered_r = float(data.get("weekly_recovered_r", 0.0) or 0.0)
                 self.weekly_circuit_step_down = bool(data.get("weekly_circuit_step_down", False))
-                self.state_date = data.get("date", "")
+                self.state_date = data.get("trading_day") or data.get("date", "")
+                self.day_basis = data.get("day_basis", "broker")
                 self.state_week = data.get("week", "")
                 self.trade_timestamps = [self._parse_to_iso(value) for value in data.get("trade_timestamps", [])]
                 self.last_trade_time = {str(key): self._parse_to_iso(value) for key, value in (data.get("last_trade_time", {}) or {}).items()}
@@ -207,7 +211,7 @@ class RiskManager(StoreBackedState):
         except Exception as exc:
             logging.getLogger("RiskManager").error("Failed to load risk state: %s", exc)
             if not getattr(self, "state_date", ""):
-                self.state_date = datetime.now(timezone.utc).date().isoformat()
+                self.state_date = broker_trading_day()
 
     def set_store(self, store: Any) -> None:
         """Attach the authoritative journal and migrate risk state into it."""
@@ -216,7 +220,7 @@ class RiskManager(StoreBackedState):
             return
         self.store = store
         self.load_state()
-        self.current_date = datetime.now().date().isoformat()
+        self.current_date = broker_trading_day()
         if self.state_date != self.current_date:
             self.reset_daily_limits()
         else:
@@ -255,6 +259,8 @@ class RiskManager(StoreBackedState):
                 "weekly_recovered_r": float(self.weekly_recovered_r),
                 "weekly_circuit_step_down": bool(self.weekly_circuit_step_down),
                 "date": self.state_date,
+                "trading_day": self.state_date,
+                "day_basis": getattr(self, "day_basis", "broker"),
                 "week": self.state_week,
                 "trade_timestamps": list(self.trade_timestamps),
                 "last_trade_time": dict(self.last_trade_time),

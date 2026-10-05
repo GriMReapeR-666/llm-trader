@@ -483,7 +483,13 @@ class TradeManager(StoreBackedState):
         if open_time <= 0:
             return
         
-        elapsed = _time_mod.time() - open_time
+        # In paper mode, pos.time is UTC epoch; in MT5, it is broker server epoch (1a-F10).
+        if getattr(self, "paper_broker", None) is not None:
+            elapsed = _time_mod.time() - open_time
+        else:
+            from core.broker_time import broker_epoch_to_utc
+            open_utc = broker_epoch_to_utc(open_time, mt5_inst=self.client)
+            elapsed = _time_mod.time() - open_utc.timestamp()
         if elapsed < self.time_stop_seconds:
             return
             
@@ -936,7 +942,12 @@ class TradeManager(StoreBackedState):
             # Duration
             # Note: p.time is a timestamp (seconds)
             import time
-            duration_sec = time.time() - p.time
+            if getattr(self, "paper_broker", None) is not None:
+                duration_sec = time.time() - p.time
+            else:
+                from core.broker_time import broker_epoch_to_utc
+                open_utc = broker_epoch_to_utc(p.time, mt5_inst=self.client)
+                duration_sec = time.time() - open_utc.timestamp()
             duration_min = duration_sec / 60
             
             return {

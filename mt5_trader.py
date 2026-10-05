@@ -1383,7 +1383,7 @@ def _drain_operator_controls(orch: Any) -> None:
                 if gw is None:
                     from core.order_gateway import get_default_gateway
                     gw = get_default_gateway()
-                owned_magics = getattr(orch, "owned_magics", None) or {460001}
+                owned_magics = getattr(orch, "owned_magics", None) or {460001, 460002}
                 mt5_client = getattr(orch, "client", None)
                 outcome = gw.execute_flatten(owned_magics=owned_magics, mt5_client=mt5_client)
                 outcome_dict = outcome.to_dict() if hasattr(outcome, "to_dict") else {
@@ -1407,7 +1407,7 @@ def _drain_operator_controls(orch: Any) -> None:
                 if gw is None:
                     from core.order_gateway import get_default_gateway
                     gw = get_default_gateway()
-                owned_magics = getattr(orch, "owned_magics", None) or {460001}
+                owned_magics = getattr(orch, "owned_magics", None) or {460001, 460002}
                 mt5_client = getattr(orch, "client", None)
                 cancelled_results = gw.cancel_all_owned_pending(owned_magics=owned_magics, mt5_client=mt5_client)
                 cancelled_count = sum(1 for r in cancelled_results if getattr(r, "success", False))
@@ -2270,7 +2270,7 @@ def main() -> None:
         configure_default_gateway(store, mode=gw_mode)
         gw = get_default_gateway()
         store.set_kill_switch(True, f"offline_flatten:{args.confirm}")
-        outcome = gw.execute_flatten(owned_magics={460001} if args.owned else None)
+        outcome = gw.execute_flatten(owned_magics={460001, 460002} if args.owned else None)
         print(json.dumps(outcome.to_dict(), indent=2))
         return
 

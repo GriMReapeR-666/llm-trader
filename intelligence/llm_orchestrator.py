@@ -855,7 +855,9 @@ class LLMOrchestrator:
             )
             from core.order_gateway import get_default_gateway
             self.order_gateway = get_default_gateway()
-            self.owned_magics = {460001}
+            # Both bot magics: 460001 (swing) and 460002 (scalp). Operator
+            # flatten must close every owned position, not just swing.
+            self.owned_magics = {460001, 460002}
         except Exception as _gw_exc:
             logger.warning("OrderGateway default configuration failed (fail-closed on first order): %s", _gw_exc)
 
@@ -5329,10 +5331,11 @@ class LLMOrchestrator:
                     time_msc = getattr(last_deal, "time_msc", None)
                     deal_time = getattr(last_deal, "time", None)
                     try:
+                        from core.broker_time import broker_epoch_to_utc
                         if time_msc:
-                            close_time = datetime.fromtimestamp(float(time_msc) / 1000.0, tz=timezone.utc)
+                            close_time = broker_epoch_to_utc(float(time_msc) / 1000.0, mt5_inst=broker)
                         elif deal_time:
-                            close_time = datetime.fromtimestamp(float(deal_time), tz=timezone.utc)
+                            close_time = broker_epoch_to_utc(float(deal_time), mt5_inst=broker)
                     except (TypeError, ValueError, OverflowError, OSError):
                         close_time = None
 

@@ -779,9 +779,10 @@ class OrderGateway:
             with get_mt5_lock():
                 live = list(client.orders_get() or []) + list(client.positions_get() or [])
                 since = min((c for _, c, _ in stale if c is not None), default=datetime.now(timezone.utc))
-                # MT5 history is in broker server time (often hours off UTC): pad by a day.
-                history = list(client.history_orders_get(since.replace(tzinfo=None) - timedelta(days=1),
-                                                         datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1)) or [])
+                from core.broker_time import utc_to_broker_time
+                history_from = utc_to_broker_time(since - timedelta(days=1), mt5_inst=client).replace(tzinfo=None)
+                history_to = utc_to_broker_time(datetime.now(timezone.utc) + timedelta(days=1), mt5_inst=client).replace(tzinfo=None)
+                history = list(client.history_orders_get(history_from, history_to) or [])
         except Exception as exc:
             log.warning("stale-intent sweep could not read the broker; leaving intents CREATED: %s", exc)
             return {}

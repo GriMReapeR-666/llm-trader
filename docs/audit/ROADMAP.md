@@ -116,13 +116,13 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [x] 🔴 `CC-F3` = `1a-F7` Concurrent reconciliation double-counts closes and the streak breaker (per-ticket CAS).
 - [ ] 🟠 `1a-F3` `risk_per_trade` compounds every cycle, ungated, and is shared across strategies.
 - [ ] 🟠 `1a-F5` = `TL-T2` The spread-explosion guard can never fire; `_symbol_tick` is undefined.
-- [ ] 🟠 `P1-H1` The daily limit resets on restart (local vs UTC; **EV: 37 resets in 11 days**). Use the broker server day.
-- [ ] 🟡 `1a-F10` = `LA-A3` Server time vs UTC across positions, deals and ticks (**EV: "bar later than capture time" rejections**).
+- [x] 🟠 `P1-H1` The daily limit resets on restart (local vs UTC; **EV: 37 resets in 11 days**). Use the broker server day.
+- [x] 🟡 `1a-F10` = `LA-A3` Server time vs UTC across positions, deals and ticks (**EV: "bar later than capture time" rejections**).
 - [ ] 🟡 `1a-F9` Pyramid and time-stop R basis use the current SL.
 - [ ] 🟡 `1a-F11` Paper SL updates hit every position with the same symbol and magic; no monotonic guard.
 - [ ] 🟡 `1a-F16` The copula heat budget latches at its crisis value.
 - [ ] 🟡 `1a-F18` A second position-management engine with a dead partial close (pick one engine).
-- [ ] 🟡 `1a-F14` `captured_at` is stamped after slow work, so the freshness check measures nothing.
+- [x] 🟡 `1a-F14` `captured_at` is stamped after slow work, so the freshness check measures nothing.
 - [ ] 🟠 `CC-F6` LLM budget reservation is check-then-insert.
 - [ ] 🟡 `PH4-N1` (found while planning) 60 broker read calls bypass the gateway's MT5 lock (`CC-F2`, read half); route them through one locked read facade.
 - [ ] 🟡 `CC-F11` Unguarded orchestrator state; `CC-F12` SQLite configuration inconsistencies.
