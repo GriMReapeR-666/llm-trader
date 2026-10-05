@@ -68,10 +68,31 @@ class FakeMT5:
             self.orders = [o for o in self.orders if getattr(o, "ticket", None) != ticket]
             return NS(retcode=self.TRADE_RETCODE_DONE, order=ticket, deal=0,
                       volume=0.0, price=0.0, comment="fake-cancel", request=request)
-        # Honest DEAL close: dropping the position makes remaining snapshots truthful.
-        if "position" in request:
+        # Honest SLTP: update position SL/TP without dropping position
+        if request.get("action") == self.TRADE_ACTION_SLTP:
             ticket = request.get("position")
-            self.positions = [p for p in self.positions if getattr(p, "ticket", None) != ticket]
+            for p in self.positions:
+                if getattr(p, "ticket", None) == ticket:
+                    p.sl = request.get("sl")
+                    p.tp = request.get("tp")
+            return NS(retcode=self.TRADE_RETCODE_DONE, order=ticket, deal=0,
+                      volume=0.0, price=0.0, comment="fake-sltp", request=request)
+        # Honest DEAL close: dropping/reducing the position makes remaining snapshots truthful.
+        if "position" in request and request.get("action") == self.TRADE_ACTION_DEAL:
+            ticket = request.get("position")
+            close_vol = float(request.get("volume", 0.0) or 0.0)
+            remaining_positions = []
+            for p in self.positions:
+                if getattr(p, "ticket", None) == ticket:
+                    p_vol = float(getattr(p, "volume", 0.0) or 0.0)
+                    if close_vol >= p_vol or close_vol <= 0:
+                        continue  # fully closed
+                    else:
+                        p.volume = round(p_vol - close_vol, 2)
+                        remaining_positions.append(p)
+                else:
+                    remaining_positions.append(p)
+            self.positions = remaining_positions
         return NS(retcode=self.TRADE_RETCODE_DONE, order=len(self.sent), deal=0,
                   volume=request.get("volume"), price=request.get("price"), comment="fake", request=request)
 

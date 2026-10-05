@@ -280,11 +280,13 @@ def test_locked_broker_reads_facade():
     mock_client.account_info.return_value = SimpleNamespace(balance=10000.0)
     mock_client.symbol_info.return_value = SimpleNamespace(symbol="EURUSD")
 
-    # Positions
+    # Positions (success carries no error, even though last_error() is set:
+    # MT5 reports the previous error code even after successful calls, and
+    # mocks never return None — only a raised exception is failure).
     positions, err = broker_positions_get(mt5_inst=mock_client)
     assert len(positions) == 1
     assert positions[0].ticket == 123
-    assert err == (1, "OK")
+    assert err is None
 
     # Orders
     orders, err = broker_orders_get(mt5_inst=mock_client)

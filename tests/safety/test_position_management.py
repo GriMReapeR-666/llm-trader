@@ -42,6 +42,12 @@ def fake_mt5(monkeypatch):
     patch_everywhere(monkeypatch, "data/market_data_provider.py", "mt5", fake)
     monkeypatch.setattr("core.order_execution._get_mt5", lambda: fake)
     monkeypatch.setattr("data.market_data_provider._get_mt5", lambda: fake)
+    # The orchestrator resolves ticks via sys.modules["mt5_trader"].mt5 when
+    # mt5_trader is imported anywhere in the worker; pin that too so tick
+    # resolution cannot depend on worker import order.
+    _mt5_trader_mod = sys.modules.get("mt5_trader")
+    if _mt5_trader_mod is not None and hasattr(_mt5_trader_mod, "mt5"):
+        monkeypatch.setattr(_mt5_trader_mod, "mt5", fake, raising=False)
     return fake
 
 
