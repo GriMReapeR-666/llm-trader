@@ -88,6 +88,7 @@ try:
 except ImportError:
     from research.setup_registry import classify as classify_setup
 from core.broker_preflight import persist_preflight, validate_envelope
+from core.order_gateway import get_default_gateway, configure_default_gateway
 from core.execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
 from intelligence.feature_builder import build_snapshot as build_feature_snapshot
 try:
@@ -2260,8 +2261,9 @@ def main() -> None:
         return
 
     if args.cmd == "flatten":
-        from core.order_gateway import get_default_gateway, configure_default_gateway
-        from core.trading_safety import TradingStore
+        # NOTE: TradingStore / gateway helpers are module-level (lines ~67);
+        # never add a local import here — it would shadow the module names
+        # for the whole of main() (UnboundLocalError on earlier uses).
         if not args.confirm:
             print("Error: Confirmation required. Pass --confirm <account login or FLATTEN>")
             return

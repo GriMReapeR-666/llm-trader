@@ -132,7 +132,7 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [x] 🟡 `LA-A1` / `LA-A2` Live SMC and context fields read the forming bar.
 - [x] ⚪ `1a-F12` Smaller trade_manager defects (filling mode, failed-close flagging, per-position try, journal growth, initial-R cache).
 - [x] 🟠 `TL-T4` Live `reconciliation-run` always fails (`_get_mt5` undefined).
-- [ ] 🟠 **Last:** `1a-F13` (data-quality fields set too late; server time treated as UTC) and `P1-H3`/`TL-T1` (`ConstraintVerdict.HOLD` missing). These two currently block all live trading.
+- [x] 🟠 **Last:** `1a-F13` (data-quality fields set too late; server time treated as UTC) and `P1-H3`/`TL-T1` (`ConstraintVerdict.HOLD` missing). These two currently block all live trading.
 
 ## Phase 5: Honest numbers
 - [ ] 🔴 `LA-B3` Ensemble weights use full-sample IC; 17 of 23 Alpha101 factors use full-series rank/scale.

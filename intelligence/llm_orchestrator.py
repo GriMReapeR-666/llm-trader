@@ -2481,6 +2481,10 @@ class LLMOrchestrator:
         mode = (scope.get("mode") if isinstance(scope, dict) else None) or getattr(self.store, "mode", None)
         if granted not in ("LIVE", "DEMO") or str(mode or "").upper() != granted:
             return None
+        if granted == "LIVE":
+            import os
+            if os.getenv("LLM_TRADER_LIVE_ENTRIES", "").strip() != "1":
+                return None
         if granted == "DEMO":
             try:
                 broker = _get_mt5()
@@ -2985,14 +2989,22 @@ class LLMOrchestrator:
         tick = mt5.symbol_info_tick(symbol) if mt5 and not paper_mode else None
         raw_tick_millis = (getattr(tick, "time_msc", 0) or (getattr(tick, "time", 0) or 0) * 1000) if tick else 0
         tick_time = raw_tick_millis / 1000 if raw_tick_millis else 0
-        clock_health = (self.operations.record_clock_observation("mt5_tick", tick_time, max_offset_seconds=5.0,
-                                                                 payload={"symbol": symbol}) if not paper_mode else
-                        {"valid": True, "status": "PAPER_SIMULATION", "offset_seconds": 0.0})
+        if not paper_mode and tick_time > 0:
+            from core.broker_time import get_broker_utc_offset_seconds
+            server_offset = get_broker_utc_offset_seconds(mt5)
+            utc_tick_time = tick_time - server_offset
+            clock_health = self.operations.record_clock_observation(
+                "mt5_tick", utc_tick_time, max_offset_seconds=5.0, payload={"symbol": symbol, "broker_offset": server_offset}
+            )
+            provider_time = datetime.fromtimestamp(utc_tick_time, tz=timezone.utc).isoformat()
+        else:
+            clock_health = toon.get("context", {}).get("clock_health") or {"valid": True, "status": "PAPER_SIMULATION", "offset_seconds": 0.0}
+            provider_time = toon.get("context", {}).get("provider_time") or (
+                datetime.now(timezone.utc).isoformat() if paper_mode else None
+            )
         toon.setdefault("context", {})["clock_health"] = clock_health
-        if tick_time:
-            toon["context"]["provider_time"] = datetime.fromtimestamp(
-                tick_time, tz=timezone.utc
-            ).isoformat()
+        if provider_time:
+            toon["context"]["provider_time"] = provider_time
         quality = self.data_quality.validate(
             toon,
             require_live_quote=not paper_mode,
@@ -4076,7 +4088,7 @@ class LLMOrchestrator:
         MT5 quote and the last completed-candle ATR; it never invokes the LLM
         and never manages positions whose magic number is not bot-owned.
         """
-        mt5 = _get_mt5()
+        mt5 = getattr(self, "client", None) or _get_mt5()
         if not getattr(self.data_provider, "trade_manager", None):
             return {"status": "SKIPPED", "reason": "manager_unavailable"}
         if not paper_mode and not self.client:

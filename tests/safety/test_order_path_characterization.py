@@ -6,7 +6,7 @@ difference must show up here and be accepted deliberately in that PR.
 """
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace as NS
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -48,12 +48,50 @@ def test_live_pending_order_without_capability_token_is_refused(broker):
     assert broker.sent == []
 
 
-def test_live_pending_order_with_token_is_refused_by_missing_enum_today(broker):
-    """TL-T1 / L4: ConstraintVerdict.HOLD does not exist, so every live pending
-    order raises before order_send. Phase 4 fixes this; update the test then."""
+def test_live_pending_order_with_token_reaches_broker(broker, tmp_path):
+    """TL-T1 / L4: With ConstraintVerdict.REJECT fixed and single-door evidence passed,
+    a live pending entry reaches FakeMT5 order_send with the expected request."""
+    from core.trading_safety import TradingStore
+    from core.order_gateway import configure_default_gateway
+    store = TradingStore(str(tmp_path / "char.db"))
+    configure_default_gateway(store, mode="LIVE")
+
     token = NS(can_access=lambda level, scope="": True)
-    with pytest.raises(RuntimeError, match="TradingConstraintEngine"):
-        _pending(paper=None, token=token)
+    now_str = datetime.now(timezone.utc).isoformat()
+    val = NS(approved=True, reasons=[], setup_key="char_setup", created_at=now_str)
+
+    result = _pending(paper=None, token=token, validation_result=val, setup_key="char_setup", risk_amount=50.0)
+    assert len(broker.sent) == 1
+    req = broker.sent[0]
+    assert req["action"] == broker.TRADE_ACTION_PENDING
+    assert req["type"] == broker.ORDER_TYPE_BUY_LIMIT
+    assert req["symbol"] == "EURUSD"
+    assert req["price"] == 1.0990
+    assert req["sl"] == 1.0940
+    assert req["tp"] == 1.1090
+    assert req["magic"] == 460002
+    assert result["retcode"] == broker.TRADE_RETCODE_DONE
+
+
+def test_trading_constraint_engine_reject_verdict_blocks(broker, tmp_path):
+    """Proves that when TradingConstraintEngine evaluates to REJECT, it actually blocks."""
+    from core.trading_safety import TradingStore
+    from core.order_gateway import configure_default_gateway
+    from core.trading_constraints import ConstraintVerdict
+    store = TradingStore(str(tmp_path / "char_reject.db"))
+    configure_default_gateway(store, mode="LIVE")
+
+    token = NS(can_access=lambda level, scope="": True)
+    now_str = datetime.now(timezone.utc).isoformat()
+    val = NS(approved=True, reasons=[], setup_key="char_setup", created_at=now_str)
+
+    with patch("core.trading_constraints.TradingConstraintEngine.evaluate") as mock_eval:
+        mock_eval.return_value = NS(
+            overall_verdict=ConstraintVerdict.REJECT,
+            reject_reasons=["Risk limit exceeded"],
+        )
+        with pytest.raises(RuntimeError, match="TradingConstraintEngine REJECT"):
+            _pending(paper=None, token=token, validation_result=val, setup_key="char_setup", risk_amount=50.0)
     assert broker.sent == []
 
 

@@ -1849,6 +1849,37 @@ class MarketDataProvider:
                         f"{live_login}|{live_server}".encode("utf-8")
                     ).hexdigest(),
                 }
+        # Collect tick and clock observation with server offset subtracted (1a-F13)
+        _mt5 = _get_mt5()
+        _tick = _mt5.symbol_info_tick(symbol) if _mt5 is not None else None
+        _raw_tick_millis = (getattr(_tick, "time_msc", 0) or (getattr(_tick, "time", 0) or 0) * 1000) if _tick else 0
+        _raw_tick_time = _raw_tick_millis / 1000.0 if _raw_tick_millis else 0.0
+
+        if self.client and _raw_tick_time > 0:
+            from core.broker_time import get_broker_utc_offset_seconds
+            _server_offset = get_broker_utc_offset_seconds(_mt5)
+            _utc_tick_time = _raw_tick_time - _server_offset
+            try:
+                from operations.agent_operations import AgentOperations
+                _ops = AgentOperations(store=self._state_store())
+                clock_health = _ops.record_clock_observation(
+                    "mt5_tick", _utc_tick_time, max_offset_seconds=5.0,
+                    payload={"symbol": symbol, "broker_offset": _server_offset}
+                )
+            except Exception:
+                _now_dt = datetime.now(timezone.utc)
+                _remote_dt = datetime.fromtimestamp(_utc_tick_time, tz=timezone.utc)
+                _offset_sec = (_now_dt - _remote_dt).total_seconds()
+                _status = "OK" if abs(_offset_sec) <= 5.0 else "STALE_OR_SKEWED"
+                clock_health = {
+                    "source": "mt5_tick", "observed_at": _now_dt.isoformat(),
+                    "remote_time": _remote_dt.isoformat(), "offset_seconds": _offset_sec,
+                    "max_offset_seconds": 5.0, "status": _status, "valid": _status == "OK",
+                }
+            provider_time = datetime.fromtimestamp(_utc_tick_time, tz=timezone.utc).isoformat()
+        else:
+            clock_health = {"valid": True, "status": "PAPER_SIMULATION", "offset_seconds": 0.0}
+            provider_time = quote_captured_at
 
         toon = {
             "context": {
@@ -1856,6 +1887,9 @@ class MarketDataProvider:
                 "timeframe": timeframe,
                 "now_utc": datetime.now(timezone.utc).isoformat(),
                 "captured_at": quote_captured_at,
+                "provider_time": provider_time,
+                "clock_health": clock_health,
+                "clock_ok": bool(clock_health.get("valid", False)),
                 "market_data_source": "mt5" if self.client else "paper_simulation",
                 "source_identity": source_identity,
                 "data_status": self.check_data_sources(),

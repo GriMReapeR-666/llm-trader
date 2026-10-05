@@ -103,8 +103,8 @@ class DataQualityGate:
             dom_captured = None
             if isinstance(context.get("dom"), dict) and context["dom"].get("captured_at"):
                 dom_captured = context["dom"]["captured_at"]
-            elif isinstance(data.get("dom"), dict) and data["dom"].get("captured_at"):
-                dom_captured = data["dom"]["captured_at"]
+            elif isinstance(snapshot.get("dom"), dict) and snapshot["dom"].get("captured_at"):
+                dom_captured = snapshot["dom"]["captured_at"]
             captured_at = dom_captured or context.get("captured_at")
             if not captured_at:
                 reasons.append("market snapshot capture time missing")
