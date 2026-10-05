@@ -64,7 +64,7 @@ class ImprovementPipeline:
             rows = []
             if _tickets:
                 _marks = ",".join("?" for _ in _tickets)
-                con = sqlite3.connect(_db, timeout=2)
+                con = sqlite3.connect(_db, timeout=10)
                 rows = con.execute(
                     "SELECT gross_pnl, risk_amount FROM trades "
                     "WHERE closed_at IS NOT NULL AND risk_amount > 0 "

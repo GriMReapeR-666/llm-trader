@@ -274,7 +274,7 @@ class TradingStore:
                 cur = conn.cursor()
                 cur.execute("PRAGMA journal_mode=WAL;")
                 cur.execute("PRAGMA synchronous=NORMAL;")
-                cur.execute("PRAGMA busy_timeout=5000;")
+                cur.execute("PRAGMA busy_timeout=10000;")
                 cur.execute("PRAGMA cache_size=-64000;")
                 cur.execute("PRAGMA temp_store=MEMORY;")
                 cur.close()
@@ -1849,8 +1849,14 @@ class PortfolioRiskArbiter:
         if drawdown >= self.max_drawdown_fraction:
             self.store.set_kill_switch(True, f"maximum drawdown reached: {drawdown:.2%}")
             return False, "maximum drawdown kill switch"
-        daily = self.store.realized_loss(now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat())
-        week_start = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=now.weekday())
+        try:
+            from core.broker_time import broker_trading_day_start_utc, broker_trading_week_start_utc
+            day_start = broker_trading_day_start_utc(now)
+            week_start = broker_trading_week_start_utc(now)
+        except Exception:
+            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = day_start - timedelta(days=now.weekday())
+        daily = self.store.realized_loss(day_start.isoformat())
         weekly = self.store.realized_loss(week_start.isoformat())
         if daily >= equity * self.daily_loss_fraction: return False, "daily loss limit"
         if weekly >= equity * self.weekly_loss_fraction: return False, "weekly loss limit"

@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 import json
 import logging
+import math
 import sqlite3
 import sys
 import threading
@@ -565,8 +566,29 @@ class OrderGateway:
         if not sl_val or sl_val <= 0:
             return GatewayResult(False, "REJECTED", error="PH1-N3: entry requires explicit non-zero stop-loss")
         try:
-            if float(intent.volume) <= 0:
+            vol = float(intent.volume)
+            if vol <= 0 or not math.isfinite(vol):
                 return GatewayResult(False, "REJECTED", error="Invalid volume: must be > 0")
+            # H2: Validate volume against volume_min, volume_max and volume_step
+            from core.broker_reads import broker_symbol_info
+            _inst = mt5_client or getattr(self, "broker_client", None) or getattr(self, "client", None)
+            _sinfo, _sinfo_err = broker_symbol_info(intent.symbol, mt5_inst=_inst) if _inst is not None else broker_symbol_info(intent.symbol)
+            if _sinfo is not None:
+                raw_min = getattr(_sinfo, "volume_min", None)
+                raw_max = getattr(_sinfo, "volume_max", None)
+                raw_step = getattr(_sinfo, "volume_step", None)
+                if isinstance(raw_min, (int, float)) and isinstance(raw_max, (int, float)):
+                    min_v = float(raw_min)
+                    max_v = float(raw_max)
+                    step_v = float(raw_step) if isinstance(raw_step, (int, float)) else 0.01
+                    if vol < min_v - 1e-9:
+                        return GatewayResult(False, "REJECTED", error=f"Invalid volume: {vol} is below minimum {min_v}")
+                    if vol > max_v + 1e-9:
+                        return GatewayResult(False, "REJECTED", error=f"Invalid volume: {vol} exceeds maximum {max_v}")
+                    if step_v > 0:
+                        steps = round(vol / step_v)
+                        if abs(vol - (steps * step_v)) > 1e-5:
+                            return GatewayResult(False, "REJECTED", error=f"Invalid volume: {vol} is off-step (step={step_v})")
         except (TypeError, ValueError):
             return GatewayResult(False, "REJECTED", error="Invalid volume: must be > 0")
 
@@ -794,7 +816,7 @@ class OrderGateway:
         cutoff = datetime.now(timezone.utc).timestamp() - float(max_age_s)
         db_path = getattr(self.store, "path", "trading_state.db")
         try:
-            with sqlite3.connect(db_path, timeout=5.0) as con:
+            with sqlite3.connect(db_path, timeout=10.0) as con:
                 if not con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='order_intents'").fetchone():
                     return {}
                 rows = con.execute("SELECT intent_key, created_at, payload FROM order_intents WHERE status='CREATED'").fetchall()
@@ -874,7 +896,7 @@ class OrderGateway:
         """
         db_path = getattr(self.store, "path", "trading_state.db")
         try:
-            with sqlite3.connect(db_path, timeout=5.0) as con:
+            with sqlite3.connect(db_path, timeout=10.0) as con:
                 row = con.execute("SELECT status FROM order_intents WHERE intent_key=?", (intent_key,)).fetchone()
         except Exception as exc:
             log.warning("abandon_entry lookup failed: %s", exc)
@@ -1297,7 +1319,7 @@ class OrderGateway:
         now_iso = datetime.now(timezone.utc).isoformat()
         db_path = getattr(self.store, "path", "trading_state.db")
         try:
-            with sqlite3.connect(db_path, timeout=5.0) as con:
+            with sqlite3.connect(db_path, timeout=10.0) as con:
                 row = con.execute("SELECT status FROM order_intents WHERE intent_key=?", (intent_key,)).fetchone()
                 if row is None:
                     return False
@@ -1316,7 +1338,7 @@ class OrderGateway:
     def _resolve_by_ticket(self, ticket: int, status: str, error: Optional[str] = None) -> None:
         db_path = getattr(self.store, "path", "trading_state.db")
         try:
-            with sqlite3.connect(db_path, timeout=5.0) as con:
+            with sqlite3.connect(db_path, timeout=10.0) as con:
                 keys = [r[0] for r in con.execute("SELECT intent_key FROM order_intents WHERE mt5_ticket=?", (int(ticket),))]
         except Exception as e:
             log.warning("Intent lookup by ticket failed: %s", e)

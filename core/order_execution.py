@@ -13,6 +13,17 @@ import numpy as np
 log = logging.getLogger(__name__)
 logger = log
 
+# ── Locked broker reads (Phase 4 PH4-N1) ────────────────────────────────────
+# Raw mt5.* reads bypass the gateway's MT5 lock and race order_send's
+# last_error attribution. All reads below go through core.broker_reads.
+from core.broker_reads import (
+    broker_orders_get,
+    broker_positions_get,
+    broker_symbol_info,
+    broker_symbol_info_tick,
+)
+
+
 # ── Single-door gateway dispatch (Phase 2 One Door) ──────────────────────────
 # ONLY core/order_gateway.py may call mt5.order_send (runtime guard +
 # AST test enforce this). All live paths below delegate to the default
@@ -233,10 +244,10 @@ def _symbol_tick(symbol: str) -> Any:
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         raise RuntimeError("MetaTrader5 module unavailable")
-    info = mt5_inst.symbol_info(symbol)
+    info, _info_err = broker_symbol_info(symbol, mt5_inst=mt5_inst)
     if not info or not getattr(info, "visible", True):
         mt5_inst.symbol_select(symbol, True)
-    tick = mt5_inst.symbol_info_tick(symbol)
+    tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5_inst)
     if not tick:
         raise RuntimeError(f"Failed to get tick for {symbol}")
     return tick
@@ -260,8 +271,19 @@ def _get_rolling_spread_avg_points(symbol: str, current_points: float, point: fl
         pass
     h = _SPREAD_HISTORY.setdefault(symbol, [])
     if not h:
+        baseline_points = None
+        try:
+            mt5_inst = _get_mt5()
+            if mt5_inst:
+                info, _ = broker_symbol_info(symbol, mt5_inst=mt5_inst)
+                if info and getattr(info, "spread", None) is not None:
+                    s_val = float(info.spread)
+                    if s_val > 0:
+                        baseline_points = s_val
+        except Exception:
+            pass
         h.append(current_points)
-        return current_points
+        return baseline_points if baseline_points is not None else current_points
     avg = sum(h) / len(h)
     h.append(current_points)
     if len(h) > max_window:
@@ -273,7 +295,7 @@ def _broker_market_filling_mode(symbol: str) -> int:
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         raise RuntimeError("MetaTrader5 module unavailable")
-    info = mt5_inst.symbol_info(symbol)
+    info, _info_err = broker_symbol_info(symbol, mt5_inst=mt5_inst)
     if not info:
         raise RuntimeError(f"Broker symbol specification unavailable for {symbol}")
     try:
@@ -663,7 +685,8 @@ def emergency_market_exit(*, symbol: str, position_ticket: int, side: str, volum
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         raise RuntimeError("MetaTrader5 module unavailable for emergency exit")
-    positions = mt5_inst.positions_get(ticket=int(position_ticket)) or []
+    positions, _pos_err = broker_positions_get(ticket=int(position_ticket), mt5_inst=mt5_inst)
+    positions = positions or []
     if len(positions) != 1:
         raise RuntimeError("emergency exit requires exactly one broker position")
     position = positions[0]
@@ -810,7 +833,7 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
         # latency signal available before dispatch.
         _t0 = time.perf_counter()
         try:
-            _tick = mt5_inst.symbol_info_tick(symbol)
+            _tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5_inst)
         except Exception:
             _tick = None
         _roundtrip_ms = (time.perf_counter() - _t0) * 1000.0
@@ -820,7 +843,7 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
         _ask = float(getattr(_tick, "ask", 0.0) or 0.0)
         if not (_bid > 0 and _ask > 0 and _ask >= _bid):
             raise RuntimeError(f"LiveExecutionSafetySupervisor: invalid live prices bid={_bid}, ask={_ask}")
-        info = mt5_inst.symbol_info(symbol) if hasattr(mt5_inst, "symbol_info") else None
+        info, _info_err = broker_symbol_info(symbol, mt5_inst=mt5_inst) if hasattr(mt5_inst, "symbol_info") else (None, None)
         point = float(getattr(info, "point", 0.00001) or 0.00001) if info else 0.00001
         _current_spread = (_ask - _bid) / point if point > 0 else (_ask - _bid)
         _avg_spread = _get_rolling_spread_avg_points(symbol, _current_spread, point)
@@ -889,7 +912,7 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
     }
     # Dynamic deviation: 20 pipettes for FX, scale for metals/indices via point
     try:
-        info = mt5_inst.symbol_info(symbol)
+        info, _dev_info_err = broker_symbol_info(symbol, mt5_inst=mt5_inst)
         point = float(getattr(info, "point", 0.00001) or 0.00001)
         # ~15 points for FX majors, ~30 for XAU (point 0.01 vs 0.00001)
         dev = 30 if point >= 0.01 else 20
@@ -994,7 +1017,7 @@ def modify_order_sltp(symbol: Optional[str], sl: Optional[float], tp: Optional[f
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         return 0
-    positions = mt5_inst.positions_get(symbol=symbol) if symbol else mt5_inst.positions_get()
+    positions, _mod_pos_err = broker_positions_get(symbol=symbol, mt5_inst=mt5_inst) if symbol else broker_positions_get(mt5_inst=mt5_inst)
     count = 0
     _gw = _live_gateway()
     for p in positions or []:
@@ -1024,7 +1047,7 @@ def cancel_pending_order(order_id: int, paper: Optional[PaperBroker], magic: int
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         return False
-    order = mt5_inst.orders_get(ticket=order_id)
+    order, _order_err = broker_orders_get(ticket=order_id, mt5_inst=mt5_inst)
     if not order or len(order) != 1:
         return False
     if int(getattr(order[0], "magic", 0) or 0) != magic:

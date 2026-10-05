@@ -41,6 +41,15 @@ def fake_mt5(monkeypatch):
     patch_everywhere(monkeypatch, "core/trade_manager.py", "mt5", fake)
     patch_everywhere(monkeypatch, "core/order_execution.py", "mt5", fake)
     monkeypatch.setattr("core.order_execution._get_mt5", lambda: fake)
+    # Pin sys.modules["mt5_trader"].mt5 too: the orchestrator resolves ticks
+    # and reconcile reads through it when mt5_trader is imported anywhere in
+    # the worker, so leaving it makes tick resolution depend on worker import
+    # order (position-management advisory test caught this).
+    import sys as _sys
+
+    _mt5_trader_mod = _sys.modules.get("mt5_trader")
+    if _mt5_trader_mod is not None and hasattr(_mt5_trader_mod, "mt5"):
+        monkeypatch.setattr(_mt5_trader_mod, "mt5", fake, raising=False)
     return fake
 
 
@@ -316,3 +325,267 @@ def test_tl_t4_live_reconciliation_imports_get_mt5(store, fake_mt5):
     assert isinstance(report, dict)
     assert report["status"] == "CLEAN"
     assert report["journal"]["closed_trade_count"] == 0
+
+
+class WrapperClient:
+    """The public surface of mt5_trader.MT5Client (lacks read methods like positions_get)."""
+    def login(self): return True
+    def get_account_info(self): return {"equity": 10_000.0, "balance": 10_000.0}
+    def account_info(self): return NS(equity=10_000.0, balance=10_000.0, trade_mode=0, login=1)
+    def shutdown(self): pass
+
+
+def test_probe_a_wrapper_client_shape(store, fake_mt5):
+    """Probe A (Appendix A): wrapper-shaped client (MT5Client shape) resolves broker reads via module handle."""
+    risk = RiskManager(10_000.0, risk_per_trade=0.01)
+    risk.set_store(store)
+    perf = MagicMock()
+    perf.history = []
+
+    # Owned 101 (magic 460001) + owned 103 (magic 460003) + manual 900 (magic 0)
+    fake_mt5.positions = [
+        NS(ticket=101, symbol="EURUSD", type=0, magic=460001, volume=0.1, price_open=1.1000, sl=1.0950, tp=1.1100),
+        NS(ticket=103, symbol="GBPUSD", type=0, magic=460003, volume=0.1, price_open=1.2500, sl=1.2450, tp=1.2600),
+        NS(ticket=900, symbol="USDJPY", type=0, magic=0, volume=0.1, price_open=150.00, sl=149.50, tp=151.00),
+    ]
+    # Owned pending 201 (magic 460002)
+    fake_mt5.orders = [
+        NS(ticket=201, symbol="EURUSD", type=2, magic=460002, volume_current=0.1, price_open=1.1050, sl=1.1000, tp=1.1150),
+    ]
+
+    orch = LLMOrchestrator(
+        client=WrapperClient(),
+        risk_manager=risk,
+        perf_monitor=perf,
+        api_key="mock_key",
+        journal_mode="LIVE",
+        store=store,
+    )
+
+    # 1. Active positions: exactly 2 owned positions (101, 103)
+    assert orch._calc_live_active_positions() == 2
+
+    # 2. Portfolio heat: > 0 (2 owned positions + 1 owned pending order)
+    assert orch._calc_live_portfolio_heat() > 0
+
+    # 3. Between-candle monitoring runs without AttributeError / ERROR
+    mon_res = orch._monitor_owned_positions_tick("EURUSD", "M15", paper_mode=False)
+    assert mon_res.get("status") != "ERROR"
+
+    # 4. Reconcile with a closing deal books closed trade cleanly
+    _make_open_trade(store, ticket=888)
+    fake_mt5.deals = [
+        NS(ticket=9001, position_id=888, entry=1, profit=25.0, commission=-0.5, time=1700000000, symbol="EURUSD", volume=0.1, price=1.1025)
+    ]
+    orch.reconcile_open_positions()
+    assert 888 not in {int(r["ticket"]) for r in store.open_trade_rows()}
+
+
+def test_probe_b_failed_read_and_entry_deal_isolation(store, fake_mt5, monkeypatch):
+    """Probe B (Appendix A): failed positions read skips pass and entry-only deal never closes."""
+    risk = RiskManager(10_000.0, risk_per_trade=0.01)
+    risk.set_store(store)
+    perf = MagicMock()
+    perf.history = []
+
+    orch = LLMOrchestrator(
+        client=fake_mt5,
+        risk_manager=risk,
+        perf_monitor=perf,
+        api_key="mock_key",
+        journal_mode="LIVE",
+        store=store,
+    )
+
+    _make_open_trade(store, ticket=777)
+    fake_mt5.positions = [
+        NS(ticket=777, symbol="EURUSD", type=0, magic=460002, volume=0.1, price_open=1.1000, sl=1.0950, tp=1.1100)
+    ]
+    fake_mt5.deals = [
+        NS(ticket=8001, position_id=777, entry=0, profit=0.0, commission=-0.35, time=1700000000, symbol="EURUSD", volume=0.1, price=1.1000)
+    ]
+
+    # One failed read: positions_get returns None
+    monkeypatch.setattr(fake_mt5, "positions_get", lambda *a, **k: None)
+    orch.reconcile_open_positions()
+    assert 777 in {int(r["ticket"]) for r in store.open_trade_rows()}
+
+    # Broker positions empty, but history has ONLY entry deal (entry=0) -> keeps open!
+    monkeypatch.setattr(fake_mt5, "positions_get", lambda *a, **k: [])
+    orch.reconcile_open_positions()
+    assert 777 in {int(r["ticket"]) for r in store.open_trade_rows()}
+
+
+def test_real_proposal_passes_constraint_engine_and_sizes(store, fake_mt5):
+    """B1 & H2: Real unmocked TradingConstraintEngine allows valid proposal at validation and checks sized volume."""
+    risk = RiskManager(10_000.0, risk_per_trade=0.01)
+    risk.set_store(store)
+    perf = MagicMock()
+    orch = LLMOrchestrator(
+        client=WrapperClient(),
+        risk_manager=risk,
+        perf_monitor=perf,
+        api_key="mock_key",
+        journal_mode="PAPER",
+        store=store,
+    )
+    orch.overfit_gate = MagicMock()
+    orch.overfit_gate.check_strategy.return_value = NS(
+        strategy="swing", status="PASS", risk_level="LOW", grade="A", reason="test pass", checked_at=0,
+    )
+    orch.data_quality = MagicMock()
+    orch.data_quality.validate.return_value = MagicMock(passed=True, reasons=[])
+    decision = {
+        "action": "BUY",
+        "entry": 1.1000,
+        "stop_loss": 1.0950,
+        "take_profit": 1.1150,
+        "confidence": 0.85,
+    }
+    toon = {
+        "dom": {"best_bid": 1.0999, "best_ask": 1.1000, "spread": 0.0001},
+        "ohlc": [{"close": 1.0990}, {"close": 1.0995}, {"close": 1.1000}],
+        "indicators": {"ema_50": 1.0500, "adx_14": 25.0, "atr_14": 0.0020},
+        "multi_timeframe": {"H1": {"trend": "BULLISH"}, "M15": {"trend": "BULLISH"}},
+        "technical_analysis": {"key_levels": [1.1000]},
+        "live_advisory_hub": {"bocpd": {"changepoint_probability": 0.0}},
+        "news": [],
+        "volume_analysis": {"volume_ratio": 1.2},
+        "microstructure": {"allowed": True, "flags": []},
+        "context": {
+            "calendar_source": "mt5_calendar",
+            "clock_health": {"valid": True, "status": "PAPER_SIMULATION", "offset_seconds": 0.0},
+        },
+    }
+    with patch("mt5_trader.classify_setup", return_value={"setup_id": "test", "eligible": True, "reason": "ok", "spec": {"min_rr": 1.5}}), \
+         patch("mt5_trader.evaluate_data_requirements", return_value={"available": True, "reasons": []}), \
+         patch("mt5_trader.evaluate_market_conditions", return_value=MagicMock(allowed=True, reasons=[])):
+        proposal, validation = orch._validate_proposal(decision, toon, "EURUSD", "swing", paper_mode=True)
+        assert proposal is not None
+        assert validation.approved is True
+        assert proposal.features.get("constraint_engine_verdict") == "PASS"
+
+
+def test_full_lifecycle_on_fake_mt5_with_wrapper_client(store, fake_mt5):
+    """B5: Full lifecycle on FakeMT5 with WrapperClient:
+
+    pending -> fill -> reconcile -> breakeven -> trail -> partial -> close -> exactly one outcome.
+    """
+    risk = RiskManager(10_000.0, risk_per_trade=0.01)
+    risk.set_store(store)
+    perf = MagicMock()
+    perf.history = []
+
+    orch = LLMOrchestrator(
+        client=WrapperClient(),
+        risk_manager=risk,
+        perf_monitor=perf,
+        api_key="mock_key",
+        journal_mode="LIVE",
+        store=store,
+    )
+    orch.overfit_gate = MagicMock()
+    orch.overfit_gate.check_strategy.return_value = NS(
+        strategy="scalp", status="PASS", risk_level="LOW", grade="A", reason="test pass", checked_at=0,
+    )
+    orch.data_quality = MagicMock()
+    orch.data_quality.validate.return_value = MagicMock(passed=True, reasons=[])
+    tm = TradeManager(client=WrapperClient(), risk_manager=risk, store=store)
+    orch.wire_trade_manager(tm)
+
+    # 1. Proposal validation & sizing
+    decision = {"action": "BUY", "entry": 1.1000, "stop_loss": 1.0950, "take_profit": 1.1150, "confidence": 0.85}
+    toon = {
+        "dom": {"best_bid": 1.0999, "best_ask": 1.1000, "spread": 0.0001},
+        "ohlc": [{"close": 1.0990}, {"close": 1.0995}, {"close": 1.1000}],
+        "indicators": {"ema_50": 1.0500, "adx_14": 25.0, "atr_14": 0.0020},
+        "multi_timeframe": {"H1": {"trend": "BULLISH"}, "M15": {"trend": "BULLISH"}},
+        "technical_analysis": {"key_levels": [1.1000]},
+        "live_advisory_hub": {"bocpd": {"changepoint_probability": 0.0}},
+        "news": [],
+        "volume_analysis": {"volume_ratio": 1.2},
+        "microstructure": {"allowed": True, "flags": []},
+        "context": {
+            "calendar_source": "mt5_calendar",
+            "clock_health": {"valid": True, "status": "PAPER_SIMULATION", "offset_seconds": 0.0},
+        },
+    }
+    with patch("mt5_trader.classify_setup", return_value={"setup_id": "test", "eligible": True, "reason": "ok", "spec": {"min_rr": 1.5}}), \
+         patch("mt5_trader.evaluate_data_requirements", return_value={"available": True, "reasons": []}), \
+         patch("mt5_trader.evaluate_market_conditions", return_value=MagicMock(allowed=True, reasons=[])):
+        prop, val = orch._validate_proposal(decision, toon, "EURUSD", "scalp", paper_mode=True)
+        assert prop is not None and val.approved
+
+    # 2. Pending intent creation
+    ticket = 5555
+    ops = AgentOperations(store.path)
+    ops.create_order_intent(
+        "intent_5555",
+        {"symbol": "EURUSD", "side": "BUY", "entry": 1.1000, "volume": 0.2, "risk_amount": 50.0, "magic": 460001, "setup_key": prop.setup_key()},
+        actor="RiskController",
+    )
+    ops.resolve_order_intent("intent_5555", "PENDING", ticket=ticket)
+    store.transition_latest_setup(prop.setup_key(), "ACCEPTED", ticket=ticket, reason="submitted")
+    store.record_open_trade(ticket, prop, volume=0.2, risk_amount=50.0, payload={"magic": 460001})
+
+    # 3. Fill: position appears on FakeMT5
+    pos = NS(
+        ticket=ticket, symbol="EURUSD", type=0, magic=460001, volume=0.2,
+        price_open=1.1000, sl=1.0950, tp=1.1150, price_current=1.1000, profit=0.0,
+    )
+    fake_mt5.positions = [pos]
+    fake_mt5.bid = 1.1000
+    fake_mt5.ask = 1.1002
+
+    # 4. Reconcile pending -> FILLED
+    ops.resolve_order_intent("intent_5555", "FILLED", ticket=ticket)
+    assert len(store.open_trade_rows()) == 1
+
+    # 5. Breakeven: price rises to 1.1060 (> 1R = 50 pips)
+    fake_mt5.bid = 1.1060
+    fake_mt5.ask = 1.1062
+    pos.price_current = 1.1060
+    pos.profit = 120.0
+    tm.breakeven_r_mult = 1.0
+    tm.use_trailing_stop = False
+    tm._manage_position(pos, current_price=1.1060, atr=0.0020)
+    # Position SL updated towards BE (>= 1.1000)
+    assert pos.sl >= 1.1000
+
+    # 6. Trail: price rises further to 1.1150 (3R)
+    fake_mt5.bid = 1.1150
+    fake_mt5.ask = 1.1152
+    pos.price_current = 1.1150
+    pos.profit = 300.0
+    old_sl = pos.sl
+    tm.trailing_stop_r_mult = 1.5
+    tm.use_trailing_stop = True
+    tm._manage_position(pos, current_price=1.1150, atr=0.0020)
+    # SL trailed tighter than previous BE
+    assert pos.sl > old_sl
+
+    # 7. Partial close: 50% of volume closed
+    partial_ok = tm.execute_partial_close(ticket, percentage=0.5, reason="Target 1 hit")
+    assert partial_ok is True
+    assert pos.volume == pytest.approx(0.1, abs=0.01)
+
+    # 8. Final close at broker with closing deal
+    fake_mt5.positions = []
+    fake_mt5.deals = [
+        NS(ticket=88881, position_id=ticket, entry=0, profit=0.0, commission=-0.5, time=1700000000, symbol="EURUSD", volume=0.2, price=1.1000),
+        NS(ticket=88882, position_id=ticket, entry=1, profit=85.0, commission=-0.5, time=1700000100, symbol="EURUSD", volume=0.2, price=1.1085),
+    ]
+
+    with patch.object(risk, "record_trade_outcome", wraps=risk.record_trade_outcome) as mock_outcome:
+        orch.reconcile_open_positions()
+
+        # Trade is closed in journal
+        assert len(store.open_trade_rows()) == 0
+        closed = _closed_trades(store)
+        assert len(closed) == 1
+        assert closed[0]["ticket"] == ticket
+
+        # Exactly one outcome recorded to risk manager!
+        assert mock_outcome.call_count == 1
+        assert mock_outcome.call_args[0][0] == pytest.approx(84.0, abs=1.0)
+

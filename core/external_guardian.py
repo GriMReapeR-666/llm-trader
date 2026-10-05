@@ -285,8 +285,11 @@ class ExternalGuardian:
             )
 
         try:
-            info = mt5.account_info()
+            from core.broker_reads import broker_account_info as _guardian_account_info
+            info, _guardian_info_err = _guardian_account_info(mt5_inst=mt5)
             if info is None:
+                if isinstance(_guardian_info_err, Exception):
+                    raise _guardian_info_err
                 return BrokerSnapshot(
                     error="mt5.account_info() returned None",
                     timestamp=datetime.now(timezone.utc).isoformat(),
@@ -314,8 +317,13 @@ class ExternalGuardian:
             if self._daily_peak_equity > 0:
                 dd_pct = ((self._daily_peak_equity - equity) / self._daily_peak_equity) * 100.0
 
-            # Read positions directly from broker
-            positions = mt5.positions_get()
+            # Read positions directly from broker (under the MT5 lock so a
+            # concurrent order_send cannot scramble last_error attribution).
+            # A read error fails closed (trip), exactly like a direct raise.
+            from core.broker_reads import broker_positions_get as _guardian_positions_get
+            positions, _guardian_pos_err = _guardian_positions_get(mt5_inst=mt5)
+            if isinstance(_guardian_pos_err, Exception):
+                raise _guardian_pos_err
             n_positions = len(positions) if positions else 0
 
             # Compute gross notional and leverage

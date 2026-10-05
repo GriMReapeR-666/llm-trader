@@ -81,6 +81,8 @@ class BayesianOnlineChangepointDetector:
     @property
     def changepoint_probability(self) -> float:
         """Current probability that a changepoint occurred at step t."""
+        if not self.history:
+            return 0.0
         return float(self.R[0]) if len(self.R) > 0 else 0.0
 
     @property

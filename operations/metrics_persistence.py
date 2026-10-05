@@ -43,7 +43,7 @@ class MetricsStore:
     def _init_db(self) -> None:
         """Initialize metrics tables."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.execute("""
                 CREATE TABLE IF NOT EXISTS metrics_trades (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -111,7 +111,7 @@ class MetricsStore:
     def record_trade(self, trade: Dict[str, Any]) -> None:
         """Record a trade for metrics computation."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             r_mult = 0.0
             if trade.get("gross_pnl") and trade.get("risk_amount"):
                 r_mult = trade["gross_pnl"] / max(trade["risk_amount"], 0.01)
@@ -145,7 +145,7 @@ class MetricsStore:
     def record_latency(self, component: str, operation: str, latency_ms: float) -> None:
         """Record latency measurement."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.execute(
                 "INSERT INTO metrics_latency (component, operation, latency_ms) VALUES (?, ?, ?)",
                 (component, operation, latency_ms)
@@ -165,7 +165,7 @@ class MetricsStore:
     ) -> None:
         """Record LLM cost."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.execute(
                 "INSERT INTO metrics_costs (provider, model, tokens_in, tokens_out, cost_usd) "
                 "VALUES (?, ?, ?, ?, ?)",
@@ -185,7 +185,7 @@ class MetricsStore:
     ) -> None:
         """Record equity snapshot."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.execute(
                 "INSERT INTO metrics_equity (balance, equity, drawdown_pct, open_risk_pct) "
                 "VALUES (?, ?, ?, ?)",
@@ -205,7 +205,7 @@ class MetricsStore:
     ) -> None:
         """Record a system metric."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.execute(
                 "INSERT INTO metrics_system (component, metric_name, metric_value, tags) "
                 "VALUES (?, ?, ?, ?)",
@@ -219,7 +219,7 @@ class MetricsStore:
     def get_rolling_metrics(self, window: int = 50) -> Dict[str, Any]:
         """Compute rolling window metrics from recent trades."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.row_factory = sqlite3.Row
 
             rows = con.execute(
@@ -297,7 +297,7 @@ class MetricsStore:
     def get_latency_stats(self, component: str, hours: int = 24) -> Dict[str, Any]:
         """Get latency statistics for a component."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.row_factory = sqlite3.Row
 
             cutoff = datetime.now(timezone.utc).isoformat()
@@ -337,7 +337,7 @@ class MetricsStore:
     def get_cost_summary(self, hours: int = 24) -> Dict[str, Any]:
         """Get LLM cost summary."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.row_factory = sqlite3.Row
 
             cutoff = datetime.now(timezone.utc).isoformat()
@@ -381,7 +381,7 @@ class MetricsStore:
     def get_drawdown_duration(self) -> Dict[str, Any]:
         """Get current drawdown duration."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.row_factory = sqlite3.Row
 
             rows = con.execute(

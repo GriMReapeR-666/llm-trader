@@ -1306,9 +1306,9 @@ def evaluate_portfolio_risk_gate(
     is_xau = "XAU" in sym
     stop_dist = abs(entry - sl)
     try:
-        import MetaTrader5 as mt5  # type: ignore
-        info = mt5.symbol_info(sym)  # type: ignore
-        tick_size = float(getattr(info, "trade_tick_size", 0) or 0)
+        from core.broker_reads import broker_symbol_info as _tt_symbol_info
+        info, _tt_info_err = _tt_symbol_info(sym, mt5_inst=None)
+        tick_size = float(getattr(info, "trade_tick_size", 0) or 0) if info else 0
         tick_val = float(getattr(info, "trade_tick_value", 0) or 0)
         if tick_size > 0 and tick_val > 0 and stop_dist > 0:
             loss_per_lot = (stop_dist / tick_size) * tick_val
@@ -1321,8 +1321,8 @@ def evaluate_portfolio_risk_gate(
     nav_pct: Optional[float] = None
     equity: Optional[float] = None
     try:
-        import MetaTrader5 as mt5  # type: ignore
-        acc = mt5.account_info()  # type: ignore
+        from core.broker_reads import broker_account_info as _tt_account_info
+        acc, _tt_acc_err = _tt_account_info(mt5_inst=None)
         if acc is not None:
             equity = float(getattr(acc, "equity", 0) or getattr(acc, "balance", 0) or 0)
             if equity > 0:

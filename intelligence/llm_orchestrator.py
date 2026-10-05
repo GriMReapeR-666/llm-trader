@@ -95,6 +95,14 @@ def _get_fetch_ohlc():
 from core.risk_manager import RiskManager
 from core.trade_manager import TradeManager
 from research.rl_trainer import RLTrainer
+from core.broker_reads import (
+    broker_account_info,
+    broker_history_deals_get,
+    broker_orders_get,
+    broker_positions_get,
+    broker_symbol_info,
+    broker_symbol_info_tick,
+)
 from core.trading_safety import (
     BOT_MAGICS, DeterministicValidator, PortfolioRiskArbiter,
     TradeProposal, TradingStore, ValidationResult,
@@ -254,7 +262,7 @@ def positions_overview() -> List[Dict[str, Any]]:
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         return []
-    pos = mt5_inst.positions_get()
+    pos, _pos_err = broker_positions_get(mt5_inst=mt5_inst)
     if pos is None:
         return []
     return [p._asdict() for p in pos]
@@ -263,7 +271,7 @@ def orders_overview() -> List[Dict[str, Any]]:
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         return []
-    ords = mt5_inst.orders_get()
+    ords, _ords_err = broker_orders_get(mt5_inst=mt5_inst)
     if ords is None:
         return []
     return [o._asdict() for o in ords]
@@ -276,13 +284,14 @@ def preflight_symbols(symbols: List[str]) -> Dict[str, str]:
     all_symbols = mt5_inst.symbols_get() or []
     names = [s.name for s in all_symbols]
     for requested in symbols:
-        info = mt5_inst.symbol_info(requested)
+        info, _info_err = broker_symbol_info(requested, mt5_inst=mt5_inst)
         name = requested
         if info is None:
             matches = [candidate for candidate in names if candidate.upper().startswith(requested.upper())]
             if len(matches) != 1:
                 raise RuntimeError(f"Broker symbol preflight failed for {requested}; matches={matches[:5]}")
-            name, info = matches[0], mt5_inst.symbol_info(matches[0])
+            name = matches[0]
+            info, _info_err = broker_symbol_info(name, mt5_inst=mt5_inst)
         if not getattr(info, "visible", True):
             if not mt5_inst.symbol_select(name, True):
                 raise RuntimeError(f"Broker symbol preflight could not select {name}")
@@ -532,7 +541,9 @@ class LLMOrchestrator:
         self._reconcile_lock = threading.Lock()
         self._reconcile_misses: Dict[int, int] = {}
         self.data_provider = MarketDataProvider(client, risk_manager, api_key)
-        if self.journal_mode == "PAPER":
+        # Explicit PAPER only: an unspecified journal mode must not silently
+        # enable simulated account evidence (fail-closed default).
+        if journal_mode is not None and str(journal_mode).upper() == "PAPER":
             # Paper sessions perform no authenticated MT5 login (client is
             # often None), so account evidence is legitimately absent and
             # the decision protocol deadlocks every cycle on "missing
@@ -894,17 +905,27 @@ class LLMOrchestrator:
         except Exception as exc:
             logger.error("Failed to attach safety arbiter to TradeManager: %s; trades will lack safety validation!", exc)
 
-    def _calc_live_active_positions(self) -> int:
-        """Count of owned live MT5 positions plus active reserving intents."""
+    def _calc_live_active_positions(self) -> Optional[int]:
+        """Count of owned live MT5 positions plus active reserving intents.
+
+        Returns None on broker read error/unavailability so risk manager fails closed.
+        """
         count = 0
         try:
-            broker = getattr(self, "client", None) or _get_mt5()
-            if broker is not None:
-                positions = broker.positions_get() or ()
-                magics = getattr(self, "owned_magics", None) or set(BOT_MAGICS)
-                count = sum(1 for p in positions if getattr(p, "magic", 0) in magics)
-        except Exception:
-            pass
+            broker = _get_mt5()
+            if broker is None:
+                return None
+            positions, _live_pos_err = broker_positions_get(mt5_inst=broker)
+            if _live_pos_err is not None or positions is None:
+                logging.getLogger("LLMOrchestrator").warning(
+                    "Live active positions read failed: %s; returning None (unknown)", _live_pos_err
+                )
+                return None
+            magics = getattr(self, "owned_magics", None) or set(BOT_MAGICS)
+            count = sum(1 for p in positions if getattr(p, "magic", 0) in magics)
+        except Exception as exc:
+            logging.getLogger("LLMOrchestrator").warning("Exception calculating live active positions: %s", exc)
+            return None
         if hasattr(self, "store") and self.store and hasattr(self.store, "reserving_intents_count"):
             try:
                 count += self.store.reserving_intents_count()
@@ -913,27 +934,41 @@ class LLMOrchestrator:
         return count
 
     def _calc_live_portfolio_heat(self) -> Optional[float]:
-        """Measured open live portfolio heat in R units across positions and pending orders."""
+        """Measured open live portfolio heat in R units across positions and pending orders.
+
+        Returns None on broker read error/unavailability so risk manager fails closed.
+        """
         if not self.risk:
-            return 0.0
+            return None
         try:
-            broker = getattr(self, "client", None) or _get_mt5()
+            broker = _get_mt5()
             if broker is None:
-                return 0.0
-            positions = list(broker.positions_get() or [])
-            orders = list(broker.orders_get() or [])
-        except Exception:
-            return 0.0
+                return None
+            _live_positions, _lp_err = broker_positions_get(mt5_inst=broker)
+            _live_orders, _lo_err = broker_orders_get(mt5_inst=broker)
+            if _lp_err is not None or _lo_err is not None or _live_positions is None or _live_orders is None:
+                logging.getLogger("LLMOrchestrator").warning(
+                    "Live portfolio heat read failed (pos_err=%s, order_err=%s); returning None",
+                    _lp_err, _lo_err,
+                )
+                return None
+            positions = list(_live_positions)
+            orders = list(_live_orders)
+        except Exception as exc:
+            logging.getLogger("LLMOrchestrator").warning("Exception reading live portfolio heat: %s", exc)
+            return None
         equity = self.risk._account_equity() or self.risk.balance
         if equity is None or equity <= 0:
-            return 0.0
+            return None
         unit = equity * self.risk.risk_per_trade
         if unit <= 0:
-            return 0.0
+            return None
         managed = getattr(self, "owned_magics", None) or set(BOT_MAGICS)
         owned_items = [p for p in positions if getattr(p, "magic", 0) in managed] + [
             o for o in orders if getattr(o, "magic", 0) in managed
         ]
+        if not owned_items:
+            return 0.0
         total_loss = 0.0
         for item in owned_items:
             try:
@@ -2525,7 +2560,10 @@ class LLMOrchestrator:
         if granted == "DEMO":
             try:
                 broker = _get_mt5()
-                trade_mode = getattr(broker.account_info(), "trade_mode", None)
+                if broker is None:
+                    return None
+                _acct, _acct_err = broker_account_info(mt5_inst=broker)
+                trade_mode = getattr(_acct, "trade_mode", None)
                 if trade_mode is None or int(trade_mode) != int(getattr(broker, "ACCOUNT_TRADE_MODE_DEMO", 0)):
                     return None
             except Exception:
@@ -2982,7 +3020,7 @@ class LLMOrchestrator:
             }
             constraint_eval = constraint_engine.evaluate(
                 {"action": side, "entry": entry, "stop_loss": sl, "take_profit": tp,
-                 "lots": getattr(proposal, "lots", 0.0), "symbol": symbol},
+                 "lots": getattr(proposal, "lots", None), "symbol": symbol},
                 constraint_context,
             )
             proposal.features["constraint_engine_verdict"] = constraint_eval.overall_verdict.value
@@ -3003,7 +3041,7 @@ class LLMOrchestrator:
                     run_id=self.run_id, correlation_id=proposal.setup_key(), severity="CRITICAL",
                 )
                 return proposal, result
-            if constraint_eval.overall_verdict == ConstraintVerdict.REDUCE:
+            if constraint_eval.overall_verdict == ConstraintVerdict.REUCE if hasattr(ConstraintVerdict, "REUCE") else ConstraintVerdict.REDUCE:
                 # Apply reduce instructions
                 for instr in constraint_eval.reduce_instructions:
                     if instr.get("action") == "REDUCE":
@@ -3018,12 +3056,12 @@ class LLMOrchestrator:
                             )
                             self.store.log_proposal(proposal, result)
                             return proposal, result
-                logging.getLogger("LLMOrchestrator").info("Boolean constraint: reduced lots to %.2f", proposal.lots)
+                logging.getLogger("LLMOrchestrator").info("Boolean constraint: position scale reduced to %.2f", proposal.features.get("constraint_position_scale", 1.0))
         except Exception as constraint_exc:
             logging.getLogger("LLMOrchestrator").debug("Boolean constraint engine failed: %s", constraint_exc)
 
-        info = mt5.symbol_info(symbol) if mt5 and not paper_mode else None
-        tick = mt5.symbol_info_tick(symbol) if mt5 and not paper_mode else None
+        info, _qinfo_err = broker_symbol_info(symbol, mt5_inst=mt5) if mt5 and not paper_mode else (None, None)
+        tick, _qtick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5) if mt5 and not paper_mode else (None, None)
         raw_tick_millis = (getattr(tick, "time_msc", 0) or (getattr(tick, "time", 0) or 0) * 1000) if tick else 0
         tick_time = raw_tick_millis / 1000 if raw_tick_millis else 0
         if not paper_mode and tick_time > 0:
@@ -3035,7 +3073,10 @@ class LLMOrchestrator:
             )
             provider_time = datetime.fromtimestamp(utc_tick_time, tz=timezone.utc).isoformat()
         else:
-            clock_health = toon.get("context", {}).get("clock_health") or {"valid": True, "status": "PAPER_SIMULATION", "offset_seconds": 0.0}
+            default_clock = {"valid": True, "status": "PAPER_SIMULATION", "offset_seconds": 0.0} if paper_mode else {"valid": False, "status": "NO_TICK", "offset_seconds": 0.0}
+            clock_health = toon.get("context", {}).get("clock_health") or default_clock
+            if not paper_mode and clock_health.get("status") == "PAPER_SIMULATION":
+                clock_health = {"valid": False, "status": "NO_TICK", "offset_seconds": 0.0}
             provider_time = toon.get("context", {}).get("provider_time") or (
                 datetime.now(timezone.utc).isoformat() if paper_mode else None
             )
@@ -3187,12 +3228,11 @@ class LLMOrchestrator:
                 if math.isfinite(copula_heat_val):
                     base_heat = getattr(self.risk, "base_heat_budget_r", getattr(self.risk, "_base_heat_budget_r", 4.0))
                     target_heat = min(base_heat, copula_heat_val)
-                    if hasattr(self.risk, "set_heat_budget_r"):
-                        self.risk.set_heat_budget_r(target_heat)
-                        logging.getLogger("LLMOrchestrator").info(
-                            "Copula tail risk set heat budget to %.2fR (state=%s)",
-                            target_heat, copula_state,
-                        )
+                    proposal.features["heat_budget_r"] = target_heat
+                    logging.getLogger("LLMOrchestrator").info(
+                        "Copula tail risk set proposal heat budget to %.2fR (state=%s)",
+                        target_heat, copula_state,
+                    )
             except Exception as _copula_exc:
                 logging.getLogger("LLMOrchestrator").debug("Copula heat compression skipped: %s", _copula_exc)
 
@@ -3524,8 +3564,8 @@ class LLMOrchestrator:
                 ) / 1000.0,
                 "atr_at_submit": atr,
             }
-        info = mt5.symbol_info(proposal.symbol)
-        tick = mt5.symbol_info_tick(proposal.symbol)
+        info, _plan_info_err = broker_symbol_info(proposal.symbol, mt5_inst=mt5)
+        tick, _plan_tick_err = broker_symbol_info_tick(proposal.symbol, mt5_inst=mt5)
         execution_policy = load_execution_policy(self.store, proposal.symbol)
         point = float(getattr(info, "point", 0) or 0)
         max_spread = float(execution_policy["max_spread_price"])
@@ -3545,7 +3585,7 @@ class LLMOrchestrator:
         # pending request is sent.
         margin_action = mt5.ORDER_TYPE_BUY if proposal.side == "BUY" else mt5.ORDER_TYPE_SELL
         margin = mt5.order_calc_margin(margin_action, proposal.symbol, volume, plan.entry)
-        account = mt5.account_info()
+        account, _margin_acct_err = broker_account_info(mt5_inst=mt5)
         if account is None:
             raise ValueError("broker account margin snapshot unavailable")
         free_margin = float(getattr(account, "margin_free", 0) or 0)
@@ -3598,7 +3638,7 @@ class LLMOrchestrator:
         while continuing to leave their management solely to their owner.  A
         failed estimate is a live-execution failure, not a zero-margin guess.
         """
-        positions = mt5.positions_get()
+        positions, _margin_pos_err = broker_positions_get()
         if positions is None:
             raise ValueError("broker position snapshot unavailable for margin concentration")
         durable_risk = {int(row["ticket"]): float(row["risk_amount"] or 0) for row in self.store.open_trade_rows()}
@@ -3612,7 +3652,7 @@ class LLMOrchestrator:
             is_buy = position_type == getattr(mt5, "POSITION_TYPE_BUY", 0)
             action = mt5.ORDER_TYPE_BUY if is_buy else mt5.ORDER_TYPE_SELL
             side = "BUY" if is_buy else "SELL"
-            tick = mt5.symbol_info_tick(symbol)
+            tick, _pm_tick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5)
             price = float(getattr(tick, "ask" if is_buy else "bid", 0) or 0)
             calculated = mt5.order_calc_margin(action, symbol, volume, price)
             if calculated is None or float(calculated) < 0:
@@ -4125,13 +4165,16 @@ class LLMOrchestrator:
         MT5 quote and the last completed-candle ATR; it never invokes the LLM
         and never manages positions whose magic number is not bot-owned.
         """
-        mt5 = getattr(self, "client", None) or _get_mt5()
+        # Module handle for reads: the client wrapper (MT5Client) carries no
+        # symbol_info_tick/positions_get surface — resolving ticks through it
+        # silently yields no quote and disables all live management.
+        mt5 = _get_mt5()
         if not getattr(self.data_provider, "trade_manager", None):
             return {"status": "SKIPPED", "reason": "manager_unavailable"}
         if not paper_mode and not self.client:
             return {"status": "SKIPPED", "reason": "client_unavailable"}
         try:
-            tick = mt5.symbol_info_tick(symbol) if mt5 is not None else None
+            tick, _mon_tick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5) if mt5 is not None else (None, None)
             bid = float(getattr(tick, "bid", 0) or 0) if tick else 0.0
             ask = float(getattr(tick, "ask", 0) or 0) if tick else 0.0
             tick_msc = int(getattr(tick, "time_msc", 0) or 0) if tick else 0
@@ -4609,6 +4652,8 @@ class LLMOrchestrator:
                 detector.update(100.0 * _math.log(last_close / prev_close))
             except Exception:
                 return None
+        if not getattr(detector, "history", []):
+            return 0.0
         try:
             return float(detector.changepoint_probability)
         except Exception:
@@ -4951,7 +4996,8 @@ class LLMOrchestrator:
             combined_mult = meta_mult * crash_mult
             effective_risk = max(0.001, min(0.02, self._base_risk_per_trade * combined_mult))
             if "self_improvement_risk_override" in toon:
-                effective_risk = float(toon["self_improvement_risk_override"])
+                override_risk = float(toon["self_improvement_risk_override"])
+                effective_risk = min(effective_risk, override_risk)
             toon["cycle_effective_risk"] = effective_risk
 
             # --- 8. CAUSAL FILTER (CRL-ABSO) ---
@@ -5305,8 +5351,17 @@ class LLMOrchestrator:
             if is_paper:
                 actual_tickets = set(self.paper_broker.positions.keys()) if self.paper_broker else set()
             else:
-                broker = getattr(self, "client", None) or _get_mt5()
-                actual_positions = broker.positions_get() if broker is not None else []
+                broker = _get_mt5()
+                if broker is None:
+                    logging.getLogger("LLMOrchestrator").warning("Reconcile skipped: broker unavailable")
+                    return
+                _actual_positions, _actual_err = broker_positions_get(mt5_inst=broker)
+                if _actual_err is not None or _actual_positions is None:
+                    logging.getLogger("LLMOrchestrator").warning(
+                        "Reconcile skipped: failed to read broker positions (%s); keeping trades open", _actual_err
+                    )
+                    return
+                actual_positions = _actual_positions
                 actual_tickets = {p.ticket for p in actual_positions} if actual_positions else set()
 
             # SQLite is authoritative after a restart; include the in-memory
@@ -5340,9 +5395,10 @@ class LLMOrchestrator:
                 else:
                     # Live / Demo: Retrieve history to find PnL (Lookback 7 days to be safe)
                     from_date = datetime.now() - timedelta(days=7)
-                    broker = getattr(self, "client", None) or _get_mt5()
-                    deals = list(broker.history_deals_get(position=ticket, date_from=from_date) or []) if broker is not None else []
-                    if not deals:
+                    broker = _get_mt5()
+                    _deals, _deals_err = broker_history_deals_get(position=ticket, date_from=from_date, mt5_inst=broker)
+                    deals = list(_deals or []) if broker is not None else []
+                    if not deals or _deals_err is not None:
                         misses = self._reconcile_misses.get(ticket, 0) + 1
                         self._reconcile_misses[ticket] = misses
                         if misses >= 3:
@@ -5354,6 +5410,28 @@ class LLMOrchestrator:
                         logging.getLogger("LLMOrchestrator").warning(
                             "Trade #%s absent from MT5 positions with no deal history (misses=%s); keeping unresolved.", ticket, misses)
                         continue
+
+                    # Verify that deals contain an actual closing deal (DEAL_ENTRY_OUT or out volume >= in volume) (B3)
+                    deal_entry_out = getattr(broker, "DEAL_ENTRY_OUT", 1)
+                    has_closing_deal = any(
+                        (deal.get("entry") if isinstance(deal, dict) else getattr(deal, "entry", None)) in (deal_entry_out, 1, 2, 3)
+                        for deal in deals
+                    )
+                    if not has_closing_deal:
+                        in_vol = sum(
+                            float(d.get("volume", 0) if isinstance(d, dict) else getattr(d, "volume", 0) or 0)
+                            for d in deals if (d.get("entry") if isinstance(d, dict) else getattr(d, "entry", 0)) == 0
+                        )
+                        out_vol = sum(
+                            float(d.get("volume", 0) if isinstance(d, dict) else getattr(d, "volume", 0) or 0)
+                            for d in deals if (d.get("entry") if isinstance(d, dict) else getattr(d, "entry", 0)) != 0
+                        )
+                        if out_vol <= 0 or out_vol < in_vol - 1e-6:
+                            logging.getLogger("LLMOrchestrator").warning(
+                                "Trade #%s deals contain no closing deal (entry_in only); keeping trade open.", ticket
+                            )
+                            continue
+
                     self._reconcile_misses.pop(ticket, None)
                     gross_pnl = sum(float(getattr(d, "profit", 0) or 0) for d in deals)
                     swap = sum(float(getattr(d, "swap", 0) or 0) for d in deals)
@@ -5384,41 +5462,66 @@ class LLMOrchestrator:
                     continue
 
                 logging.getLogger("LLMOrchestrator").info(f"🔎 Detected external/SLTP close for #{ticket}. PnL: {total_pnl}")
-                for monitor_item in self.perf.history:
-                    if int(monitor_item.get("ticket", 0)) == int(ticket):
-                        monitor_item["broker_reconciled"] = True
-                self.perf.close_trade(ticket, exit_price, total_pnl)
+
+                # H5: Record risk outcome FIRST inside the same unit as the close
                 if hasattr(self.risk, "record_trade_outcome"):
-                    self.risk.record_trade_outcome(total_pnl)
-                closing_deals = []
-                if deals:
-                    closing_deals = [deal for deal in deals if (deal.get("entry") if isinstance(deal, dict) else getattr(deal, "entry", None)) == getattr(mt5, "DEAL_ENTRY_OUT", 1)] or [deals[-1]]
-                for deal in closing_deals:
-                    is_d = isinstance(deal, dict)
-                    order_t = deal.get("order", 0) if is_d else getattr(deal, "order", 0)
-                    deal_t = deal.get("ticket", 0) if is_d else getattr(deal, "ticket", 0)
-                    pos_t = deal.get("position_id", ticket) if is_d else getattr(deal, "position_id", ticket)
-                    f_price = deal.get("price_close", deal.get("price", exit_price)) if is_d else getattr(deal, "price", exit_price)
-                    f_vol = deal.get("volume", 0) if is_d else getattr(deal, "volume", 0)
-                    comm = deal.get("commission", 0.0) if is_d else getattr(deal, "commission", 0.0)
-                    swp = deal.get("swap", 0.0) if is_d else getattr(deal, "swap", 0.0)
-                    pft = deal.get("profit", 0.0) if is_d else getattr(deal, "profit", 0.0)
-                    self.store.record_execution_report(
-                        event_type="CLOSED", order_ticket=int(order_t or 0) or None,
-                        deal_ticket=int(deal_t or 0) or None,
-                        position_ticket=int(pos_t or ticket),
-                        filled_price=float(f_price or 0) or None,
-                        filled_volume=float(f_vol or 0) or None,
-                        commission=float(comm or 0),
-                        swap=float(swp or 0),
-                        payload={"profit": float(pft or 0), "reason": "History reconciliation"},
-                    )
-                risk_amount = self.store.trade_risk(ticket)
-                label = self.trade_memory.label_closed_trade(ticket, total_pnl, risk_amount, "MT5 history reconciliation")
-                self.trade_memory.resolve_retrieval_outcome(ticket, label["label"])
-                self._apply_causal_trade_feedback(ticket, total_pnl, risk_amount, label)
-                self.trade_memory.save_narrative({"ticket": ticket, "label": label["label"]}, f"Trade {ticket}: {label['label']} at {label['r_multiple']:.2f}R. {label['rationale']}")
-                self.trade_memory.rebuild_scenarios()
+                    try:
+                        self.risk.record_trade_outcome(total_pnl)
+                    except Exception as _risk_exc:
+                        logging.getLogger("LLMOrchestrator").error("Failed to record risk outcome for %s: %s", ticket, _risk_exc)
+
+                # Isolated side effects per ticket (H5)
+                try:
+                    for monitor_item in self.perf.history:
+                        if int(monitor_item.get("ticket", 0)) == int(ticket):
+                            monitor_item["broker_reconciled"] = True
+                    self.perf.close_trade(ticket, exit_price, total_pnl)
+                except Exception as _perf_exc:
+                    logging.getLogger("LLMOrchestrator").warning("perf.close_trade failed for %s: %s", ticket, _perf_exc)
+
+                try:
+                    closing_deals = []
+                    if deals:
+                        deal_entry_out = getattr(broker if not is_paper else None, "DEAL_ENTRY_OUT", 1)
+                        closing_deals = [
+                            deal for deal in deals
+                            if (deal.get("entry") if isinstance(deal, dict) else getattr(deal, "entry", None)) in (deal_entry_out, 1, 2, 3)
+                        ] or [deals[-1]]
+                    for deal in closing_deals:
+                        is_d = isinstance(deal, dict)
+                        order_t = deal.get("order", 0) if is_d else getattr(deal, "order", 0)
+                        deal_t = deal.get("ticket", 0) if is_d else getattr(deal, "ticket", 0)
+                        pos_t = deal.get("position_id", ticket) if is_d else getattr(deal, "position_id", ticket)
+                        f_price = deal.get("price_close", deal.get("price", exit_price)) if is_d else getattr(deal, "price", exit_price)
+                        f_vol = deal.get("volume", 0) if is_d else getattr(deal, "volume", 0)
+                        comm = deal.get("commission", 0.0) if is_d else getattr(deal, "commission", 0.0)
+                        swp = deal.get("swap", 0.0) if is_d else getattr(deal, "swap", 0.0)
+                        pft = deal.get("profit", 0.0) if is_d else getattr(deal, "profit", 0.0)
+                        self.store.record_execution_report(
+                            event_type="CLOSED", order_ticket=int(order_t or 0) or None,
+                            deal_ticket=int(deal_t or 0) or None,
+                            position_ticket=int(pos_t or ticket),
+                            filled_price=float(f_price or 0) or None,
+                            filled_volume=float(f_vol or 0) or None,
+                            commission=float(comm or 0),
+                            swap=float(swp or 0),
+                            payload={"profit": float(pft or 0), "reason": "History reconciliation"},
+                        )
+                except Exception as _rep_exc:
+                    logging.getLogger("LLMOrchestrator").warning("record_execution_report failed for %s: %s", ticket, _rep_exc)
+
+                risk_amount = 0.0
+                label = {"label": "UNKNOWN", "r_multiple": 0.0, "rationale": "reconciled"}
+                try:
+                    risk_amount = self.store.trade_risk(ticket)
+                    label = self.trade_memory.label_closed_trade(ticket, total_pnl, risk_amount, "MT5 history reconciliation")
+                    self.trade_memory.resolve_retrieval_outcome(ticket, label["label"])
+                    self._apply_causal_trade_feedback(ticket, total_pnl, risk_amount, label)
+                    self.trade_memory.save_narrative({"ticket": ticket, "label": label["label"]}, f"Trade {ticket}: {label['label']} at {label['r_multiple']:.2f}R. {label['rationale']}")
+                    self.trade_memory.rebuild_scenarios()
+                except Exception as _mem_exc:
+                    logging.getLogger("LLMOrchestrator").warning("trade_memory label/narrative failed for %s: %s", ticket, _mem_exc)
+
                 # Distill lesson from this trade outcome
                 if self.lesson_distiller:
                     try:
@@ -5434,6 +5537,7 @@ class LLMOrchestrator:
                         self.lesson_distiller.save()
                     except Exception as _ld_err:
                         logging.getLogger("LLMOrchestrator").debug("Lesson distill failed: %s", _ld_err)
+
                 # GAP-10: ensure RL learns from reconciled closes even if the
                 # PerformanceMonitor callback path missed state fields.
                 try:
@@ -5459,11 +5563,16 @@ class LLMOrchestrator:
                     })
                 except Exception as exc:
                     logging.getLogger("LLMOrchestrator").warning("RL close update failed: %s", exc)
-                self.operations.enqueue_memory("closed_trade", str(ticket), {
-                    "ticket": ticket, "pnl": total_pnl, "r_multiple": label["r_multiple"],
-                    "label": label["label"], "reason": label["rationale"],
-                })
-                self.operations.event("reconciler", "trade_closed", {"ticket": ticket, "pnl": total_pnl, "label": label["label"]}, run_id=self.run_id, correlation_id=str(ticket))
+
+                try:
+                    self.operations.enqueue_memory("closed_trade", str(ticket), {
+                        "ticket": ticket, "pnl": total_pnl, "r_multiple": label.get("r_multiple", 0.0),
+                        "label": label.get("label", "UNKNOWN"), "reason": label.get("rationale", ""),
+                    })
+                    self.operations.event("reconciler", "trade_closed", {"ticket": ticket, "pnl": total_pnl, "label": label.get("label", "UNKNOWN")}, run_id=self.run_id, correlation_id=str(ticket))
+                except Exception as _ops_exc:
+                    logging.getLogger("LLMOrchestrator").warning("operations event/enqueue failed for %s: %s", ticket, _ops_exc)
+
                 try:
                     from intelligence.local_agent_memory import maybe_remember_trade_cycle
                     maybe_remember_trade_cycle(
@@ -5472,9 +5581,9 @@ class LLMOrchestrator:
                         payload={
                             "ticket": ticket,
                             "pnl": total_pnl,
-                            "r_multiple": label["r_multiple"],
-                            "label": label["label"],
-                            "reason": label["rationale"],
+                            "r_multiple": label.get("r_multiple", 0.0),
+                            "label": label.get("label", "UNKNOWN"),
+                            "reason": label.get("rationale", ""),
                         },
                         ticket=ticket,
                         run_id=self.run_id or "",
@@ -5487,22 +5596,26 @@ class LLMOrchestrator:
                     )
                 except Exception as exc:
                     logging.getLogger("LLMOrchestrator").debug("Trade memory event for ticket %s failed: %s", ticket, exc)
+
                 # Slow-Lane Memory Reflection: update equity, label trade,
                 # consolidate scenarios, and apply macro causal feedback.
-                self.velocity.submit_slow(
-                    f"reflection_{ticket}",
-                    self._run_reflection_graph,
-                    ticket=ticket,
-                    symbol=str(trade.get("symbol", "")),
-                    strategy=str(trade.get("strategy", "")),
-                    open_time=str(trade.get("opened_at", "")),
-                    close_time=str(close_time or utcnow_iso()),
-                    entry_price=float(trade.get("open_price", 0.0)),
-                    close_price=float(exit_price),
-                    realized_pnl=float(total_pnl),
-                    realized_r_multiple=float(label.get("r_multiple", 0.0)),
-                    outcome_label=str(label.get("label", "UNKNOWN")),
-                )
+                try:
+                    self.velocity.submit_slow(
+                        f"reflection_{ticket}",
+                        self._run_reflection_graph,
+                        ticket=ticket,
+                        symbol=str(trade.get("symbol", "")),
+                        strategy=str(trade.get("strategy", "")),
+                        open_time=str(trade.get("opened_at", "")),
+                        close_time=str(close_time or utcnow_iso()),
+                        entry_price=float(trade.get("open_price", 0.0)),
+                        close_price=float(exit_price),
+                        realized_pnl=float(total_pnl),
+                        realized_r_multiple=float(label.get("r_multiple", 0.0)),
+                        outcome_label=str(label.get("label", "UNKNOWN")),
+                    )
+                except Exception as _vel_exc:
+                    logging.getLogger("LLMOrchestrator").warning("Reflection submission failed for %s: %s", ticket, _vel_exc)
         finally:
             self._reconcile_lock.release()
 
@@ -5523,7 +5636,8 @@ class LLMOrchestrator:
             deals = adapt_paper_deals(self.paper_broker.history)
             require_timestamps = False
         elif mt5 is not None:
-            deals = mt5.history_deals_get(start, end)
+            _day_deals, _day_err = broker_history_deals_get(start, end, mt5_inst=mt5)
+            deals = _day_deals
             if deals is None:
                 raise RuntimeError("MT5 deal history unavailable for daily reconciliation")
             require_timestamps = True
@@ -5575,7 +5689,8 @@ class LLMOrchestrator:
             if paper_mode and self.paper_broker:
                 exists = bool(ticket and int(ticket) in self.paper_broker.orders)
             elif not paper_mode and ticket:
-                exists = bool(mt5.orders_get(ticket=int(ticket)))
+                _exists_orders, _exists_err = broker_orders_get(ticket=int(ticket), mt5_inst=mt5)
+                exists = bool(_exists_orders)
             if exists and expired:
                 try:
                     intent_magic = int(payload.get("magic", 0))
@@ -5616,7 +5731,8 @@ class LLMOrchestrator:
                     else:
                         try:
                             now = datetime.now()
-                            recent = mt5.history_deals_get(now - timedelta(days=7), now) or []
+                            _recent, _recent_err = broker_history_deals_get(now - timedelta(days=7), now, mt5_inst=mt5)
+                            recent = _recent or []
                             matching = [deal for deal in recent if int(getattr(deal, "order", 0) or 0) == int(ticket)]
                         except Exception as exc:
                             matching = []
@@ -5635,7 +5751,7 @@ class LLMOrchestrator:
                         preflight = payload.get("margin_preflight", {}) or {}
                         spread_at_fill = None
                         if not paper_mode and mt5:
-                            fill_tick = mt5.symbol_info_tick(str(payload.get("symbol", "")))
+                            fill_tick, _fill_err = broker_symbol_info_tick(str(payload.get("symbol", "")), mt5_inst=mt5)
                             fill_bid, fill_ask = getattr(fill_tick, "bid", None), getattr(fill_tick, "ask", None)
                             if fill_bid is not None and fill_ask is not None:
                                 spread_at_fill = float(fill_ask) - float(fill_bid)
@@ -7052,7 +7168,7 @@ class LLMOrchestrator:
         anchor_price = None
         if mt5 is not None and not paper_mode:
             try:
-                tick = mt5.symbol_info_tick(symbol)
+                tick, _anchor_err = broker_symbol_info_tick(symbol, mt5_inst=mt5)
             except Exception:  # noqa: BLE001
                 tick = None
             if tick is not None:
@@ -9217,6 +9333,16 @@ Total Trades: {len(closed_trades)}"""
                 _alpha_ic = float(_alpha_ens.get("overall_ic", 0.0))
                 _alpha_conf = str(_alpha_ens.get("composite_confidence", "unknown"))
 
+                # Apply proposal feature sizing reductions (TL-T7 / H2)
+                sizing_scale = 1.0
+                for _k in ("cpcv_position_scale", "execution_cost_position_scale", "meta_adaptive_position_scale", "constraint_position_scale"):
+                    if _k in proposal.features:
+                        try:
+                            sizing_scale *= float(proposal.features[_k])
+                        except (TypeError, ValueError):
+                            pass
+                prop_heat_budget = proposal.features.get("heat_budget_r")
+
                 safe_vol = self.risk.calc_position_size(
                     symbol, entry, sl,
                     confidence=self._sizing_confidence(decision),
@@ -9225,19 +9351,9 @@ Total Trades: {len(closed_trades)}"""
                     alpha_overall_ic=_alpha_ic,
                     alpha_confidence=_alpha_conf,
                     risk_per_trade=toon.get("cycle_effective_risk", getattr(self, "_base_risk_per_trade", 0.01)),
+                    sizing_scale=sizing_scale,
+                    heat_budget_r=prop_heat_budget,
                 )
-                
-                # Apply proposal feature sizing reductions (TL-T7)
-                sizing_scale = 1.0
-                for _k in ("cpcv_position_scale", "execution_cost_position_scale", "meta_adaptive_position_scale", "constraint_position_scale"):
-                    if _k in proposal.features:
-                        try:
-                            sizing_scale *= float(proposal.features[_k])
-                        except (TypeError, ValueError):
-                            pass
-                if sizing_scale < 1.0:
-                    safe_vol = safe_vol * max(0.0, sizing_scale)
-                    log.info("Applied proposal feature sizing reduction scale: %.2fx -> volume %.2f", sizing_scale, safe_vol)
                 
                 # Cap position size
                 MAX_FOREX_LOT = 1.0
@@ -9252,6 +9368,31 @@ Total Trades: {len(closed_trades)}"""
                     bounded_size = float(decision.get("position_size", 0.0) or 0.0)
                     if bounded_size > 0.0:
                         safe_vol = min(safe_vol, bounded_size)
+
+                # B1 post-sizing check: judge sized volume with TradingConstraintEngine
+                try:
+                    from core.trading_constraints import TradingConstraintEngine, ConstraintVerdict
+                    _cte = TradingConstraintEngine()
+                    _size_res = _cte._rule_position_size({"symbol": symbol, "lots": safe_vol}, {})
+                    if _size_res.verdict == ConstraintVerdict.REJECT:
+                        reason = f"Boolean constraint post-sizing rejected: {_size_res.message}"
+                        self.store.log_lifecycle_event(None, proposal.setup_key(), "REJECTED", "constraint_sizing", {
+                            "reason": reason, "symbol": symbol, "side": action, "lots": safe_vol,
+                        })
+                        self.operations.event("risk", "constraint_size_rejected",
+                                              {"symbol": symbol, "strategy": strategy, "reason": reason},
+                                              run_id=self.run_id, correlation_id=proposal.setup_key(),
+                                              severity="WARNING")
+                        decision["action"] = "HOLD"
+                        decision["reasoning"] = f"Deterministic gate rejected proposal: {reason}"
+                        log.warning(reason)
+                        return decision, 0.0
+                    elif _size_res.verdict == ConstraintVerdict.REDUCE and _size_res.details:
+                        safe_vol = float(_size_res.details.get("to", safe_vol))
+                except Exception as _cte_sz_exc:
+                    log.debug("TradingConstraintEngine post-sizing check skipped: %s", _cte_sz_exc)
+
+                proposal.features["lots"] = safe_vol
                 
                 if safe_vol <= 0:
                     # A zero volume must be an auditable rejection, never a
@@ -9664,7 +9805,7 @@ Total Trades: {len(closed_trades)}"""
                 if position["symbol"] != symbol or self.store.trade_risk(int(position["ticket"])) <= 0:
                     continue
                 is_buy = position["type"] == getattr(mt5, "POSITION_TYPE_BUY", getattr(mt5, "ORDER_TYPE_BUY", 0))
-                tick = mt5.symbol_info_tick(position["symbol"])
+                tick, _mark_err = broker_symbol_info_tick(position["symbol"], mt5_inst=mt5)
                 mark = getattr(tick, "bid" if is_buy else "ask", None)
                 if mark:
                     tick_msc = int(getattr(tick, "time_msc", 0) or 0)

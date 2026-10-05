@@ -128,6 +128,11 @@ from core.broker_time import (
     broker_trading_week,
     get_broker_utc_offset_seconds,
 )
+from core.broker_reads import (
+    broker_copy_rates_from_pos,
+    broker_symbol_info,
+    broker_symbol_info_tick,
+)
 
 
 def _ensure_mt5_attached(mt5_inst: Any) -> bool:
@@ -183,7 +188,7 @@ def fetch_ohlc(symbol: str, timeframe: str, count: int = 100) -> pd.DataFrame:
         # Data-only consumer with no prior broker session in this process:
         # attach lazily (real broker data only — never a synthetic fallback).
         terminal_available = _ensure_mt5_attached(mt5_inst)
-    symbol_info = mt5_inst.symbol_info(symbol)
+    symbol_info, _si_err = broker_symbol_info(symbol, mt5_inst=mt5_inst)
     if symbol_info is None:
         if mt5_inst.terminal_info() is not None:
             all_symbols = mt5_inst.symbols_get()
@@ -212,7 +217,7 @@ def fetch_ohlc(symbol: str, timeframe: str, count: int = 100) -> pd.DataFrame:
     tf = tf_fn(timeframe)
     rates = None
     try:
-        rates = mt5_inst.copy_rates_from_pos(symbol, tf, 0, count)
+        rates, _rates_err = broker_copy_rates_from_pos(symbol, tf, 0, count, mt5_inst=mt5_inst)
     except Exception as exc:
         logger.debug("LLM operation failed: %s", exc)
 
@@ -935,7 +940,7 @@ class MarketDataProvider:
                     raise RuntimeError("MetaTrader5 module unavailable for live market order safety check")
                 _lat_t0 = time.perf_counter()
                 try:
-                    _tick = _mt5.symbol_info_tick(symbol)
+                    _tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=_mt5)
                 except Exception:
                     _tick = None
                 _latency = (time.perf_counter() - _lat_t0) * 1000.0
@@ -945,7 +950,7 @@ class MarketDataProvider:
                 ask = float(getattr(_tick, 'ask', 0) or 0)
                 if not (bid > 0 and ask > 0 and ask >= bid):
                     raise RuntimeError(f"ExecutionSafetySupervisor: invalid live prices for {symbol}: bid={bid}, ask={ask}")
-                _info = _mt5.symbol_info(symbol) if hasattr(_mt5, "symbol_info") else None
+                _info, _safety_info_err = broker_symbol_info(symbol, mt5_inst=_mt5) if hasattr(_mt5, "symbol_info") else (None, None)
                 point = float(getattr(_info, "point", 0.00001) or 0.00001) if _info else 0.00001
                 _current_spread_points = (ask - bid) / point if point > 0 else (ask - bid)
                 from core.order_execution import _get_rolling_spread_avg_points
@@ -1536,12 +1541,9 @@ class MarketDataProvider:
 
                 if mat is not None and len(mat) >= 20:
                     cop = clayton_copula_tail_risk(mat, normal_heat_budget_r=4.0, crisis_heat_budget_r=1.0)
-                    # Wire to RiskManager heat budget
                     adj = float(cop.get("adjusted_heat_budget_r", 4.0))
-                    if hasattr(self.risk, "set_heat_budget_r"):
-                        self.risk.set_heat_budget_r(adj)
-                        log.info("Copula tail heat wired: %s tail_dep=%.3f -> heat %.1fR",
-                                 cop.get("tail_risk_state"), cop.get("avg_tail_dependence"), adj)
+                    log.info("Copula tail heat calculated: %s tail_dep=%.3f -> heat %.1fR",
+                             cop.get("tail_risk_state"), cop.get("avg_tail_dependence"), adj)
             except Exception as ce:
                 log.debug(f"Copula heat wiring skipped: {ce}")
         except Exception as e:
@@ -1851,7 +1853,7 @@ class MarketDataProvider:
                 }
         # Collect tick and clock observation with server offset subtracted (1a-F13)
         _mt5 = _get_mt5()
-        _tick = _mt5.symbol_info_tick(symbol) if _mt5 is not None else None
+        _tick, _fetch_tick_err = broker_symbol_info_tick(symbol, mt5_inst=_mt5) if _mt5 is not None else (None, None)
         _raw_tick_millis = (getattr(_tick, "time_msc", 0) or (getattr(_tick, "time", 0) or 0) * 1000) if _tick else 0
         _raw_tick_time = _raw_tick_millis / 1000.0 if _raw_tick_millis else 0.0
 
@@ -1860,8 +1862,11 @@ class MarketDataProvider:
             _server_offset = get_broker_utc_offset_seconds(_mt5)
             _utc_tick_time = _raw_tick_time - _server_offset
             try:
-                from operations.agent_operations import AgentOperations
-                _ops = AgentOperations(store=self._state_store())
+                _ops = getattr(self, "_cached_ops", None)
+                if _ops is None:
+                    from operations.agent_operations import AgentOperations
+                    _ops = AgentOperations(store=self._state_store())
+                    self._cached_ops = _ops
                 clock_health = _ops.record_clock_observation(
                     "mt5_tick", _utc_tick_time, max_offset_seconds=5.0,
                     payload={"symbol": symbol, "broker_offset": _server_offset}
@@ -1878,7 +1883,10 @@ class MarketDataProvider:
                 }
             provider_time = datetime.fromtimestamp(_utc_tick_time, tz=timezone.utc).isoformat()
         else:
-            clock_health = {"valid": True, "status": "PAPER_SIMULATION", "offset_seconds": 0.0}
+            if getattr(self, "paper_account_evidence", False) or not self.client:
+                clock_health = {"valid": True, "status": "PAPER_SIMULATION", "offset_seconds": 0.0}
+            else:
+                clock_health = {"valid": False, "status": "NO_TICK", "offset_seconds": 0.0}
             provider_time = quote_captured_at
 
         toon = {

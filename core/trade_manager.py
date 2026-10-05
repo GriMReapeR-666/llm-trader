@@ -15,6 +15,12 @@ except ImportError:
 
 from core.trading_safety import BOT_MAGICS, PortfolioRiskArbiter, exposure_buckets
 from core.state_persistence import StoreBackedState
+from core.broker_reads import (
+    broker_orders_get,
+    broker_positions_get,
+    broker_symbol_info,
+    broker_symbol_info_tick,
+)
 
 RETCODE_MESSAGES = {
     10004: "REQUOTE",
@@ -163,11 +169,14 @@ class TradeManager(StoreBackedState):
             return []
         try:
             if ticket is not None:
-                raw = mt5.positions_get(ticket=ticket)
+                raw, _read_err = broker_positions_get(ticket=ticket, mt5_inst=mt5)
             elif symbol is not None:
-                raw = mt5.positions_get(symbol=symbol)
+                raw, _read_err = broker_positions_get(symbol=symbol, mt5_inst=mt5)
             else:
-                raw = mt5.positions_get()
+                raw, _read_err = broker_positions_get(mt5_inst=mt5)
+            if _read_err is not None:
+                self.log.warning("positions_get failed: %s", _read_err)
+                return []
             return list(raw or [])
         except Exception as exc:
             self.log.warning("positions_get failed: %s", exc)
@@ -354,7 +363,7 @@ class TradeManager(StoreBackedState):
             symbol = str(getattr(pos, "symbol", "") or "")
             equity = None
             try:
-                acc = mt5.account_info()
+                acc, _authz_acc_err = broker_account_info(mt5_inst=mt5)
                 equity = float(acc.equity) if acc else None
             except Exception:
                 equity = None
@@ -453,7 +462,7 @@ class TradeManager(StoreBackedState):
                 import sqlite3
                 db_path = getattr(self.store, "path", None)
                 if db_path:
-                    with sqlite3.connect(db_path, timeout=2.0) as con:
+                    with sqlite3.connect(db_path, timeout=10.0) as con:
                         row = con.execute("SELECT entry, stop_loss, risk_amount FROM trades WHERE ticket=?", (ticket,)).fetchone()
                         if row and row[0] is not None and row[1] is not None:
                             init_entry, init_sl = float(row[0]), float(row[1])
@@ -569,7 +578,7 @@ class TradeManager(StoreBackedState):
                 paper_price = getattr(pos, "price_current", getattr(pos, "price_open", 0.0))
                 if mt5 is not None:
                     try:
-                        tick = mt5.symbol_info_tick(pos.symbol)
+                        tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=mt5)
                         if tick:
                             paper_price = tick.bid if pos.type == 0 else tick.ask
                     except Exception:
@@ -592,7 +601,7 @@ class TradeManager(StoreBackedState):
                     self.log.warning(f"Partial Close Paper Failed: {res}")
                     return
 
-            tick = mt5.symbol_info_tick(pos.symbol)
+            tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=mt5)
             if not tick:
                 self._record_management(pos.ticket, "PARTIAL_CLOSE_REJECTED", {
                     "ticket": pos.ticket, "error": "quote unavailable",
@@ -718,7 +727,7 @@ class TradeManager(StoreBackedState):
         if pos.ticket in self.pyramid_entries:
             return # Already scaled in
         if getattr(pos, "ticket", 0) in getattr(self, "pyramid_children", set()) or "pyramid" in str(getattr(pos, "comment", "") or "").lower() or getattr(pos, "magic", 0) == 460002:
-            return # Pyramid child cannot pyramid (1a-F9)
+            return # Pyramid child or scalp strategy cannot pyramid (1a-F9)
             
         # 1. Check Trend Strength
         # Assuming indicators dict has 'adx' (Series or float)
@@ -765,7 +774,7 @@ class TradeManager(StoreBackedState):
         info = None
         if mt5 is not None and self.paper_broker is None:
             try:
-                info = mt5.symbol_info(symbol)
+                info, _info_err = broker_symbol_info(symbol, mt5_inst=mt5)
             except Exception:
                 info = None
         if not info:
@@ -836,7 +845,10 @@ class TradeManager(StoreBackedState):
         broker contract is absent or malformed.
         """
         try:
-            contract = info if info is not None else mt5.symbol_info(symbol)
+            if info is not None:
+                contract = info
+            else:
+                contract, _contract_err = broker_symbol_info(symbol, mt5_inst=mt5)
             if not contract:
                 return None
             flags = int(getattr(contract, "filling_mode", -1))
@@ -898,7 +910,7 @@ class TradeManager(StoreBackedState):
             }, requested_volume=vol)
             
             # Open Market Order via Client
-            tick = mt5.symbol_info_tick(pos.symbol)
+            tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=mt5)
             if not tick:
                 self._record_management(pos.ticket, "PYRAMID_REJECTED", {
                     "parent_ticket": pos.ticket, "volume": vol, "error": "quote unavailable",
@@ -926,7 +938,10 @@ class TradeManager(StoreBackedState):
             }
             
             # An add's risk is (entry − SL) × volume × tick value (1a-F9)
-            _info = mt5.symbol_info(pos.symbol) if mt5 is not None else None
+            if mt5 is not None:
+                _info, _info_err = broker_symbol_info(pos.symbol, mt5_inst=mt5)
+            else:
+                _info = None
             _point = float(getattr(_info, "point", 0.00001) or 0.00001) if _info else 0.00001
             _tick_val = float(getattr(_info, "trade_tick_value", 1.0) or 1.0) if _info else 1.0
             _tick_sz = float(getattr(_info, "trade_tick_size", _point) or _point) if _info else _point
@@ -982,11 +997,14 @@ class TradeManager(StoreBackedState):
         Returns: R-multiple, Duration, PnL, etc.
         """
         try:
-            positions = mt5.positions_get(ticket=ticket)
+            positions, _ctx_err = broker_positions_get(ticket=ticket, mt5_inst=mt5)
             if not positions:
                 return {}
-            
+
             p = positions[0]
+            _cur_tick, _cur_err = broker_symbol_info_tick(p.symbol, mt5_inst=mt5)
+            _cur_bid = _cur_tick.bid if _cur_tick else 0.0
+            _cur_ask = _cur_tick.ask if _cur_tick else 0.0
             
             # Calculate Risk (Distance to SL)
             risk_dist = abs(p.price_open - p.sl) if p.sl > 0 else 0.0
@@ -996,9 +1014,9 @@ class TradeManager(StoreBackedState):
             profit_points = 0.0
             
             if p.type == mt5.ORDER_TYPE_BUY:
-                profit_points = (mt5.symbol_info_tick(p.symbol).bid - p.price_open)
+                profit_points = (_cur_bid - p.price_open)
             else:
-                profit_points = (p.price_open - mt5.symbol_info_tick(p.symbol).ask)
+                profit_points = (p.price_open - _cur_ask)
                 
             if risk_dist > 0:
                 r_multiple = profit_points / risk_dist
@@ -1020,7 +1038,7 @@ class TradeManager(StoreBackedState):
                 "type": "BUY" if p.type == mt5.ORDER_TYPE_BUY else "SELL",
                 "volume": p.volume,
                 "open_price": p.price_open,
-                "current_price": mt5.symbol_info_tick(p.symbol).bid if p.type == mt5.ORDER_TYPE_BUY else mt5.symbol_info_tick(p.symbol).ask,
+                "current_price": _cur_bid if p.type == mt5.ORDER_TYPE_BUY else _cur_ask,
                 "sl": p.sl,
                 "tp": p.tp,
                 "pnl": p.profit,
@@ -1035,7 +1053,7 @@ class TradeManager(StoreBackedState):
     # ---------- Public Actions for LLM ----------
     def execute_modify_sl(self, ticket: int, new_sl: float, reason: str) -> bool:
         """Public wrapper for SL modification"""
-        positions = mt5.positions_get(ticket=ticket)
+        positions, _pos_err = broker_positions_get(ticket=ticket, mt5_inst=mt5)
         if not positions or not self._owns(positions[0]):
             if self.store is not None:
                 self.store.record_manual_activity("REFUSED_SL_UPDATE", ticket=int(ticket), payload={"reason": reason})
@@ -1049,7 +1067,7 @@ class TradeManager(StoreBackedState):
         percentage: 0.0 to 1.0 (e.g., 0.5 for 50%)
         """
         try:
-            positions = mt5.positions_get(ticket=ticket)
+            positions, _pos_err = broker_positions_get(ticket=ticket, mt5_inst=mt5)
             if not positions:
                 self.log.warning(f"Position {ticket} not found for partial close.")
                 return False
@@ -1078,7 +1096,7 @@ class TradeManager(StoreBackedState):
             if not authorized:
                 self.log.warning("AI partial close blocked by safety gate for #%s: %s", ticket, auth_reason)
                 return False
-            tick = mt5.symbol_info_tick(pos.symbol)
+            tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=mt5)
             if not tick:
                 self.log.warning("Partial-close quote unavailable for #%s", ticket)
                 return False
@@ -1187,8 +1205,8 @@ class TradeManager(StoreBackedState):
                 self.log.warning(f"Paper SL modify refused for #{ticket}: {_gw_res.error}")
                 return False
 
-            info = mt5.symbol_info(pos.symbol)
-            tick = mt5.symbol_info_tick(pos.symbol)
+            info, _info_err = broker_symbol_info(pos.symbol, mt5_inst=mt5)
+            tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=mt5)
             bid = float(getattr(tick, "bid", 0) or 0) if tick else 0.0
             ask = float(getattr(tick, "ask", 0) or 0) if tick else 0.0
             point = float(getattr(info, "point", 0) or 0) if info else 0.0
@@ -1373,7 +1391,7 @@ class TradeManager(StoreBackedState):
             paper_price = getattr(pos, "price_current", getattr(pos, "price_open", 0.0))
             if mt5 is not None:
                 try:
-                    tick = mt5.symbol_info_tick(symbol)
+                    tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5)
                     if tick:
                         paper_price = tick.bid if pos.type == 0 else tick.ask
                 except Exception:
@@ -1405,7 +1423,7 @@ class TradeManager(StoreBackedState):
                 return False
 
         # MT5 Demo / Live Path
-        tick = mt5.symbol_info_tick(symbol)
+        tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5)
         if not tick:
             self.log.warning(f"Could not get tick for {symbol}, using position current price")
             price = getattr(pos, "price_current", 0.0)

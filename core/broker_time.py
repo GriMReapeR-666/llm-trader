@@ -14,7 +14,7 @@ _SERVER_OFFSET_CACHE: Dict[str, Any] = {
     "offset": 0,
     "expires": 0.0,
 }
-_SERVER_OFFSET_TTL = 86400.0  # 24 hours
+_SERVER_OFFSET_TTL = 1800.0  # 30 minutes (tracks DST changes promptly)
 
 
 def set_broker_utc_offset_seconds(offset: int, ttl: float = _SERVER_OFFSET_TTL) -> None:
@@ -59,9 +59,10 @@ def _server_utc_offset_seconds(
         return _SERVER_OFFSET_CACHE["offset"]
 
     try:
+        from core.broker_reads import broker_symbol_info_tick as _probe_tick
         candidates = []  # (offset_seconds, residual_ms)
         for name in probe_symbols:
-            t = mt5_inst.symbol_info_tick(name)
+            t, _probe_err = _probe_tick(name, mt5_inst=mt5_inst)
             if t is None:
                 continue
             server_ms = float(getattr(t, "time_msc", 0) or 0)
@@ -103,7 +104,10 @@ def broker_epoch_to_utc(epoch: float, mt5_inst: Any = None) -> datetime:
     try:
         epoch_val = float(epoch)
     except (TypeError, ValueError, OverflowError):
-        return datetime.now(timezone.utc)
+        raise ValueError(f"Invalid non-numeric broker epoch: {epoch}")
+    import math
+    if not math.isfinite(epoch_val) or epoch_val <= 0:
+        raise ValueError(f"Invalid non-finite or non-positive broker epoch: {epoch}")
     offset = get_broker_utc_offset_seconds(mt5_inst)
     utc_epoch = epoch_val - offset
     return datetime.fromtimestamp(utc_epoch, tz=timezone.utc)
@@ -132,3 +136,31 @@ def broker_trading_week(now_utc: Optional[datetime] = None, mt5_inst: Any = None
     broker_dt = utc_to_broker_time(now_utc, mt5_inst=mt5_inst)
     iso = broker_dt.isocalendar()
     return f"{iso[0]}-W{iso[1]:02d}"
+
+
+def broker_trading_day_start_utc(now_utc: Optional[datetime] = None, mt5_inst: Any = None) -> datetime:
+    """Return the start of the current broker trading day (server midnight) converted to UTC."""
+    if now_utc is None:
+        now_utc = datetime.now(timezone.utc)
+    elif now_utc.tzinfo is None:
+        now_utc = now_utc.replace(tzinfo=timezone.utc)
+    else:
+        now_utc = now_utc.astimezone(timezone.utc)
+    offset = get_broker_utc_offset_seconds(mt5_inst)
+    broker_dt = now_utc + timedelta(seconds=offset)
+    broker_midnight = broker_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    return broker_midnight - timedelta(seconds=offset)
+
+
+def broker_trading_week_start_utc(now_utc: Optional[datetime] = None, mt5_inst: Any = None) -> datetime:
+    """Return the start of the current broker trading week (server Monday midnight) converted to UTC."""
+    if now_utc is None:
+        now_utc = datetime.now(timezone.utc)
+    elif now_utc.tzinfo is None:
+        now_utc = now_utc.replace(tzinfo=timezone.utc)
+    else:
+        now_utc = now_utc.astimezone(timezone.utc)
+    offset = get_broker_utc_offset_seconds(mt5_inst)
+    broker_dt = now_utc + timedelta(seconds=offset)
+    broker_week_start = broker_dt.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=broker_dt.weekday())
+    return broker_week_start - timedelta(seconds=offset)

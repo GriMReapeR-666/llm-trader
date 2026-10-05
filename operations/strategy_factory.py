@@ -289,7 +289,7 @@ class StrategyFactory:
                     logger.debug("Lifecycle transition on approval: %s", _lc_err)
                 try:
                     import sqlite3
-                    con = sqlite3.connect("trading_state.db", timeout=2)
+                    con = sqlite3.connect("trading_state.db", timeout=10)
                     con.execute("UPDATE model_registry SET status='DEPLOYED' WHERE model_key=?", (strat_id,))
                     con.commit()
                     con.close()
