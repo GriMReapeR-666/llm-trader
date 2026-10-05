@@ -1,0 +1,662 @@
+[
+ {
+  "fn": "ema(50)",
+  "where": "core/technical_indicators.py:17",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "rsi(14)",
+  "where": "core/technical_indicators.py:21",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "macd line",
+  "where": "core/technical_indicators.py:32",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "macd hist",
+  "where": "core/technical_indicators.py:32",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "atr(14)",
+  "where": "core/technical_indicators.py:53",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "wma(21)",
+  "where": "core/technical_indicators.py:111",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "hma(21)",
+  "where": "core/technical_indicators.py:122",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "adx(14)",
+  "where": "core/technical_indicators.py:131",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA001",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    -0.3978658536585366,
+    -0.41432791728212703
+   ],
+   [
+    450,
+    0.37850467289719625,
+    0.3596750369276218
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA005",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    -0.001299545159194282,
+    -0.0004961753152780649
+   ],
+   [
+    450,
+    -0.331154498299405,
+    -0.1877444697126318
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHAP01",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHAP02",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHAP03",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHAP04",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHAP05",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHAP06",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA009",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.2
+ },
+ {
+  "fn": "alpha ALPHA012",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA014",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    0.516516233611217,
+    0.5120720375861239
+   ],
+   [
+    450,
+    -0.14339025411652975,
+    -0.1407679077204331
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA017",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    -0.12396526749522047,
+    -0.10217104314924007
+   ],
+   [
+    450,
+    -0.017648469025042135,
+    -0.018157197333394718
+   ]
+  ],
+  "secs": 0.3
+ },
+ {
+  "fn": "alpha ALPHA019",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    -1.5940594059405941,
+    -1.1711111111111112
+   ],
+   [
+    450,
+    -1.9950248756218905,
+    -1.46
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA022",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    0.009236918004538373,
+    0.007172901839563698
+   ],
+   [
+    450,
+    0.8458420079545982,
+    0.6988560310594402
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA023",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA025",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    0.4578313253012048,
+    0.49632892804698975
+   ],
+   [
+    450,
+    0.4513888888888889,
+    0.4713656387665198
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA028",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    0.00026821664630657493,
+    0.00012418441379157834
+   ],
+   [
+    450,
+    0.0011282566390447158,
+    0.0007025552078733422
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA030",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    0.16317829516605553,
+    0.17308292894055374
+   ],
+   [
+    450,
+    0.009563749011109964,
+    0.012996819316102382
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA034",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    0.3514285714285714,
+    0.38483547925608014
+   ],
+   [
+    450,
+    0.19111111111111112,
+    0.1988555078683834
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA035",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.6
+ },
+ {
+  "fn": "alpha ALPHA036",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    3.5520922971077775,
+    3.5892060087579347
+   ],
+   [
+    450,
+    1.6968505305669939,
+    1.7850439826132516
+   ]
+  ],
+  "secs": 0.2
+ },
+ {
+  "fn": "alpha ALPHA037",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    0.809116809116809,
+    1.0057142857142858
+   ],
+   [
+    450,
+    0.31042128603104213,
+    0.52
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA038",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    -0.33906466070208763,
+    -0.26486458548687203
+   ],
+   [
+    450,
+    -0.8397628196767365,
+    -0.8027496382054993
+   ]
+  ],
+  "secs": 0.2
+ },
+ {
+  "fn": "alpha ALPHA041",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA043",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.5
+ },
+ {
+  "fn": "alpha ALPHA053",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA055",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    0.5167524176294304,
+    0.48996837197221504
+   ],
+   [
+    450,
+    0.24438504003846495,
+    0.24975597995368182
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA060",
+  "where": "core/alpha_factors.py",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    -0.0009060289672534569,
+    -0.0005461944850665159
+   ],
+   [
+    450,
+    -0.0020436701780119707,
+    -0.0014350973854557899
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "alpha ALPHA101",
+  "where": "core/alpha_factors.py",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "af.rank (primitive)",
+  "where": "core/alpha_factors.py:69",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    0.017094017094017096,
+    0.015714285714285715
+   ],
+   [
+    450,
+    0.4190687361419069,
+    0.3385714285714286
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "af.scale (primitive)",
+  "where": "core/alpha_factors.py:78",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    -2.214331057829653e-05,
+    -1.0234796176170025e-05
+   ],
+   [
+    450,
+    0.0028041133847032094,
+    0.001699843818334348
+   ]
+  ],
+  "secs": 0.0
+ },
+ {
+  "fn": "af.ts_rank(10)",
+  "where": "core/alpha_factors.py:28",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.3
+ },
+ {
+  "fn": "af._vwap (cumulative)",
+  "where": "core/alpha_factors.py:536",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "ae.zscore_normalize expanding",
+  "where": "core/alpha_ensemble.py:296",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "ae.rank_normalize window=60",
+  "where": "core/alpha_ensemble.py:312",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.2
+ },
+ {
+  "fn": "ae.rolling_ic (fwd-return label)",
+  "where": "core/alpha_ensemble.py:327",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    -0.013734658094681476,
+    -0.013059183106418452
+   ],
+   [
+    450,
+    -0.0033898305084745766,
+    -0.012892470130591834
+   ]
+  ],
+  "secs": 1.3
+ },
+ {
+  "fn": "ae.combine_alphas composite (ic_ir)",
+  "where": "core/alpha_ensemble.py:637",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    -0.5076063584364393,
+    -0.4363812383867184
+   ],
+   [
+    450,
+    -0.4579818600795756,
+    -0.5056176755005017
+   ]
+  ],
+  "secs": 5.5
+ },
+ {
+  "fn": "ae.combine_alphas composite (ic_ir, ortho=True as live)",
+  "where": "core/alpha_ensemble.py:637 + signal_orthogonalizer",
+  "result": "FAIL",
+  "examples": [
+   [
+    350,
+    -0.4856850482175218,
+    -0.3798527163764997
+   ],
+   [
+    450,
+    -0.5288457555534902,
+    -0.29485018873994395
+   ]
+  ],
+  "secs": 5.4
+ },
+ {
+  "fn": "abh.apply_cost_edge_filter",
+  "where": "research/alpha_backtest_harness.py:298",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "abh.apply_trend_regime_gate",
+  "where": "research/alpha_backtest_harness.py:370",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "fpb._ema(50)",
+  "where": "research/full_pipeline_backtest.py:1275",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "fpb._hma(21)",
+  "where": "research/full_pipeline_backtest.py:1294",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "fpb._atr(14)",
+  "where": "research/full_pipeline_backtest.py:1315",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "fpb._adx(14)",
+  "where": "research/full_pipeline_backtest.py:1329",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "fpb._rsi(14)",
+  "where": "research/full_pipeline_backtest.py:1389",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "fpb._alpha_composite_proxy",
+  "where": "research/full_pipeline_backtest.py:1415",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "fpb._rolling_percentile_rank(100)",
+  "where": "research/full_pipeline_backtest.py:1259",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "fd.fractional_diff(d=0.4)",
+  "where": "core/fractional_diff.py:191",
+  "result": "PASS",
+  "examples": [],
+  "secs": 0.0
+ },
+ {
+  "fn": "smc.detect_structure (BOS/CHoCH events <= t)",
+  "where": "core/smc_structure.py:76",
+  "result": "PASS",
+  "examples": []
+ },
+ {
+  "fn": "smc.swing_points (pivots <= t)",
+  "where": "core/smc_structure.py:50",
+  "result": "FAIL",
+  "examples": [
+   [
+    550,
+    53,
+    54
+   ]
+  ],
+  "note": "centered window: pivot at s is only knowable at s+window"
+ },
+ {
+  "fn": "smc.find_order_blocks (mitigated flag)",
+  "where": "core/smc_structure.py:106",
+  "result": "FAIL",
+  "examples": [
+   [
+    640
+   ]
+  ]
+ },
+ {
+  "fn": "smc.liquidity_pools",
+  "where": "core/smc_structure.py:135",
+  "result": "PASS (endpoint fn, trailing window only \u2014 by reading)",
+  "examples": []
+ },
+ {
+  "fn": "feature_builder.build_snapshot (perturb forming bar -1)",
+  "where": "intelligence/feature_builder.py:37",
+  "result": "PASS",
+  "examples": []
+ },
+ {
+  "fn": "MarketDataProvider._identify_support_resistance (perturb forming bar)",
+  "where": "data/market_data_provider.py:1117",
+  "result": "PASS",
+  "examples": [],
+  "note": "forming bar participates in pivot confirmation (live, not future)"
+ }
+]
