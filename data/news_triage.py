@@ -93,15 +93,35 @@ _D9_KILL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Guard against false positives: commentary, retrospective, negation, single-name scope
-# (measured in research/d9_false_positive_probe.py to suppress 31/33 benign trips with 0 loss)
+# Guard against false positives: commentary, retrospective and explicit
+# negation markers. Deliberately narrow (H3): speculative modals (may /
+# could / might), conditionals (if / when / how), "review" and bare "no"
+# suppressed REAL crises ("Fed may intervene", "officials review damage",
+# "no end in sight"), and the "halts trading in" rule hid single-venue halts
+# ("halts trading in all stocks"). Only explicit negation ("not on the
+# table", "never", "no longer", question-then-denial, failed-to-materialise),
+# reversal (lifts/lifted/eases/removed/ends), retrospective and forecast
+# markers, explainer form ("How X works"), routine corporate-action context
+# (merger talks, pending news) and single-instrument scope suppress.
+# Market-wide scope ("all", "every", "market-wide") overrides every
+# suppression: a market-wide halt always trips.
 _D9_GUARD = re.compile(
     r"\b(warn\w*|possible|possibility|forecast|expect\w*|anniversary|revisited|"
     r"retrospective|histor\w*|stud(?:y|ies)|debate\w*|propose\w*|bill|would|whether|"
-    r"could|might|\bmay\b|not on the table|no\b|never|no longer|lifts?|lifted|eases?|"
-    r"removes?|\bends?\b|\bago\b|of (?:19|20)\d{2}|in (?:19|20)\d{2}|last quarter|"
-    r"how |\bwhen\b|\bif\b|review|briefly|blamed|fat-finger|\ba single\b|"
-    r"halts? trading (?:in|of|shares)|halt(?:ed|s)? trading in |trade normally|for the day)\b",
+    r"not on the table|never|no longer|lifts?|lifted|eases?|"
+    r"removes?|\b(?:halt|crisis|ban|freeze|run)s? ends?\b|\bends? (?:the )?(?:trading halt|halt|crisis|bank run|freeze|ban)\b|"
+    r"\bago\b|of (?:19|20)\d{2}|in (?:19|20)\d{2}|last quarter|"
+    r"briefly|blamed|fat-finger|\ba single\b|"
+    r"halt(?:ed|s)? trading in (?:a single|one) |trade normally|for the day|"
+    r"shares? of|merger talks|pending news|(?:after|under|pending) review|"
+    r"materialis\w*|fail(?:ed|s)? to materialis\w*)\b|"
+    r"\?\s*No\b|^how\b.{0,40}\bworks?\b",
+    re.IGNORECASE,
+)
+# Market-wide scope always trips, even if a suppression cue also matches.
+_D9_MARKET_WIDE = re.compile(
+    r"\b(all (?:stocks|trading|markets)|every|market[\s-]?wide|exchange[\s-]?wide|"
+    r"across the market|all trading)\b",
     re.IGNORECASE,
 )
 _D9_PRESENT_CUE = re.compile(
@@ -112,6 +132,10 @@ _D9_PRESENT_CUE = re.compile(
 
 
 def _d9_guard_suppresses(text: str) -> bool:
+    # Market-wide scope overrides suppression: a market-wide halt trips even
+    # if commentary/negation cues also appear in the headline.
+    if _D9_MARKET_WIDE.search(text or ""):
+        return False
     return bool(_D9_GUARD.search(text)) and not _D9_PRESENT_CUE.search(text)
 
 # D9 headline classes (noul-style booleans with explicit abstain/absent value).

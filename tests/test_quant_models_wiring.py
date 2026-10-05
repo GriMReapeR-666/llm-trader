@@ -6,9 +6,15 @@ import numpy as np
 class TestQuantModelRunners:
     """Test each quant model runner in auto_quant_tools."""
 
+    @pytest.fixture(autouse=True)
+    def _state_dir(self, tmp_path):
+        self._tmp_path = tmp_path
+
     def _make_tools(self):
         from core.auto_quant_tools import AutoQuantTools
-        return AutoQuantTools(state_file=":memory:")
+        # A real temp path: the state file mirror is plain JSON, so ":memory:"
+        # would be written to the repo root as a file of that name.
+        return AutoQuantTools(state_file=str(self._tmp_path / "auto_quant_tools_state.json"))
 
     def _make_toh(self):
         """Create a minimal toon dict with OHLC data."""

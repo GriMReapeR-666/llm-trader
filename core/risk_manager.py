@@ -19,6 +19,8 @@ try:
 except ImportError:
     from core.state_persistence import StoreBackedState
 
+from core.trading_safety import BOT_MAGICS
+
 class RiskManager(StoreBackedState):
     store_key = "risk_manager_state"
 
@@ -79,7 +81,7 @@ class RiskManager(StoreBackedState):
         self.opportunity_cost_hurdle_r: float = 0.05
         # Maximum concurrent open positions enforced per strategy/bot
         self.max_active_positions = 2
-        self.managed_magics = {460001, 460002}
+        self.managed_magics = set(BOT_MAGICS)
         self._active_positions_provider: Optional[Callable[[], int]] = None
         self._portfolio_heat_provider: Optional[Callable[[], Optional[float]]] = None
         # When daily loss or peak DD trips, open positions must flatten — not only block entries.
@@ -723,7 +725,7 @@ class RiskManager(StoreBackedState):
             if mt5 is not None:
                 positions = mt5.positions_get()
                 if positions is not None:
-                    managed = getattr(self, "managed_magics", None) or {460001, 460002}
+                    managed = getattr(self, "managed_magics", None) or BOT_MAGICS
                     owned_count = sum(1 for p in positions if getattr(p, "magic", 0) in managed)
                     if getattr(self, "store", None) is not None and hasattr(self.store, "reserving_intents_count"):
                         try:
@@ -817,7 +819,7 @@ class RiskManager(StoreBackedState):
         unit = equity * self.risk_per_trade
         if unit <= 0:
             return None
-        managed = getattr(self, "managed_magics", None) or {460001, 460002}
+        managed = getattr(self, "managed_magics", None) or BOT_MAGICS
         owned_items = [p for p in positions if getattr(p, "magic", 0) in managed] + [
             o for o in orders if getattr(o, "magic", 0) in managed
         ]

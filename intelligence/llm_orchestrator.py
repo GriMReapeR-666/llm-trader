@@ -96,7 +96,7 @@ from core.risk_manager import RiskManager
 from core.trade_manager import TradeManager
 from research.rl_trainer import RLTrainer
 from core.trading_safety import (
-    DeterministicValidator, PortfolioRiskArbiter,
+    BOT_MAGICS, DeterministicValidator, PortfolioRiskArbiter,
     TradeProposal, TradingStore, ValidationResult,
     safe_risk_fraction, exposure_buckets,
 )
@@ -856,9 +856,9 @@ class LLMOrchestrator:
             )
             from core.order_gateway import get_default_gateway
             self.order_gateway = get_default_gateway()
-            # Both bot magics: 460001 (swing) and 460002 (scalp). Operator
-            # flatten must close every owned position, not just swing.
-            self.owned_magics = {460001, 460002}
+            # Every magic the engine issues (swing/scalp/neocortex): operator
+            # flatten must close every owned position.
+            self.owned_magics = set(BOT_MAGICS)
         except Exception as _gw_exc:
             logger.warning("OrderGateway default configuration failed (fail-closed on first order): %s", _gw_exc)
 
@@ -901,7 +901,7 @@ class LLMOrchestrator:
             broker = getattr(self, "client", None) or _get_mt5()
             if broker is not None:
                 positions = broker.positions_get() or ()
-                magics = getattr(self, "owned_magics", {460001, 460002})
+                magics = getattr(self, "owned_magics", None) or set(BOT_MAGICS)
                 count = sum(1 for p in positions if getattr(p, "magic", 0) in magics)
         except Exception:
             pass
@@ -930,7 +930,7 @@ class LLMOrchestrator:
         unit = equity * self.risk.risk_per_trade
         if unit <= 0:
             return 0.0
-        managed = getattr(self, "owned_magics", {460001, 460002})
+        managed = getattr(self, "owned_magics", None) or set(BOT_MAGICS)
         owned_items = [p for p in positions if getattr(p, "magic", 0) in managed] + [
             o for o in orders if getattr(o, "magic", 0) in managed
         ]
@@ -1060,6 +1060,14 @@ class LLMOrchestrator:
 
     def shutdown(self) -> None:
         """Stop background lanes without granting or changing execution authority."""
+        # M1: join the sched-bounded worker (10 s bound) so schedule batches
+        # are not killed mid-write at shutdown.
+        try:
+            _batch_thread = getattr(self, "_schedule_batch_thread", None)
+            if _batch_thread is not None and _batch_thread.is_alive():
+                _batch_thread.join(timeout=10.0)
+        except Exception:
+            pass
         self.velocity.shutdown(wait=False)
 
     def _llm_provider_and_budget(self, strategy: str) -> Tuple[str, Dict[str, Any]]:
@@ -1902,18 +1910,47 @@ class LLMOrchestrator:
                         _decision_executor = None
 
                     if _tool_schemas and hasattr(self.llm, 'generate_with_tools') and _decision_executor is not None:
-                        response_content = self.llm.generate_with_tools(
-                            messages, tools=_tool_schemas, tool_executor=_decision_executor,
-                            model=self.model_name, temperature=0, seed=42, max_tokens=4096,
+                        # B4: bound the provider call itself. A timeout here
+                        # means HOLD via the normal retry path. This is the
+                        # only safe place for a deadline: the provider call
+                        # returns text and can never submit an order, unlike
+                        # an abandoned pipeline stage wrapping execute_cycle.
+                        from run_bounded import run_bounded as _run_llm_bounded
+                        import os as _os
+                        try:
+                            _llm_budget = float(_os.getenv("LLM_TRADER_LLM_CALL_TIMEOUT_S", "120"))
+                        except (TypeError, ValueError):
+                            _llm_budget = 120.0
+                        _ok, _resp, _err = _run_llm_bounded(
+                            lambda: self.llm.generate_with_tools(
+                                messages, tools=_tool_schemas, tool_executor=_decision_executor,
+                                model=self.model_name, temperature=0, seed=42, max_tokens=4096,
+                            ),
+                            _llm_budget,
                         )
+                        if not _ok:
+                            raise TimeoutError(f"LLM provider call exceeded {_llm_budget}s: {_err}")
+                        response_content = _resp
                     else:
-                        response_content = self.llm.generate(
-                            messages, 
-                            model=self.model_name, 
-                            temperature=0, 
-                            seed=42,
-                            max_tokens=4096 
+                        from run_bounded import run_bounded as _run_llm_bounded
+                        import os as _os
+                        try:
+                            _llm_budget = float(_os.getenv("LLM_TRADER_LLM_CALL_TIMEOUT_S", "120"))
+                        except (TypeError, ValueError):
+                            _llm_budget = 120.0
+                        _ok, _resp, _err = _run_llm_bounded(
+                            lambda: self.llm.generate(
+                                messages,
+                                model=self.model_name,
+                                temperature=0,
+                                seed=42,
+                                max_tokens=4096
+                            ),
+                            _llm_budget,
                         )
+                        if not _ok:
+                            raise TimeoutError(f"LLM provider call exceeded {_llm_budget}s: {_err}")
+                        response_content = _resp
                     
                     if not isinstance(response_content, str):
                         # Handle case where wrapper might return object (defensive)
@@ -5825,13 +5862,31 @@ class LLMOrchestrator:
                     self._schedule_batch_running = False
                 _done.set()
 
-        _th.Thread(target=_worker, name="sched-bounded", daemon=True).start()
+        # M1: keep a joinable reference to the sched-bounded worker. The
+        # shutdown path used to join `bounded_pipeline` (an object, not a
+        # thread), so the join was dead code and the worker was never joined.
+        _batch_thread = _th.Thread(target=_worker, name="sched-bounded", daemon=True)
+        try:
+            with self._schedule_thread_lock:
+                self._schedule_batch_thread = _batch_thread
+        except Exception:
+            pass
+        _batch_thread.start()
         if not _done.wait(timeout=self._SCHEDULE_WAIT):
             # Batch continues in the background; single-flight stays held by
             # the worker until it actually finishes.
             return
         if _err:
             _log.warning("schedule batch failed: %s", _err[0])
+
+    def join_schedule_batch(self, timeout: float = 10.0) -> None:
+        """Join the sched-bounded worker if still running (M1 shutdown order)."""
+        try:
+            thread = getattr(self, "_schedule_batch_thread", None)
+            if thread is not None and thread.is_alive():
+                thread.join(timeout=max(0.0, float(timeout)))
+        except Exception:
+            pass
 
     def _fast_lane_order(
             self, claimed_batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

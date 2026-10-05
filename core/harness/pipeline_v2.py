@@ -541,17 +541,22 @@ def analysis_stages() -> List[StageSpec]:
     are identical between this staged analysis and the single legacy body.
     """
     return [
+        # B4: analysis stages are NEVER abandonable. Each of them re-runs the
+        # full execute_cycle body — including validation, sizing and gateway
+        # submit — so an abandoned worker thread could still place an order
+        # after the runner gave up. timeout_s remains as the SLA yardstick
+        # (overruns are reported as SLA misses, never abandoned).
         StageSpec("analysis.context", "QuantitativeCoach", _stage_cycle_context,
-                  timeout_s=30, sla_ms=10000, abandonable=True,
+                  timeout_s=30, sla_ms=10000,
                   notes="per-cycle bounded context re-read (idempotent)"),
         StageSpec("analysis.data", "TechnicalNet", _stage_cycle_data,
-                  timeout_s=120, sla_ms=30000, abandonable=True,
+                  timeout_s=120, sla_ms=30000,
                   notes="fetch → quality/news gates → indicators → SMC → regime"),
         StageSpec("analysis.causal", "MacroAnalyst", _stage_cycle_causal,
-                  timeout_s=120, sla_ms=30000, abandonable=True,
+                  timeout_s=120, sla_ms=30000,
                   notes="macro ingest → causal/memory/working-memory context"),
         StageSpec("analysis.llm", "MarketModel", _stage_cycle_llm,
-                  timeout_s=300, sla_ms=45000, retries=0, fallback="degrade", abandonable=True,
+                  timeout_s=300, sla_ms=45000, retries=0, fallback="degrade",
                   notes="LLM decision call with budget/circuit guards"),
         StageSpec("analysis.validate", "RiskController", _stage_cycle_validate,
                   timeout_s=30, sla_ms=10000,

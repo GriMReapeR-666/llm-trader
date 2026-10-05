@@ -8,10 +8,9 @@ logger = logging.getLogger(__name__)
 
 # Ensure research / vendor / core are importable when launched as `python -m kronos_mcp.main`
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_RESEARCH = _REPO_ROOT / "research"
-for p in (str(_REPO_ROOT), str(_RESEARCH)):
-    if p not in sys.path:
-        sys.path.insert(0, p)
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from typing import Any, Dict, List
 
@@ -278,9 +277,10 @@ def kronos_synthetic_multi_asset(params: MultiAssetSyntheticParams) -> Dict[str,
     try:
         from intelligence.kronos_synthetic_generator import generate_correlated_multi_asset_synthetic_dataset
     except Exception as exc:
-        # fallback via research path
-        sys.path.insert(0, str((_REPO_ROOT / "intelligence").resolve()))
-        from intelligence.kronos_synthetic_generator import generate_correlated_multi_asset_synthetic_dataset  # type: ignore
+        # No sys.path fallback: the repo root is already on sys.path
+        # (module header, single import root). A failed packaged import is a
+        # real error, not a path problem.
+        raise RuntimeError(f"kronos synthetic generator unavailable: {exc}") from exc
     dataset = generate_correlated_multi_asset_synthetic_dataset(
         symbols=params.symbols,
         length_bars=params.length_bars,
@@ -310,8 +310,7 @@ def kronos_mt5_forecast_multi_dim(params: MT5MultiDimParams) -> Dict[str, Any]:
     Accepts raw MT5 rates (dict tuple schema) and DOM-aware via MT5 adapter.
     Returns same payload as kronos_forecast_multi_dim with MT5 provenance.
     """
-    # import locally to keep sys.path handling consistent
-    sys.path.insert(0, str((_REPO_ROOT / "research").resolve()))
+    # Repo root is on sys.path (module header, single import root) — no path hacks.
     from research.kronos_mt5_adapter import KronosMT5Adapter
     adapter = KronosMT5Adapter(model_key=params.model_key)
     # Normalize tolerates both list[dict] and list[tuple]
@@ -328,7 +327,7 @@ def kronos_mt5_advanced_volatility(params: MT5VolParams) -> Dict[str, Any]:
     Returns 5d/10d/20d term structure + regime + risk_adjustment_factor + optional
     lot sizing if account_balance provided. MT5 spread-aware. Advisory only.
     """
-    sys.path.insert(0, str((_REPO_ROOT / "research").resolve()))
+    # Repo root is on sys.path (module header, single import root) — no path hacks.
     from research.kronos_mt5_adapter import KronosMT5Adapter
     from research.kronos_trading_integrator import KronosTradingIntegrator
     from research.kronos_bridge import KronosPredictor  # noqa

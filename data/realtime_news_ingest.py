@@ -472,7 +472,14 @@ def run(
             url = str(a.get("url") or a.get("link") or "")
             publisher = str(a.get("publisher") or a.get("source") or "")
             assessment = assess_source(url=url, publisher=publisher)
-            if assessment.get("allowed") and assessment.get("tier") in ("PRIMARY", "RUNTIME_FEED"):
+            # H3: only PRIMARY sources and wire-service hosts count toward
+            # the latch — aggregators and publisher-name matches never do.
+            try:
+                from intelligence.macro_source_policy import counts_toward_latch
+                _counts = counts_toward_latch(assessment)
+            except Exception:
+                _counts = bool(assessment.get("allowed")) and assessment.get("tier") == "PRIMARY"
+            if _counts:
                 kill_headlines.append(str(a.get("title") or "")[:120])
     # Latch: one batch of tripwire headlines is a *pending confirmation*, not
     # an active kill-switch; the latch requires N batches within its window.

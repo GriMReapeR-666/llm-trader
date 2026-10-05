@@ -25,6 +25,19 @@ from core.trading_safety import DeterministicValidator, TradeProposal, TradingSt
 from data.kill_switch_latch import KillSwitchLatch, get_kill_switch_latch
 
 
+@pytest.fixture(autouse=True)
+def _isolated_latch_singleton():
+    """Attach-once (H5) makes the process singleton sticky: a store bound by
+    one test would otherwise leak into the next test in the same worker.
+    Detach around every test so each test binds explicitly and deterministically.
+    """
+    _latch = get_kill_switch_latch()
+    _prev_store = _latch._store
+    _latch._store = None
+    yield
+    _latch._store = _prev_store
+
+
 def test_missing_vix_does_not_clear(tmp_path):
     path = str(tmp_path / "latch.json")
     latch = KillSwitchLatch(path=path)
@@ -118,9 +131,13 @@ def test_multi_process_stress_no_corruption(tmp_path):
 
 
 def test_entries_blocked_unified_authority(tmp_path):
+    from data.kill_switch_latch import get_kill_switch_latch
     db_path = str(tmp_path / "trading_state.db")
     store = TradingStore(db_path)
     latch = KillSwitchLatch(path=str(tmp_path / "latch.json"), store=store)
+    # Attach-once contract (H5): the process singleton is bound explicitly,
+    # exactly like production boot does. entries_blocked never re-points it.
+    get_kill_switch_latch().attach_store(store)
 
     # 1. Initially unlatched and no kill switch
     assert latch.snapshot()["latched"] is False

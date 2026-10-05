@@ -245,3 +245,34 @@ One blocker (B4) and two highs (H3, H4) **come from my plan**, not from the impl
 8. Medium and low items. Then the full suite, the drill and a mutation re-measure, and only then tick the roadmap.
 
 **Phase 4 note:** `phase4/live-mode-correctness` (2 commits) is built on this branch. The fixes should land on `phase3/emergency-stack` first, then be rebased or merged into Phase 4. The roadmap on the branch ticks every Phase 3 item; B1-B4, H1-H6 and M1-M6 should be unticked until they're fixed.
+
+---
+
+## 8. Fix status (branch `fix/phase3-review`)
+
+**What changed:**
+- All findings in §1-§4 are fixed in this branch.
+- The plan corrections from §5 are applied to `PLAN_PHASE_3_4.md`.
+
+**Re-verified with the original probes:**
+- **API controls:** the API refuses (503) when it has no journal. With a journal it returns real control ids, writes the rows and the kill switch to the journal the engine drains, and `GET /api/control/{id}` reads the same journal from any working directory.
+- **Live flatten:** with the production `MT5Client` shape, it closes positions on `FakeMT5` across all three magics.
+- **Stage deadlines:** only `velocity.poll` and `memory.dispatch` stay abandonable. The LLM deadline wraps the provider call only.
+- **CLIs:** `latch`, `kill-switch` and `journal reconciliation` work again.
+
+**Three more test-isolation problems fixed during verification:**
+1. **The news latch leaked between tests.** It was shared by every test in an xdist worker, so one test that tripped it made later validator and gateway tests fail ("news kill-switch latched"). Now each test gets a fresh latch (`isolated_kill_switch_latch` in `tests/conftest.py`).
+2. **Tests read the real autonomy state.** The autonomy singleton loaded the repo-root `autonomy_state.json` before the fixture redirected its paths, so a paused real engine made tests fail. Each test now starts from clean in-memory state. Proven with a paused canary file, which the tests leave untouched.
+3. **A stray file in the repo root.** `tests/test_quant_models_wiring.py` passed `state_file=":memory:"`, which wrote a JSON file named `:memory:` there. It now uses `tmp_path`.
+
+**Also:** the Phase 3 API routes (control status, safety, latch) resolve the journal the same way the control writer does: `LLM_TRADER_JOURNAL_PATH`, else the repo-root `trading_state.db`.
+
+**Gate:**
+- 2 consecutive full runs: **4,714 passed, 0 failed**, no stray files;
+- import guard 0;
+- deck `tsc` clean, `bun test` 16/16;
+- web GUI `tsc` clean.
+
+**Still open (not blocking the merge):**
+- the mutation re-measure (`TS-9`);
+- older API routes still default to a working-directory-relative `trading_state.db`, as before Phase 3.

@@ -457,22 +457,29 @@ export async function applyIntervention(
   }
 
   const controlId = res.control_id
+  // A control without a journal id was never issued: FAILED, never poll.
+  if (controlId === undefined || controlId === null) {
+    store.pushAlert("critical", `${action.toUpperCase()} FAILED — no control_id (engine journal unavailable)`)
+    return
+  }
   let currentStatus = res.status || "REQUESTED"
   store.pushAlert("warn", `${action.toUpperCase()} ${currentStatus}`)
-
-  if (action === "kill" || action === "pause") {
-    store.set({ halted: true })
-  }
 
   if (controlId) {
     let attempts = 0
     const pollInterval = 400
-    const maxAttempts = 25
+    // Poll until a terminal state (APPLIED/FAILED/EXPIRED). Cap at ~72 s,
+    // past the 60 s control expiry: on cap, report presumed-EXPIRED loudly
+    // instead of going silent.
+    const maxAttempts = 180
     const intervalId = setInterval(async () => {
       attempts++
       const stat = await getControlStatus(controlId)
       if (!stat) {
-        if (attempts >= maxAttempts) clearInterval(intervalId)
+        if (attempts >= maxAttempts) {
+          clearInterval(intervalId)
+          store.pushAlert("critical", `${action.toUpperCase()} FAILED — no terminal state after 72 s (treat as EXPIRED, verify via journal)`)
+        }
         return
       }
       if (stat.status !== currentStatus) {
@@ -485,6 +492,13 @@ export async function applyIntervention(
       }
       if (stat.status === "APPLIED" || stat.status === "FAILED" || stat.status === "EXPIRED" || attempts >= maxAttempts) {
         clearInterval(intervalId)
+        if (attempts >= maxAttempts && stat.status !== "APPLIED" && stat.status !== "FAILED" && stat.status !== "EXPIRED") {
+          store.pushAlert("critical", `${action.toUpperCase()} FAILED — no terminal state after 72 s (treat as EXPIRED, verify via journal)`)
+        }
+        // Only reflect halted locally once the engine confirms the outcome.
+        if (stat.status === "APPLIED" && (action === "kill" || action === "pause")) {
+          store.set({ halted: true })
+        }
         const rendered = renderControlOutcome(stat)
         store.pushOpEvent({
           ts: Date.now(),

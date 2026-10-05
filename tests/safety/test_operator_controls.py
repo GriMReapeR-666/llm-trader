@@ -211,3 +211,28 @@ def test_api_session_actor_and_typed_confirmation(tmp_path, monkeypatch):
     ks_data = res_ks.json()
     assert ks_data["status"] == "ACKNOWLEDGED"
     assert store.is_kill_switch_active() is True
+
+
+def test_complete_is_terminal_and_cannot_overwrite(tmp_path):
+    """M5: complete_operator_control is compare-and-set against terminal states.
+
+    A late APPLIED must not overwrite an EXPIRED/FAILED row, and a finished
+    control cannot be re-completed.
+    """
+    from core.trading_safety import TradingStore
+    store = TradingStore(str(tmp_path / "m5.db"))
+    cid = store.create_operator_control(action="flatten", actor="operator", source="test")
+    store.complete_operator_control(cid, "APPLIED", {"closed": 1})
+    assert store.get_operator_control(cid)["status"] == "APPLIED"
+    # Late FAILED must not overwrite APPLIED.
+    store.complete_operator_control(cid, "FAILED", {"error": "late"})
+    assert store.get_operator_control(cid)["status"] == "APPLIED"
+
+    cid2 = store.create_operator_control(action="flatten", actor="operator", source="test")
+    store.complete_operator_control(cid2, "EXPIRED", {"error": "offline"})
+    assert store.get_operator_control(cid2)["status"] == "EXPIRED"
+    # Late APPLIED must not overwrite EXPIRED.
+    store.complete_operator_control(cid2, "APPLIED", {"closed": 9})
+    row = store.get_operator_control(cid2)
+    assert row["status"] == "EXPIRED"
+    assert row["result"].get("closed") != 9

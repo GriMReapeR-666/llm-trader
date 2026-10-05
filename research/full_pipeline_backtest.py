@@ -26,12 +26,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-# Ensure subpackages are on path
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _sub in ["core", "intelligence", "data", "research"]:
-    _p = os.path.join(_root, _sub)
-    if os.path.isdir(_p) and _p not in sys.path:
-        sys.path.insert(0, _p)
+if _root not in sys.path:
+    sys.path.insert(0, _root)
 
 
 # ---------------------------------------------------------------------------

@@ -36,10 +36,14 @@ def entries_blocked(store: Optional[Any] = None) -> Tuple[bool, str]:
             logger.warning("Failed to check manual kill switch in store: %s", exc)
             return True, f"kill-switch unreadable: {exc}"
 
-    # 2. News kill switch latch
+    # 2. News kill switch latch. The process-wide latch is attached to a
+    # journal store exactly once (first call wins): re-pointing it per call
+    # lets two callers with different stores flap the backend and lose
+    # updates. Boot paths (engine, API) attach explicitly; here we only
+    # attach when nothing is attached yet.
     try:
         latch = get_kill_switch_latch()
-        if store is not None and getattr(latch, "_store", None) is not store:
+        if store is not None and getattr(latch, "_store", None) is None:
             latch.attach_store(store)
         snap = latch.snapshot()
         if snap.get("latched"):

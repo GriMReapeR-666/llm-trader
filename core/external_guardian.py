@@ -483,7 +483,16 @@ class ExternalGuardian:
                 if _shared is not None:
                     _shared.flattening = False
             _ok = sum(1 for r in _results if getattr(r, "success", False))
-            logger.critical("Ψ FLATTEN COMPLETE via gateway: %s/%s applied (%s)", _ok, len(_results), reason)
+            # B2: only claim COMPLETE when the broker was listed and nothing
+            # owned remains; anything else is a FAILED flatten needing a human.
+            if getattr(_results, "applied", False):
+                logger.critical("Ψ FLATTEN COMPLETE via gateway: %s/%s applied (%s)", _ok, len(_results), reason)
+            else:
+                logger.critical(
+                    "Ψ FLATTEN FAILED via gateway: %s/%s applied, remaining=%s listing_error=%s (%s) — MANUAL INTERVENTION REQUIRED",
+                    _ok, len(_results), getattr(_results, "remaining", "?"),
+                    getattr(_results, "listing_error", None), reason,
+                )
 
         except Exception as exc:
             logger.critical("Ψ FLATTEN EXCEPTION: %s — positions may remain open", exc)

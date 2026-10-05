@@ -32,8 +32,8 @@ jobs:
         run: python -m pytest -n auto -p no:cacheprovider
       - name: Tracked files untouched
         run: git diff --exit-code --stat
-      - name: Double-import ratchet (Phase 3 drives this to 0)
-        run: python scripts/ci/import_guard.py --max 25
+      - name: Double-import ratchet (Phase 3 drove this to 0; M3 keeps it there)
+        run: python scripts/ci/import_guard.py --max 0
       - name: Secret scan
         run: python -m operations.security_audit --fail-on-findings > /dev/null
 

@@ -992,6 +992,18 @@ def _init_deck_bridge() -> None:
         event_bridge.init(_JOURNAL_DB if os.path.exists(_JOURNAL_DB) else None)
     except Exception as exc:  # bridge must never take the API down
         print(f"[deck-bridge] init warning: {exc}")
+    # B1: the API process issues journal operator controls (flatten,
+    # killswitch) through the autonomy manager, so it needs the same journal
+    # store the engine drains. Without this, issue_control inserts nothing
+    # and success responses are lies.
+    try:
+        from core.trading_safety import TradingStore
+        from operations.autonomy import get_autonomy as _get_autonomy_api_store
+
+        _journal_path = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
+        _get_autonomy_api_store().attach_store(TradingStore(_journal_path))
+    except Exception as exc:
+        print(f"[deck-bridge] autonomy store attach warning: {exc}")
 
 
 def _broadcast_envelope(envelope: dict) -> None:
@@ -1898,6 +1910,13 @@ def deck_control(action: str, request: Request, payload: dict = _Body(default={}
             source=str(payload.get("source") or "command-deck"),
             idempotency_key=str(idempotency_key) if idempotency_key else None,
         )
+        # B1: a control without a journal row is not issued. Fail loudly so
+        # the deck can show FAILED instead of a phantom ACKNOWLEDGED.
+        if not result.get("ok") or result.get("control_id") is None:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Control not issued: {result.get('reason', 'journal unavailable')}",
+            )
         if result.get("ok"):
             cid = result.get("control_id")
             event_bridge.emit("CONTROL_ISSUED", {"action": action, "actor": session_actor, "control_id": cid})
@@ -1920,7 +1939,7 @@ def deck_control(action: str, request: Request, payload: dict = _Body(default={}
 def get_control_status(control_id: int):
     from core.trading_safety import TradingStore
     try:
-        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
         store = TradingStore(_db)
         ctrl = store.get_operator_control(int(control_id))
         if not ctrl:
@@ -1973,7 +1992,7 @@ def get_safety(request: Request):
     if engine_running:
         try:
             from core.trading_safety import TradingStore
-            _journal_path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+            _journal_path = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
             store = TradingStore(_journal_path)
             with store._connect() as con:
                 row = con.execute("SELECT heartbeat_at FROM agent_runs ORDER BY started_at DESC LIMIT 1").fetchone()
@@ -2012,25 +2031,38 @@ def get_safety(request: Request):
         }
 
     from core.trading_safety import TradingStore
-    _journal_path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+    _journal_path = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
     store = TradingStore(_journal_path)
 
-    # Mode
-    mode_val = os.environ.get("LLM_TRADER_MODE", "PAPER").upper()
-    mode_field = {"value": mode_val, "as_of": now}
+    # Mode (H2): from the journal's persisted scope — the mode the engine
+    # actually runs under. Never from an env var nothing sets (which pinned
+    # the strip to PAPER), and null when the journal is unscopable.
+    try:
+        from operations.journal_scope import status as _scope_status
+        _scope_info = _scope_status(_journal_path)
+        _scope_mode = _scope_info.get("mode") if _scope_info.get("status") == "SCOPED" else None
+    except Exception:
+        _scope_mode = None
+    mode_field = {"value": _scope_mode, "as_of": now} if _scope_mode else None
 
-    # Autonomy
+    # Autonomy (H2/B1): the API attaches the journal store at startup, so
+    # this snapshot is journal-backed. Without a store it would be stale —
+    # report null instead of a guess.
     try:
         from operations.autonomy import get_autonomy
-        snap = get_autonomy().snapshot()
-        autonomy_field = {
-            "level": getattr(snap.level, "key", str(snap.level)),
-            "paused": snap.paused,
-            "halted": snap.halted,
-            "pause_reason": snap.pause_reason,
-            "halt_reason": snap.halt_reason,
-            "as_of": now,
-        }
+        _autonomy_mgr = get_autonomy()
+        if getattr(_autonomy_mgr, "store", None) is None:
+            autonomy_field = None
+        else:
+            snap = _autonomy_mgr.snapshot()
+            autonomy_field = {
+                "level": getattr(snap.level, "key", str(snap.level)),
+                "paused": snap.paused,
+                "halted": snap.halted,
+                "pause_reason": snap.pause_reason,
+                "halt_reason": snap.halt_reason,
+                "as_of": now,
+            }
     except Exception:
         autonomy_field = None
 
@@ -2047,10 +2079,17 @@ def get_safety(request: Request):
     except Exception:
         kill_switch_field = None
 
-    # News latch
+    # News latch (H2/H5): read through the singleton bound to this journal.
+    # Attach-once: only bind when nothing is bound yet, never re-point a
+    # live backend from a status read.
     try:
         from data.kill_switch_latch import get_kill_switch_latch
         latch = get_kill_switch_latch()
+        try:
+            if getattr(latch, "_store", None) is None:
+                latch.attach_store(store)
+        except Exception:
+            pass
         st = latch.snapshot()
         latched = bool(st.get("latched", False))
         triggered_at = st.get("triggered_at")
@@ -2070,17 +2109,28 @@ def get_safety(request: Request):
     except Exception:
         news_latch_field = None
 
-    # Daily P&L against limit & breaker state
+    # Daily P&L against limit & breaker state (H2): read the persisted
+    # RiskManager state only. The old code read a `daily_breaker` key that
+    # nothing writes and invented a -500 limit. P&L needs a live broker read
+    # the API doesn't have, so pnl/limit stay null unless persisted; the
+    # persisted flatten reason is the honest trip signal.
     try:
-        pnl_val = float(ui_state.pnl if hasattr(ui_state, "pnl") else 0.0)
-        daily_state = store.get_state("daily_breaker", {})
-        breaker_tripped = bool(daily_state.get("tripped", False)) if isinstance(daily_state, dict) else False
+        risk_state = store.get_state("risk_manager_state", {})
+        if not isinstance(risk_state, dict):
+            risk_state = {}
+        _flat_reason = str(risk_state.get("flatten_reason") or "")
         daily_pnl_field = {
-            "pnl": pnl_val,
-            "limit": float(daily_state.get("limit", -500.0)) if isinstance(daily_state, dict) else -500.0,
-            "breaker_tripped": breaker_tripped,
+            "pnl": None,
+            "limit": None,
+            "breaker_tripped": bool(_flat_reason),
+            "trip_reason": _flat_reason or None,
+            "trading_day": risk_state.get("trading_day") or risk_state.get("date"),
+            "day_basis": risk_state.get("day_basis"),
+            "start_equity": risk_state.get("start_equity"),
             "as_of": now,
         }
+        if not risk_state:
+            daily_pnl_field = None
     except Exception:
         daily_pnl_field = None
 
@@ -2147,7 +2197,7 @@ def get_latch_status():
     from core.trading_safety import TradingStore
     latch = get_kill_switch_latch()
     try:
-        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
         store = TradingStore(_db)
         if getattr(latch, "_store", None) is None:
             latch.attach_store(store)
@@ -2178,7 +2228,7 @@ def clear_latch(request: Request, payload: dict = _Body(default={})):
     from core.trading_safety import TradingStore
     latch = get_kill_switch_latch()
     try:
-        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
         store = TradingStore(_db)
         if getattr(latch, "_store", None) is None:
             latch.attach_store(store)

@@ -38,6 +38,13 @@ class DirectOrderExecutionForbidden(RuntimeError):
     pass
 
 
+class BrokerUnlistableError(RuntimeError):
+    """Raised when broker positions/orders cannot be listed (B2).
+
+    Callers must treat this as a failed control, never as an empty account.
+    """
+
+
 # Private send-context flag. Only code inside this module may set it (via
 # _gateway_send_context). Any other module calling mt5.order_send directly
 # — including via a smuggled LiveMT5Adapter — is rejected by the guard.
@@ -194,22 +201,35 @@ class FlattenOutcome(list):
         failed: int = 0,
         remaining: int = 0,
         sweeps: int = 0,
+        listing_error: Optional[str] = None,
     ):
         super().__init__(items or [])
         self.closed = closed
         self.cancelled = cancelled
         self.failed = failed
+        # remaining == -1 means unknown: the broker could not be listed, so
+        # no claim is made about what is left. Callers must treat this (and
+        # any listing_error) as FAILED, never APPLIED.
         self.remaining = remaining
         self.sweeps = sweeps
+        self.listing_error = listing_error
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        d = {
             "closed": self.closed,
             "cancelled": self.cancelled,
             "failed": self.failed,
             "remaining": self.remaining,
             "sweeps": self.sweeps,
         }
+        if self.listing_error:
+            d["listing_error"] = self.listing_error
+        return d
+
+    @property
+    def applied(self) -> bool:
+        """True only when the broker was listed and nothing owned remains."""
+        return not self.listing_error and self.remaining == 0
 
 
 class BaseBrokerAdapter:
@@ -985,13 +1005,46 @@ class OrderGateway:
             self._resolve_by_ticket(int(ticket), "UNRESOLVED", error=f"cancel not confirmed: {res.get('error') or retcode}")
         return GatewayResult(ok, "CANCELLED" if ok else "ERROR", ticket=int(ticket), action="CANCEL", error=res.get("error"), details=res)
 
+    def count_owned_pending(
+        self,
+        mt5_client: Any = None,
+        owned_magics: Optional[Set[int]] = None,
+    ) -> tuple:
+        """Count owned pending orders at the broker: (count, error).
+
+        B2 verification read for the killswitch drain path. error is None on
+        a successful listing; otherwise count is -1 (unknown).
+        """
+        try:
+            if isinstance(self.adapter, PaperAdapter):
+                orders = list(getattr(self.adapter.paper, "orders", {}).items())
+                if owned_magics is not None:
+                    magics = set(owned_magics)
+                    orders = [(t, o) for t, o in orders if int((o or {}).get("magic", 0) or 0) in magics]
+                return len(orders), None
+            client = self._resolve_live_client(mt5_client)
+            if client is None:
+                return -1, "broker orders cannot be listed: no listable MT5 client"
+            with get_mt5_lock():
+                with _gateway_send_context():
+                    orders = list(client.orders_get() or [])
+            if owned_magics is not None:
+                magics = set(owned_magics)
+                orders = [o for o in orders if int(getattr(o, "magic", 0) or 0) in magics]
+            return len(orders), None
+        except Exception as exc:
+            return -1, str(exc)
+
     def cancel_all_owned_pending(
         self,
         owned_magics: Optional[Set[int]] = None,
         mt5_client: Any = None,
     ) -> List[GatewayResult]:
-        """Cancel all pending orders owned by us and return the results."""
-        results: List[GatewayResult] = []
+        """Cancel all pending orders owned by us and return the results.
+
+        B2: raises BrokerUnlistableError when the live broker cannot be
+        listed — an unlistable broker is a failed control, not an empty book.
+        """
         if isinstance(self.adapter, PaperAdapter):
             orders = list(getattr(self.adapter.paper, "orders", {}).items())
             if owned_magics is not None:
@@ -1000,7 +1053,9 @@ class OrderGateway:
             for ticket, _ in orders:
                 results.append(self.cancel_pending(int(ticket)))
         else:
-            client = mt5_client or getattr(self.adapter, "client", None) or getattr(self.adapter, "_get_mt5", lambda: None)()
+            client = self._resolve_live_client(mt5_client)
+            if client is None:
+                raise BrokerUnlistableError("broker orders cannot be listed: no listable MT5 client")
             orders = []
             if client is not None and hasattr(client, "orders_get"):
                 with get_mt5_lock():
@@ -1020,6 +1075,35 @@ class OrderGateway:
                     results.append(GatewayResult(False, "ERROR", error=str(exc)))
         return results
 
+    def _resolve_live_client(self, mt5_client: Any = None) -> Any:
+        """Return a broker client that can actually be listed, or None.
+
+        B2: callers used to pass connection wrappers (MT5Client) that have
+        no positions_get/orders_get. A flatten against such a client sees an
+        empty account and reports APPLIED with nothing closed. Only clients
+        exposing both listing methods are accepted; otherwise the gateway's
+        own bound client (or the importable MT5 module) is used.
+        """
+        def _listable(client: Any) -> bool:
+            return (
+                client is not None
+                and hasattr(client, "positions_get")
+                and hasattr(client, "orders_get")
+            )
+
+        if _listable(mt5_client):
+            return mt5_client
+        bound = getattr(self.adapter, "client", None)
+        if _listable(bound):
+            return bound
+        try:
+            fallback = self.adapter._get_mt5(None)  # type: ignore[attr-defined]
+        except Exception:
+            fallback = None
+        if _listable(fallback):
+            return fallback
+        return None
+
     def execute_flatten(
         self,
         owned_magics: Optional[Set[int]] = None,
@@ -1029,6 +1113,10 @@ class OrderGateway:
 
         Performs a re-sweep loop (max 5 sweeps) until 2 consecutive empty snapshots
         occur, closing owned positions and cancelling owned pending orders.
+
+        B2: when the broker cannot be listed at all, no claim is made —
+        the outcome carries listing_error with remaining=-1 and callers must
+        mark the control FAILED.
         """
         self.flattening = True
         all_results: List[GatewayResult] = []
@@ -1039,6 +1127,16 @@ class OrderGateway:
         sweeps = 0
         closed_tickets: Set[int] = set()
         cancelled_tickets: Set[int] = set()
+
+        live_client: Any = None
+        if not isinstance(self.adapter, PaperAdapter):
+            live_client = self._resolve_live_client(mt5_client)
+            if live_client is None:
+                self.flattening = False
+                return FlattenOutcome(
+                    [], closed=0, cancelled=0, failed=0, remaining=-1, sweeps=0,
+                    listing_error="broker positions cannot be listed: no listable MT5 client",
+                )
 
         try:
             for sweep in range(1, 6):
@@ -1082,7 +1180,8 @@ class OrderGateway:
                             failed_count += 1
 
                 else:
-                    client = mt5_client or getattr(self.adapter, "client", None) or getattr(self.adapter, "_get_mt5", lambda: None)()
+                    # live_client was verified listable up front (B2).
+                    client = live_client
                     positions = []
                     orders = []
                     if client is not None and hasattr(client, "positions_get"):
@@ -1160,7 +1259,9 @@ class OrderGateway:
             rem_ord = [(t, o) for t, o in rem_ord if int(t) not in cancelled_tickets]
             remaining = len(rem_pos) + len(rem_ord)
         else:
-            client = mt5_client or getattr(self.adapter, "client", None) or getattr(self.adapter, "_get_mt5", lambda: None)()
+            # live_client was verified listable up front (B2); re-resolve
+            # defensively in case the adapter was rebound mid-flatten.
+            client = live_client or self._resolve_live_client(mt5_client)
             if client is not None:
                 try:
                     with get_mt5_lock():

@@ -491,6 +491,13 @@ class RiskShield:
                     "symbol_tradable": True,
                     "spread": 0.0,
                     "max_spread": 100.0,
+                    # Complete evidence (P1-H4): the fail-closed validator
+                    # rejects any missing gate input.
+                    "clock_ok": True,
+                    "session_allowed": True,
+                    "liquidity_ok": True,
+                    "microstructure_ok": True,
+                    "required_data_ok": True,
                     "execution_price": p,
                     "entry_tolerance": 100.0,
                     "stop_distance": abs(candidate.entry_price - candidate.stop_loss) if candidate.stop_loss else 1.0,

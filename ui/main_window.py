@@ -5,12 +5,11 @@ import time
 import os
 import logging
 
-# Ensure current directory and project root are in path
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _project_root = os.path.dirname(_current_dir)
-for _p in (_project_root, os.path.join(_project_root, "operations"), os.path.join(_project_root, "research"), os.path.join(_project_root, "core")):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 from ui.gui_api import start_api_server
 from core.shared_state import state

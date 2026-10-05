@@ -51,28 +51,39 @@ def test_auto_demotion_and_circuits(tmp_path):
 
 
 def test_pause_blocks_but_resume_clears(tmp_path):
+    from core.trading_safety import TradingStore
     state, control = _tmp_paths(tmp_path)
     mgr = AutonomyManager(state, control)
-    mgr.issue_control("pause", actor="deck")
+    # Journal-backed controls require a store (B1): store-less issue is refused.
+    assert mgr.issue_control("pause", actor="deck")["ok"] is False
+    mgr.attach_store(TradingStore(str(tmp_path / "journal.db")))
+    assert mgr.issue_control("pause", actor="deck")["ok"] is True
     pending = mgr.drain_controls()
-    assert [p["action"] for p in pending] == ["pause"]
+    # pause applies at once in the store, so nothing remains drainable.
+    assert pending == []
     allowed, _why = mgr.trading_allowed()
     assert allowed is False
-    mgr.issue_control("resume", actor="deck")
+    assert mgr.issue_control("resume", actor="deck")["ok"] is True
     mgr.drain_controls()
     allowed, _why = mgr.trading_allowed()
     assert allowed is True
 
 
 def test_control_plane_roundtrip_rejects_unknown(tmp_path):
+    from core.trading_safety import TradingStore
     state, control = _tmp_paths(tmp_path)
     mgr = AutonomyManager(state, control)
     bad = mgr.issue_control("self_destruct")
     assert bad["ok"] is False
+    mgr.attach_store(TradingStore(str(tmp_path / "journal.db")))
     for action in CONTROL_ACTIONS:
-        assert mgr.issue_control(action)["ok"] is True
+        res = mgr.issue_control(action)
+        assert res["ok"] is True, action
+        assert res["control_id"] is not None, action
     drained = mgr.drain_controls()
-    assert len(drained) == len(CONTROL_ACTIONS)
+    # pause/resume apply at once (APPLIED); flatten/killswitch stay
+    # REQUESTED for the engine to claim.
+    assert sorted(d["action"] for d in drained) == ["flatten", "killswitch"]
 
 
 def test_state_survives_reload(tmp_path):

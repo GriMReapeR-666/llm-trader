@@ -12,8 +12,9 @@ from datetime import datetime, timedelta, timezone
 import logging
 import pandas as pd
 
-# Add current directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Single import root (P1-C1/M3): repo root only — never this folder itself
+# (adding data/ would double-load every data module under a bare name).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from data.mt5_calendar_wrapper import MT5CalendarWrapper

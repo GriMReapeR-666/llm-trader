@@ -5,6 +5,9 @@ threshold with no halt asserted). News silence, missing VIX or a restart must
 never clear it.
 """
 import math
+import os
+import subprocess
+import sys
 
 import pytest
 
@@ -96,10 +99,32 @@ def test_corrupt_checkpoint_after_crash_loads_latched(latched, path):
 
 
 def test_every_import_path_shares_one_latch(monkeypatch):
-    import os
-    import sys
-    import data.kill_switch_latch as packaged
-    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    monkeypatch.syspath_prepend(os.path.join(root, "data"))
-    from data import kill_switch_latch as bare
-    assert packaged.get_kill_switch_latch() is bare.get_kill_switch_latch()
+    """The latch module must not be importable bare (M3).
+
+    The old version of this test prepended data/ to sys.path and then
+    imported `data.kill_switch_latch` — the packaged module both times —
+    comparing the module to itself. What actually matters: in a clean
+    interpreter with only the repo root on sys.path, `import
+    kill_switch_latch` (bare) must fail while the packaged import works.
+    That proves no ambient path pollution can double-load the latch (C1).
+    """
+    import subprocess
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    code = (
+        "try:\n"
+        "    import kill_switch_latch\n"
+        "    print('BARE_OK')\n"
+        "except ModuleNotFoundError:\n"
+        "    print('BARE_FAIL')\n"
+        "from data.kill_switch_latch import get_kill_switch_latch\n"
+        "print('PACKAGED_OK')\n"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=repo_root,
+        capture_output=True, text=True, timeout=60,
+        env={**os.environ, "PYTHONPATH": repo_root},
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "BARE_FAIL" in proc.stdout, f"bare import unexpectedly works:\n{proc.stdout}"
+    assert "PACKAGED_OK" in proc.stdout, f"packaged import broken:\n{proc.stdout}\n{proc.stderr}"

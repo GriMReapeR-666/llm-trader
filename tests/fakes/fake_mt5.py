@@ -21,8 +21,8 @@ class FakeMT5:
         self.bid, self.ask, self.equity = bid, ask, equity
         self.sent = []          # every order_send request, in order
         self.positions = []
-        self.orders = []
-        self.deals = []
+        self.orders = []        # pending orders (SimpleNamespace with ticket/symbol/magic)
+        self.deals = []         # broker deal history (SimpleNamespace rows)
 
     # --- account / market -------------------------------------------------
     def initialize(self, *a, **k):
@@ -62,6 +62,16 @@ class FakeMT5:
     # --- the one call that matters ---------------------------------------
     def order_send(self, request):
         self.sent.append(dict(request))
+        # Honest REMOVE: dropping the pending order makes remaining snapshots truthful.
+        if request.get("action") == self.TRADE_ACTION_REMOVE:
+            ticket = request.get("order")
+            self.orders = [o for o in self.orders if getattr(o, "ticket", None) != ticket]
+            return NS(retcode=self.TRADE_RETCODE_DONE, order=ticket, deal=0,
+                      volume=0.0, price=0.0, comment="fake-cancel", request=request)
+        # Honest DEAL close: dropping the position makes remaining snapshots truthful.
+        if "position" in request:
+            ticket = request.get("position")
+            self.positions = [p for p in self.positions if getattr(p, "ticket", None) != ticket]
         return NS(retcode=self.TRADE_RETCODE_DONE, order=len(self.sent), deal=0,
                   volume=request.get("volume"), price=request.get("price"), comment="fake", request=request)
 

@@ -20,12 +20,11 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Ensure project root is on sys.path
+# Single import root (P1-C1/M3): only the repo root may be added to sys.path;
+# subpackage folders never (they double-load modules and split singletons).
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _sub in ("core", "intelligence", "operations", "research", "data", "ui"):
-    _p = os.path.join(_PROJECT_ROOT, _sub)
-    if os.path.isdir(_p) and _p not in sys.path:
-        sys.path.insert(0, _p)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 
 @dataclass

@@ -10,10 +10,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List
 
-from core.trading_safety import SCALP_MAGIC, SWING_MAGIC
-
-
-BOT_MAGICS = {SWING_MAGIC, SCALP_MAGIC}
+from core.trading_safety import BOT_MAGICS
 
 
 def _value(item: Any, name: str, default: Any = None) -> Any:

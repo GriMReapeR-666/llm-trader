@@ -12,7 +12,16 @@ from typing import Iterator, Optional
 
 
 class FileLock:
-    """Exclusive non-blocking or bounded-wait OS file lock."""
+    """Exclusive non-blocking or bounded-wait OS file lock.
+
+    M2: the lock lives on a sentinel byte far past the payload (offset 2**30)
+    while the PID is stored at bytes 0..63. On Windows (mandatory locking) a
+    second process locking byte 0 would also block plain readers of the PID;
+    separating the regions keeps read_pid() working for the API stop path
+    and /api/safety while the engine holds the lock.
+    """
+
+    _LOCK_OFFSET = 1 << 30
 
     def __init__(self, path: str):
         self.path = os.path.abspath(path)
@@ -56,7 +65,7 @@ class FileLock:
                     return True
                 except ImportError:
                     import msvcrt
-                    fh.seek(0)
+                    fh.seek(self._LOCK_OFFSET)
                     msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
                     self._fh = fh
                     self._acquired = True
@@ -107,7 +116,7 @@ class FileLock:
                 fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
             except ImportError:
                 import msvcrt
-                self._fh.seek(0)
+                self._fh.seek(self._LOCK_OFFSET)
                 msvcrt.locking(self._fh.fileno(), msvcrt.LK_UNLCK, 1)
         except OSError:
             pass
