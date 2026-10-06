@@ -585,6 +585,9 @@ def test_full_lifecycle_on_fake_mt5_with_wrapper_client(store, fake_mt5):
         assert len(closed) == 1
         assert closed[0]["ticket"] == ticket
 
+        # A second reconcile pass finds nothing left to close.
+        orch.reconcile_open_positions()
+
         # Exactly one outcome recorded to risk manager!
         assert mock_outcome.call_count == 1
         assert mock_outcome.call_args[0][0] == pytest.approx(84.0, abs=1.0)

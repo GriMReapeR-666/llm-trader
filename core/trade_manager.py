@@ -16,6 +16,7 @@ except ImportError:
 from core.trading_safety import BOT_MAGICS, PortfolioRiskArbiter, exposure_buckets
 from core.state_persistence import StoreBackedState
 from core.broker_reads import (
+    broker_account_info,
     broker_orders_get,
     broker_positions_get,
     broker_symbol_info,

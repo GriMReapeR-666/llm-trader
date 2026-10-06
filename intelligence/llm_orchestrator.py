@@ -3041,7 +3041,7 @@ class LLMOrchestrator:
                     run_id=self.run_id, correlation_id=proposal.setup_key(), severity="CRITICAL",
                 )
                 return proposal, result
-            if constraint_eval.overall_verdict == ConstraintVerdict.REUCE if hasattr(ConstraintVerdict, "REUCE") else ConstraintVerdict.REDUCE:
+            if constraint_eval.overall_verdict == ConstraintVerdict.REDUCE:
                 # Apply reduce instructions
                 for instr in constraint_eval.reduce_instructions:
                     if instr.get("action") == "REDUCE":

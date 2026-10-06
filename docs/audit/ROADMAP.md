@@ -133,6 +133,10 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [x] ⚪ `1a-F12` Smaller trade_manager defects (filling mode, failed-close flagging, per-position try, journal growth, initial-R cache).
 - [x] 🟠 `TL-T4` Live `reconciliation-run` always fails (`_get_mt5` undefined).
 - [x] 🟠 **Last:** `1a-F13` (data-quality fields set too late; server time treated as UTC) and `P1-H3`/`TL-T1` (`ConstraintVerdict.HOLD` missing). These two currently block all live trading.
+- [x] 🔴 Phase 4 review `B1`-`B5`, `H1`-`H5`, `M1`-`M5` and re-review `R1`-`R3` (see `REVIEW_PHASE4_2026-10-05.md` §8-§9). Pinned in `tests/safety/test_mode_correct_wiring.py` and `tests/safety/test_phase4_review_closure.py`.
+- [x] Gate: full lifecycle on `FakeMT5` behind a wrapper-shaped client, with exactly one outcome.
+- [ ] **Gate: §4.6 demo session** (you), with a reconciliation report showing zero unexplained differences. This also verifies `M4` against the real terminal.
+- [ ] Gate: `TS-9` mutation re-measure including `calc_position_size`; raise the ratchet.
 
 ## Phase 5: Honest numbers
 - [ ] 🔴 `LA-B3` Ensemble weights use full-sample IC; 17 of 23 Alpha101 factors use full-series rank/scale.

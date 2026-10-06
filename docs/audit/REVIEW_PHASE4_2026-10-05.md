@@ -372,3 +372,50 @@ All findings from the Phase 4 review have been resolved, wired correctly for pro
 - **Safety Suite:** 424 passed, 0 failed in `tests/safety/`.
 - **Locked Reads Ratchet (`tests/safety/test_locked_broker_reads.py`):** 2 passed (residual direct reads <= 23).
 
+
+---
+
+## 9. Re-review of §8 (2026-10-06)
+
+**Reviewed:** `d2749ba` (working-tree test fixes, `PH4-N1` ratchet) and `40f2372` (B1-B5, H1-H5, M1-M5), read diff by diff against §1-§4.
+
+**Verdict:** the code fixes hold, with three defects that §8 missed. **§8's verification column overstated the coverage:** it cites tests that don't exist. Both are now fixed. **Phase 4 is code-complete. The gate stays open** until the §4.6 demo session and the `TS-9` mutation re-measure are done.
+
+### 9.1 Confirmed fixed
+| ID | Evidence |
+|---|---|
+| B1 | `lots=None` at validation. The post-sizing `_rule_position_size` runs on `safe_vol`. The fusion-test mock is reverted. `test_real_proposal_passes_constraint_engine_and_sizes` uses the real engine. |
+| B2 | Live providers read through `_get_mt5()`, never `orch.client`. The facade resolves the specific method and skips wrappers. Providers return `None` on a read error or a `None` read, and the risk manager blocks entries on `None`. Covered by Probe A (`test_probe_a_wrapper_client_shape`). |
+| B3 | A `None` or failed positions read skips the whole pass. Only a deal with `entry ∈ {OUT, INOUT, OUT_BY}` closes a trade. Covered by Probe B. |
+| B4 | The 14 tests pass. The `test_opportunity_fusion_gate.py` mock is gone. |
+| H1 | The arbiter uses `broker_trading_day_start_utc` / `broker_trading_week_start_utc`. |
+| H2 | `sizing_scale` multiplies the risk amount before rounding. The gateway checks `volume_min`, `volume_max` and `volume_step`. |
+| H3 | Outside PAPER, a missing tick gives `NO_TICK` / invalid, in both the provider and the validator. |
+| H4 | No shared writes remain (`set_heat_budget_r` has no production callers). The budget is per proposal. |
+| H5 | `record_trade_outcome` runs immediately after the CAS close. Each later side effect has its own `try`. **Partial:** a failed side effect is logged, not queued for retry. Accepted: the loss now always reaches the risk manager, and labels and memory are best-effort. |
+| M1, M2, M5, Lows | As stated in §8. No `busy_timeout=5000` or `timeout=2.0` connects remain in `core`, `operations`, `intelligence` or `data`. |
+
+### 9.2 Defects found in `40f2372`, fixed in this pass
+| # | Severity | Finding | Fix |
+|---|---|---|---|
+| R1 | 🟠 | `if verdict == ConstraintVerdict.REUCE if hasattr(...) else ConstraintVerdict.REDUCE:` parses as `(… == REUCE) if False else REDUCE`. That is a truthy enum, so **every non-REJECT verdict entered the REDUCE branch**. It was harmless today only because PASS carries no reduce instructions. | Restored `== ConstraintVerdict.REDUCE`. |
+| R2 | 🟡 | `core/trade_manager.py` calls `broker_account_info` but never imported it. The `NameError` was swallowed, so pyramid-add authorization **always used the cached `risk.balance` instead of live equity**. | Added the import. |
+| R3 | 🟡 | `calc_position_size(heat_budget_r=…)` **replaced** the configured cap instead of tightening it. A NaN budget disabled the check (`x > nan` is False). | `min(heat_budget_r, max_portfolio_heat_r)`. Non-finite or ≤ 0 refuses. |
+
+### 9.3 §8's verification column, corrected
+- **Tests §8 named that didn't exist:** `test_sizing_scale_applied_prior_to_rounding`, `tests/test_broker_time.py`, and the H1/H3/H5 tests "in `test_mode_correct_wiring.py`".
+- **What actually covered them:** nothing pinned H1, H2, H3, H4 (the cap side), H5 (isolation), M3, or B2's "unknown blocks".
+- **Added:** `tests/safety/test_phase4_review_closure.py`, with 17 tests covering H1 (window maths, plus the arbiter under a fixed clock at UTC+3), H2 (rounding, plus the gateway's off-step and below-minimum checks), H3, H4, B2-unknown, H5 (side effects raising across two tickets, two passes), M3, R1 and R2.
+- **The tests catch the bugs:** with R1-R3 reverted, the R1 and R3 tests fail.
+- **Exactly-once:** the B5 lifecycle test now reconciles twice and still asserts exactly one outcome.
+
+### 9.4 Still open (not code)
+| Item | Owner |
+|---|---|
+| **§4.6 demo session** with a clean reconciliation report. M4 (`history_deals_get(position=…, date_from=…)` against the real terminal) is verified there. | You |
+| **`TS-9` mutation re-measure** including `calc_position_size`, then raise the ratchet. The harness (`docs/audit/work/mutation/mutate.py`) needs its worktree copies rebuilt. | Next session |
+| **M3 remainder:** historical epochs still use the *current* offset. TTL 30 min bounds the error to deals that straddle a DST change. Phase 6 PR 6.1 owns this. | Phase 6 |
+| **B5 lifecycle test** drives pending → fill through the journal directly, not through `OrderGateway` plus the reconciler. The gateway path is covered by `test_order_gateway_ledger.py`. | Accepted |
+
+### 9.5 Suite
+`.venv/bin/pytest`: **4,782 passed, 0 failed**, 18 skipped, 3 xfailed, 1 xpassed. No tracked file was changed by the run.

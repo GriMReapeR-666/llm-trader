@@ -934,7 +934,12 @@ class RiskManager(StoreBackedState):
 
         # Portfolio heat cap: refuse entries that would push aggregate open
         # risk past the R-unit budget (copula-compressible via set_heat_budget_r or heat_budget_r).
-        effective_heat_budget = float(heat_budget_r) if heat_budget_r is not None else self.max_portfolio_heat_r
+        # A per-proposal budget can only tighten the configured cap, never widen it.
+        effective_heat_budget = self.max_portfolio_heat_r
+        if heat_budget_r is not None:
+            if not self._finite(heat_budget_r) or float(heat_budget_r) <= 0:
+                return 0.0
+            effective_heat_budget = min(float(heat_budget_r), self.max_portfolio_heat_r)
         heat_now = self.open_portfolio_heat_r()
         if heat_now is None:
             if self._portfolio_heat_provider is not None or mt5 is not None:
