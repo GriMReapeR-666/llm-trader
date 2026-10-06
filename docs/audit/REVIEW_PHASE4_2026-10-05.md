@@ -413,7 +413,7 @@ All findings from the Phase 4 review have been resolved, wired correctly for pro
 | Item | Owner |
 |---|---|
 | **§4.6 demo session** with a clean reconciliation report. M4 (`history_deals_get(position=…, date_from=…)` against the real terminal) is verified there. | You |
-| **`TS-9` mutation re-measure** including `calc_position_size`, then raise the ratchet. The harness (`docs/audit/work/mutation/mutate.py`) needs its worktree copies rebuilt. | Next session |
+| ~~`TS-9` mutation re-measure~~ **Done:** overall 52.5 %, `calc_position_size` 41.8 %, ratchet raised 50 → 52 (`work/04_test_strength.md`). | Done |
 | **M3 remainder:** historical epochs still use the *current* offset. TTL 30 min bounds the error to deals that straddle a DST change. Phase 6 PR 6.1 owns this. | Phase 6 |
 | **B5 lifecycle test** drives pending → fill through the journal directly, not through `OrderGateway` plus the reconciler. The gateway path is covered by `test_order_gateway_ledger.py`. | Accepted |
 

@@ -136,7 +136,7 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 - [x] 🔴 Phase 4 review `B1`-`B5`, `H1`-`H5`, `M1`-`M5` and re-review `R1`-`R3` (see `REVIEW_PHASE4_2026-10-05.md` §8-§9). Pinned in `tests/safety/test_mode_correct_wiring.py` and `tests/safety/test_phase4_review_closure.py`.
 - [x] Gate: full lifecycle on `FakeMT5` behind a wrapper-shaped client, with exactly one outcome.
 - [ ] **Gate: §4.6 demo session** (you), with a reconciliation report showing zero unexplained differences. This also verifies `M4` against the real terminal.
-- [ ] Gate: `TS-9` mutation re-measure including `calc_position_size`; raise the ratchet.
+- [x] Gate: `TS-9` mutation re-measure including `calc_position_size`. Measured 52.5 % (`calc_position_size` 41.8 %); ratchet raised 50 → 52. See `work/04_test_strength.md` § Phase 4 re-measure.
 
 ## Phase 5: Honest numbers
 - [ ] 🔴 `LA-B3` Ensemble weights use full-sample IC; 17 of 23 Alpha101 factors use full-series rank/scale.
