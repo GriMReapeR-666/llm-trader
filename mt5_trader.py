@@ -452,7 +452,7 @@ from core.order_execution import (
     PaperBroker, _symbol_tick, _broker_market_filling_mode,
     validate_order_params, validate_pending_entry_geometry,
     place_market_order, emergency_market_exit, place_pending_order,
-    modify_order_sltp, cancel_pending_order,
+    modify_order_sltp, cancel_pending_order, _get_mt5,
 )
 from data.market_data_provider import (
     TIMEFRAME_MAP, tf_const, fetch_ohlc, collect_calendar_event_rows,
@@ -1062,7 +1062,8 @@ def _ensure_paper_market_data_session() -> bool:
 
 # ---------- Account and Monitoring ----------
 def account_info() -> Dict[str, Any]:
-    info = mt5.account_info()
+    from core.broker_reads import broker_account_info as _cli_account_info
+    info, _cli_err = _cli_account_info(mt5_inst=mt5)
     if not info:
         raise RuntimeError("Failed to get account info")
     return {
@@ -1097,7 +1098,8 @@ def preflight_symbols(symbols: List[str]) -> Dict[str, str]:
     return resolved
 
 def positions_overview() -> List[Dict[str, Any]]:
-    poses = mt5.positions_get()
+    from core.broker_reads import broker_positions_get as _cli_positions_get
+    poses, _cli_pos_err = _cli_positions_get(mt5_inst=mt5)
     out = []
     for p in poses or []:
         out.append({
@@ -1107,12 +1109,14 @@ def positions_overview() -> List[Dict[str, Any]]:
     return out
 
 def orders_overview() -> List[Dict[str, Any]]:
-    ords = mt5.orders_get()
+    from core.broker_reads import broker_orders_get as _cli_orders_get
+    ords, _cli_ords_err = _cli_orders_get(mt5_inst=mt5)
     return [{"ticket": o.ticket, "symbol": o.symbol, "type": o.type, "price": o.price, "volume_initial": o.volume_initial} for o in ords or []]
 
 def history_overview(start, end) -> Dict[str, Any]:
-    orders = mt5.history_orders_get(start, end)
-    deals = mt5.history_deals_get(start, end)
+    from core.broker_reads import broker_history_orders_get as _cli_hist_orders, broker_history_deals_get as _cli_hist_deals
+    orders, _ho_err = _cli_hist_orders(start, end, mt5_inst=mt5)
+    deals, _hd_err = _cli_hist_deals(start, end, mt5_inst=mt5)
     return {
         "orders_count": len(orders or []),
         "deals_count": len(deals or []),
@@ -2956,7 +2960,8 @@ def main() -> None:
                 mt5_inst = _get_mt5()
                 if mt5_inst is None:
                     raise RuntimeError("MetaTrader5 module unavailable for live reconciliation; specify --paper to run against paper ledger")
-                deals = mt5_inst.history_deals_get(start_dt, end_dt)
+                from core.broker_reads import broker_history_deals_get
+                deals, _recon_err = broker_history_deals_get(start_dt, end_dt, mt5_inst=mt5_inst)
                 if deals is None:
                     raise RuntimeError("MT5 deal history unavailable for reconciliation")
                 from operations.daily_reconciliation import compare_day
@@ -4381,6 +4386,17 @@ def execute_skill(**kwargs):
             orch.wire_bounded_autonomy(enabled=True, audit_log_path=audit_log)
             print(f"≡ Bounded-Autonomy Pipeline Active (NZE 2026: R ∘ V_LLM ∘ S) -> Audit: {audit_log}")
         risk.set_store(orch.store)
+
+        if str(journal_mode).upper() in ("LIVE", "DEMO"):
+            tm = getattr(orch.data_provider, "trade_manager", None)
+            if tm is not None and tm.paper_broker is not None:
+                raise RuntimeError(
+                    f"Boot check failed: {journal_mode} mode TradeManager has paper_broker attached!"
+                )
+            if orch.paper_broker is not None:
+                raise RuntimeError(
+                    f"Boot check failed: {journal_mode} mode LLMOrchestrator has paper_broker attached!"
+                )
         
         print(f"Starting LLM Trader on {args.symbol} ({args.timeframe})...")
         print(f"Mode: {journal_mode}")

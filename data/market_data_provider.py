@@ -121,67 +121,18 @@ def tf_const(tf: str) -> int:
     return getattr(mt5_inst, name)
 
 
-# Broker server→UTC offset cache (offset seconds + expiry epoch).
-# 24h TTL: broker timezone changes at most twice a year (DST); weekend closed
-# markets keep the last known offset instead of falling back to 0.
-_SERVER_OFFSET_TTL = 24 * 3600
-_SERVER_OFFSET_CACHE: Dict[str, Any] = {"offset": 0, "expires": 0.0}
-
-
-def _server_utc_offset_seconds(mt5_inst: Any, probe_symbols: Tuple[str, ...] = ("EURUSD", "GBPUSD", "XAUUSD")) -> int:
-    """Estimate the broker server-timezone offset (server ahead of UTC), seconds.
-
-    MT5 bar timestamps are epoch seconds expressed in the BROKER SERVER's
-    timezone, not UTC (e.g. MetaQuotes demo servers run UTC+3). Decoding them
-    naively with ``unit='s'`` presents the completed bar as ~3h in the future,
-    which the feature-lineage validator correctly rejects as look-ahead
-    ("completed bar timestamp is later than capture time") — every proposal
-    blocked, pipeline starved.
-
-    Method: a fresh tick carries the server's *now* in server epoch; compare
-    against true UTC now. Broker clocks are NTP-synced, so the residual after
-    snapping to a 30-minute grid must be small (<5 min) — a frozen/stale tick
-    (market closed) produces a large random residual and is discarded. When 2+
-    independent symbols agree on the offset, it is cached for 24h so closed-
-    market periods (weekends) keep the last known offset. Returns 0 when no
-    trustworthy probe exists — fail-open to the legacy naive behaviour rather
-    than guessing wrong.
-    """
-    now = time.time()
-    if now < _SERVER_OFFSET_CACHE["expires"]:
-        return _SERVER_OFFSET_CACHE["offset"]
-    try:
-        candidates = []  # (offset_seconds, residual_ms)
-        for name in probe_symbols:
-            t = mt5_inst.symbol_info_tick(name)
-            if t is None:
-                continue
-            server_ms = float(getattr(t, "time_msc", 0) or 0)
-            if server_ms <= 0:
-                continue
-            residual_ms = server_ms - now * 1000.0
-            steps = int(round(residual_ms / 1_800_000.0))  # snap to 30-min grid
-            if steps < -28 or steps > 28:                  # clamp to ±14h
-                continue
-            residual = abs(residual_ms - steps * 1_800_000.0)
-            if residual > 300_000:  # frozen/stale tick → untrustworthy clock
-                continue
-            candidates.append((steps * 1800, residual))
-        if not candidates:
-            return 0
-        from collections import Counter
-        offset, votes = Counter(off for off, _ in candidates).most_common(1)[0]
-        if votes < 2:
-            # single candidate: only trust a very tight residual
-            if candidates[0][1] > 120_000:
-                return 0
-        logger.info("MT5 server-timezone offset detected: %+ds (UTC%+g)",
-                    offset, offset / 3600.0)
-        _SERVER_OFFSET_CACHE["offset"] = int(offset)
-        _SERVER_OFFSET_CACHE["expires"] = now + _SERVER_OFFSET_TTL
-        return int(offset)
-    except Exception:
-        return 0
+from core.broker_time import (
+    _server_utc_offset_seconds,
+    broker_epoch_to_utc,
+    broker_trading_day,
+    broker_trading_week,
+    get_broker_utc_offset_seconds,
+)
+from core.broker_reads import (
+    broker_copy_rates_from_pos,
+    broker_symbol_info,
+    broker_symbol_info_tick,
+)
 
 
 def _ensure_mt5_attached(mt5_inst: Any) -> bool:
@@ -237,7 +188,7 @@ def fetch_ohlc(symbol: str, timeframe: str, count: int = 100) -> pd.DataFrame:
         # Data-only consumer with no prior broker session in this process:
         # attach lazily (real broker data only — never a synthetic fallback).
         terminal_available = _ensure_mt5_attached(mt5_inst)
-    symbol_info = mt5_inst.symbol_info(symbol)
+    symbol_info, _si_err = broker_symbol_info(symbol, mt5_inst=mt5_inst)
     if symbol_info is None:
         if mt5_inst.terminal_info() is not None:
             all_symbols = mt5_inst.symbols_get()
@@ -266,7 +217,7 @@ def fetch_ohlc(symbol: str, timeframe: str, count: int = 100) -> pd.DataFrame:
     tf = tf_fn(timeframe)
     rates = None
     try:
-        rates = mt5_inst.copy_rates_from_pos(symbol, tf, 0, count)
+        rates, _rates_err = broker_copy_rates_from_pos(symbol, tf, 0, count, mt5_inst=mt5_inst)
     except Exception as exc:
         logger.debug("LLM operation failed: %s", exc)
 
@@ -984,29 +935,31 @@ class MarketDataProvider:
             try:
                 from core.execution_safety_supervisor import get_execution_safety_supervisor
                 _safety = get_execution_safety_supervisor()
-                _tick = None
-                # Time the tick fetch: it is a real broker round-trip and the only
-                # honest latency signal available before dispatch. This used to be a
-                # hardcoded 50.0, so the supervisor's 250ms guard never saw real
-                # latency on the market-order path.
-                _latency = 0.0
+                _mt5 = _get_mt5()
+                if _mt5 is None:
+                    raise RuntimeError("MetaTrader5 module unavailable for live market order safety check")
+                _lat_t0 = time.perf_counter()
                 try:
-                    _lat_t0 = time.perf_counter()
-                    _tick = _symbol_tick(symbol)
-                    _latency = (time.perf_counter() - _lat_t0) * 1000.0
+                    _tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=_mt5)
                 except Exception:
-                    pass
-                _current_spread = 0.0
-                if _tick is not None:
-                    bid = float(getattr(_tick, 'bid', 0) or 0)
-                    ask = float(getattr(_tick, 'ask', 0) or 0)
-                    if bid > 0 and ask > 0:
-                        _current_spread = (ask - bid) / max(bid, 1e-10) * 10000
+                    _tick = None
+                _latency = (time.perf_counter() - _lat_t0) * 1000.0
+                if _tick is None:
+                    raise RuntimeError(f"ExecutionSafetySupervisor: tick unavailable for live order on {symbol}")
+                bid = float(getattr(_tick, 'bid', 0) or 0)
+                ask = float(getattr(_tick, 'ask', 0) or 0)
+                if not (bid > 0 and ask > 0 and ask >= bid):
+                    raise RuntimeError(f"ExecutionSafetySupervisor: invalid live prices for {symbol}: bid={bid}, ask={ask}")
+                _info, _safety_info_err = broker_symbol_info(symbol, mt5_inst=_mt5) if hasattr(_mt5, "symbol_info") else (None, None)
+                point = float(getattr(_info, "point", 0.00001) or 0.00001) if _info else 0.00001
+                _current_spread_points = (ask - bid) / point if point > 0 else (ask - bid)
+                from core.order_execution import _get_rolling_spread_avg_points
+                _avg_spread_points = _get_rolling_spread_avg_points(symbol, _current_spread_points, point)
                 _safety_result = _safety.validate_pre_trade_safety(
                     symbol=symbol,
                     requested_volume=float(volume),
-                    current_spread_pips=_current_spread,
-                    historical_avg_spread_pips=max(_current_spread * 0.8, 0.5),
+                    current_spread_pips=_current_spread_points,
+                    historical_avg_spread_pips=_avg_spread_points,
                     roundtrip_latency_ms=_latency,
                 )
                 if not _safety_result.get("is_approved", False):
@@ -1169,18 +1122,19 @@ class MarketDataProvider:
                 if df.empty:
                     continue
                 df = compute_indicators(df, ["RSI", "MACD", "EMA(50)", "ATR(14)"])
+                _idx = -2 if len(df) >= 2 else -1
                 data[tf] = {
-                    "current_price": df["close"].iloc[-1],
+                    "current_price": df["close"].iloc[_idx],
                     "ohlc_last_3": ohlc_records(df.tail(3)),
-                    "rsi": df["rsi_14"].iloc[-1],
+                    "rsi": df["rsi_14"].iloc[_idx],
                     "macd": {
-                        "line": df["macd_line"].iloc[-1],
-                        "signal": df["macd_signal"].iloc[-1],
-                        "hist": df["macd_hist"].iloc[-1],
+                        "line": df["macd_line"].iloc[_idx],
+                        "signal": df["macd_signal"].iloc[_idx],
+                        "hist": df["macd_hist"].iloc[_idx],
                     },
-                    "ema_50": df["ema_50"].iloc[-1],
-                    "atr": df["atr_14"].iloc[-1],
-                    "trend": "BULLISH" if df["close"].iloc[-1] > df["ema_50"].iloc[-1] else "BEARISH",
+                    "ema_50": df["ema_50"].iloc[_idx],
+                    "atr": df["atr_14"].iloc[_idx],
+                    "trend": "BULLISH" if df["close"].iloc[_idx] > df["ema_50"].iloc[_idx] else "BEARISH",
                 }
             except Exception as e:
                 logging.getLogger("MarketData").warning(f"Failed to fetch {tf} data: {e}")
@@ -1201,8 +1155,9 @@ class MarketDataProvider:
                     df = fetch_fn(symbol, tf, count=100)
                     if df.empty:
                         continue
+                    _idx = -2 if len(df) >= 2 else -1
                     if current_price is None:
-                        current_price = df["close"].iloc[-1]
+                        current_price = df["close"].iloc[_idx]
                     df["ma_50"] = df["close"].rolling(50).mean()
                     df["ma_200"] = df["close"].rolling(200).mean()
                     df["rsi_14"] = rsi(df["close"], 14)
@@ -1217,8 +1172,8 @@ class MarketDataProvider:
                             tf_signals["near_sr"] = True
                             confluence_score += 1
                             break
-                    ma_50 = df["ma_50"].iloc[-1]
-                    ma_200 = df["ma_200"].iloc[-1]
+                    ma_50 = df["ma_50"].iloc[_idx]
+                    ma_200 = df["ma_200"].iloc[_idx]
                     if not pd.isna(ma_50) and not pd.isna(ma_200):
                         if ma_50 > ma_200:
                             tf_signals["ma_alignment"] = "BULLISH"
@@ -1226,7 +1181,7 @@ class MarketDataProvider:
                         elif ma_50 < ma_200:
                             tf_signals["ma_alignment"] = "BEARISH"
                             confluence_score += 1
-                    rsi_val = df["rsi_14"].iloc[-1]
+                    rsi_val = df["rsi_14"].iloc[_idx]
                     if not pd.isna(rsi_val):
                         if rsi_val < 30:
                             tf_signals["rsi_signal"] = "OVERSOLD"
@@ -1345,11 +1300,12 @@ class MarketDataProvider:
             df_htf = fetch_fn(symbol, htf, count=100)
             df_htf["ema_50"] = ema(df_htf["close"], 50)
             df_htf["rsi_14"] = rsi(df_htf["close"], 14)
-            htf_trend = "BULLISH" if df_htf["close"].iloc[-1] > df_htf["ema_50"].iloc[-1] else "BEARISH"
+            _htf_idx = -2 if len(df_htf) >= 2 else -1
+            htf_trend = "BULLISH" if df_htf["close"].iloc[_htf_idx] > df_htf["ema_50"].iloc[_htf_idx] else "BEARISH"
             htf_data = {
                 "timeframe": htf,
                 "trend": htf_trend,
-                "rsi": df_htf["rsi_14"].iloc[-1],
+                "rsi": df_htf["rsi_14"].iloc[_htf_idx],
             }
         except Exception as e:
             log.warning(f"HTF analysis failed: {e}")
@@ -1365,6 +1321,7 @@ class MarketDataProvider:
                 break
             time.sleep(0.2)
         dom_collector.unsubscribe()
+        quote_captured_at = dom_data.get("captured_at") or datetime.now(timezone.utc).isoformat()
         
         # ── Liquidity Vacuum Detection (Blind Spot audit) ────────────────────
         if _LiqVacDetector is not None:
@@ -1404,8 +1361,9 @@ class MarketDataProvider:
             log.warning("MT5 DOM unavailable; retaining missing-data state")
 
         df["hma_200"] = self._calculate_hma(df["close"], 200)
-        current_price = df["close"].iloc[-1]
-        hma_val = df["hma_200"].iloc[-1] if not df["hma_200"].empty else 0.0
+        _idx = -2 if len(df) >= 2 else -1
+        current_price = df["close"].iloc[_idx]
+        hma_val = df["hma_200"].iloc[_idx] if not df["hma_200"].empty else 0.0
         trend_status = "BULLISH" if current_price > hma_val else "BEARISH"
         sr_levels = self._identify_support_resistance(df)
         volume_data = self._analyze_volume(df)
@@ -1522,9 +1480,10 @@ class MarketDataProvider:
                 )
             _hp_engine = self._hierarchical_portfolio_engine
             _close_prices = df["close"].dropna().tolist()
-            _adx_val = float(df["adx_14"].iloc[-1]) if "adx_14" in df and len(df) > 0 else 25.0
+            _idx = -2 if len(df) >= 2 else -1
+            _adx_val = float(df["adx_14"].iloc[_idx]) if "adx_14" in df and len(df) > 0 else 25.0
             _atr_history = df["atr_14"].dropna().tolist() if "atr_14" in df else []
-            _atr_current = float(df["atr_14"].iloc[-1]) if "atr_14" in df and len(df) > 0 else 0.0010
+            _atr_current = float(df["atr_14"].iloc[_idx]) if "atr_14" in df and len(df) > 0 else 0.0010
             _strategy_type = "TREND_MOMENTUM"
             _open_r = 0.0
             if hasattr(self.risk, "open_positions") and self.risk.open_positions:
@@ -1582,12 +1541,9 @@ class MarketDataProvider:
 
                 if mat is not None and len(mat) >= 20:
                     cop = clayton_copula_tail_risk(mat, normal_heat_budget_r=4.0, crisis_heat_budget_r=1.0)
-                    # Wire to RiskManager heat budget
                     adj = float(cop.get("adjusted_heat_budget_r", 4.0))
-                    if hasattr(self.risk, "set_heat_budget_r") and abs(adj - 4.0) > 0.01:
-                        self.risk.set_heat_budget_r(adj)
-                        log.info("Copula tail heat wired: %s tail_dep=%.3f -> heat %.1fR",
-                                 cop.get("tail_risk_state"), cop.get("avg_tail_dependence"), adj)
+                    log.info("Copula tail heat calculated: %s tail_dep=%.3f -> heat %.1fR",
+                             cop.get("tail_risk_state"), cop.get("avg_tail_dependence"), adj)
             except Exception as ce:
                 log.debug(f"Copula heat wiring skipped: {ce}")
         except Exception as e:
@@ -1895,13 +1851,53 @@ class MarketDataProvider:
                         f"{live_login}|{live_server}".encode("utf-8")
                     ).hexdigest(),
                 }
+        # Collect tick and clock observation with server offset subtracted (1a-F13)
+        _mt5 = _get_mt5()
+        _tick, _fetch_tick_err = broker_symbol_info_tick(symbol, mt5_inst=_mt5) if _mt5 is not None else (None, None)
+        _raw_tick_millis = (getattr(_tick, "time_msc", 0) or (getattr(_tick, "time", 0) or 0) * 1000) if _tick else 0
+        _raw_tick_time = _raw_tick_millis / 1000.0 if _raw_tick_millis else 0.0
+
+        if self.client and _raw_tick_time > 0:
+            from core.broker_time import get_broker_utc_offset_seconds
+            _server_offset = get_broker_utc_offset_seconds(_mt5)
+            _utc_tick_time = _raw_tick_time - _server_offset
+            try:
+                _ops = getattr(self, "_cached_ops", None)
+                if _ops is None:
+                    from operations.agent_operations import AgentOperations
+                    _ops = AgentOperations(store=self._state_store())
+                    self._cached_ops = _ops
+                clock_health = _ops.record_clock_observation(
+                    "mt5_tick", _utc_tick_time, max_offset_seconds=5.0,
+                    payload={"symbol": symbol, "broker_offset": _server_offset}
+                )
+            except Exception:
+                _now_dt = datetime.now(timezone.utc)
+                _remote_dt = datetime.fromtimestamp(_utc_tick_time, tz=timezone.utc)
+                _offset_sec = (_now_dt - _remote_dt).total_seconds()
+                _status = "OK" if abs(_offset_sec) <= 5.0 else "STALE_OR_SKEWED"
+                clock_health = {
+                    "source": "mt5_tick", "observed_at": _now_dt.isoformat(),
+                    "remote_time": _remote_dt.isoformat(), "offset_seconds": _offset_sec,
+                    "max_offset_seconds": 5.0, "status": _status, "valid": _status == "OK",
+                }
+            provider_time = datetime.fromtimestamp(_utc_tick_time, tz=timezone.utc).isoformat()
+        else:
+            if getattr(self, "paper_account_evidence", False) or not self.client:
+                clock_health = {"valid": True, "status": "PAPER_SIMULATION", "offset_seconds": 0.0}
+            else:
+                clock_health = {"valid": False, "status": "NO_TICK", "offset_seconds": 0.0}
+            provider_time = quote_captured_at
 
         toon = {
             "context": {
                 "symbol": symbol,
                 "timeframe": timeframe,
                 "now_utc": datetime.now(timezone.utc).isoformat(),
-                "captured_at": datetime.now(timezone.utc).isoformat(),
+                "captured_at": quote_captured_at,
+                "provider_time": provider_time,
+                "clock_health": clock_health,
+                "clock_ok": bool(clock_health.get("valid", False)),
                 "market_data_source": "mt5" if self.client else "paper_simulation",
                 "source_identity": source_identity,
                 "data_status": self.check_data_sources(),

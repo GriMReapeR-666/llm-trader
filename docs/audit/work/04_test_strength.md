@@ -91,3 +91,32 @@ Runner: `scripts/mutation/run_safety.py`, focused tests only (a lower bound). Th
 - `tests/safety/test_scoring_and_limits.py` took the 0-20 % functions to 91 % in `trading_safety` (confluence, exposure buckets, open-bucket risk: 56/61 killed) and to 69 % in `risk_manager` (active-trade limit, max drawdown, equity floor, portfolio heat: 57/83 killed).
 - **What is left:** 258 of the 271 `order_execution` survivors are in `place_pending_order`, `emergency_market_exit` and `place_market_order`, which Phase 2 replaces with the gateway. Most of the rest sit in `calc_position_size` (167 survivors), which Phase 4 rewrites.
 - Writing tests against code that is about to be replaced is wasted effort. Instead, the weekly CI ratchet is set to 50 and is raised after each phase.
+
+
+## Phase 4 re-measure (2026-10-06, branch `phase4/live-mode-correctness`, `TS-9` gate)
+Runner: `scripts/mutation/run_safety.py --workers 6`, focused tests only (a lower bound). `risk_manager` now also runs `tests/safety/test_sizing_and_limits.py` and `tests/safety/test_phase4_review_closure.py`. Before that change the module scored 50.9 % and `calc_position_size` 35.2 %.
+
+| Module | Killed | Survived | Score | Phase 1 |
+|---|---|---|---|---|
+| `trading_safety` | 272 | 225 | 54.7 % | 55.9 % |
+| `margin_safety` | 136 | 54 | 71.6 % | 71.6 % |
+| `kill_switch_latch` | 69 | 49 | 58.5 % | 72.7 % |
+| `autonomy` | 72 | 81 | 47.1 % | 68.4 % |
+| `order_execution` | 145 | 240 | 37.7 % | 27.3 % |
+| `risk_manager` | 343 | 288 | 54.4 % | 53.5 % |
+| **Overall** | **1,037** | **937** | **52.5 %** | 52.2 % |
+
+**The CI minimum is raised from 50 to 52.** The ≥ 75 % target is still not met.
+
+**Regressions:**
+- `kill_switch_latch`: 77 → 118 mutants.
+- `autonomy`: 95 → 153 mutants.
+- Phase 3 added code to both modules, and their tests didn't keep up.
+
+**Biggest remaining gaps:**
+- `calc_position_size`: 133 killed / 185 survived (41.8 %).
+- `order_execution`: 240 survivors.
+- `quarter_kelly_scalar`: 44 %.
+- `check_drawdown`: 40 %.
+
+These are the `TS-9` backlog. They don't block Phase 4.

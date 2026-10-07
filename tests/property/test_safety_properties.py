@@ -57,7 +57,6 @@ def _rm(tmpdir, equity, spec, monkeypatch):
     min_mult=st.integers(1, 10),
     side=st.sampled_from([1, -1]),
 )
-@pytest.mark.xfail(strict=True, reason="TS-P1 / F-RM-1: lot rounding can exceed the 1 % risk cap")
 def test_p1_position_risk_never_exceeds_one_r(equity, entry, stop_frac, tick_size, tick_value, step, min_mult,
                                               side, monkeypatch, tmp_path_factory):
     """Dollar risk of the returned volume must never exceed equity * risk_per_trade
@@ -181,7 +180,6 @@ finite_or_nan = st.one_of(st.floats(0.01, 10_000), st.just(NAN), st.just(float("
 @SETTINGS
 @given(side=st.sampled_from(["buy", "sell", "BUY", "Sell", "long"]),
        price=finite_or_nan, sl=finite_or_nan, tp=finite_or_nan)
-@pytest.mark.xfail(strict=True, reason="TS-P5: NaN price/stop accepted by validate_order_params")
 def test_p5_validate_order_params_accepts_only_sane_geometry(side, price, sl, tp):
     try:
         validate_order_params(side, price if price is not None else NAN, sl, tp)

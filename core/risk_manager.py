@@ -12,12 +12,19 @@ import math
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple, Optional, Callable
 
+from core.broker_time import broker_trading_day, broker_trading_week
+from core.trading_safety import BOT_MAGICS
+from core.broker_reads import (
+    broker_account_info,
+    broker_orders_get,
+    broker_positions_get,
+    broker_symbol_info,
+)
+
 try:
     from core.state_persistence import StoreBackedState
 except ImportError:
     from core.state_persistence import StoreBackedState
-
-from core.trading_safety import BOT_MAGICS
 
 class RiskManager(StoreBackedState):
     store_key = "risk_manager_state"
@@ -45,6 +52,7 @@ class RiskManager(StoreBackedState):
         if not isinstance(max_consecutive_losses, int) or max_consecutive_losses <= 0:
             raise ValueError("max_consecutive_losses must be a positive integer")
         self.balance = float(balance)
+        self.base_risk_per_trade = float(risk_per_trade)
         self.risk_per_trade = float(risk_per_trade) # User desired 1% (0.01)
         self.max_drawdown = float(max_drawdown)
         self.cooldown_seconds = cooldown_seconds
@@ -72,6 +80,7 @@ class RiskManager(StoreBackedState):
         # Portfolio heat budget in R units (sum of open |entry-sl| value over
         # planned 1R$). Compressible at runtime via set_heat_budget_r(), e.g.
         # from the copula tail-crisis state (4R normal -> 1R contagion).
+        self.base_heat_budget_r = 4.0
         self.max_portfolio_heat_r = 4.0
         # Opportunity cost of capital hurdle in R units (Masoumian, 2026)
         self.opportunity_cost_hurdle_r: float = 0.05
@@ -97,32 +106,33 @@ class RiskManager(StoreBackedState):
         
         # Reset if new day / week
         now_dt = datetime.now(timezone.utc)
-        self.current_date = now_dt.date().isoformat()
-        self.current_week = f"{now_dt.isocalendar()[0]}-W{now_dt.isocalendar()[1]}"
+        self.day_basis = "broker"
+        self.current_date = broker_trading_day(now_dt)
+        self.current_week = broker_trading_week(now_dt)
         if self.state_date != self.current_date:
-            self.reset_daily_limits()
+            self.reset_daily_limits(now_dt)
         if self.state_week != self.current_week:
-            self.reset_weekly_limits()
+            self.reset_weekly_limits(now_dt)
 
-    def reset_weekly_limits(self):
-        now_dt = datetime.now(timezone.utc)
-        self.state_week = f"{now_dt.isocalendar()[0]}-W{now_dt.isocalendar()[1]}"
+    def reset_weekly_limits(self, now_dt: Optional[datetime] = None):
+        self.state_week = broker_trading_week(now_dt)
         self.weekly_circuit_step_down = False
         self.weekly_recovered_r = 0.0
         try:
-            acc = mt5.account_info()
+            acc, _acc_err = broker_account_info(mt5_inst=mt5)
             self.weekly_start_equity = float(acc.equity) if acc else self.balance
         except Exception:
             self.weekly_start_equity = self.balance
         self.save_state()
 
-    def reset_daily_limits(self):
-        self.state_date = datetime.now().date().isoformat()
+    def reset_daily_limits(self, now_dt: Optional[datetime] = None):
+        self.state_date = broker_trading_day(now_dt)
+        self.day_basis = "broker"
         self._flatten_reason = None
         
         # Get current equity as start point
         try:
-            acc = mt5.account_info()
+            acc, _acc_err = broker_account_info(mt5_inst=mt5)
             self.daily_start_equity = float(acc.equity) if acc else self.balance
         except Exception:
             self.daily_start_equity = self.balance
@@ -153,7 +163,8 @@ class RiskManager(StoreBackedState):
                 self.weekly_start_equity = data.get("weekly_start_equity", self.balance)
                 self.weekly_recovered_r = float(data.get("weekly_recovered_r", 0.0) or 0.0)
                 self.weekly_circuit_step_down = bool(data.get("weekly_circuit_step_down", False))
-                self.state_date = data.get("date", "")
+                self.state_date = data.get("trading_day") or data.get("date", "")
+                self.day_basis = data.get("day_basis", "broker")
                 self.state_week = data.get("week", "")
                 self.trade_timestamps = [self._parse_to_iso(value) for value in data.get("trade_timestamps", [])]
                 self.last_trade_time = {str(key): self._parse_to_iso(value) for key, value in (data.get("last_trade_time", {}) or {}).items()}
@@ -209,7 +220,7 @@ class RiskManager(StoreBackedState):
         except Exception as exc:
             logging.getLogger("RiskManager").error("Failed to load risk state: %s", exc)
             if not getattr(self, "state_date", ""):
-                self.state_date = datetime.now(timezone.utc).date().isoformat()
+                self.state_date = broker_trading_day()
 
     def set_store(self, store: Any) -> None:
         """Attach the authoritative journal and migrate risk state into it."""
@@ -218,7 +229,7 @@ class RiskManager(StoreBackedState):
             return
         self.store = store
         self.load_state()
-        self.current_date = datetime.now().date().isoformat()
+        self.current_date = broker_trading_day()
         if self.state_date != self.current_date:
             self.reset_daily_limits()
         else:
@@ -236,7 +247,7 @@ class RiskManager(StoreBackedState):
     def _account_equity() -> Optional[float]:
         """Best-effort live equity; None when MT5 is unavailable/uninitialized."""
         try:
-            acc = mt5.account_info()
+            acc, _acc_err = broker_account_info(mt5_inst=mt5)
             return float(acc.equity) if acc else None
         except Exception:
             return None
@@ -245,7 +256,8 @@ class RiskManager(StoreBackedState):
     def _symbol_spec(symbol: str):
         """Best-effort broker symbol specification; None when MT5 is unavailable."""
         try:
-            return mt5.symbol_info(symbol)
+            spec, _spec_err = broker_symbol_info(symbol, mt5_inst=mt5)
+            return spec
         except Exception:
             return None
 
@@ -257,6 +269,8 @@ class RiskManager(StoreBackedState):
                 "weekly_recovered_r": float(self.weekly_recovered_r),
                 "weekly_circuit_step_down": bool(self.weekly_circuit_step_down),
                 "date": self.state_date,
+                "trading_day": self.state_date,
+                "day_basis": getattr(self, "day_basis", "broker"),
                 "week": self.state_week,
                 "trade_timestamps": list(self.trade_timestamps),
                 "last_trade_time": dict(self.last_trade_time),
@@ -709,16 +723,27 @@ class RiskManager(StoreBackedState):
         if self._active_positions_provider is not None:
             try:
                 count = self._active_positions_provider()
-                if count is not None and isinstance(count, int):
+                if count is None:
+                    logging.getLogger("RiskManager").warning(
+                        "active_positions_provider returned None (unknown); failing closed on active position check"
+                    )
+                    return False
+                if isinstance(count, int):
                     return count < self.max_active_positions
             except Exception as exc:
-                logging.getLogger("RiskManager").warning("active_positions_provider failed: %s", exc)
+                logging.getLogger("RiskManager").warning("active_positions_provider failed: %s; failing closed", exc)
+                return False
         try:
             if mt5 is not None:
-                positions = mt5.positions_get()
+                positions, _pos_err = broker_positions_get(mt5_inst=mt5)
                 if positions is not None:
                     managed = getattr(self, "managed_magics", None) or BOT_MAGICS
                     owned_count = sum(1 for p in positions if getattr(p, "magic", 0) in managed)
+                    if getattr(self, "store", None) is not None and hasattr(self.store, "reserving_intents_count"):
+                        try:
+                            owned_count += self.store.reserving_intents_count()
+                        except Exception:
+                            pass
                     return owned_count < self.max_active_positions
                 else:
                     logging.getLogger("RiskManager").warning("mt5.positions_get() returned None; failing closed on active position check")
@@ -778,6 +803,10 @@ class RiskManager(StoreBackedState):
         if math.isfinite(value) and 0.5 <= value <= 10.0:
             self.max_portfolio_heat_r = value
 
+    def reset_heat_budget_r(self) -> None:
+        """Reset the portfolio heat budget back to base."""
+        self.max_portfolio_heat_r = self.base_heat_budget_r
+
     def open_portfolio_heat_r(self) -> Optional[float]:
         """Measured open heat in R units; None when it cannot be measured."""
         if self._portfolio_heat_provider is not None:
@@ -792,7 +821,12 @@ class RiskManager(StoreBackedState):
         if mt5 is None:
             return None
         try:
-            positions = list(mt5.positions_get() or [])
+            _positions, _positions_err = broker_positions_get(mt5_inst=mt5)
+            _orders, _orders_err = broker_orders_get(mt5_inst=mt5)
+            if _positions_err is not None or _orders_err is not None:
+                return None
+            positions = list(_positions or [])
+            orders = list(_orders or [])
         except Exception:
             return None
         equity = self._account_equity() or self.balance
@@ -801,24 +835,29 @@ class RiskManager(StoreBackedState):
         unit = equity * self.risk_per_trade
         if unit <= 0:
             return None
-        if not positions:
+        managed = getattr(self, "managed_magics", None) or BOT_MAGICS
+        owned_items = [p for p in positions if getattr(p, "magic", 0) in managed] + [
+            o for o in orders if getattr(o, "magic", 0) in managed
+        ]
+        if not owned_items:
             return 0.0
         total_loss = 0.0
-        for pos in positions:
+        for item in owned_items:
             try:
-                sl = float(getattr(pos, "sl", 0.0) or 0.0)
-                entry_px = float(getattr(pos, "price_open", 0.0) or 0.0)
-                volume = float(getattr(pos, "volume", 0.0) or 0.0)
+                sl = float(getattr(item, "sl", 0.0) or 0.0)
+                entry_px = float(getattr(item, "price_open", getattr(item, "price", 0.0)) or 0.0)
+                volume = float(getattr(item, "volume", getattr(item, "volume_initial", 0.0)) or 0.0)
                 dist = abs(entry_px - sl) if entry_px > 0 and sl > 0 else 0.0
                 if dist <= 0:
                     continue
-                spec = self._symbol_spec(pos.symbol)
+                symbol = getattr(item, "symbol", "")
+                spec = self._symbol_spec(symbol)
                 if spec and spec.trade_tick_size and spec.trade_tick_value:
                     loss_per_lot = (dist / spec.trade_tick_size) * spec.trade_tick_value
                 else:
                     contract = 100000.0
                     try:
-                        info = mt5.symbol_info(pos.symbol)
+                        info, _info_err = broker_symbol_info(symbol, mt5_inst=mt5)
                         if info and getattr(info, "trade_contract_size", 0) > 0:
                             contract = float(info.trade_contract_size)
                     except Exception:
@@ -851,7 +890,7 @@ class RiskManager(StoreBackedState):
                 return False
             if mt5 is not None:
                 try:
-                    mt5_positions = mt5.positions_get()
+                    mt5_positions, _heat_pos_err = broker_positions_get(mt5_inst=mt5)
                     if mt5_positions is not None and len(mt5_positions) > 0:
                         logging.getLogger("RiskManager").warning(
                             "Cannot verify open portfolio heat while %d MT5 positions exist; failing closed", len(mt5_positions)
@@ -872,7 +911,10 @@ class RiskManager(StoreBackedState):
                            alpha_overall_ic: float = 0.0,
                            alpha_confidence: str = "unknown",
                            market: Optional[dict] = None,
-                           meta_health_multiplier: Optional[float] = None) -> float:
+                           meta_health_multiplier: Optional[float] = None,
+                           risk_per_trade: Optional[float] = None,
+                           sizing_scale: Optional[float] = None,
+                           heat_budget_r: Optional[float] = None) -> float:
         if (not self._finite(entry, positive=True) or not self._finite(sl, positive=True)
                 or not self._finite(confidence) or float(confidence) < 0 or float(confidence) > 1):
             return 0.0
@@ -891,12 +933,24 @@ class RiskManager(StoreBackedState):
             return 0.0
 
         # Portfolio heat cap: refuse entries that would push aggregate open
-        # risk past the R-unit budget (copula-compressible via set_heat_budget_r).
+        # risk past the R-unit budget (copula-compressible via set_heat_budget_r or heat_budget_r).
+        # A per-proposal budget can only tighten the configured cap, never widen it.
+        effective_heat_budget = self.max_portfolio_heat_r
+        if heat_budget_r is not None:
+            if not self._finite(heat_budget_r) or float(heat_budget_r) <= 0:
+                return 0.0
+            effective_heat_budget = min(float(heat_budget_r), self.max_portfolio_heat_r)
         heat_now = self.open_portfolio_heat_r()
-        if heat_now is not None and (heat_now + 1.0) > self.max_portfolio_heat_r:
+        if heat_now is None:
+            if self._portfolio_heat_provider is not None or mt5 is not None:
+                logging.warning(
+                    "Trade Rejected: open portfolio heat unmeasurable (provider/broker returned None); failing closed."
+                )
+                return 0.0
+        elif (heat_now + 1.0) > effective_heat_budget:
             logging.warning(
                 "Trade Rejected: portfolio heat cap (%.2fR open / %.2fR budget).",
-                heat_now, self.max_portfolio_heat_r,
+                heat_now, effective_heat_budget,
             )
             return 0.0
             
@@ -1167,12 +1221,23 @@ class RiskManager(StoreBackedState):
             except (TypeError, ValueError):
                 pass
 
-        # Use configured risk per trade (e.g. 0.01) * Multiplier
-        risk_amt = equity * self.risk_per_trade * size_multiplier
+        # Apply proposal sizing scale before volume calculation and lot rounding (TL-T7 / H2)
+        if sizing_scale is not None:
+            try:
+                s_scale = float(sizing_scale)
+                if math.isfinite(s_scale) and s_scale >= 0.0:
+                    size_multiplier *= s_scale
+                    logging.getLogger("RiskManager").info("Proposal sizing scale applied: %.4fx", s_scale)
+            except (TypeError, ValueError):
+                pass
+
+        # Use configured risk per trade (or proposal-specific effective risk) * Multiplier
+        effective_base_risk = self.base_risk_per_trade if risk_per_trade is None else float(risk_per_trade)
+        risk_amt = equity * effective_base_risk * size_multiplier
         # Only log if > 0 to avoid spam on rejections
         if risk_amt > 0:
              logging.getLogger("RiskManager").info(
-                 f"Risk Logic: Base {self.risk_per_trade:.1%} * Conf {confidence:.2f} * Circuit {circuit_multiplier:.2f} "
+                 f"Risk Logic: Base {effective_base_risk:.1%} * Conf {confidence:.2f} * Circuit {circuit_multiplier:.2f} "
                  f"* DD {dd_multiplier:.2f} * Streak {streak_multiplier:.2f} * Kelly {kelly_multiplier:.2f} (x{size_multiplier}) = Risk ${risk_amt:.2f}"
              )
         
@@ -1215,17 +1280,27 @@ class RiskManager(StoreBackedState):
         
         volume = risk_amt / loss_per_lot
         
-        # 5. Normalize & Clip
+        # 5. Normalize & Clip (TS-P1: Never round up past the risk cap)
+        decimals = 2
         if step > 0:
-            # Avoid binary floating-point truncation (0.10 / 0.01 can be
-            # represented as 9.999999...), which would silently undersize a
-            # correctly calculated risk amount.
-            volume = math.floor((volume / step) + 1e-9) * step
-            
-        if not self._finite(volume, positive=True) or volume < float(min_vol):
+            steps = math.floor((volume / step) + 1e-9)
+            volume = steps * step
+            step_str = f"{step:.8f}".rstrip("0")
+            decimals = len(step_str.split(".")[1]) if "." in step_str else 0
+            volume = round(volume, decimals)
+
+        # Enforce strict dollar risk cap: volume * loss_per_lot must never exceed risk_amt
+        if volume * loss_per_lot > risk_amt * (1.0 + 1e-6):
+            if step > 0:
+                steps = max(0, int(round(volume / step)) - 1)
+                volume = round(steps * step, decimals)
+            else:
+                volume = 0.0
+
+        if not self._finite(volume, positive=True) or volume < float(min_vol) - 1e-9:
             # Rounding up to the broker minimum would exceed the requested
-            # dollar risk, so refuse the trade instead of over-risking it.
+            # dollar risk, so refuse the trade instead of over-risking it (TS-P1).
             return 0.0
         volume = float(min(volume, max_vol))
-        return float(f"{volume:.2f}")
+        return volume
 

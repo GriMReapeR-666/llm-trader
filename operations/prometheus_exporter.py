@@ -49,7 +49,7 @@ def _collect_metrics() -> Dict[str, Any]:
     # Collect from SQLite
     if os.path.exists(db_path):
         try:
-            con = sqlite3.connect(db_path, timeout=2)
+            con = sqlite3.connect(db_path, timeout=10)
             con.row_factory = sqlite3.Row
 
             # Trade metrics

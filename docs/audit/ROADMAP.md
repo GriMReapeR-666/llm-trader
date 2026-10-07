@@ -81,7 +81,7 @@ Each phase ships as its own branch and PR: tests first, then the fix, then the f
 - [x] 🔴 Phase 2 review `R1`-`R6`, `X1`-`X4`, `D1` (see `REVIEW_PHASE2_2026-10-04.md`): phantom reservations after broker-side closes, fake $10k equity, double-counted intents, failed-cancel release, state-machine bypass, unbound evidence, SL/TP cleared by modify, wrong-position close, exit requests missing broker fields, `place_market_order` TypeError, per-call paper/live switching. Pinned in `tests/safety/test_order_gateway_ledger.py`.
 - [x] 🟠 Review `D2`: paper entries with validation evidence now go through the gateway (reservation, intent lifecycle). The reconciler journals paper fills from the paper book; before, paper market entries stayed UNRESOLVED and reserved risk forever. Also fixed: every fill crashed the reconciler on `TradeProposal(**payload)` (extra `validation_trace` key, present since the first commit).
 - [x] 🟡 Review `D3` (analysed): daily/weekly loss and drawdown depend on realized P&L and equity, which entries don't change, so a stale read can't be raced past. The bucket cap uses the same fraction as the open-risk cap, so the atomic open-risk check already bounds it.
-- [ ] 🟡 `D3b` The 2 % rolling-correlation cap and the FX-netting limits read open trades only (pending intents are invisible to them) and are not atomic. Move them into the Phase 4 risk engine.
+- [x] 🟡 `D3b` The 2 % rolling-correlation cap and the FX-netting limits read open trades only (pending intents are invisible to them) and are not atomic. Move them into the Phase 4 risk engine.
 - [x] 🟡 Review `D4`: `OrderGateway.sweep_stale_created` runs each reconcile. Paper → REJECTED. Live → matched against broker orders, positions and history (PENDING / UNRESOLVED + CRITICAL review / REJECTED). A send that raises is UNRESOLVED on live.
 - [x] 🟠 Review `D6`: the web GUI has a sign-in screen. `gui/api.ts` `apiFetch` sends the HttpOnly cookie, `/` serves the built GUI, the static bundle is public, every `/api` call is authenticated, and `/api/auth/logout` exists.
 - [x] 🟠 `PH2-N1` (found in review) Live planned entries never passed the harness ORDER_WRITE token, so every live pending entry raised `PermissionError`. Now `mt5_trader --live` hands its gated profile sandbox to the orchestrator, which mints a 2-minute broker-scoped token per entry (LIVE journal only). The live urgency path gets the same gate. `--demo` gets order authority only when the broker reports a demo account (`trade_mode == ACCOUNT_TRADE_MODE_DEMO`), re-checked on every order. Paper gets no token.
@@ -111,28 +111,32 @@ Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
 
 ## Phase 4: Live-mode correctness (fix together; only then remove the two accidental blocks)
 Plan: [`PLAN_PHASE_3_4.md`](PLAN_PHASE_3_4.md).
-- [ ] 🔴 `1a-F1` The PaperBroker is attached in every mode, so live positions are invisible to management, the position limit and heat.
-- [ ] 🔴 `1a-F2` Live reconciliation books open trades as closed at 0 P&L, plus an `IndexError` (`TL-T8` sqlite Row `.get` is in the same method).
-- [ ] 🔴 `CC-F3` = `1a-F7` Concurrent reconciliation double-counts closes and the streak breaker (per-ticket CAS).
-- [ ] 🟠 `1a-F3` `risk_per_trade` compounds every cycle, ungated, and is shared across strategies.
-- [ ] 🟠 `1a-F5` = `TL-T2` The spread-explosion guard can never fire; `_symbol_tick` is undefined.
-- [ ] 🟠 `P1-H1` The daily limit resets on restart (local vs UTC; **EV: 37 resets in 11 days**). Use the broker server day.
-- [ ] 🟡 `1a-F10` = `LA-A3` Server time vs UTC across positions, deals and ticks (**EV: "bar later than capture time" rejections**).
-- [ ] 🟡 `1a-F9` Pyramid and time-stop R basis use the current SL.
-- [ ] 🟡 `1a-F11` Paper SL updates hit every position with the same symbol and magic; no monotonic guard.
-- [ ] 🟡 `1a-F16` The copula heat budget latches at its crisis value.
-- [ ] 🟡 `1a-F18` A second position-management engine with a dead partial close (pick one engine).
-- [ ] 🟡 `1a-F14` `captured_at` is stamped after slow work, so the freshness check measures nothing.
-- [ ] 🟠 `CC-F6` LLM budget reservation is check-then-insert.
-- [ ] 🟡 `PH4-N1` (found while planning) 60 broker read calls bypass the gateway's MT5 lock (`CC-F2`, read half); route them through one locked read facade.
-- [ ] 🟡 `CC-F11` Unguarded orchestrator state; `CC-F12` SQLite configuration inconsistencies.
-- [ ] 🟡 `TS-P1` = prior F-RM-1 Lot rounding exceeds the 1 % cap (refuse at broker minimum lot).
-- [ ] ⚪ `TS-P5` NaN prices pass `validate_order_params`.
-- [ ] 🟡 `TL-T7` Writes to the frozen `TradeProposal` in size reduction.
-- [ ] 🟡 `LA-A1` / `LA-A2` Live SMC and context fields read the forming bar.
-- [ ] ⚪ `1a-F12` Smaller trade_manager defects (filling mode, failed-close flagging, per-position try, journal growth, initial-R cache).
-- [ ] 🟠 `TL-T4` Live `reconciliation-run` always fails (`_get_mt5` undefined).
-- [ ] 🟠 **Last:** `1a-F13` (data-quality fields set too late; server time treated as UTC) and `P1-H3`/`TL-T1` (`ConstraintVerdict.HOLD` missing). These two currently block all live trading.
+- [x] 🔴 `1a-F1` The PaperBroker is attached in every mode, so live positions are invisible to management, the position limit and heat.
+- [x] 🔴 `1a-F2` Live reconciliation books open trades as closed at 0 P&L, plus an `IndexError` (`TL-T8` sqlite Row `.get` is in the same method).
+- [x] 🔴 `CC-F3` = `1a-F7` Concurrent reconciliation double-counts closes and the streak breaker (per-ticket CAS).
+- [x] 🟠 `1a-F3` `risk_per_trade` compounds every cycle, ungated, and is shared across strategies.
+- [x] 🟠 `1a-F5` = `TL-T2` The spread-explosion guard can never fire; `_symbol_tick` is undefined.
+- [x] 🟠 `P1-H1` The daily limit resets on restart (local vs UTC; **EV: 37 resets in 11 days**). Use the broker server day.
+- [x] 🟡 `1a-F10` = `LA-A3` Server time vs UTC across positions, deals and ticks (**EV: "bar later than capture time" rejections**).
+- [x] 🟡 `1a-F9` Pyramid and time-stop R basis use the current SL.
+- [x] 🟡 `1a-F11` Paper SL updates hit every position with the same symbol and magic; no monotonic guard.
+- [x] 🟡 `1a-F16` The copula heat budget latches at its crisis value.
+- [x] 🟡 `1a-F18` A second position-management engine with a dead partial close (pick one engine).
+- [x] 🟡 `1a-F14` `captured_at` is stamped after slow work, so the freshness check measures nothing.
+- [x] 🟠 `CC-F6` LLM budget reservation is check-then-insert.
+- [x] 🟡 `PH4-N1` (found while planning) 60 broker read calls bypass the gateway's MT5 lock (`CC-F2`, read half); route them through one locked read facade.
+- [x] 🟡 `CC-F11` Unguarded orchestrator state; `CC-F12` SQLite configuration inconsistencies.
+- [x] 🟡 `TS-P1` = prior F-RM-1 Lot rounding exceeds the 1 % cap (refuse at broker minimum lot).
+- [x] ⚪ `TS-P5` NaN prices pass `validate_order_params`.
+- [x] 🟡 `TL-T7` Writes to the frozen `TradeProposal` in size reduction.
+- [x] 🟡 `LA-A1` / `LA-A2` Live SMC and context fields read the forming bar.
+- [x] ⚪ `1a-F12` Smaller trade_manager defects (filling mode, failed-close flagging, per-position try, journal growth, initial-R cache).
+- [x] 🟠 `TL-T4` Live `reconciliation-run` always fails (`_get_mt5` undefined).
+- [x] 🟠 **Last:** `1a-F13` (data-quality fields set too late; server time treated as UTC) and `P1-H3`/`TL-T1` (`ConstraintVerdict.HOLD` missing). These two currently block all live trading.
+- [x] 🔴 Phase 4 review `B1`-`B5`, `H1`-`H5`, `M1`-`M5` and re-review `R1`-`R3` (see `REVIEW_PHASE4_2026-10-05.md` §8-§9). Pinned in `tests/safety/test_mode_correct_wiring.py` and `tests/safety/test_phase4_review_closure.py`.
+- [x] Gate: full lifecycle on `FakeMT5` behind a wrapper-shaped client, with exactly one outcome.
+- [ ] **Gate: §4.6 demo session** (you), with a reconciliation report showing zero unexplained differences. This also verifies `M4` against the real terminal.
+- [x] Gate: `TS-9` mutation re-measure including `calc_position_size`. Measured 52.5 % (`calc_position_size` 41.8 %); ratchet raised 50 → 52. See `work/04_test_strength.md` § Phase 4 re-measure.
 
 ## Phase 5: Honest numbers
 - [ ] 🔴 `LA-B3` Ensemble weights use full-sample IC; 17 of 23 Alpha101 factors use full-series rank/scale.

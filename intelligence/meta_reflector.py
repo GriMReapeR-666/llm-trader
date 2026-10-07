@@ -120,7 +120,7 @@ class SystemMetaReflector:
         returns: List[float] = []
         try:
             import sqlite3
-            con = sqlite3.connect(journal_path, timeout=5.0)
+            con = sqlite3.connect(journal_path, timeout=10.0)
             con.row_factory = sqlite3.Row
             tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
             if "trade_labels" in tables:

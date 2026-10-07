@@ -21,4 +21,4 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Mutation score (six safety modules)
-        run: python scripts/mutation/run_safety.py --workers 4 --min-score 50
+        run: python scripts/mutation/run_safety.py --workers 4 --min-score 52

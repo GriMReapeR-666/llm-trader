@@ -39,7 +39,8 @@ _SELF = os.path.relpath(__file__, _ROOT).replace(os.sep, "/")
 #   debt        evidence readers NOT yet broker-routed (may only shrink)
 INVENTORY: dict = {
     "core/graph_state_persistence.py": ("operational", 2),
-    "core/order_gateway.py": ("operational", 1),
+    "core/order_gateway.py": ("operational", 2),
+    "core/trade_manager.py": ("operational", 1),
     "core/quantitative_metrics_service.py": ("gate", 2),
     "core/self_improvement_loop.py": ("gate", 2),
     "core/trading_safety.py": ("operational", 11),
@@ -68,6 +69,7 @@ INVENTORY: dict = {
     "tests/test_legacy_reconciliation.py": ("test", 2),
     "tests/test_backtest_isolation.py": ("test", 2),
     "tests/test_microstructure_scalp_pipeline_e2e.py": ("test", 1),
+    "tests/safety/test_mode_correct_wiring.py": ("test", 1),
     "tests/test_mt5_backtest_pipeline_integration.py": ("test", 1),
     "tests/test_promotion_gate_journal.py": ("test", 1),
     "tests/test_strategy_lifecycle_engine.py": ("test", 1),

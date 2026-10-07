@@ -100,20 +100,20 @@ class AgentEventBus:
 
     def _init_db(self):
         """Create schema if not exists."""
-        con = sqlite3.connect(self.db_path, timeout=5)
+        con = sqlite3.connect(self.db_path, timeout=10)
         con.execute("PRAGMA journal_mode=WAL")
         con.execute("PRAGMA synchronous=NORMAL")
-        con.execute("PRAGMA busy_timeout=5000")
+        con.execute("PRAGMA busy_timeout=10000")
         con.executescript(_SCHEMA)
         con.close()
 
     def _get_conn(self) -> sqlite3.Connection:
         """Get a thread-local connection with performance pragmas."""
         if not hasattr(self._local, "conn") or self._local.conn is None:
-            self._local.conn = sqlite3.connect(self.db_path, timeout=5)
+            self._local.conn = sqlite3.connect(self.db_path, timeout=10)
             self._local.conn.execute("PRAGMA journal_mode=WAL")
             self._local.conn.execute("PRAGMA synchronous=NORMAL")
-            self._local.conn.execute("PRAGMA busy_timeout=5000")
+            self._local.conn.execute("PRAGMA busy_timeout=10000")
             self._local.conn.execute("PRAGMA cache_size=-32000")
             self._local.conn.execute("PRAGMA temp_store=MEMORY")
         return self._local.conn

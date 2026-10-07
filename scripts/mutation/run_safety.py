@@ -36,7 +36,8 @@ JOBS = {
             "get_streak_multiplier", "quarter_kelly_scalar", "check_max_drawdown", "check_active_trade_limit",
             "check_drawdown", "remaining_daily_risk", "check_portfolio_heat", "calc_position_size"]),
         "tests/safety/test_risk_ladders.py tests/safety/test_scoring_and_limits.py tests/test_risk_manager_safety.py tests/test_risk_management_hardening.py "
-        "tests/test_risk_persistence.py tests/test_edge_gates.py " + PROPS),
+        "tests/test_risk_persistence.py tests/test_edge_gates.py tests/safety/test_sizing_and_limits.py "
+        "tests/safety/test_phase4_review_closure.py " + PROPS),
 }
 
 

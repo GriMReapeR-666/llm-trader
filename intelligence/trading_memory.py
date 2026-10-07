@@ -1156,7 +1156,7 @@ class TradingMemory:
             for future, (layer, key) in futures.items():
                 started = time.perf_counter()
                 try:
-                    items = future.result()
+                    items = future.result(timeout=5.0)
                 except Exception as exc:  # degrade, never stall the cycle
                     items = []
                     errors[layer] = str(exc)[:300]
