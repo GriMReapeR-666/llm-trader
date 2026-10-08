@@ -97,12 +97,15 @@ venv/
 env/
 
 # IDE & agent tooling
+.vscode/
 .kilo/
 .opencode/
 .freebuff/
 .cursor/
 
 # System & logs
+*.tmp
+approval_decisions.jsonl*
 *.log
 *.log.*
 .DS_Store

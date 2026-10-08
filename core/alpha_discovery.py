@@ -32,6 +32,11 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 try:
+    from core.alpha_causality import find_lookahead_violations
+except ImportError:
+    from alpha_causality import find_lookahead_violations
+
+try:
     from core.state_persistence import StoreBackedState
 except ImportError:
     from state_persistence import StoreBackedState
@@ -126,11 +131,14 @@ class SafeAlphaEvaluator:
             logger.debug("Expression too complex: depth=%d", self._compute_complexity(expression))
             return None
 
-        # Causality guard: rank() is a full-sample percentile normalizer — on
-        # single-symbol data it uses future information (look-ahead bias) and
-        # would inflate in-sample IC. Reject it explicitly.
-        if re.search(r"\brank\s*\(", expression):
-            logger.debug("Expression rejected: non-causal primitive 'rank' (look-ahead)")
+        # Causality guard: full-sample normalizers (rank/zscore/normalize) and
+        # negative shifts read future bars on single-symbol data, inflating
+        # in-sample IC. Rules live in `core.alpha_causality` and are shared with
+        # the GA miner (`research/alpha_miner/alpha_judge.py`) so the two stacks
+        # cannot enforce opposite policies again.
+        violations = find_lookahead_violations(expression)
+        if violations:
+            logger.debug("Expression rejected: non-causal primitive(s) %s", violations)
             return None
 
         # Build safe namespace

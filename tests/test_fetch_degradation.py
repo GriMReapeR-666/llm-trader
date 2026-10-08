@@ -19,6 +19,15 @@ import pytest
 
 from data.api_manager import APIManager, _run_bounded
 
+# NOTE: APIManager's response cache (api_cache.json) used to be a bare relative
+# name, so constructing APIManager() with no arguments rewrote the file at the
+# REPO ROOT.  The isolation now lives in conftest
+# (isolate_shared_api_cache) rather than here: it was a per-module fixture at
+# first, and three other modules (test_boot_datasheet, test_data_ingestion_
+# hardening, test_openbb_data_bridge) construct APIManager() with no arguments
+# too, so each one had to be fixed separately until the shared file got a
+# suite-wide owner.
+
 
 # ---------------------------------------------------------------------------
 # _run_bounded helper

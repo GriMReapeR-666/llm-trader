@@ -3,9 +3,9 @@
   "thesis": "Disinflationary normalization with selective central bank divergence",
   "regime_archetype": "NORMAL_RISK_OFF",
   "active_since": "2026-09-21T20:20:06.432860+00:00",
-  "narrative_age_days": 11.1,
-  "decay_factor": 0.6938,
-  "current_confidence": 0.333,
+  "narrative_age_days": 13.0,
+  "decay_factor": 0.6501,
+  "current_confidence": 0.312,
   "is_invalidated": false,
   "invalidation_reason": "",
   "evidence_for": [

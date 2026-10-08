@@ -51,6 +51,12 @@ def _run_bounded(fn: Callable[[], Any], budget_s: float) -> Tuple[bool, Any, Opt
         return False, None, box["error"]
     return True, box.get("result"), None
 
+#: Response cache.  A bare relative name on purpose: the live bot runs from
+#: the repo root.  Hoisted to a module constant so a test can repoint it
+#: (tests/conftest.py::isolate_shared_api_cache) instead of every instance
+#: re-deriving a path the suite would then write to the repo root.
+API_CACHE_FILE = "api_cache.json"
+
 # Optional imports with fallbacks
 try:
     from newsapi import NewsApiClient
@@ -179,7 +185,7 @@ class APIManager:
         self.rate_limiter.add_limiter("sec", max_requests=10, time_window=1)        # 10/sec
         
         # Cache to avoid duplicate requests
-        self.cache_file = "api_cache.json"
+        self.cache_file = API_CACHE_FILE
         self.cache_ttl = 900  # 15 minutes
         self.cache = self._load_cache()
 

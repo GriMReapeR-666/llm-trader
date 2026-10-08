@@ -1,15 +1,15 @@
 {
   "expressions": [
-    "AlphaExpression(abs(close))",
-    "AlphaExpression(sign(high))",
-    "AlphaExpression(log(open))",
-    "AlphaExpression(negate(low))",
-    "AlphaExpression(square(high))",
-    "AlphaExpression(sqrt(high))",
-    "AlphaExpression(add(volume, volume))",
-    "AlphaExpression(subtract(low, volume))",
-    "AlphaExpression(multiply(open, open))",
-    "AlphaExpression(divide(volume, volume))"
+    "AlphaExpression(abs(open))",
+    "AlphaExpression(sign(open))",
+    "AlphaExpression(log(low))",
+    "AlphaExpression(negate(high))",
+    "AlphaExpression(square(0.05))",
+    "AlphaExpression(sqrt(volume))",
+    "AlphaExpression(add(volume, close))",
+    "AlphaExpression(subtract(close, high))",
+    "AlphaExpression(multiply(close, volume))",
+    "AlphaExpression(divide(1.0, close))"
   ],
   "best_ics": [
     0.0,

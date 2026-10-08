@@ -1909,21 +1909,36 @@ def reconcile_broker_and_journal_orders(db_path: str = "trading_state.db") -> Di
         from datetime import datetime, timezone, timedelta
         from operations.daily_reconciliation import compare_day
         from core.trading_safety import TradingStore
-        store = TradingStore(path=db_path)
+        import MetaTrader5 as mt5
+
         now = datetime.now(timezone.utc)
-        report = compare_day(store=store, broker_deals=[], start=now - timedelta(days=1), end=now)
+        start = now - timedelta(days=1)
+        
+        deals = mt5.history_deals_get(start, now)
+        if deals is None:
+            return {
+                "reconciliation_status": "BROKER_UNAVAILABLE",
+                "owned_seen": 0,
+                "discrepancies_count": 0,
+                "is_execution_synchronized": False,
+            }
+            
+        store = TradingStore(path=db_path)
+        report = compare_day(store=store, broker_deals=deals, start=start, end=now)
+        discrepancies = len(report.get("discrepancies", []))
+        
         return {
-            "reconciliation_status": "CLEARED_SYNCED",
+            "reconciliation_status": "CLEARED_SYNCED" if discrepancies == 0 else "DISCREPANCIES_FOUND",
             "owned_seen": report.get("owned_seen", 0),
-            "discrepancies_count": len(report.get("discrepancies", [])),
-            "is_execution_synchronized": True,
+            "discrepancies_count": discrepancies,
+            "is_execution_synchronized": discrepancies == 0,
         }
     except Exception:
         return {
-            "reconciliation_status": "CLEARED_SYNCED",
+            "reconciliation_status": "RECONCILIATION_ERROR",
             "owned_seen": 0,
             "discrepancies_count": 0,
-            "is_execution_synchronized": True,
+            "is_execution_synchronized": False,
         }
 
 

@@ -30,7 +30,7 @@ from autonomous_causal_engine import (
 )
 from macro_graph import MacroGraph
 
-from test_autonomous_causal_engine import _primary_source, _seed_reactions
+from tests.test_autonomous_causal_engine import _primary_source, _seed_reactions
 
 
 def test_directional_hit_is_none_for_non_directional_signs():

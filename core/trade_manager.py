@@ -62,7 +62,7 @@ class TradeManager(StoreBackedState):
     store_key = "trade_manager_state"
     conditions_key = "trade_manager_conditions"
 
-    def __init__(self, client, risk_manager, managed_magics=None, store=None, arbiter=None, paper_broker=None, state_file=None, conditions_file=None):
+    def __init__(self, client, risk_manager, managed_magics=None, store=None, arbiter=None, paper_broker=None, state_file=None, conditions_file=None, time_stop_seconds: int = None):
         self.client = client
         self.risk = risk_manager
         self.store = store
@@ -90,7 +90,7 @@ class TradeManager(StoreBackedState):
         self.breakeven_atr_mult = 1.5
         self.partial_tp_enabled = True     # Enabled Feature (scale-out ladder)
         self.time_stop_enabled = True      # Enabled Asymmetric Exit: Time-based stop
-        self.time_stop_seconds = 4 * 3600  # 4 hours max stagnation window
+        self.time_stop_seconds = time_stop_seconds if time_stop_seconds is not None else 4 * 3600
         self.enable_pyramiding = True      # Enabled Feature
         
         self.conditions_file = conditions_file if conditions_file is not None else "trade_conditions.json"
@@ -469,7 +469,7 @@ class TradeManager(StoreBackedState):
         r_mult = profit_points / risk_dist
         
         # If trade is stagnant (failed to reach +0.50R momentum) or in mild negative territory (e.g. -0.2R)
-        if r_mult < 0.20:
+        if r_mult < 0.50:
             self.log.info(
                 f"⏱️ Time Stop Triggered for #{pos.ticket}: Stagnant {elapsed / 3600:.1f}h ({r_mult:.2f}R). Exiting early to preserve capital."
             )

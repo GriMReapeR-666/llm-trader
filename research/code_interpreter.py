@@ -144,8 +144,10 @@ class DynamicMetricInterpreter:
             custom_context: Additional parameters or variables to inject.
         """
         # Gate 0 Security: Arbitrary runtime code execution deactivated
-        return ExecutionResult(
+        return CodeExecutionResult(
             success=False,
+            result=None,
+            stdout="",
             error="Arbitrary code execution via DynamicMetricInterpreter has been deactivated for security.",
             execution_time_ms=0.0,
         )

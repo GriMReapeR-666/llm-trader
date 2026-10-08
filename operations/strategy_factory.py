@@ -21,7 +21,13 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from core.file_utils import safe_atomic_write, safe_atomic_write_json, safe_atomic_write_lines
+from core.file_utils import (
+    EVIDENCE_MARKER_KEY,
+    heal_strategy_registry_marker,
+    safe_atomic_write,
+    safe_atomic_write_json,
+    safe_atomic_write_lines,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,10 +87,17 @@ class StrategyFactory:
     def _load(self) -> Dict[str, Any]:
         reg = _read_json(self.registry_file, {"strategies": []})
         if not isinstance(reg.get("strategies"), list):
-            reg = {"strategies": []}
+            # Keep the invalidation marker even when the strategies list is
+            # unusable: dropping it would strip the CRITICAL #10 disclosure
+            # from a file live code still reads.
+            reg = {"strategies": [], EVIDENCE_MARKER_KEY: reg[EVIDENCE_MARKER_KEY]} \
+                if isinstance(reg.get(EVIDENCE_MARKER_KEY), dict) else {"strategies": []}
         return reg
 
     def _persist_locked(self) -> None:
+        # Keep _EVIDENCE_INVALID's counts describing the rows written beside
+        # them (CRITICAL #10); a frozen count fails the honesty guard.
+        heal_strategy_registry_marker(self._reg)
         safe_atomic_write_json(self.registry_file, self._reg)
 
     def all(self) -> List[Dict[str, Any]]:

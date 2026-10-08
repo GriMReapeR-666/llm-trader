@@ -48,6 +48,12 @@ from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger("ExternalGuardian")
 
+#: Operator alert outbox.  Hoisted to a module constant so the test suite can
+#: repoint it (tests/conftest.py::isolate_shared_root_databases): the call site
+#: passes no path, so a hardcoded literal here wrote the SHARED root
+#: guardian_alerts.db from inside a test.  Production default is unchanged.
+GUARDIAN_ALERTS_DB = "guardian_alerts.db"
+
 
 # ============================================================================
 # HARDCODED THRESHOLDS — require code deploy to modify
@@ -515,7 +521,7 @@ class ExternalGuardian:
         # Try alert outbox
         try:
             from operations.alert_outbox import enqueue
-            enqueue("guardian_alerts.db", [{
+            enqueue(GUARDIAN_ALERTS_DB, [{
                 "code": f"Ψ_GUARDIAN_{severity.value}",
                 "severity": "CRITICAL" if severity in (
                     TripSeverity.RED, TripSeverity.HEARTBEAT,

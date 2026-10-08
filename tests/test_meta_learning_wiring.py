@@ -110,8 +110,17 @@ class TestMARSMultipliersLoaded:
     """Verify _apply_regime_adjustments loads from artifacts/mars_alpha_multipliers.json."""
 
     def test_mars_multipliers_loaded_when_available(self, tmp_path, monkeypatch):
+        """The MARS multipliers must actually be applied, not just tolerated.
+
+        This used to write the shared artifacts/mars_alpha_multipliers.json
+        and assert only that every weight stayed positive - which the
+        hardcoded fallback also satisfies.  core/alpha_ensemble.py gates the
+        load on the file existing, so when the artifact was not visible the
+        code silently fell back and the test passed without covering the
+        branch it names.  Point the module constant at tmp_path and assert
+        the result matches the MARS multipliers, not the defaults.
+        """
         import core.alpha_ensemble as ae
-        # Create MARS artifact
         mars_data = {
             "LOW_VOL_TREND": {
                 "momentum": 2.0,
@@ -122,31 +131,43 @@ class TestMARSMultipliersLoaded:
                 "composite": 1.2,
             }
         }
-        mars_path = Path("artifacts/mars_alpha_multipliers.json")
-        mars_path.parent.mkdir(exist_ok=True)
-        mars_path.write_text(json.dumps(mars_data))
+        mars_path = tmp_path / "mars_alpha_multipliers.json"
+        mars_path.write_text(json.dumps(mars_data), encoding="utf-8")
+        monkeypatch.setattr(ae, "MARS_MULTIPLIERS_FILE", str(mars_path))
 
-        try:
-            weights = {"alpha_001": 0.5, "alpha_002": 0.5}
-            regime = {"primary_regime": "LOW_VOL_TREND"}
-            adjusted = ae._apply_regime_adjustments(weights, regime)
-            # With MARS multipliers, weights should differ from hardcoded
-            assert isinstance(adjusted, dict)
-            assert len(adjusted) == 2
-            # All weights should be positive
-            assert all(v > 0 for v in adjusted.values())
-        finally:
-            if mars_path.exists():
-                mars_path.unlink()
-
-    def test_fallback_to_hardcoded_when_no_mars(self):
-        import core.alpha_ensemble as ae
         weights = {"alpha_001": 0.5, "alpha_002": 0.5}
         regime = {"primary_regime": "LOW_VOL_TREND"}
         adjusted = ae._apply_regime_adjustments(weights, regime)
-        # Should use hardcoded multipliers
+
         assert isinstance(adjusted, dict)
         assert len(adjusted) == 2
+        assert all(v > 0 for v in adjusted.values())
+
+        # alpha_001 -> reversal, alpha_002 -> composite (ALPHA_CATEGORIES),
+        # so the blend is 0.5*reversal : 0.5*composite renormalised to 1.
+        # MARS says reversal=0.1, composite=1.2 -> 0.1 : 1.2. The hardcoded
+        # fallback says 0.5 : 1.0, which is a clearly different split, so this
+        # distinguishes the two instead of accepting either.
+        expected_mars = 0.1 / (0.1 + 1.2)
+        expected_fallback = 0.5 / (0.5 + 1.0)
+        assert math.isclose(adjusted["alpha_001"], expected_mars, rel_tol=1e-6), (
+            "MARS multipliers were not applied: alpha_001=%r, expected the "
+            "MARS split %r (hardcoded fallback would be %r)"
+            % (adjusted["alpha_001"], expected_mars, expected_fallback))
+        assert not math.isclose(adjusted["alpha_001"], expected_fallback,
+                                rel_tol=1e-3)
+
+    def test_fallback_to_hardcoded_when_no_mars(self, tmp_path, monkeypatch):
+        """With no MARS artifact, the hardcoded defaults must be used."""
+        import core.alpha_ensemble as ae
+        missing = tmp_path / "definitely_absent.json"
+        monkeypatch.setattr(ae, "MARS_MULTIPLIERS_FILE", str(missing))
+        weights = {"alpha_001": 0.5, "alpha_002": 0.5}
+        regime = {"primary_regime": "LOW_VOL_TREND"}
+        adjusted = ae._apply_regime_adjustments(weights, regime)
+        assert isinstance(adjusted, dict)
+        assert len(adjusted) == 2
+
 
 
 # ---------------------------------------------------------------------------

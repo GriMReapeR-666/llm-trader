@@ -26,16 +26,17 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from core.alpha_causality import find_lookahead_violations
+
 from .alpha101_knowledge_base import PAPER_DEFAULTS
 
 logger = logging.getLogger(__name__)
 
-_LOOKAHEAD_RES = (
-    re.compile(r"shift\s*\(\s*-"),      # shift(-n)
-    re.compile(r"delay\s*\(\s*-"),      # delay(-n)
-    re.compile(r"\bshift\s*\(\s*-\s*[1-9]"),
-)
-_FORWARD_RE = re.compile(r"forward|future|lead\s*\(|next_bar|tomorrow", re.IGNORECASE)
+# Causality rules (negative shift, forward returns, full-sample normalizers) are
+# owned by `core.alpha_causality` so the LLM sandbox and the GA miner cannot
+# drift apart again. A previous version of this module only matched `shift(-n)`
+# and `forward|future|tomorrow`, which let full-sample `rank()` / `cs_normalize()`
+# normalizers through to registration graded "strong".
 _LOOP_RE = re.compile(r"^\s*for\s+\w+\s+in\b|^\s*while\b", re.MULTILINE)
 _BINARY_HINT = re.compile(r"np\.where|astype\s*\(\s*int|astype\s*\(\s*bool")
 
@@ -88,18 +89,20 @@ def _score_logic(expression: str, feedback: List[str]) -> float:
 
 
 def _score_lookahead(expression: str, feedback: List[str]) -> float:
-    score = 10.0
-    for rx in _LOOKAHEAD_RES:
-        if rx.search(expression):
-            feedback.append("LookAhead: negative shift/delay uses future data (forbidden).")
-            score = 0.0
-            break
-    if _FORWARD_RE.search(expression):
-        feedback.append("LookAhead: forward/future reference inside signal code (forbidden).")
-        score = min(score, 2.0)
+    """Hard-reject any future-data construct; causality is not a matter of degree.
+
+    Delegates to `core.alpha_causality` so this stack and the LLM sandbox in
+    `core/alpha_discovery.py` enforce one identical rule set. Any hit scores 0.0,
+    which drags the aggregate to <= 5.0 and fails the 7.5 gate outright.
+    """
+    violations = find_lookahead_violations(expression)
+    if violations:
+        for v in violations:
+            feedback.append(f"LookAhead: {v} (forbidden).")
+        return 0.0
     if re.search(r"shift\s*\(\s*[1-9]", expression):
         feedback.append("LookAhead: positive shift() lags correctly.")
-    return round(score, 2)
+    return 10.0
 
 
 def _score_robustness(expression: str, signal: Optional[pd.Series],

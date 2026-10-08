@@ -78,12 +78,29 @@ def test_alternative_data_provider_zero_lag_routing():
     assert obs_ais.payload.get("kind") == "zero_lag_physical_proxy"
 
 
-def test_nowcast_snapshot_golden_eight():
-    alt_provider = AlternativeDataProvider()
-    snapshot = alt_provider.fetch_nowcast_snapshot(include_stubs=True)
+def test_nowcast_snapshot_golden_eight(tmp_path):
+    """Golden eight must be present in a freshly fetched nowcast snapshot.
+
+    Hermetic by construction.  ``fetch_nowcast_snapshot`` otherwise serves ANY
+    snapshot found in the shared ``artifacts/alternative_nowcast_cache.json``
+    younger than ``max_age_s`` (300s) — including the stubs-stripped snapshots
+    production callers write with ``include_stubs=False``
+    (core/trading_tools.py, data/global_macro_bridge.py,
+    core/autonomous_bootstrap.py).  Served that way the key-less golden-eight
+    sources (AAR carloads, AIS/AISHUB vessel tracking, CFTC COT, ...) are gone
+    and this check fails or passes purely on which test — or which engine run —
+    touched the cache first.  An isolated cache path plus ``force_refresh``
+    makes the assertion depend only on the registry and the zero-lag proxies.
+    """
+    alt_provider = AlternativeDataProvider(
+        cache_path=str(tmp_path / "alternative_nowcast_cache.json")
+    )
+    snapshot = alt_provider.fetch_nowcast_snapshot(
+        include_stubs=True, force_refresh=True
+    )
     assert snapshot["execution_authority"] is False
     assert snapshot["live_count"] > 0
-    
+
     # Verify golden eight presence
     g8_ids = {s.source_id for s in golden_eight()}
     obs_ids = {o["source_id"] for o in snapshot["observations"]}

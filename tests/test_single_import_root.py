@@ -74,8 +74,80 @@ def test_kill_switch_latch_is_one_module_and_one_singleton():
     assert bare.get_kill_switch_latch is packaged.get_kill_switch_latch
     assert bare.get_kill_switch_latch() is packaged.get_kill_switch_latch()
 
+    # Statement-form bindings: ``import a.b as c`` and attribute access on
+    # the parent package read the PACKAGE ATTRIBUTE, which eager __init__
+    # chains can leave pointing at a stale module object.
+    import kill_switch_latch as stmt_bare  # noqa: F401
+    import data.kill_switch_latch as stmt_pkg  # noqa: F401
+    import data as data_pkg  # noqa: F401
+
+    assert stmt_pkg is bare, (
+        "import data.kill_switch_latch as x bound a stale module object"
+    )
+    assert stmt_bare is bare, (
+        "import kill_switch_latch as x bound a different module object"
+    )
+    assert getattr(data_pkg, "kill_switch_latch", None) is bare, (
+        "data.kill_switch_latch package attribute is a stale module object"
+    )
+    # From-imports must resolve to the same function object too.
+    from kill_switch_latch import get_kill_switch_latch as bare_fn
+    from data.kill_switch_latch import get_kill_switch_latch as pkg_fn
+    assert bare_fn is pkg_fn, "get_kill_switch_latch resolved to two functions"
+
 
 def test_trading_safety_is_one_module():
     bare = importlib.import_module("trading_safety")
     packaged = importlib.import_module("core.trading_safety")
     assert bare is packaged, "trading_safety loaded under two names"
+
+
+def test_tests_directory_is_an_aliased_root():
+    """``tests/`` is the seventh aliased root (same C1 split, test helpers).
+
+    pytest prepends ``tests/`` to ``sys.path`` when it collects a module
+    without a package parent, so ``import test_x`` and ``from tests.test_x
+    import ...`` could otherwise produce two module objects with divergent
+    module-level state.
+    """
+    from core._import_root import ROOTS
+
+    assert "tests" in ROOTS, f"tests/ is not canonicalised; ROOTS={ROOTS}"
+
+    bare = importlib.import_module("test_single_import_root")
+    packaged = importlib.import_module("tests.test_single_import_root")
+    assert bare is packaged, "a test module loaded under two names"
+
+    import test_single_import_root as stmt_bare  # noqa: F401
+    assert stmt_bare is packaged, (
+        "import test_single_import_root as x bound a different module object"
+    )
+
+    from test_single_import_root import _repo_module_duplicates as bare_fn
+    from tests.test_single_import_root import _repo_module_duplicates as pkg_fn
+    assert bare_fn is pkg_fn, "helper resolved to two function objects"
+
+
+def test_alias_keys_are_importable_module_names():
+    """No alias key may contain a path separator.
+
+    ``_build_alias_map`` derived the bare prefix from the directory PATH, so a
+    depth-2 directory (``tests/components/self_improvement_e2e``) produced the
+    key ``"components/self_improvement_e2e"``.  No import statement can spell
+    that, so every module below it silently escaped canonicalisation and split
+    into two objects — C1 again, one directory deeper.
+    """
+    from core._import_root import _build_alias_map
+
+    aliases = _build_alias_map(REPO_ROOT)
+    bad = sorted(k for k in aliases if "/" in k or "\\" in k)
+    assert not bad, f"unreachable alias keys (never match an import): {bad}"
+
+    # The nested directory is actually reachable, and collapses.
+    bare = importlib.import_module("components.self_improvement_e2e.test_success_loop_simulation")
+    packaged = importlib.import_module(
+        "tests.components.self_improvement_e2e.test_success_loop_simulation"
+    )
+    assert bare is packaged, (
+        "a module below a nested directory loaded under two names"
+    )

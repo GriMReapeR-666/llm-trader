@@ -286,5 +286,5 @@ class ForexFactoryProvider:
                     if isinstance(data, list) and data:
                         return data
             except Exception as exc:
-                logger.debug("JSON operation failed: %s", exc)
+                log.debug("JSON operation failed: %s", exc)
         return None

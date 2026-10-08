@@ -213,8 +213,9 @@ class GeneticOperators:
         indices = random.sample(range(len(population)), 
                                min(tournament_size, len(population)))
         
-        # Find best candidate
-        best_idx = max(indices, key=lambda i: fitness_scores[i])
+        # Find best candidate by |IC|: sign is free (invert the position),
+        # so tournament pressure must reward magnitude, not direction.
+        best_idx = max(indices, key=lambda i: abs(fitness_scores[i]))
         
         return population[best_idx]
     
@@ -233,8 +234,8 @@ class GeneticOperators:
         """
         n = len(population)
         
-        # Sort by fitness
-        sorted_indices = sorted(range(n), key=lambda i: fitness_scores[i], reverse=True)
+        # Sort by |fitness| (|IC|): sign is tradeable either way.
+        sorted_indices = sorted(range(n), key=lambda i: abs(fitness_scores[i]), reverse=True)
         
         # Preserve elites
         new_population = [population[i].copy() for i in sorted_indices[:elite_size]]

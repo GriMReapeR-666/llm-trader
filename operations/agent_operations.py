@@ -104,6 +104,11 @@ class AgentOperations:
         # main loop, reflection lane, and TUI share the same store.
         con.execute("PRAGMA busy_timeout=10000")
         con.execute("PRAGMA synchronous=NORMAL")
+        if not str(self.db_path).startswith(":memory:"):
+            try:
+                con.execute("PRAGMA journal_mode=WAL")
+            except Exception:
+                pass
         return con
 
     def _init_db(self) -> None:

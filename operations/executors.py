@@ -107,6 +107,12 @@ def try_handle(schedule_name: str, payload: Dict[str, Any],
     if handler is None:
         return False
     try:
+        try:
+            from operations.supervisor import get_supervisor
+            get_supervisor().note_principal(spec_item.principal, ok=True,
+                                            detail=f"starting {schedule_name}")
+        except Exception as pre_exc:
+            logger.debug("pre-dispatch principal note failed: %s", pre_exc)
         handler(payload, context)
         try:
             from operations.supervisor import get_supervisor

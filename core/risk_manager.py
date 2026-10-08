@@ -1186,7 +1186,8 @@ class RiskManager(StoreBackedState):
         
         if not info:
             # Fallback (Forex)
-            loss_per_lot = (dist / 0.00001) * 1.0 # Standard
+            point_size = 0.001 if 'JPY' in symbol else 0.00001
+            loss_per_lot = (dist / point_size) * 1.0 # Standard
             min_vol, max_vol, step = 0.01, 100.0, 0.01
         else:
             tick_size = info.trade_tick_size
@@ -1201,7 +1202,8 @@ class RiskManager(StoreBackedState):
             
             # Crypto/Index handling (TickValue often 0 or 1 per point)
             if tick_size == 0 or tick_value == 0:
-                 loss_per_lot = dist # Assume 1.0 val per 1.0 price
+                 logging.warning(f"Rejecting trade on {symbol}: tick_size or tick_value is 0.")
+                 return 0.0
             else:
                  loss_per_lot = (dist / tick_size) * tick_value
         

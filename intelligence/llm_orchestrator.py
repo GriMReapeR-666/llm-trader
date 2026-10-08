@@ -6037,6 +6037,15 @@ class LLMOrchestrator:
                 self._SCHEDULE_HANDLER_BUDGETS.get(
                     schedule_name, self._SCHEDULE_DEFAULT_HANDLER_BUDGET),
             )
+            try:
+                self.operations.heartbeat(self.run_id, {"schedule": schedule_name, "stage": "dispatch"})
+            except Exception:
+                pass
+            try:
+                from operations.supervisor import get_supervisor as _get_sup
+                _get_sup().heartbeat()
+            except Exception:
+                pass
             # --- multi-agent executor registry: principal-owned handlers first ---
             try:
                 from operations.executors import try_handle as _executors_try

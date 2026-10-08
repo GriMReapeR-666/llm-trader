@@ -24,6 +24,63 @@ log = logging.getLogger("AlternativeDataProvider")
 CACHE_FILE = "artifacts/alternative_nowcast_cache.json"
 
 
+def _request_shape(include_stubs: bool, tiers: Optional[List[str]]) -> Dict[str, Any]:
+    """Canonical, comparable description of what a caller asked to collect.
+
+    ``None`` and ``[]`` both mean "every tier" to the fetch loop (both are
+    falsy), so they canonicalise to the same value — otherwise two callers that
+    want identical data would each miss the other's cache entry forever.
+    """
+    return {
+        "include_stubs": bool(include_stubs),
+        "tiers": sorted(set(tiers)) if tiers else None,
+    }
+
+
+def _shape_can_serve(cached_shape: Any, requested: Dict[str, Any]) -> bool:
+    """Can an entry collected under *cached_shape* answer *requested*?
+
+    The cache holds ONE entry, so every writer overwrites every other writer's
+    entry.  Without this check a caller that strips stubs poisons the file for
+    the next caller: the stub rows are gone from the observations, and the
+    reader's post-filter can only ever REMOVE rows, never put them back.  A
+    stubs-inclusive caller would then silently receive a stubs-stripped
+    snapshot for up to ``max_age_s`` — the golden-eight registry sources
+    (AAR carloads, AIS/AISHUB, CFTC COT) simply disappear from it.
+
+    So the unsafe direction is forbidden and the safe one stays fast:
+
+    * ``include_stubs``: an entry collected WITHOUT stubs can never answer a
+      caller that wants them; an entry collected WITH them can answer a caller
+      that does not, because that caller only removes rows.
+    * ``tiers``: an entry collected over a subset of tiers can never answer a
+      caller asking for more.  An all-tier entry answers any request.
+
+    An entry with no recorded shape (written before this key existed) is
+    unknown, so it is treated as unable to serve: refetching is cheap and
+    guessing is how the original bug happened.
+    """
+    if not isinstance(cached_shape, dict):
+        return False
+
+    cached_stubs = bool(cached_shape.get("include_stubs"))
+    if requested["include_stubs"] and not cached_stubs:
+        return False
+
+    cached_tiers = cached_shape.get("tiers")
+    requested_tiers = requested.get("tiers")
+    if requested_tiers is None:
+        # The caller wants EVERY tier, so only an all-tier entry answers it —
+        # a tier-subset entry would silently return an incomplete snapshot.
+        if cached_tiers is not None:
+            return False
+    elif cached_tiers is not None and not set(requested_tiers).issubset(set(cached_tiers)):
+        # A specific tier set is answered by an all-tier entry (cached_tiers is
+        # None) or by an entry collected over at least those tiers.
+        return False
+    return True
+
+
 @dataclass
 class NowcastObservation:
     source_id: str
@@ -323,15 +380,19 @@ class AlternativeDataProvider:
         force_refresh: bool = False,
     ) -> Dict[str, Any]:
         """Fetch all registry sources; persist cache for offline resilience."""
+        requested = _request_shape(include_stubs, tiers)
         if not force_refresh and max_age_s > 0:
             cached = self.load_cached_snapshot()
             if cached and isinstance(cached, dict) and cached.get("observations"):
+                # Only an entry collected over a superset of what this caller
+                # asked for may be reused; see _shape_can_serve.
+                served = _shape_can_serve(cached.get("request_shape"), requested)
                 try:
                     cap_str = cached.get("captured_at")
                     if cap_str:
                         cap_dt = datetime.fromisoformat(str(cap_str).replace("Z", "+00:00"))
                         now_dt = datetime.now(timezone.utc)
-                        if (now_dt - cap_dt).total_seconds() < max_age_s:
+                        if served and (now_dt - cap_dt).total_seconds() < max_age_s:
                             obs_list = cached["observations"]
                             if tiers:
                                 obs_list = [o for o in obs_list if o.get("tier") in tiers]
@@ -358,6 +419,9 @@ class AlternativeDataProvider:
 
         snapshot = {
             "captured_at": stamp,
+            # What this entry actually holds, so the next reader can tell
+            # whether it is safe to reuse.
+            "request_shape": requested,
             "registry": registry_summary(),
             "observations": observations,
             "live_count": sum(1 for o in observations if o["status"] == "LIVE"),

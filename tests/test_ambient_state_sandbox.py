@@ -188,7 +188,11 @@ from core.state_persistence import STATE_REGISTRY
 _AMBIENT_ALLOWLIST = frozenset({
     # operational configuration / publication files
     "accounts.json",          # live broker account fingerprints
-    "api_cache.json",         # shared provider cache
+    "api_cache.json",         # shared provider cache (live bot); the suite
+                              # never writes it - conftest repoints
+                              # api_manager.API_CACHE_FILE at tmp_path - but
+                              # the file exists on disk, so it still needs an
+                              # entry here or the accounting test fails
     "event_windows.json",     # macro event calendar (read-mostly)
     "journal_audit.json",     # audit output written by ops tooling
     "market_state.json",      # market-state snapshot feed for the UI

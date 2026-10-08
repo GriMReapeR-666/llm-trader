@@ -126,6 +126,17 @@ REGIME_ALPHA_MULTIPLIERS = {
 }
 
 
+#: Learned MARS regime multipliers. Module-level so tests can point it at a
+#: tmp_path instead of the shared artifacts/ tree — a test that writes the
+#: real file makes the branch it covers unobservable (and dirties production
+#: data), while a test that skips the write never reaches the branch at all.
+MARS_MULTIPLIERS_FILE = "artifacts/mars_alpha_multipliers.json"
+
+#: Applied alpha-weight deltas from the DSR shadow-deploy gate. Same rationale
+#: as MARS_MULTIPLIERS_FILE.
+META_ALPHA_WEIGHTS_FILE = "artifacts/meta_alpha_weights.json"
+
+
 def _apply_regime_adjustments(
     weights: Dict[str, float],
     regime: Optional[Dict[str, Any]],
@@ -156,7 +167,7 @@ def _apply_regime_adjustments(
     try:
         import json as _json
         from pathlib import Path as _Path
-        mars_path = _Path("artifacts/mars_alpha_multipliers.json")
+        mars_path = _Path(MARS_MULTIPLIERS_FILE)
         if mars_path.exists():
             mars_data = _json.loads(mars_path.read_text(encoding="utf-8"))
             # MARS stores per-alpha multipliers keyed by alpha name
@@ -257,7 +268,7 @@ def _apply_meta_adjustments(weights: Dict[str, float]) -> Dict[str, float]:
     try:
         import json as _json
         from pathlib import Path as _Path
-        meta_path = _Path("artifacts/meta_alpha_weights.json")
+        meta_path = _Path(META_ALPHA_WEIGHTS_FILE)
         if not meta_path.exists():
             meta_path = _Path(__file__).resolve().parent.parent / "artifacts" / "meta_alpha_weights.json"
         if not meta_path.exists():

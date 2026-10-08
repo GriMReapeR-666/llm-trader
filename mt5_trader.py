@@ -4599,6 +4599,24 @@ def execute_skill(**kwargs):
 
                     if opportunities:
                         best = opportunities[0]
+                        
+                        _last_sym = getattr(scanner, "_last_scanner_symbol", None)
+                        if _last_sym and best["symbol"] == _last_sym:
+                            has_pos = False
+                            if hasattr(orch, "trade_manager") and hasattr(orch.trade_manager, "_get_positions"):
+                                try:
+                                    has_pos = bool(orch.trade_manager._get_positions(symbol=_last_sym))
+                                except Exception:
+                                    pass
+                            
+                            if not has_pos:
+                                for opp in opportunities[1:3]:
+                                    if opp["symbol"] != _last_sym:
+                                        best = opp
+                                        break
+                                        
+                        scanner._last_scanner_symbol = best["symbol"]
+                        
                         current_symbol = best["symbol"]
                         score = best["score"]
                         msg = f" Selected {current_symbol} (Score: {score})"
@@ -4988,7 +5006,7 @@ def execute_skill(**kwargs):
                             display.update_execution_log(
                                 [f"⚠ Circuit: {t.get('key')} ({t.get('severity')})" for t in _trips[:3]])
                 except Exception as _cb_exc:
-                    logging.getLogger("main").debug("Circuit breaker evaluation skipped: %s", _cb_exc)
+                    logging.getLogger("main").warning("Circuit breaker evaluation error: %s", _cb_exc)
 
                 # --- G8: Autonomous Recovery — risk reduction on consecutive failures ---
                 _consecutive_failures = 0

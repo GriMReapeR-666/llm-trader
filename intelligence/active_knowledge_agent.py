@@ -144,14 +144,60 @@ class ActiveKnowledgeAgent:
     def __init__(self, db_path: str = "trading_state.db", max_working_memory_tokens: int = 4000):
         self.db_path = db_path
         self.max_working_memory_tokens = max_working_memory_tokens
-        self.trading_memory = TradingMemory(db_path=db_path)
-        self.macro_graph = MacroGraph(db_path=db_path)
-        self._init_extended_schema()
+        # Re-entrancy latch: every _con() runs the schema check below, and
+        # __init__ is precisely where the DDL that check would ask for runs.
+        self._ensuring = True
+        try:
+            self.trading_memory = TradingMemory(db_path=db_path)
+            self.macro_graph = MacroGraph(db_path=db_path)
+            self._init_extended_schema()
+        finally:
+            self._ensuring = False
 
     def _con(self) -> sqlite3.Connection:
         con = sqlite3.connect(self.db_path)
         con.row_factory = sqlite3.Row
+        self._ensure_schema(con)
         return con
+
+    def _ensure_schema(self, con: sqlite3.Connection) -> None:
+        """Initialise this database's tables if the file just opened has none.
+
+        ``db_path`` is a bare relative name (``"trading_state.db"``) whose
+        resolution is decided by the caller's cwd - and, under pytest, by the
+        root-database sandbox, which points every connect at a fresh per-test
+        copy.  ``__init__`` builds the schema ONCE, against whatever the path
+        resolved to at construction time, so a later connection landing on a
+        different file inherits none of it: ``retrieve`` then dies with
+        ``no such table: quant_memory_snapshots``.  The same happens in
+        production for any process that reuses an agent across a database move
+        or recreation.
+
+        Three sentinels cover the three schemas built in ``__init__``
+        (TradingMemory, MacroGraph, and the extended tables defined here); if
+        any is missing the whole idempotent chain is re-run against the file in
+        use.  One ``sqlite_master`` lookup on the normal path, and the
+        ``_ensuring`` latch stops ``_con`` - called from inside that DDL - from
+        recursing into it.
+        """
+        if self._ensuring:
+            return
+        try:
+            rows = con.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
+                "('active_retrieval_audit', 'working_context_items', 'macro_sources')"
+            ).fetchall()
+            if len(rows) == 3:
+                return
+        except sqlite3.Error:
+            return  # unreadable database: let the caller's own query surface it
+        self._ensuring = True
+        try:
+            self.trading_memory = TradingMemory(db_path=self.db_path)
+            self.macro_graph = MacroGraph(db_path=self.db_path)
+            self._init_extended_schema()
+        finally:
+            self._ensuring = False
 
     @robust_retry(max_retries=3, base_delay=0.05)
     def _init_extended_schema(self) -> None:
