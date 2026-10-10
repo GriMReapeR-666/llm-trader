@@ -275,6 +275,55 @@ class GRPOProposerTrainer:
         self.trainable_agent = TRAINABLE_AGENT
         self.frozen_agent = FROZEN_AGENT
 
+    def greedy_action(self, ctx: Dict[str, Any]) -> Dict[str, Any]:
+        """Deterministic proposer action through the frozen risk gate.
+
+        ``act`` samples from the policy distribution, which is what GRPO needs
+        to collect a group of diverse rollouts for group-relative advantages.
+        Advising on a live decision needs the opposite: the same context must
+        always yield the same recommendation. The frozen RiskController gate is
+        still applied - it is not trainable and cannot be bypassed.
+        """
+        obs = context_vector(ctx)
+        probs = self.policy.probs(obs)
+        action_i = int(np.argmax(probs))
+        action = PROPOSER_ACTIONS[action_i]
+        gate = self.gate.evaluate(ctx, action)
+        scored = score_trajectory(ctx, action, gate)
+        return {
+            "obs": obs,
+            "action": action,
+            "action_index": action_i,
+            "probs": probs,
+            "gate": gate,
+            "reward": float(scored["reward"]),
+            "score": scored,
+            "agent": TRAINABLE_AGENT,
+            "advisory_only": True,
+            "execution_authority": False,
+        }
+
+    def load_artifact(self, path: str) -> Dict[str, Any]:
+        """Restore a saved proposer policy.
+
+        Rejects a mismatched shape instead of letting numpy fail later with an
+        opaque matmul error: W is (obs_dim x n_actions), so loading a policy
+        trained with a different context width would silently mis-multiply.
+        """
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        state = payload.get("policy")
+        if not isinstance(state, dict):
+            raise ValueError("GRPO artifact has no 'policy' state_dict")
+        obs_dim = int(state.get("obs_dim", 0) or 0)
+        n_actions = int(state.get("n_actions", 0) or 0)
+        if obs_dim != self.policy.obs_dim or n_actions != self.policy.n_actions:
+            raise ValueError(
+                f"GRPO artifact shape ({obs_dim}x{n_actions}) does not match "
+                f"policy head ({self.policy.obs_dim}x{self.policy.n_actions})."
+            )
+        self.policy.load_state_dict(state)
+        return payload
+
     def act(self, ctx: Dict[str, Any]) -> Dict[str, Any]:
         obs = context_vector(ctx)
         action_i, log_prob, probs = self.policy.sample(obs, self.rng)
