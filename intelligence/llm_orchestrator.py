@@ -519,6 +519,62 @@ SIGNAL_SYSTEM_PROMPT_TEMPLATE = (
 )
 
 
+def _rl_state_vector(state: Dict[str, Any], obs_dim: int) -> Optional[List[float]]:
+    """Flatten the mixed-type RL state dict into a fixed-width numeric vector.
+
+    ``_build_rl_state`` returns a deliberately heterogeneous dict (floats,
+    bools and categorical strings such as macro_event_state / session). A
+    policy head needs a fixed numeric width, so this maps the categorical
+    fields onto small integer codes and encodes a missing value as NaN-free
+    neutral 0.0 rather than inventing a plausible-looking measurement.
+
+    Returns None when there is not enough real evidence to describe the state,
+    so the caller declines to advise instead of guessing.
+    """
+    if not state:
+        return None
+
+    def num(key: str, default: Optional[float] = None) -> Optional[float]:
+        value = state.get(key, default)
+        if isinstance(value, bool):
+            return 1.0 if value else 0.0
+        if isinstance(value, (int, float)):
+            return float(value) if math.isfinite(float(value)) else default
+        return default
+
+    # At minimum the market has to have produced a usable price context.
+    if num("rsi_14") is None and num("atr_normalized") is None:
+        return None
+
+    event_state = str(state.get("macro_event_state", "UNKNOWN")).upper()
+    event_code = {
+        "CLEAR": 0.0, "UNKNOWN": 0.0, "IMMINENT": 1.0,
+        "ACTIVE": 2.0, "POST": 0.5,
+    }.get(event_state, 0.0)
+    vol_regime = {"low": 0.0, "medium": 1.0, "high": 2.0}.get(
+        str(state.get("volatility_regime", "medium")).lower(), 1.0)
+
+    values: List[float] = [
+        num("rsi_14", 50.0) / 100.0,
+        num("macd_histogram", 0.0),
+        num("ma_alignment", 0.0),
+        num("atr_normalized", 0.0),
+        num("confluence_score", 0.0),
+        num("near_sr", 0.0),
+        num("nearest_sr_distance", 1.0) or 1.0,
+        num("news_sentiment", 0.0),
+        num("news_count", 0.0),
+        event_code,
+        vol_regime,
+        num("trend_strength", 0.0),
+        num("htf_trend", 0.0),
+        num("strategy_weight", 1.0),
+    ]
+    if len(values) < obs_dim:
+        values.extend([0.0] * (obs_dim - len(values)))
+    return [float(v) for v in values[:obs_dim]]
+
+
 class LLMOrchestrator:
     def __init__(self, client: MT5Client, risk_manager: RiskManager, 
                  perf_monitor: PerformanceMonitor, api_key: str, model_name: str = None,
@@ -2473,6 +2529,74 @@ class LLMOrchestrator:
             
         except Exception as e:
             logging.getLogger("LLMOrchestrator").warning(f"Failed to build RL state: {e}")
+            return {}
+
+    def _ppo_advice(
+        self,
+        toon: Dict[str, Any],
+        artifact_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Query the trained PPO position-management policy for an advisory.
+
+        This is the read side of the PPO loop. Training wrote
+        artifacts/ppo_position_mgmt.json on every interval, but nothing ever
+        loaded it back, so each run restarted from a fresh policy and the
+        artifact was a write-only sink.
+
+        Safety properties, all deliberate:
+          - ADVISORY ONLY. The result is a suggestion merged into the toon
+            context; it never sets execution parameters and never bypasses the
+            deterministic validator or the order gateway.
+          - Uses greedy_action(), not act(). act() samples from the policy
+            distribution, which is right for collecting rollouts but wrong for
+            a live suggestion - the same state must always map to the same
+            action or the advice becomes noise.
+          - Fails closed. A missing, corrupt, or dimension-mismatched artifact
+            returns an empty dict so the caller simply has no PPO input.
+        """
+        if not getattr(self, "enable_rl", False):
+            return {}
+        try:
+            # Same default as PPOTrainer.save_artifact's callers in mt5_trader.
+            path = artifact_path or os.path.join("artifacts", "ppo_position_mgmt.json")
+            if not path or not os.path.exists(path):
+                return {}
+
+            from research.ppo_trainer import OBS_DIM_KRONOS, PPOTrainer
+
+            trainer = getattr(self, "_ppo_trainer", None)
+            if trainer is None:
+                # Match the backend the artifact was trained with, otherwise
+                # load_artifact correctly refuses the mismatch.
+                backend = "numpy"
+                try:
+                    with open(path, "r", encoding="utf-8") as fh:
+                        backend = json.load(fh).get("backend", "numpy")
+                except Exception:
+                    backend = "numpy"
+                trainer = PPOTrainer(
+                    obs_dim=OBS_DIM_KRONOS,
+                    use_torch=(backend == "torch"),
+                )
+                self._ppo_trainer = trainer
+            trainer.load_artifact(path)
+
+            state = self._build_rl_state(toon)
+            if not state:
+                return {}
+            vector = _rl_state_vector(state, trainer.obs_dim)
+            if vector is None:
+                return {}
+            index = trainer.greedy_action(vector)
+            return {
+                "action": trainer.action_name(index),
+                "action_index": int(index),
+                "backend": trainer.backend,
+                "advisory_only": True,
+                "execution_authority": False,
+            }
+        except Exception as exc:
+            logging.getLogger("LLMOrchestrator").debug("PPO advice unavailable: %s", exc)
             return {}
 
     def _live_order_token(self):

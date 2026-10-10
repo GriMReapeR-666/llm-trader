@@ -103,6 +103,10 @@ class NumpyActorCritic:
         self.W_v = np.asarray(data["W_v"], dtype=float)
         self.b_v = float(data["b_v"])
 
+    @property
+    def obs_dim(self) -> int:
+        return int(self.W_pi.shape[0])
+
 
 class PPOTrainer:
     """Offline PPO clipped objective with GAE for position management."""
@@ -159,6 +163,30 @@ class PPOTrainer:
             else:
                 arr = arr[: self.obs_dim]
         return arr
+
+    def greedy_action(self, obs_vec: Sequence[float]) -> int:
+        """Deterministic argmax action - the inference-time counterpart to act().
+
+        ``act()`` samples from the policy distribution, which is correct for
+        collecting training rollouts but wrong for advising on a live decision:
+        the same market state must always produce the same suggestion. This is
+        the method a loaded checkpoint must be queried through.
+        """
+        x = self._obs(obs_vec)
+        if self.backend == "torch":
+            assert self.model is not None
+            with torch.no_grad():
+                logits, _ = self.model(torch.as_tensor(x, dtype=torch.float32))
+            return int(torch.argmax(logits[0]).item())
+        assert self.numpy_model is not None
+        logits, _ = self.numpy_model.logits_value(x)
+        return int(np.argmax(logits))
+
+    def action_name(self, index: int) -> str:
+        """Human-readable action name, bounds-checked."""
+        if 0 <= int(index) < len(self.actions):
+            return str(self.actions[int(index)])
+        return "HOLD"
 
     def act(self, obs_vec: Sequence[float]) -> Tuple[int, float, float]:
         """Sample action; returns (action_index, log_prob, value)."""
@@ -312,12 +340,31 @@ class PPOTrainer:
         return str(destination)
 
     def load_artifact(self, path: str) -> Dict[str, Any]:
+        """Restore a saved policy into this trainer.
+
+        Rejects an artifact whose backend or observation width does not match
+        this head instead of loading it anyway: W_pi is (obs_dim x n_actions),
+        so a width mismatch raises a confusing matmul error deep inside
+        logits_value(), far from the actual cause.
+        """
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
-        if self.backend == "torch" and payload.get("backend") == "torch":
+        artifact_backend = payload.get("backend")
+        if artifact_backend != self.backend:
+            raise ValueError(
+                f"artifact backend {artifact_backend!r} does not match trainer backend "
+                f"{self.backend!r}; re-train with this backend or use the matching one."
+            )
+        artifact_obs = int(payload.get("obs_dim", self.obs_dim) or self.obs_dim)
+        if artifact_obs != self.obs_dim:
+            raise ValueError(
+                f"artifact obs_dim={artifact_obs} does not match trainer obs_dim="
+                f"{self.obs_dim}; the policy matrix cannot be reinterpreted."
+            )
+        if self.backend == "torch":
             assert self.model is not None
             tensors = {k: torch.as_tensor(v) for k, v in payload["state_dict"].items()}
             self.model.load_state_dict(tensors)
-        elif self.numpy_model is not None and payload.get("backend") == "numpy":
+        elif self.numpy_model is not None:
             self.numpy_model.load_state_dict(payload["state_dict"])
         return payload
 
