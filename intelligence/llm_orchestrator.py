@@ -4010,6 +4010,55 @@ class LLMOrchestrator:
         summary["status"] = "CAPTURED" if summary["recorded"] else "NO_PROXIES"
         return summary
 
+    def _record_trade_reflection(
+        self,
+        ticket: int,
+        symbol: str,
+        setup_name: str,
+        r_multiple: float,
+        pnl: float,
+        excursion: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Feed a closed trade into the active-knowledge episodic memory.
+
+        This is the ONLY path that writes MFE/MAE and the realized R-multiple
+        into `scenario_documents` / `verified_memories`, which is what the
+        retrieval-augmented case matcher later reads. It was previously never
+        called from the close path, so excursions computed by record_close()
+        were journalled but never reached the memory layer.
+
+        Best-effort by design: a failure here must never break trade closure.
+        Missing marks are coerced to 0.0 rather than passed as None, because
+        ingest_trade_reflection formats them with %.2f.
+        """
+        try:
+            from intelligence.active_knowledge_agent import ACTIVE_KNOWLEDGE_AGENT
+
+            exc = excursion or {}
+            mfe_r = exc.get("mfe_r")
+            mae_r = exc.get("mae_r")
+            # None means "never observed" (no qualifying marks). Recording a
+            # hard 0.0 would assert the trade never moved favourably, which is
+            # a different and much stronger claim than "we did not watch".
+            mfe_val = float(mfe_r) if mfe_r is not None else 0.0
+            mae_val = float(mae_r) if mae_r is not None else 0.0
+            setup = str(setup_name or "unclassified")
+            ACTIVE_KNOWLEDGE_AGENT.ingest_trade_reflection(
+                ticket=int(ticket),
+                symbol=str(symbol or ""),
+                setup_name=setup,
+                close_price=float(pnl or 0.0),
+                r_multiple=float(r_multiple or 0.0),
+                pnl=float(pnl or 0.0),
+                exit_reason=str(exc.get("exit_reason") or "closed"),
+                mae_r=mae_val,
+                mfe_r=mfe_val,
+            )
+        except Exception as exc:
+            logging.getLogger("LLMOrchestrator").debug(
+                "Trade reflection ingest failed for #%s: %s", ticket, exc
+            )
+
     def _apply_causal_trade_feedback(self, ticket: int, pnl: float, risk_amount: float, label: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Close the trade→causal-edge learning loop via revise_edge + auto-validate."""
         feedbacks: List[Dict[str, Any]] = []
@@ -5379,6 +5428,27 @@ class LLMOrchestrator:
                     label = self.trade_memory.label_closed_trade(ticket, total_pnl, risk_amount, "MT5 history reconciliation")
                     self.trade_memory.resolve_retrieval_outcome(ticket, label["label"])
                     self._apply_causal_trade_feedback(ticket, total_pnl, risk_amount, label)
+                    # Feed excursions + realized R into episodic memory. Without
+                    # this the MFE/MAE that record_close() just computed never
+                    # reaches scenario_documents/verified_memories.
+                    try:
+                        _exc = self.store.excursions(int(ticket))
+                        _exc["exit_reason"] = "MT5 history reconciliation"
+                    except Exception as _exc_err:
+                        _exc = {}
+                        logging.getLogger("LLMOrchestrator").debug(
+                            "excursions() unavailable for #%s: %s", ticket, _exc_err)
+                    _payload = self.store.trade_payload(int(ticket)) if hasattr(self.store, "trade_payload") else {}
+                    # symbol lives in the trades row, not the payload JSON; the
+                    # loop above already resolved `trade` for this ticket.
+                    self._record_trade_reflection(
+                        ticket=int(ticket),
+                        symbol=str(trade.get("symbol", "")),
+                        setup_name=str(_payload.get("setup_id") or trade.get("strategy", "") or "unclassified"),
+                        r_multiple=float(label.get("r_multiple", 0.0) or 0.0),
+                        pnl=float(total_pnl),
+                        excursion=_exc,
+                    )
                     self.trade_memory.save_narrative({"ticket": ticket, "label": label["label"]}, f"Trade {ticket}: {label['label']} at {label['r_multiple']:.2f}R. {label['rationale']}")
                     self.trade_memory.rebuild_scenarios()
                     # Distill lesson from this trade outcome
