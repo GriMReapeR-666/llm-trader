@@ -117,7 +117,14 @@ os.environ.setdefault("D9_LATCH_SINGLETON", f"pytest_{os.getpid()}")
 
 # Shared repo-root runtime state files that tests can silently pollute when
 # constructing RiskManager()/TradeManager() with default paths.
-_RUNTIME_STATE_FILES = ("risk_state.json", "trade_manager_state.json")
+#: Repo-root runtime state files the per-test singletons fixture must
+#: snapshot/restore: the two store-backed mirrors PLUS supervisor_state.json,
+#: whose Phase 3 gap let live_state_probe's downgrade write through to the
+#: live file during unsandboxed kickoff (observed 2026-10-10, PHASE_FORCED
+#: RUNNING→DEGRADED at a test-run timestamp). Supervisors created mid-test
+#: pick the monkeypatched state_file only if they route through get_supervisor();
+#: path-default writers bypass it, so snapshot/restore is the real safety net.
+_RUNTIME_STATE_FILES = ("supervisor_state.json", "risk_state.json", "trade_manager_state.json")
 
 
 @pytest.fixture(autouse=True)
@@ -240,6 +247,10 @@ def isolate_runtime_state_singletons(tmp_path, monkeypatch):
                 monkeypatch.setattr(aut, attr, str(tmp_path / ("autonomy_" + attr)))
     except Exception:
         pass
+    # NOTE: covers ONLY callers that route through get_supervisor()/get_autonomy().
+    # writers that default-construct a path (live_state_probe._downgrade_supervisor,
+    # external tools) reach supervisor_state.json directly; the runtime-files
+    # snapshot below is the net that catches them.
     # Snapshot shared runtime state files before each test and restore them
     # afterwards. Tests that build RiskManager()/TradeManager() with default
     # paths otherwise leak circuit-breaker pollution (e.g. peak_equity=100000
@@ -829,3 +840,56 @@ def isolate_decision_bundle():
         yield
     finally:
         ui_state.last_decision_bundle = saved
+
+
+# ---------------------------------------------------------------------------
+# Test lanes (audit remediation item 11).
+#
+# pytest.ini has always declared `unit`, `integration` and `slow`, but not one
+# test module used any of them - 0 occurrences across the suite - so the
+# audit's proposed `-m "not slow"` fast lane deselected nothing and the
+# unit/integration split was cosmetic. The suite still exceeded a 10-minute
+# window, which is why there was no green/red signal to act on.
+#
+# Hand-marking 400+ modules is churn that rots the moment a file is added, so
+# the lane is derived from the module name at collection time: a new module is
+# classified by existing, not by remembering to update a list.
+#
+# Additive only. An explicit decorator marker is never removed or overridden,
+# and a plain `pytest` run still selects exactly the same tests as before -
+# these markers only bite when someone passes `-m`.
+# ---------------------------------------------------------------------------
+
+# Modules that wire several subsystems together: expensive, and a failure
+# there is ambiguous (which layer broke?) rather than local.
+_LANE_INTEGRATION_TOKENS = ("e2e", "integration", "full", "end_to_end")
+
+# Heavy enough to blow a per-commit budget even though they touch one
+# subsystem: full backtests, harness modes, MT5/live paths, scheduler sweeps.
+_LANE_SLOW_TOKENS = (
+    "e2e", "integration", "full", "harness", "pipeline",
+    "backtest", "microstructure", "live", "smoke",
+)
+
+
+def pytest_collection_modifyitems(config, items):
+    """Stamp the declared-but-unused lane markers onto collected tests."""
+    for item in items:
+        path = getattr(item, "path", None) or getattr(item, "fspath", "")
+        base = os.path.basename(str(path)).lower()
+
+        # Integration implies slow: nothing cheap cross-wires subsystems, and
+        # marking one without the other would let `-m "not slow"` still drag
+        # the expensive lanes into the fast run.
+        if any(token in base for token in _LANE_INTEGRATION_TOKENS):
+            item.add_marker(pytest.mark.integration)
+            item.add_marker(pytest.mark.slow)
+            continue
+
+        if any(token in base for token in _LANE_SLOW_TOKENS):
+            item.add_marker(pytest.mark.slow)
+            continue
+
+        # `unit` is the complement, so `-m unit` is the fast lane and is not
+        # silently empty the way an unused marker always is.
+        item.add_marker(pytest.mark.unit)

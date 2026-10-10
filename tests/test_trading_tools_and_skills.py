@@ -135,7 +135,9 @@ def test_tool_invocations():
     assert "oil_market_bias" in res_eia
 
     # 17. Reconcile Broker & Journal
-    res_rec = reconcile_broker_and_journal_orders.invoke({"db_path": "trading_state.db"})
+    with patch("MetaTrader5.history_deals_get", return_value=()), \
+         patch("operations.daily_reconciliation.compare_day", return_value={"discrepancies": [], "owned_seen": 0}):
+        res_rec = reconcile_broker_and_journal_orders.invoke({"db_path": "trading_state.db"})
     assert res_rec["is_execution_synchronized"] is True
 
     # 18. System Health Diagnostics

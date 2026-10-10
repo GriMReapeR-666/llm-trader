@@ -537,7 +537,9 @@ FRED and macroeconomic data ingestion:
 | OpenBB | `openbb_data_bridge.py` | Institutional market data |
 | EIA | `eia_provider.py` | Energy data |
 | CFTC COT | `cftc_cot_provider.py` | Commitment of Traders |
-| Zero-Lag Macro | `zero_lag_macro_provider.py` | Physical proxies, spreads, liquidity |
+| Zero-Lag Macro | `zero_lag_macro_provider.py` | Physical proxies, spreads, liquidity. **Status note (Oct 2026):** hardcoded constant proxies are now flagged live-vs-`SYNTHETIC_PLACEHOLDER` via `source_quality_annotations()` — check the annotation before feeding roles to the LLM. |
+| Social Evidence | `social_entity_ingest.py` | Entity post ingest (Trump/@POTUS, central banks, market outlets) — **ingest-only**; posts journal into local agent memory with `causal_authority=False`. Governed by the `SOCIAL_EVIDENCE_ONLY` tier in `macro_source_policy.py`; social domains remain causally blocked. |
+| TradingView Bridge | `tradingview_bridge.py` | Webhook receiver for TV alerts (auth-gated). Journals alerts as `ADVISORY` `order_intents` rows — never auto-executed; advisory rows are invisible to the pending-order reconciler and the killswitch cancel loop. |
 | Alternative Data | `alternative_data_provider.py` / `alternative_data_registry.py` | Non-traditional data |
 | Exness | `exness_provider.py` | Broker-specific data |
 | MT5 Calendar | `mt5_calendar_enhanced.py` / `mt5_calendar_wrapper.py` | Broker calendar |

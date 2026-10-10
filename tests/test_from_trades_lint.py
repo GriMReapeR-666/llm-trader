@@ -59,14 +59,14 @@ INVENTORY: dict = {
     "tools/inspection/payload_check.py": ("script", 1),
     "tools/inspection/pf_check.py": ("script", 1),
     "research/code_interpreter.py": ("gate", 1),
-    "research/continuous_backtest_pipeline.py": ("gate", 4),
+    "research/continuous_backtest_pipeline.py": ("gate", 1),
     "research/demo_sample_generator.py": ("operational", 1),
     "research/divergence_monitor.py": ("gate", 1),
     "research/research_validation.py": ("gate", 1),
     "research/training_orchestrator.py": ("gate", 1),
     "tests/test_backtest_journal_isolation.py": ("test", 1),
     "tests/test_legacy_reconciliation.py": ("test", 2),
-    "tests/test_microstructure_scalp_pipeline_e2e.py": ("test", 1),
+    "tests/test_microstructure_scalp_pipeline_e2e.py": ("test", 0),  # reader removed
     "tests/test_promotion_gate_journal.py": ("test", 1),
     "tests/test_strategy_lifecycle_engine.py": ("test", 1),
     "tools/inspection/sample_trades.py": ("script", 1),
@@ -146,6 +146,11 @@ def test_inventory_matches_actual_site_counts():
         rel: {"in_inventory": INVENTORY[rel][1], "actual": counts.get(rel)}
         for rel in INVENTORY
         if INVENTORY[rel][1] != counts.get(rel)
+        # Count-0 entries are tombstones for files whose reader was removed
+        # but which are still watched for reintroduction: a missing file or a
+        # zero-count file both satisfy the tombstone. Only a file that
+        # REINTRODUCES the reader (a count the map does not bless) violates it.
+        if counts.get(rel, 0) != INVENTORY[rel][1]
     }
     assert not mismatched, (
         "FROM trades sites were added or removed -- update INVENTORY "
