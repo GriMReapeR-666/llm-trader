@@ -2749,15 +2749,50 @@ def main() -> None:
                 end_dt = min(now, start_dt + timedelta(days=1))
 
             if args.paper:
-                from operations.daily_reconciliation import adapt_paper_deals, compare_day
-                closed_rows = store.closed_trade_rows_between(start_dt.isoformat(), end_dt.isoformat())
-                paper_deals = adapt_paper_deals(closed_rows)
-                report = compare_day(store, paper_deals, start_dt, end_dt, require_timestamps=False)
+                # Paper mode has no independent broker side, so there is
+                # nothing honest to reconcile.  The PaperBroker's closed history
+                # is in-memory on the trader process (core/order_execution.py:
+                # self.history, trimmed to 1000) and is unreachable from this
+                # CLI; the only durable thing here is the journal itself.
+                # Feeding journal rows back in as "broker" deals compares the
+                # journal against itself: it can never disagree, so it can
+                # never be evidence.  And because journal rows carry `pnl`
+                # while the deal adapter reads `profit`, every non-zero-P&L
+                # trade was additionally reported as a spurious mismatch
+                # (live: refused_discrepant=5) plus a durable ATTENTION work
+                # item per trade, overwriting any real report for the period.
+                # compare_day already refuses to mint evidence from these
+                # (refused_journal_derived), so nothing reached the gates --
+                # but it still wrote false alarms.  Refuse outright.
+                #
+                # The genuine paper evidence path is the in-process one:
+                # operations/learning_loop._resolve_broker_deals reads
+                # context.paper_broker.history (real PaperBroker closes) and
+                # runs compare_day over it.  That is separate from this CLI.
+                report = {
+                    "status": "NO_INDEPENDENT_BROKER_SOURCE",
+                    "period_start": start_dt.isoformat(),
+                    "period_end": end_dt.isoformat(),
+                    "reason": (
+                        "paper mode supplies no broker-side evidence: the journal "
+                        "cannot be reconciled against itself, and the PaperBroker's "
+                        "closed history lives in the trader process, not the journal. "
+                        "No reconciliation was run and no evidence was written."
+                    ),
+                    "execution_evidence_written": 0,
+                    "execution_authority": False,
+                    "hint": ("run without --paper against MetaTrader5 deal history; "
+                             "paper closes are reconciled in-process by "
+                             "operations/learning_loop.run_daily_review"),
+                }
             else:
-                mt5_inst = _get_mt5()
-                if mt5_inst is None:
-                    raise RuntimeError("MetaTrader5 module unavailable for live reconciliation; specify --paper to run against paper ledger")
-                deals = mt5_inst.history_deals_get(start_dt, end_dt)
+                # Genuine broker side.  (This used to call an undefined
+                # `_get_mt5()`, so the only live path always raised NameError.)
+                if mt5 is None:
+                    raise RuntimeError(
+                        "MetaTrader5 module unavailable for live reconciliation; "
+                        "there is no independent broker side without it")
+                deals = mt5.history_deals_get(start_dt, end_dt)
                 if deals is None:
                     raise RuntimeError("MT5 deal history unavailable for reconciliation")
                 from operations.daily_reconciliation import compare_day
@@ -3745,21 +3780,63 @@ def execute_skill(**kwargs):
     if args.cmd == "llm-trade":
         # Single-instance lifecycle: publish PID so the API/deck can guard
         # against double-spawn and offer a real stop. Best-effort only.
+        # Lease-backed: the writer stamps {pid, created_at, stamped_at} and a
+        # daemon heartbeat re-stamps it, so a crash left behind a PID file is
+        # detected by any observer (operations/live_state_probe.py) instead of
+        # lying for hours - and a pid Windows later recycles cannot pass for us.
         _pid_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.pid")
         try:
+            from operations.live_state_probe import (claim_pid_lease, read_pid_lease,
+                                                     start_pid_lease_heartbeat, sweep_live_state)
+
+            # Single-instance guard as a LEASE: a live holder wins, a dead or
+            # stale one is taken over. Refusing here is what stops two engines
+            # thrashing the journal DB and racing the broker.
+            _claim = claim_pid_lease(_pid_path)
+            if not _claim["acquired"]:
+                print(f"[lifecycle] REFUSING TO START: another engine (pid {_claim.get('pid')}) "
+                      f"already holds engine.pid ({_claim.get('reason')}). "
+                      f"Stop it first (delete engine.pid or use the API stop command).")
+                sys.exit(2)
+
+            # Recover any stale boot/liveness state from a previous crash:
+            # expired schedule claims, ghost agent_runs, supervisor lying
+            # about RUNNING. Every finding is logged as a WARNING (P0-1).
+            # NOTE: no `orch` here - it is constructed ~380 lines further down,
+            # so referencing it raised NameError and skipped the sweep entirely.
+            try:
+                _sweep = sweep_live_state(getattr(args, "journal_path", None) or "trading_state.db",
+                                          _pid_path)
+                if _sweep["released_claims"] or _sweep["recovered_runs"] or (_sweep["supervisor"] or {}).get("recovered"):
+                    print(f"[lifecycle] live-state sweep: {_sweep['released_claims']} stale claim(s) "
+                          f"released, {_sweep['recovered_runs']} ghost run(s) recovered, "
+                          f"supervisor recovered={bool((_sweep['supervisor'] or {}).get('recovered'))}")
+            except Exception as _sweep_exc:
+                logging.getLogger("main").warning("live-state sweep skipped: %s", _sweep_exc)
+
             import atexit as _atexit
-            with open(_pid_path, "w", encoding="utf-8") as _pf:
-                _pf.write(str(os.getpid()))
+
+            # Re-stamp the lease while we live. Without this the file is a
+            # stale artifact again after PID_LEASE_MAX_AGE_S and every observer
+            # (watchdog, GUI, operator) would call a healthy engine dead.
+            start_pid_lease_heartbeat(_pid_path)
 
             def _cleanup_pid():
                 try:
-                    os.remove(_pid_path)
+                    # Ownership-checked: never delete a lease a successor took.
+                    if read_pid_lease(_pid_path).get("pid") == os.getpid():
+                        os.remove(_pid_path)
                 except OSError:
                     pass
 
             _atexit.register(_cleanup_pid)
         except OSError as _pid_exc:
             print(f"[lifecycle] engine.pid write failed (non-fatal): {_pid_exc}")
+        except SystemExit:
+            raise
+        except Exception as _pid_lifecycle_exc:
+            # pid lease / sweep are boot-enhancements, never trading blockers.
+            logging.getLogger("main").warning("pid lifecycle init failed (non-fatal): %s", _pid_lifecycle_exc)
 
         # --debug: re-configure logging with trading-critical modules at DEBUG
         if getattr(args, 'debug', False):

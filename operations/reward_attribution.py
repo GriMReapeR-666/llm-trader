@@ -5,6 +5,10 @@ shares of reconciled ``R_net``. Never grants ``execution_authority``.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+import json
+import os
+import sqlite3
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 
 try:
@@ -16,6 +20,16 @@ try:
     from reward_ledger import CREDIT_SHARES, list_reward_events
 except ImportError:
     from operations.reward_ledger import CREDIT_SHARES, list_reward_events
+
+try:
+    from research_validation import labelled_dataset
+except ImportError:
+    from research.research_validation import labelled_dataset
+
+try:
+    from reward_ledger import emit_terminal_trade_rewards
+except ImportError:
+    from operations.reward_ledger import emit_terminal_trade_rewards
 
 
 # Lifecycle rank for ≥ REPLAY_PASS gate (formula: 1{lifecycle≥REPLAY_PASS}).
@@ -319,3 +333,148 @@ def match_open_candidate_id(
         reverse=True,
     )
     return str(matches[0].get("candidate_id") or "") or None
+
+
+# ── Cycle rotation ──────────────────────────────────────────────────────────
+# The ledger's only emitter used to be the live close callback, so the last
+# reward rows carried run_ids from runs that ended weeks ago and every PPO /
+# GRPO / bandit consumer replayed the same dead cycle.  ``attribute_reconciled_history``
+# re-derives the same terminal reward from *current* broker-reconciled journal
+# history and stamps it with the caller's live run reference.  It is deliberately
+# built on ``research_validation.labelled_dataset`` rather than a private reader:
+# RL must not learn from a row the research gate would refuse to promote on.
+
+TERMINAL_CLOSE_ACTION = "terminal_trade_close"
+
+
+def ledger_freshness(path: str, *, now: Optional[datetime] = None) -> Dict[str, Any]:
+    """Age of the newest reward event, plus the run refs that went stale.
+
+    This is the bottom-line metric from the engine audit (``reward_events``
+    freshness < 24h) expressed as something a scheduler can assert on.
+    """
+    empty = {"freshness_hours": None, "oldest_run_ids": [], "event_count": 0,
+             "stale_after_hours": 24.0, "fresh": False, "execution_authority": False}
+    if not os.path.exists(path):
+        return empty
+    try:
+        from pathlib import Path
+        uri = Path(os.path.abspath(path)).as_uri() + "?mode=ro"
+        with sqlite3.connect(uri, uri=True, timeout=5) as con:
+            newest, count = con.execute(
+                "SELECT MAX(created_at), COUNT(*) FROM reward_events").fetchone()
+            run_rows = con.execute(
+                "SELECT run_id, MAX(created_at) FROM reward_events WHERE run_id IS NOT NULL "
+                "GROUP BY run_id").fetchall()
+    except (sqlite3.Error, OSError, ValueError):
+        return empty
+    if not newest:
+        return empty
+    stamp = now or datetime.now(timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(str(newest).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        age_h = (stamp.astimezone(timezone.utc) - parsed.astimezone(timezone.utc)).total_seconds() / 3600.0
+    except (TypeError, ValueError, OverflowError):
+        return empty
+    stale = []
+    for run_id, last_seen in run_rows:
+        try:
+            seen = datetime.fromisoformat(str(last_seen).replace("Z", "+00:00"))
+            if seen.tzinfo is None:
+                seen = seen.replace(tzinfo=timezone.utc)
+            run_age_h = (stamp.astimezone(timezone.utc) - seen.astimezone(timezone.utc)).total_seconds() / 3600.0
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if run_age_h >= 24.0:
+            stale.append({"run_id": str(run_id), "age_hours": round(run_age_h, 3)})
+    stale.sort(key=lambda item: (-item["age_hours"], item["run_id"]))
+    return {
+        "freshness_hours": round(age_h, 3),
+        "oldest_run_ids": stale[:20],
+        "event_count": int(count or 0),
+        "stale_after_hours": 24.0,
+        "fresh": age_h < 24.0,
+        "execution_authority": False,
+    }
+
+
+def attribute_reconciled_history(
+    path: str,
+    *,
+    run_id: Optional[str] = None,
+    since_iso: Optional[str] = None,
+    limit: int = 1000,
+    emit_credit_shares: bool = True,
+    lifecycle_lookup: Optional[Callable[[int], Optional[str]]] = None,
+) -> Dict[str, Any]:
+    """Emit L2 terminal rewards for reconciled closes this cycle has not seen.
+
+    ``compute_terminal_reward`` refuses any close that is not marked
+    broker-reconciled, and admission here goes through
+    ``labelled_dataset``, so this can only ever re-emit a close the journal has
+    already proven against a broker.  Tickets that already carry a terminal
+    close are skipped, which keeps an hourly scheduler from multiplying rows.
+    """
+    dataset = labelled_dataset(path)
+    rows = list(dataset.get("rows") or [])
+    if since_iso:
+        rows = [row for row in rows if str(row.get("closed_at") or "") >= str(since_iso)]
+    rows = rows[-max(0, int(limit)):] if limit else rows
+
+    emitted: List[Dict[str, Any]] = []
+    skipped_existing = 0
+    skipped_unlabelled = 0
+    for row in rows:
+        ticket = row.get("ticket")
+        try:
+            ticket_i = int(ticket)
+        except (TypeError, ValueError):
+            continue
+        try:
+            prior = list_reward_events(path, ticket=ticket_i, layer="L2", limit=50)
+        except (sqlite3.Error, OSError, ValueError):
+            continue
+        if any(str(event.get("action") or "") == TERMINAL_CLOSE_ACTION for event in prior):
+            skipped_existing += 1
+            continue
+        trade_result = {
+            "ticket": ticket_i,
+            "pnl": float(row.get("pnl") or 0.0),
+            "risk": float(row.get("risk_amount") or 0.0),
+            "r_multiple": row.get("r_multiple"),
+            "broker_reconciled": True,
+            "symbol": row.get("symbol"),
+            "setup_id": row.get("setup_id"),
+        }
+        trade_result = enrich_trade_result_attribution(trade_result)
+        try:
+            recorded = emit_terminal_trade_rewards(
+                path, trade_result, run_id=run_id, emit_credit_shares=emit_credit_shares,
+                lifecycle_lookup=lifecycle_lookup,
+            )
+        except (sqlite3.Error, OSError, ValueError):
+            skipped_unlabelled += 1
+            continue
+        if str(recorded.get("status") or "") == "RECORDED":
+            emitted.append({"ticket": ticket_i,
+                            "reward": recorded.get("reward"),
+                            "r_net": (recorded.get("breakdown") or {}).get("r_net"),
+                            "events": len(recorded.get("events") or [])})
+        else:
+            skipped_unlabelled += 1
+
+    return {
+        "status": "ATTRIBUTED" if emitted else "NO_NEW_RECONCILED_CLOSES",
+        "run_id": run_id,
+        "candidates": len(rows),
+        "emitted": emitted,
+        "emitted_count": len(emitted),
+        "skipped_already_attributed": skipped_existing,
+        "skipped_not_admissible": skipped_unlabelled,
+        "dataset_sample_size": dataset.get("sample_size", 0),
+        "dataset_excluded": dataset.get("excluded", {}),
+        "freshness": ledger_freshness(path),
+        "execution_authority": False,
+    }

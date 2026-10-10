@@ -1337,9 +1337,19 @@ def evaluate_portfolio_risk_gate(
     # Heat via RiskManager if available
     try:
         from core.risk_manager import RiskManager  # type: ignore
-        # Use persisted state if store exists, else ephemeral. Paper default $10k
-        # keeps the gate runnable with MT5 disconnected; RiskManager rejects 0.
-        rm = RiskManager(balance=float(equity or 10000), risk_per_trade=0.01)
+        # EPHEMERAL, deliberately. This is a read-only probe asked by the LLM,
+        # not the engine's risk manager, so it must neither read nor rewrite the
+        # live circuit-breaker anchors. It previously took the default relative
+        # "risk_state.json", which ``core.state_persistence`` resolves to
+        # ``data/state/`` - so on a day/week rollover the constructor's own
+        # save_state() stamped this probe's throwaway $10k paper balance over
+        # the real account. That is how the live state came to read
+        # start_equity=10000 next to weekly_start_equity=100000, which disabled
+        # the weekly circuit entirely.
+        # Paper default $10k keeps the gate runnable with MT5 disconnected;
+        # RiskManager rejects 0.
+        rm = RiskManager(balance=float(equity or 10000), risk_per_trade=0.01,
+                         state_file=RiskManager.EPHEMERAL_STATE)
         hv = rm.open_portfolio_heat_r()
         if hv is not None:
             heat_val = float(hv)

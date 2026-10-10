@@ -5,6 +5,11 @@ setup-governance gates and produces lifecycle demotions with operator alerts.
 The engine may only DEMOTE (DEPLOYED -> DECAYING -> FROZEN); every promotion
 or retirement remains an explicit operator action. Nothing here grants order
 authority.
+
+``evaluate`` is also reachable with no scheduler at all via ``run_offline`` /
+``python operations/strategy_evaluation.py --db <journal>``, which scores
+CANDIDATE setups against whatever paper-reconciled history the journal has
+accumulated instead of waiting for a trading loop that may not be running.
 """
 from __future__ import annotations
 
@@ -314,6 +319,17 @@ def evaluate(path: str, *, registry_specs: Optional[Dict[str, Any]] = None,
     return {
         "evaluated_at": _now(),
         "dataset_sample_size": dataset.get("sample_size", 0),
+        "evidence": {
+            # Why the pass scored nothing, when it scored nothing.  A silent
+            # zero is how 100+ setups sat in CANDIDATE with nobody able to say
+            # whether the blocker was evidence, code, or the scheduler.
+            "source": "journal_broker_reconciled_labels",
+            "cost_model": dataset.get("cost_model"),
+            "excluded": dataset.get("excluded", {}),
+            "point_in_time": bool(dataset.get("point_in_time", False)),
+            "admitted_rows": len(rows),
+            "status": "READY" if rows else "NO_ADMISSIBLE_EVIDENCE",
+        },
         "seeded": seed_result,
         "setups_evaluated": evaluated,
         "transitions": transitions,
@@ -322,3 +338,41 @@ def evaluate(path: str, *, registry_specs: Optional[Dict[str, Any]] = None,
         "model_staleness": model_staleness_report,
         "execution_authority": False,
     }
+
+
+def run_offline(path: str, *, minimum_samples: int = MIN_RESEARCH_SAMPLE,
+                max_degradation: float = MAX_DEGRADATION_FRACTION,
+                registry_specs: Optional[Dict[str, Any]] = None,
+                registry_fingerprint: Optional[str] = None) -> Dict[str, Any]:
+    """Run one lifecycle pass with no scheduler, broker, or LLM in the loop.
+
+    Offline means offline, not privileged.  Registry seeding stays off unless
+    the caller explicitly passes specs, because ``seed_registry`` inserts
+    unregistered setups straight into DEPLOYED — an operator decision that must
+    never be a side effect of running an evaluation.  ``evaluate`` itself only
+    ever demotes; nothing on this path promotes.
+    """
+    return evaluate(path, registry_specs=registry_specs,
+                    registry_fingerprint=registry_fingerprint,
+                    minimum_samples=minimum_samples, max_degradation=max_degradation)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Offline strategy-lifecycle evaluation.")
+    parser.add_argument("--db", default=os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db"))
+    parser.add_argument("--min-samples", type=int, default=MIN_RESEARCH_SAMPLE,
+                        help=f"closed-sample floor per setup (policy minimum {MIN_RESEARCH_SAMPLE})")
+    args = parser.parse_args(argv)
+    try:
+        report = run_offline(args.db, minimum_samples=args.min_samples)
+    except ValueError as exc:
+        parser.error(str(exc))
+        return 2
+    print(json.dumps(report, indent=2, default=str))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

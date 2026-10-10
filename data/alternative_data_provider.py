@@ -11,7 +11,7 @@ import os
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from data.alternative_data_registry import (
     AlternativeDataSource,
@@ -22,6 +22,53 @@ from data.alternative_data_registry import (
 log = logging.getLogger("AlternativeDataProvider")
 
 CACHE_FILE = "artifacts/alternative_nowcast_cache.json"
+
+# Audit P0-5: the zero-lag provider computes most of its proxies from
+# hardcoded constants (grid 101.4, chokepoint 98.2, crop 74.5, labor -1.2, ...).
+# The values stay — dropping them is a cross-file decision tracked in the
+# provider's own ponytail note — but they must not be journalled as observed.
+# Same vocabulary as the provider's ``source_quality`` labels so a reader never
+# has to translate between the two.
+LIVE_STATUS = "LIVE"
+SYNTHETIC_STATUS = "SYNTHETIC_PLACEHOLDER"
+
+
+def _snapshot_quality(snap: Any, provider: Any) -> Dict[str, str]:
+    """Provenance labels for the snapshot this pass just produced.
+
+    Prefers the map shipped INSIDE the snapshot: it is stamped by the same
+    compute pass that produced the value, so it cannot disagree with it, and a
+    provider that degrades half-way through cannot leak an older pass's LIVE
+    stamps into this one. Falls back to the provider's own labels for a
+    snapshot object that does not carry them.
+
+    Fails closed to ``{}`` — an empty map makes every field synthetic, which
+    is the only honest reading of "this provider cannot tell me".
+    """
+    labels = getattr(snap, "source_quality", None)
+    if not isinstance(labels, dict) or not labels:
+        getter = getattr(provider, "source_quality_annotations", None)
+        labels = getter() if callable(getter) else None
+    if not isinstance(labels, dict):
+        return {}
+    return {str(k): str(v) for k, v in labels.items()}
+
+
+def _quality_status(quality: Dict[str, str], fields: Iterable[str]) -> str:
+    """Row status = the worst label across every snapshot field the row carries.
+
+    Fail-closed at both ends: no fields (nothing was observed) or any field
+    the provider did not label LIVE — including one it never labelled at all —
+    yields SYNTHETIC_PLACEHOLDER. A journal reader sees one number per row and
+    cannot tell which part to discount, so a single placeholder demotes the
+    whole row rather than laundering it through as LIVE.
+    """
+    fields = tuple(fields)
+    if not fields:
+        return SYNTHETIC_STATUS
+    if all(quality.get(name) == LIVE_STATUS for name in fields):
+        return LIVE_STATUS
+    return SYNTHETIC_STATUS
 
 
 def _request_shape(include_stubs: bool, tiers: Optional[List[str]]) -> Dict[str, Any]:
@@ -88,7 +135,7 @@ class NowcastObservation:
     tier: str
     provider: str
     value: Optional[float]
-    status: str  # LIVE, CACHED, STUB, ERROR
+    status: str  # LIVE, CACHED, STUB, ERROR, SYNTHETIC_PLACEHOLDER
     observed_at: str
     symbols: List[str]
     payload: Dict[str, Any]
@@ -297,32 +344,49 @@ class AlternativeDataProvider:
             return self._stub(src, reason="zero_lag_provider_unavailable")
         try:
             snap = zlp.get_snapshot()
+            quality = _snapshot_quality(snap, zlp)
             val = None
             payload = {}
+            # Snapshot fields this row's number(s) were built from. The status
+            # below is derived from exactly these, so the row can never claim
+            # LIVE while carrying a placeholder the map never blessed.
+            fields: tuple = ()
             if src.source_id == "grid_load_mw":
                 val = float(snap.industrial_grid_load_index)
                 payload = {"industrial_grid_index": val, "unit": "index_vs_baseline"}
+                fields = ("industrial_grid_load_index",)
             elif src.source_id == "sku_price_scrape":
                 val = float(snap.daily_cpi_mom_nowcast)
                 payload = {"cpi_mom_nowcast": val, "cpi_yoy_nowcast": snap.daily_cpi_yoy_nowcast}
+                fields = ("daily_cpi_mom_nowcast", "daily_cpi_yoy_nowcast")
             elif src.source_id == "sentinel_ndvi":
                 val = float(snap.satellite_crop_health_score)
                 payload = {"vegetation_soil_health_score": val, "unit": "index_0_100"}
+                fields = ("satellite_crop_health_score",)
             elif src.source_id in {"ais_vessel_tracking", "ais_tanker_tracking"}:
                 val = float(snap.maritime_chokepoint_index)
                 payload = {"chokepoint_transit_index": val, "unit": "index_vs_baseline"}
+                fields = ("maritime_chokepoint_index",)
             elif src.source_id == "linkup_job_postings":
                 val = float(snap.labor_hiring_velocity)
                 payload = {"job_vacancy_velocity_mom": val, "unit": "percent_mom"}
+                fields = ("labor_hiring_velocity",)
             elif src.source_id == "money_market_repo":
                 val = float(snap.net_liquidity_usd_billions)
+                # net_liquidity_bias is a threshold test on the same number, so
+                # it inherits that field's label rather than needing its own.
                 payload = {"net_liquidity_usd_b": val, "bias": snap.net_liquidity_bias}
+                fields = ("net_liquidity_usd_billions",)
             elif src.source_id == "growth_grid_rail_cards":
                 val = float(snap.industrial_grid_load_index)
                 payload = {"composite_activity_index": val, "net_liquidity_b": snap.net_liquidity_usd_billions}
+                fields = ("industrial_grid_load_index", "net_liquidity_usd_billions")
             else:
                 val = float(snap.industrial_grid_load_index)
                 payload = {"snapshot": snap.to_dict()}
+                # Whole snapshot in the payload, so every field the provider
+                # labels has to be LIVE for this row to be an observation.
+                fields = tuple(quality)
 
             return NowcastObservation(
                 source_id=src.source_id,
@@ -330,10 +394,23 @@ class AlternativeDataProvider:
                 tier=src.tier,
                 provider=src.provider,
                 value=val,
-                status="LIVE",
+                # Audit P0-5: was hardcoded "LIVE" regardless of provenance,
+                # which journalled the provider's constants into the durable
+                # nowcast cache as observations. Never "LIVE" by default —
+                # SYNTHETIC_PLACEHOLDER is the only status earned by a field
+                # the provider did not bless with its own LIVE label.
+                status=_quality_status(quality, fields),
                 observed_at=self._utcnow(),
                 symbols=list(src.symbols),
-                payload={**payload, "kind": "zero_lag_physical_proxy"},
+                payload={
+                    **payload,
+                    "kind": "zero_lag_physical_proxy",
+                    # Per-field labels so a journal reader can tell WHICH
+                    # number is a constant, not just that the row is not live.
+                    "source_quality": {
+                        name: quality.get(name, SYNTHETIC_STATUS) for name in fields
+                    },
+                },
             )
         except Exception as exc:
             return self._error(src, str(exc))

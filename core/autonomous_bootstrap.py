@@ -157,15 +157,23 @@ def _has_measured_evidence(strategy: Dict[str, Any]) -> bool:
 
 
 def _load_strategy_registry() -> List[Dict[str, Any]]:
-    """Load strategies from strategy_registry.json."""
+    """Load strategies from strategy_registry.json.
+
+    The file's ``_EVIDENCE_INVALID`` marker is authoritative on this read. It
+    exists to say the promoted metrics are unbacked, so while it is present no
+    row may enter the runtime as FULL/EVALUATION — that stage is the whole claim
+    being disputed. Rows come back as copies at CANDIDATE, which drops them out
+    of ``active_strategies`` here without touching the file on disk.
+    """
     registry_path = os.path.join(os.path.dirname(__file__), "..", "strategy_registry.json")
     registry_path = str(Path(registry_path).resolve())
     if not os.path.exists(registry_path):
         return []
     try:
+        from operations.strategy_factory import unvalidated_view
         with open(registry_path, "r") as f:
             data = json.load(f)
-        return data.get("strategies", [])
+        return unvalidated_view(data)
     except Exception as exc:
         logger.warning("Failed to load strategy registry: %s", exc)
         return []
@@ -301,6 +309,10 @@ def _phase_validate(
     # --- 1d. Backtest all active strategies ---
     logger.info("[Bootstrap/VALIDATE] 1d. Backtest active strategies")
     strategies = _load_strategy_registry()
+    # Empty is the expected result while the registry carries
+    # _EVIDENCE_INVALID: the loader has already demoted every row, because
+    # backtesting a strategy off metrics the file itself calls unbacked would
+    # launder the claim through a fresh run.
     active_strategies = [
         s for s in strategies
         if s.get("stage") in ("FULL", "EVALUATION")

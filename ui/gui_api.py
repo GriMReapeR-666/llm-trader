@@ -628,26 +628,42 @@ def start_trading(config: dict):
     # Refuse to spawn a second engine when one is already alive — duplicate
     # engines thrash the journal DB and race MT5 (observed as 2GB twin processes).
     _pid_file = os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
+    # engine.pid is a JSON lease ({pid, created_at, stamped_at}) since the P0-3
+    # lease work, with legacy plain-int files still tolerated by the reader.
+    # Parsing it as a bare int raised ValueError, and the old `except: pass`
+    # then read that as "no engine" — silently disabling this whole guard,
+    # which is precisely how a twin engine gets started. engine_dead() is the
+    # single source of truth and also covers lease staleness and pid reuse.
     try:
-        if os.path.exists(_pid_file):
-            _prev = int(open(_pid_file, encoding="utf-8").read().strip() or 0)
-            if _prev > 0:
+        from operations.live_state_probe import engine_dead
+
+        _state = engine_dead(_pid_file)
+        if not _state["dead"] and _state.get("pid"):
+            _prev = int(_state["pid"])
+            _alive = True
+            try:
                 import psutil as _ps
-                _alive = False
-                try:
-                    _proc = _ps.Process(_prev)
-                    _alive = "python" in (_proc.name() or "").lower()
-                except Exception:
-                    _alive = _ps.pid_exists(_prev)
-                if _alive:
-                    ui_state.is_running = True
-                    return {
-                        "status": "already_running",
-                        "message": f"Engine already running (pid {_prev}) — start refused to avoid a duplicate engine.",
-                        "pid": _prev,
-                    }
-    except (ValueError, OSError):
-        pass  # unreadable pidfile → treat as no engine and proceed
+                _alive = "python" in (_ps.Process(_prev).name() or "").lower()
+            except Exception:
+                pass  # psutil missing / access denied: the lease verdict stands
+            if _alive:
+                ui_state.is_running = True
+                return {
+                    "status": "already_running",
+                    "message": f"Engine already running (pid {_prev}) — start refused to avoid a duplicate engine.",
+                    "pid": _prev,
+                }
+    except Exception as _probe_exc:
+        # A probe failure must NOT degrade to "no engine" — that fail-open is
+        # the exact bug this block exists to prevent. Refuse the spawn and let
+        # the operator decide; a false refusal is recoverable, a twin engine
+        # racing a live book is not.
+        logging.getLogger(__name__).warning(
+            "engine liveness probe failed (%s) — refusing spawn to avoid a duplicate engine", _probe_exc)
+        return {
+            "status": "probe_failed",
+            "message": f"Could not verify engine liveness ({_probe_exc}) — start refused to avoid a duplicate engine.",
+        }
 
     # Prepare Environment
     env = os.environ.copy()
@@ -1673,12 +1689,18 @@ def deck_control(action: str, payload: dict = _Body(default={})):
     if action == "stop":
         """Stop the trading engine subprocess (positions remain at the broker)."""
         _pid_file = os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
+        # Same lease-format reason as the spawn guard: engine.pid is JSON now,
+        # so a bare int() here raised ValueError and the `except` turned every
+        # stop into "no engine.pid" — the operator could not stop a running bot.
         try:
-            _pid = int(open(_pid_file, encoding="utf-8").read().strip() or 0) if os.path.exists(_pid_file) else 0
-        except (ValueError, OSError):
+            from operations.live_state_probe import engine_dead
+
+            _state = engine_dead(_pid_file)
+            _pid = int(_state.get("pid") or 0)
+        except Exception:
             _pid = 0
         if _pid <= 0:
-            return {"ok": False, "reason": "no engine.pid — the engine was not started with a lifecycle file"}
+            return {"ok": False, "reason": "no running engine found in engine.pid — nothing to stop"}
         try:
             import psutil as _ps
             _proc = _ps.Process(_pid)

@@ -808,7 +808,10 @@ class LLMOrchestrator:
 
         # Paper Broker
         try:
-            self.paper_broker = PaperBroker()
+            # The journal_callback is what makes a paper close evidence-bearing:
+            # without it a fill survives only in a volatile in-memory list and the
+            # broker-reconciled gates stay shut with nothing in the journal saying why.
+            self.paper_broker = PaperBroker(journal_callback=self._journal_paper_fill)
             if getattr(self.data_provider, "trade_manager", None) is not None:
                 self.data_provider.trade_manager.attach_paper_broker(self.paper_broker)
             if hasattr(self.risk, "set_active_positions_provider"):
@@ -5147,12 +5150,16 @@ class LLMOrchestrator:
                         exit_price = float(last_deal.get("price_close", 0.0))
                         close_time = datetime.fromtimestamp(float(last_deal.get("close_time", time.time())), tz=timezone.utc)
                     else:
-                        gross_pnl = 0.0
-                        swap = 0.0
-                        commission = 0.0
-                        total_pnl = 0.0
-                        exit_price = float(trade.get("open_price", 0.0))
-                        close_time = datetime.now(timezone.utc)
+                        # The venue dropped the position without recording a fill.
+                        # Do not fabricate a flat 0.0-P&L outcome: a journal close is
+                        # the input to every reconciled gate, so an invented zero
+                        # would read as a real break-even trade. Keep it open and let
+                        # reconciliation report the missing broker record instead.
+                        logging.getLogger("LLMOrchestrator").warning(
+                            "Paper position #%s vanished with no venue fill record; leaving it open for reconciliation.",
+                            ticket,
+                        )
+                        continue
                 else:
                     # Retrieve history to find PnL (Lookback 7 days to be safe)
                     from_date = datetime.now() - timedelta(days=7)
@@ -5304,8 +5311,65 @@ class LLMOrchestrator:
                     logging.getLogger("LLMOrchestrator").warning(
                         f"⚠️ Trade #{ticket} is absent from positions but no MT5 history is available; keeping it unresolved.")
 
+    def _journal_paper_fill(self, deal: Dict[str, Any]) -> None:
+        """Persist the paper venue's own fill as broker execution evidence.
+
+        In paper mode ``PaperBroker`` *is* the venue: it is the only component that
+        saw the fill price, volume and realized P&L.  Without this bridge that close
+        exists solely in a volatile in-memory list, so every broker-reconciled gate
+        (``labelled_dataset`` -> CPCV/WFA) stays shut with nothing in the journal
+        explaining why.  ``broker_execution_reports`` is the one table
+        ``research_validation.broker_reconciled_tickets`` accepts as independent
+        proof, so the venue record belongs there.
+
+        The row is venue-attested, not journal-derived: nothing on the ``trades``
+        table is read, and ``deal_ticket``/``order_ticket`` stay NULL because the
+        paper venue issues no deal identifiers and inventing one would itself be
+        fabrication.  Reconciliation must still agree with the journal on ticket and
+        net P&L before a close becomes research evidence.
+        """
+        if self.store is None or not isinstance(deal, dict):
+            return
+        try:
+            ticket = int(deal["ticket"])
+            filled_volume = float(deal["volume"])
+            filled_price = float(deal["price_close"])
+            venue_pnl = float(deal.get("profit", 0.0))
+            close_time = float(deal.get("close_time", 0.0) or 0.0)
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            logging.getLogger("LLMOrchestrator").warning(
+                "Paper fill evidence rejected: malformed venue record (%s)", exc)
+            return
+        if ticket <= 0 or filled_volume <= 0 or filled_price <= 0:
+            return
+        try:
+            self.store.record_execution_report(
+                event_type="PAPER_FILL",
+                intent_key=f"paper_fill:{ticket}:{close_time:.6f}",
+                position_ticket=ticket,
+                filled_price=filled_price,
+                filled_volume=filled_volume,
+                retcode=10009,
+                payload={
+                    "manager": "PaperBroker",
+                    "venue": "paper_broker",
+                    "broker_net_pnl": venue_pnl,
+                    "side": str(deal.get("side", "")),
+                    "symbol": str(deal.get("symbol", "")),
+                    "price_open": float(deal.get("price_open", 0.0) or 0.0),
+                    "status": str(deal.get("status", "")),
+                    "close_time": close_time,
+                    "note": "paper venue fill, independent of the journal trades table",
+                },
+            )
+        except Exception as exc:
+            # A simulated fill must never be lost because the journal is
+            # unavailable -- but losing its evidence must not be silent either.
+            logging.getLogger("LLMOrchestrator").warning(
+                "Paper fill evidence not journaled for ticket %s: %s", ticket, exc)
+
     def reconcile_daily_broker_history(self, day_start: Optional[datetime] = None) -> Dict[str, Any]:
-        """Persist a bot-owned MT5 deal-versus-journal daily comparison.
+        """Persist a bot-owned venue-deal-versus-journal daily comparison.
 
         It reports, rather than hides, missing tickets and P&L differences.
         Manual/unowned broker activity is deliberately kept outside the bot
@@ -5315,16 +5379,21 @@ class LLMOrchestrator:
         start = (day_start or now.replace(hour=0, minute=0, second=0, microsecond=0)).astimezone(timezone.utc)
         end = min(now, start + timedelta(days=1))
 
-        is_paper = getattr(self, "paper_broker", None) is not None or mt5 is None
-        if is_paper and getattr(self, "paper_broker", None) is not None:
-            from operations.daily_reconciliation import adapt_paper_deals
-            deals = adapt_paper_deals(self.paper_broker.history)
-            require_timestamps = False
-        elif mt5 is not None:
+        # The paper venue is constructed in *every* mode, so its mere presence says
+        # nothing about which side is authoritative -- preferring it would silently
+        # reconcile a live terminal against an empty simulated ledger.  An
+        # authenticated MT5 login does: paper sessions have no client (see
+        # ``__init__``), and only a real terminal makes broker history an outside
+        # record rather than this process's own simulation.
+        if mt5 is not None and getattr(self, "client", None) is not None:
             deals = mt5.history_deals_get(start, end)
             if deals is None:
                 raise RuntimeError("MT5 deal history unavailable for daily reconciliation")
             require_timestamps = True
+        elif getattr(self, "paper_broker", None) is not None:
+            from operations.daily_reconciliation import adapt_paper_deals
+            deals = adapt_paper_deals(self.paper_broker.history)
+            require_timestamps = False
         else:
             raise RuntimeError("Neither authenticated MT5 terminal nor PaperBroker available for daily reconciliation")
 
@@ -6323,8 +6392,7 @@ class LLMOrchestrator:
             elif schedule_name == "position_reconcile":
                 try:
                     self.reconcile_pending_orders(paper_mode)
-                    if not paper_mode:
-                        self.reconcile_open_positions()
+                    self.reconcile_open_positions()
                     review_escalation = self.operations.escalate_execution_reviews()
                     self.operations.agent_event(
                         "RiskController", "review_execution_exceptions", "reconciliation_report",
@@ -6924,18 +6992,23 @@ class LLMOrchestrator:
                                         "daily_narrative_generated", summary, run_id=self.run_id,
                                         correlation_id="daily_review")
         daily_reconciliation = None
-        if not paper_mode:
-            try:
-                daily_reconciliation = self.reconcile_daily_broker_history()
-                if hasattr(self, "operations") and self.operations:
-                    self.operations.agent_event("QuantitativeCoach", "review_session", "research_report",
-                                                "daily_broker_reconciliation", daily_reconciliation, run_id=self.run_id,
-                                                correlation_id="daily_review",
-                                                severity="INFO" if daily_reconciliation.get("status") == "CLEAN" else "WARNING")
-            except Exception as exc:
-                if hasattr(self, "operations") and self.operations:
-                    self.operations.event("reconciler", "daily_broker_reconciliation_failed", {"error": str(exc)},
-                                          run_id=self.run_id, correlation_id="daily_review", severity="ERROR")
+        try:
+            # Runs in paper mode as well.  In paper the broker side is the
+            # PaperBroker's own fill ledger -- a record written by the venue, not a
+            # replay of the journal rows being checked -- so this stays a real
+            # two-sided comparison and can legitimately mint reconciled evidence.
+            # (``mt5_trader.py --paper`` is the tautological variant: it adapts the
+            # journal's own rows into deals, and daily_reconciliation refuses those.)
+            daily_reconciliation = self.reconcile_daily_broker_history()
+            if hasattr(self, "operations") and self.operations:
+                self.operations.agent_event("QuantitativeCoach", "review_session", "research_report",
+                                            "daily_broker_reconciliation", daily_reconciliation, run_id=self.run_id,
+                                            correlation_id="daily_review",
+                                            severity="INFO" if daily_reconciliation.get("status") == "CLEAN" else "WARNING")
+        except Exception as exc:
+            if hasattr(self, "operations") and self.operations:
+                self.operations.event("reconciler", "daily_broker_reconciliation_failed", {"error": str(exc)},
+                                      run_id=self.run_id, correlation_id="daily_review", severity="ERROR")
         return {"summary": summary, "daily_reconciliation": daily_reconciliation, "execution_authority": False}
 
     def _execute_weekly_research(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -7069,6 +7142,15 @@ class LLMOrchestrator:
         symbol = str(symbol or "").strip().upper()
         self._poll_velocity_results()
         self.reconcile_pending_orders(paper_mode)
+        # Live-only in this prefix, deliberately. ``core/harness/pipeline_v2.py``
+        # declares the maintenance stages and ``tests/test_pipeline_v2.py::
+        # test_maintenance_stages_match_legacy_prefix_order`` pins this exact call
+        # sequence as golden equivalence between the legacy prefix and the
+        # declared stages ("reconcile.open is live-only"). Running it here in
+        # paper mode desynchronised the two halves. It is also not needed for
+        # paper evidence: ``PaperBroker.close_position`` invokes
+        # ``journal_callback`` (``_journal_paper_fill``) directly, independent of
+        # this reconciliation pass.
         if not paper_mode:
             self.reconcile_open_positions()
         memory_key = f"memory:{datetime.now(timezone.utc).strftime('%Y%m%d%H')}"
@@ -7212,8 +7294,19 @@ class LLMOrchestrator:
         # Reconciliation Step (Sync pending orders/closed positions) before
         # any new proposal is allowed to consume risk.
         self.reconcile_pending_orders(paper_mode)
+        # Live-only in this prefix, deliberately. ``core/harness/pipeline_v2.py``
+        # declares the maintenance stages and ``tests/test_pipeline_v2.py::
+        # test_maintenance_stages_match_legacy_prefix_order`` pins this exact call
+        # sequence as golden equivalence between this legacy prefix and the
+        # declared stages ("reconcile.open is live-only"). Running it here in paper
+        # mode desynchronised the two halves of that equivalence.
+        #
+        # It is also not what makes paper fills evidence-bearing:
+        # ``PaperBroker.close_position`` invokes ``journal_callback``
+        # (``_journal_paper_fill``) directly, so broker evidence is written
+        # regardless of this reconciliation pass.
         if not paper_mode:
-             self.reconcile_open_positions()
+            self.reconcile_open_positions()
         # Memory distillation is deliberately outside the decision/permission
         # path and uses the same configured provider under a separate budget.
         # Dispatch it to the bounded slow lane so a provider timeout cannot
