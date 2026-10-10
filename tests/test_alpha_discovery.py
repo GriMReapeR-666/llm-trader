@@ -374,17 +374,22 @@ class TestRouterGenerationPath:
                 return lr.LLMRouter.deterministic_hold_fallback("alpha_discovery", [])
 
         import sys
-        old = sys.modules.get("llm_router")
-        sys.modules["llm_router"] = type(sys)("llm_router")
-        sys.modules["llm_router"].get_router = lambda: _FakeRouter()
+        old = sys.modules.get("data.llm_router")
+        fake = type(sys)("data.llm_router")
+        fake.get_router = lambda: _FakeRouter()
+        sys.modules["data.llm_router"] = fake
         try:
             with pytest.raises(_RouterLLMError):
                 _router_llm_generate("prompt")
         finally:
+            # _router_llm_generate does `from data.llm_router import get_router`,
+            # so the fake MUST be keyed on the dotted name. Patching the bare
+            # "llm_router" key silently no-ops once the real module is cached,
+            # which made this test order-dependent.
             if old is not None:
-                sys.modules["llm_router"] = old
+                sys.modules["data.llm_router"] = old
             else:
-                del sys.modules["llm_router"]
+                del sys.modules["data.llm_router"]
 
     def test_adapter_rejects_error_string(self):
         """Router 'Error: ...' return values must raise, not parse as alphas."""
@@ -398,17 +403,19 @@ class TestRouterGenerationPath:
             def generate(self, agent, messages, **kw):
                 return "Error: openrouter failed: 503"
 
-        old = sys.modules.get("llm_router")
-        sys.modules["llm_router"] = type(sys)("llm_router")
-        sys.modules["llm_router"].get_router = lambda: _FakeRouter()
+        old = sys.modules.get("data.llm_router")
+        fake = type(sys)("data.llm_router")
+        fake.get_router = lambda: _FakeRouter()
+        sys.modules["data.llm_router"] = fake
         try:
             with pytest.raises(_RouterLLMError):
                 _router_llm_generate("prompt")
         finally:
+            # Keyed on the dotted name - see test_router_hold_payload_raises.
             if old is not None:
-                sys.modules["llm_router"] = old
+                sys.modules["data.llm_router"] = old
             else:
-                del sys.modules["llm_router"]
+                del sys.modules["data.llm_router"]
 
     def test_adapter_end_to_end_with_real_router(self, monkeypatch):
         """Full chain through the REAL LLMRouter (fake provider, no HTTP):

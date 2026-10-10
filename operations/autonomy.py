@@ -434,6 +434,21 @@ class AutonomyManager(StoreBackedState):
                     con.close()
                 self._record_locked("CONTROL_ISSUED", {"action": action, "actor": actor, "source": source})
                 control_id = None
+                # Apply pause/resume locally on this path too. The journal-store
+                # branch below already does this; without it a pause issued by a
+                # manager that has no store stayed merely queued and this process
+                # kept trading until something called drain_controls(). A locally
+                # issued emergency control must take effect at issue time.
+                if action == "pause":
+                    self._state["paused"] = True
+                    self._state["pause_reason"] = f"operator:{actor}"
+                    self._persist_locked()
+                elif action == "resume":
+                    self._state["paused"] = False
+                    self._state["pause_reason"] = ""
+                    self._state["halted"] = False
+                    self._state["halt_reason"] = ""
+                    self._persist_locked()
             except Exception as exc:
                 logger.error("issue_control(%s) refused: no journal store and control_queue unavailable: %s", action, exc)
                 return {"ok": False, "reason": f"engine journal unavailable: control not issued ({exc})"}
@@ -503,10 +518,17 @@ class AutonomyManager(StoreBackedState):
                 elif action == "flatten":
                     self._record_locked("CONTROL_ACK_QUEUED", {"action": action, "control_id": control_id})
 
-                res = {"ok": True, "action": action}
-                if control_id is not None:
-                    res["control_id"] = control_id
-                return res
+        # Controls are never executed inline by the issuing process as a whole
+        # (D1): killswitch/flatten stay queued for the engine to drain. pause and
+        # resume are the exception - both branches apply them locally at issue
+        # time so an emergency stop is effective immediately - so report those
+        # two honestly as applied rather than queued.
+        res: Dict[str, Any] = {"ok": True, "action": action, "status": "queued"}
+        if control_id is not None:
+            res["control_id"] = control_id
+        if action in ("pause", "resume"):
+            res["status"] = "applied"
+        return res
 
     def drain_controls(self) -> List[Dict[str, Any]]:
         """Claim unissued controls exactly once.
