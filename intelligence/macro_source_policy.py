@@ -53,6 +53,13 @@ BLOCKED_SOCIAL_DOMAINS: Set[str] = {
     "t.co",
 }
 
+# Same domain set, different role: these hosts may feed EVIDENCE-ONLY social
+# ingestion (post text journaled for LLM macro context and operator review)
+# while remaining hard-blocked for every causal path. Copied, not aliased, so
+# mutating one set can never silently un-block the causal tier; the
+# test_macro_source_policy equality check keeps the two in step.
+SOCIAL_EVIDENCE_ONLY_DOMAINS: Set[str] = set(BLOCKED_SOCIAL_DOMAINS)
+
 RUNTIME_PUBLISHER_TOKENS = (
     "mt5", "broker", "official calendar", "runtime calendar", "calendar provider",
     "cboe", "finra", "nasdaq", "econdb", "stockgrid", "portfolio123", "seeking_alpha",
@@ -70,6 +77,59 @@ def _host(url: str) -> str:
         return ""
 
 
+def _host_matches(host: str, domains) -> str:
+    """First domain in *domains* that *host* equals or is a subdomain of.
+
+    Shared by the causal block and the evidence-only tier so the two cannot
+    drift on what counts as a social host.
+    """
+    return next(
+        (domain for domain in domains
+         if host == domain or host.endswith("." + domain)),
+        "",
+    )
+
+
+def assess_social_source(url: str = "", publisher: str = "", rights_note: str = "") -> Dict[str, Any]:
+    """Evidence-only ingest gate for social hosts (audit remediation item 9a).
+
+    Deliberately a SEPARATE function from ``assess_source`` rather than a
+    branch inside it. The causal block must stay exactly as it was, so it
+    keeps no knowledge of the evidence tier and the evidence tier adds no key
+    to the causal verdict — nothing downstream of ``assess_source`` (news
+    triage, macro graph, macro extraction, causal engine) can observe this
+    tier at all, by construction rather than by convention.
+
+    Admission is host-only, mirroring the causal block's ordering: the
+    publisher string can never grant admission. ``allowed_ingest=True`` means
+    "may journal post text as LLM macro context under operator review"; it is
+    not a causal verdict and never grants authority. Unknown, malformed, or
+    non-social input fails closed.
+    """
+    url = url if isinstance(url, str) else ""
+    rights_note = rights_note if isinstance(rights_note, str) else ""
+    host = _host(url)
+
+    if _host_matches(host, SOCIAL_EVIDENCE_ONLY_DOMAINS):
+        return {
+            "allowed_ingest": True,
+            "causal_authority": False,       # invariant; never True
+            "tier": "SOCIAL_EVIDENCE_ONLY",
+            "domain": host,
+            "category": "social_evidence_context",
+            "retention": rights_note
+            or "social posts are not causal authority; store alert only after operator review",
+        }
+    return {
+        "allowed_ingest": False,
+        "causal_authority": False,
+        "tier": "UNVERIFIED",
+        "domain": host,
+        "category": "unverified",
+        "retention": rights_note or "do not use for causal claims until operator review",
+    }
+
+
 def assess_source(url: str = "", publisher: str = "", rights_note: str = "") -> Dict[str, Any]:
     # Provider payloads are untrusted.  Normalize only strings and make every
     # malformed identity unverified rather than allowing urlparse/type errors
@@ -79,10 +139,9 @@ def assess_source(url: str = "", publisher: str = "", rights_note: str = "") -> 
     rights_note = rights_note if isinstance(rights_note, str) else ""
     host = _host(url)
 
-    if host in BLOCKED_SOCIAL_DOMAINS or any(
-        host == domain or host.endswith("." + domain)
-        for domain in BLOCKED_SOCIAL_DOMAINS
-    ):
+    # Causal social block. Unchanged by the evidence-only tier: the tier is a
+    # separate entrypoint, so this dict never gains a key and never loosens.
+    if _host_matches(host, BLOCKED_SOCIAL_DOMAINS):
         return {
             "allowed": False,
             "tier": "UNVERIFIED",

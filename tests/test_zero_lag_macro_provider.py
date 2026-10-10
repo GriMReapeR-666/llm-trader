@@ -50,32 +50,31 @@ def test_zero_lag_macro_snapshot_safety():
 
 
 def test_alternative_data_provider_zero_lag_routing():
+    """Routing for the key-less zero-lag proxies must stay intact -- but the
+    row STATUS is derived from provenance, not a hardcoded "LIVE" (audit
+    P0-5: labelling a Python constant LIVE laundered it into the durable
+    nowcast cache as an observation). These snapshot fields are constant
+    placeholders today, so the honest status is SYNTHETIC_PLACEHOLDER with a
+    per-field label; the moment the provider starts fetching them live, the
+    same labels flip the row back to LIVE without a test change."""
     alt_provider = AlternativeDataProvider()
-    
-    # Test grid_load_mw
-    obs_grid = alt_provider.fetch_source("grid_load_mw")
-    assert obs_grid.status == "LIVE"
-    assert obs_grid.value is not None
-    assert obs_grid.execution_authority is False
-    assert obs_grid.payload.get("kind") == "zero_lag_physical_proxy"
 
-    # Test sku_price_scrape
-    obs_sku = alt_provider.fetch_source("sku_price_scrape")
-    assert obs_sku.status == "LIVE"
-    assert obs_sku.value is not None
-    assert obs_sku.payload.get("kind") == "zero_lag_physical_proxy"
-
-    # Test sentinel_ndvi
-    obs_ndvi = alt_provider.fetch_source("sentinel_ndvi")
-    assert obs_ndvi.status == "LIVE"
-    assert obs_ndvi.value is not None
-    assert obs_ndvi.payload.get("kind") == "zero_lag_physical_proxy"
-
-    # Test ais_vessel_tracking
-    obs_ais = alt_provider.fetch_source("ais_vessel_tracking")
-    assert obs_ais.status == "LIVE"
-    assert obs_ais.value is not None
-    assert obs_ais.payload.get("kind") == "zero_lag_physical_proxy"
+    for source_id in (
+        "grid_load_mw", "sku_price_scrape", "sentinel_ndvi", "ais_vessel_tracking",
+    ):
+        obs = alt_provider.fetch_source(source_id)
+        assert obs.status == "SYNTHETIC_PLACEHOLDER"
+        assert obs.value is not None
+        assert obs.execution_authority is False
+        assert obs.payload.get("kind") == "zero_lag_physical_proxy"
+        # Per-field labels present so a journal reader can see WHICH number
+        # is a constant (and a future live fetch is visible in the journal).
+        assert obs.payload.get("source_quality"), source_id
+        assert all(
+            v in ("LIVE", "SYNTHETIC_PLACEHOLDER")
+            for v in obs.payload["source_quality"].values()
+        )
+        assert any(v == "SYNTHETIC_PLACEHOLDER" for v in obs.payload["source_quality"].values())
 
 
 def test_nowcast_snapshot_golden_eight(tmp_path):
@@ -127,6 +126,11 @@ def test_ten_pillars_bundle_completeness():
 
 
 def test_ten_pillars_sources_routing():
+    """All ten-pillars rows must route to the zero-lag provider, carry no
+    execution authority, and report their provenance label per field. A
+    hardcoded "LIVE" was the audit's P0-5 laundering complaint; the honest
+    row status for a row whose worst field is a placeholder is
+    SYNTHETIC_PLACEHOLDER, and the labels prove where it came from."""
     alt_provider = AlternativeDataProvider()
     for test_src in [
         "fred_tips_breakeven", "entsoe_electricity_grid",
@@ -140,8 +144,15 @@ def test_ten_pillars_sources_routing():
         "onchain_stablecoin_flows", "drone_open_isr_port",
     ]:
         obs = alt_provider.fetch_source(test_src)
-        assert obs.status == "LIVE"
         assert obs.execution_authority is False
         assert obs.payload.get("kind") == "zero_lag_physical_proxy"
+        # Whole-snapshot rows are demoted by their worst field (the constant
+        # CPI/grid/chokepoint proxies are placeholders on every pass).
+        assert obs.status == "SYNTHETIC_PLACEHOLDER", test_src
+        assert obs.payload.get("source_quality"), test_src
+        assert all(
+            v in ("LIVE", "SYNTHETIC_PLACEHOLDER")
+            for v in obs.payload["source_quality"].values()
+        ), test_src
 
 
