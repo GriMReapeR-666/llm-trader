@@ -1,11 +1,11 @@
 import sqlite3
 
-from journal_backup import (
+from operations.journal_backup import (
     create_encrypted_backup,
     restore_encrypted_backup,
     verify_encrypted_backup,
 )
-from trading_safety import TradingStore
+from core.trading_safety import TradingStore
 
 
 def test_encrypted_backup_verifies_and_restores_without_plaintext_copy(tmp_path):

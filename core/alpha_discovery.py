@@ -39,7 +39,7 @@ except ImportError:
 try:
     from core.state_persistence import StoreBackedState
 except ImportError:
-    from state_persistence import StoreBackedState
+    from core.state_persistence import StoreBackedState
 
 import numpy as np
 import pandas as pd
@@ -79,31 +79,47 @@ class SafeAlphaEvaluator:
         self.max_complexity = max_complexity
 
     def _check_ast_safety(self, expr: str) -> Tuple[bool, str]:
-        """Validate expression安全性 via AST analysis."""
+        """Validate expression safety via strict AST allowlist analysis (PI-P6)."""
         try:
             tree = ast.parse(expr, mode="eval")
         except SyntaxError as e:
             return False, f"Syntax error: {e}"
 
+        allowed_nodes = (
+            ast.Expression,
+            ast.BinOp,
+            ast.UnaryOp,
+            ast.Call,
+            ast.Name,
+            ast.Constant,
+            ast.Load,
+            ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow,
+            ast.USub, ast.UAdd,
+            ast.Compare,
+            ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Eq, ast.NotEq,
+        )
+
+        allowed_functions = _ALLOWED_NAMES | {
+            "abs", "sign", "mean", "std", "sqrt", "log", "exp",
+            "ts_rank", "ts_argmax", "ts_argmin", "ts_min", "ts_max",
+            "delta", "delay", "rank", "scale", "decay_linear",
+            "signed_power", "log_safe",
+        }
+        allowed_names = set(_ALLOWED_COLUMNS) | allowed_functions | {"vwap"}
+
         for node in ast.walk(tree):
-            # Block dangerous constructs
-            if isinstance(node, (ast.Import, ast.ImportFrom)):
-                return False, "Import statements not allowed"
-            if isinstance(node, ast.FunctionDef):
-                return False, "Function definitions not allowed"
-            if isinstance(node, ast.ClassDef):
-                return False, "Class definitions not allowed"
-            if isinstance(node, (ast.While, ast.For)):
-                return False, "Loops not allowed"
-            if isinstance(node, ast.ListComp):
-                return False, "List comprehensions not allowed"
-            if isinstance(node, ast.Attribute):
-                # Only allow method calls on allowed objects
-                if isinstance(node.value, ast.Name):
-                    if node.value.id not in ("df", "np", "pd"):
-                        return False, f"Attribute access on '{node.value.id}' not allowed"
-            if isinstance(node, ast.Name) and node.id.startswith("_"):
-                return False, "Private names not allowed"
+            if not isinstance(node, allowed_nodes):
+                return False, f"AST node type {type(node).__name__} not allowed in alpha DSL"
+            if isinstance(node, ast.Name):
+                if node.id.startswith("_"):
+                    return False, f"Dunder / private name '{node.id}' not allowed"
+                if node.id not in allowed_names:
+                    return False, f"Name '{node.id}' not allowed"
+            elif isinstance(node, ast.Call):
+                if not isinstance(node.func, ast.Name):
+                    return False, "Dynamic/attribute function calls not allowed"
+                if node.func.id not in allowed_functions:
+                    return False, f"Function '{node.func.id}' not allowed"
 
         return True, "OK"
 
@@ -544,7 +560,7 @@ def _router_llm_generate(prompt: str) -> str:
     to 5 static heuristic expressions whenever its own hook is unwired.
     """
     try:
-        from llm_router import get_router
+        from data.llm_router import get_router
     except Exception as exc:  # pragma: no cover - import env dependent
         raise _RouterLLMError(f"llm_router unavailable: {exc}") from exc
 

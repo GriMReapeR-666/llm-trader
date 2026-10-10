@@ -5,13 +5,13 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from alert_delivery import (
+from operations.alert_delivery import (
     build_sender,
     deliver_pending,
     render_message,
     resolve_webhook_url,
 )
-from alert_outbox import enqueue, status
+from operations.alert_outbox import enqueue, status
 
 
 def _enqueue_two(path):
@@ -75,7 +75,7 @@ def test_crash_between_claim_and_acknowledge_recovers_exactly_once(tmp_path):
 
     # Simulate a worker crash after claiming but before acknowledging by
     # expiring the lease behind its back.
-    from alert_outbox import claim
+    from operations.alert_outbox import claim
     claimed = claim(db, lease_seconds=120)
     assert len(claimed) == 1
     with sqlite3.connect(db) as con:
@@ -183,7 +183,7 @@ def test_webhook_http_error_maps_to_retryable_failure(tmp_path):
 def test_render_message_is_bounded_and_typed(tmp_path):
     db = str(tmp_path / "journal.db")
     enqueue(db, [{"code": "X" * 500, "severity": "INFO"}])
-    from alert_outbox import claim
+    from operations.alert_outbox import claim
     item = claim(db)[0]
     message = render_message(item, channel=item["channel"])
     parsed = json.loads(message)

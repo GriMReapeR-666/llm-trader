@@ -15,9 +15,9 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
-from economic_dynamics_catalog import FREE_DATA_BINDINGS
-from macro_observations import ingest_calendar_events, ingest_fred_snapshot
-from news_triage import TriageGate, project_article
+from intelligence.economic_dynamics_catalog import FREE_DATA_BINDINGS
+from intelligence.macro_observations import ingest_calendar_events, ingest_fred_snapshot
+from data.news_triage import TriageGate, project_article
 
 
 def utcnow() -> str:
@@ -414,7 +414,7 @@ def ingest_alternative_nowcast(
     try:
         from data.alternative_data_provider import AlternativeDataProvider
     except ImportError:
-        from alternative_data_provider import AlternativeDataProvider
+        from data.alternative_data_provider import AlternativeDataProvider
 
     provider = AlternativeDataProvider()
     snapshot = provider.fetch_nowcast_snapshot(include_stubs=include_stubs)
@@ -424,7 +424,7 @@ def ingest_alternative_nowcast(
 
     if journal_path:
         try:
-            from macro_observations import ingest_alternative_snapshot
+            from intelligence.macro_observations import ingest_alternative_snapshot
         except ImportError:
             ingest_alternative_snapshot = None  # type: ignore[assignment,misc]
         if ingest_alternative_snapshot is not None:

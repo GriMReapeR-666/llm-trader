@@ -3,6 +3,7 @@ title Autonomous Trader - Unified Build Pipeline (RTK + Graphify + Ponytail)
 echo ====================================================================
 echo  Running Unified Build: RTK + GRAPHIFY + PONYTAIL
 echo ====================================================================
+git config core.hooksPath .githooks
 python "%~dp0scripts\build.py"
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Build failed with code %ERRORLEVEL%

@@ -7,7 +7,7 @@ import sqlite3
 import numpy as np
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from trading_safety import exposure_buckets
+from core.trading_safety import exposure_buckets
 
 
 class CorrelationRisk:

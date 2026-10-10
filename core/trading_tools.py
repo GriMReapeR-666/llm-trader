@@ -33,7 +33,7 @@ def _bounded_tool_call(fn, budget_env: str, default_s: float, source: str):
     ok, result, err = run_bounded(fn, float(os.getenv(budget_env, str(default_s))))
     if not ok:
         try:
-            from boot_datasheet import boot_datasheet_enabled, get_datasheet
+            from intelligence.boot_datasheet import boot_datasheet_enabled, get_datasheet
             if boot_datasheet_enabled():
                 get_datasheet().record_degraded(source, "SKIP", str(err)[:60])
         except Exception:
@@ -317,7 +317,7 @@ def search_historical_scenarios(symbol: str, setup_pattern: str, limit: int = 3)
             from core.trading_safety import TradingStore
             store = TradingStore()
             try:
-                from research_validation import broker_reconciled_tickets
+                from research.research_validation import broker_reconciled_tickets
             except ImportError:
                 from research.research_validation import broker_reconciled_tickets
             tickets = sorted(broker_reconciled_tickets(getattr(store, "path", "trading_state.db")))
@@ -456,7 +456,7 @@ def query_fred_macro_series(series_id: str, limit: int = 5) -> Dict[str, Any]:
     # Fallback to journal cache (ingested FRED observations) if available
     if values is None:
         try:
-            from macro_observations import get_fred_observations  # type: ignore
+            from intelligence.macro_observations import get_fred_observations  # type: ignore
             obs = get_fred_observations(sid, limit=lim)  # type: ignore
             if obs:
                 vals = [float(o.get("value")) for o in obs if o.get("value") not in (None,".")]
@@ -647,9 +647,15 @@ class ListSkillsInput(BaseModel):
     category: str = Field(default="", description="Optional category filter ('RESEARCH', 'BACKTEST', 'AUDIT', 'ANALYTICS', 'DYNAMIC')")
 
 
-@tool("execute_dynamic_metric_analysis", args_schema=DynamicMetricInput)
+# execute_dynamic_metric_analysis removed from tool interface (PI-P1 / TL-S1 safety finding)
 def execute_dynamic_metric_analysis(code: str, description: str = "Custom metric analysis") -> Dict[str, Any]:
-    """Dynamically write, validate, and execute arbitrary Python functions (DISABLED for security)."""
+    """Dynamically write, validate, and execute arbitrary Python functions (DISABLED for security).
+
+    Kept disarmed on purpose (I1 / f1957992). The merge brought a version that
+    instantiates DynamicMetricInterpreter and calls execute_code() on the
+    caller-supplied string, which re-arms unsandboxed arbitrary code execution
+    behind an LLM-reachable tool. The inert stub below is retained instead.
+    """
     return {
         "task_description": description,
         "success": False,
@@ -2684,7 +2690,9 @@ RESEARCH_TOOLS = [
     audit_journal_integrity,
     query_retrieval_audit_trail,
     sync_working_memory_state,
-    # Dynamic & Skill Extensibility
+# Dynamic & Skill Extensibility (execute_dynamic_metric_analysis removed:
+    # PI-P1/TL-S1 unsandboxed exec must not be a tool; plain helper remains
+    # at module level for non-tool callers only)
     invoke_agent_skill,
     list_available_agent_skills,
 ]
@@ -2703,7 +2711,7 @@ def _build_tool_registry() -> Dict[str, Any]:
     global _TOOL_REGISTRY
     if _TOOL_REGISTRY:
         return _TOOL_REGISTRY
-    # All tool-decorated functions in this module
+    # All tool-decorated functions in this module (execute_dynamic_metric_analysis removed)
     _tool_funcs = [
         get_technical_indicators,
         query_macro_causal_dag,
@@ -2750,6 +2758,45 @@ def _build_tool_registry() -> Dict[str, Any]:
     return _TOOL_REGISTRY
 
 
+# Read-only decision toolkit (PI-P1 / TL-S1):
+# Excludes exec tools, memory writing tools, and agent skills.
+DECISION_READONLY_TOOLS = [
+    "get_technical_indicators",
+    "query_macro_causal_dag",
+    "search_historical_scenarios",
+    "query_fred_macro_series",
+    "query_cftc_cot_positions",
+    "fetch_live_news_sentiment",
+    "query_sec_edgar_filings",
+    "query_seeking_alpha_news",
+    "query_openbb_macro",
+    "query_zero_lag_macro",
+    "evaluate_expectancy_balsara_ruin_kelly",
+    "calculate_fractional_differentiation",
+    "detect_bayesian_changepoints",
+    "estimate_transaction_costs_and_impact",
+    "run_kalman_statarb_tracking",
+    "test_cointegration_and_robustness",
+    "run_regime_monte_carlo",
+    "run_vectorized_backtest",
+    "query_alternative_data_registry",
+    "evaluate_portfolio_risk_gate",
+    "audit_journal_integrity",
+    "query_kronos_foundation_signals",
+    "query_kronos_multi_dim_forecast",
+    "query_kronos_advanced_volatility",
+    "query_kronos_mt5_multi_dim",
+    "simulate_causal_shock_propagation",
+    "match_historical_case_study_analogs",
+    "audit_edge_lifecycle_governance",
+    "query_economic_calendar_events",
+    "query_eia_energy_inventory",
+    "run_system_health_diagnostics",
+    "recall_active_knowledge_context",
+    "query_retrieval_audit_trail",
+]
+
+
 def get_tool_schemas(toolkits: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     """Return OpenAI-format tool schemas for all registered tools.
 
@@ -2780,13 +2827,20 @@ def get_tool_schemas(toolkits: Optional[List[str]] = None) -> List[Dict[str, Any
     return schemas
 
 
-def execute_tool(name: str, args: Dict[str, Any]) -> str:
+def execute_tool(name: str, args: Dict[str, Any], allowed_tools: Optional[Set[str]] = None) -> str:
     """Execute a tool by name with the given arguments.
+
+    Args:
+        name: Name of tool to execute.
+        args: Dictionary of keyword arguments.
+        allowed_tools: Optional set of tool names allowed in this execution context.
 
     Returns:
         JSON string result.
     """
     import json as _json
+    if allowed_tools is not None and name not in allowed_tools:
+        return _json.dumps({"error": f"Tool '{name}' is not allowed in this execution context"})
     registry = _build_tool_registry()
     tool_obj = registry.get(name)
     if tool_obj is None:

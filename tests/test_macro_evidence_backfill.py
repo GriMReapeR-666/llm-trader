@@ -9,13 +9,13 @@ import sqlite3
 
 import pytest
 
-from macro_evidence_backfill import (
+from operations.macro_evidence_backfill import (
     BACKFILL_SOURCE_QUALITY,
     backfill_macro_evidence_from_history,
 )
-from macro_graph import MacroGraph
-from macro_observations import ensure_schema as ensure_observations_schema
-from trading_memory import TradingMemory
+from intelligence.macro_graph import MacroGraph
+from intelligence.macro_observations import ensure_schema as ensure_observations_schema
+from intelligence.trading_memory import TradingMemory
 
 sys_path_roots = ("intelligence", "operations", "core", ".")
 import sys
@@ -64,7 +64,7 @@ def _iso(date: str, time: str = "14:00:00") -> str:
 
 
 import sys  # noqa: E402
-from agent_operations import AgentOperations  # noqa: E402
+from operations.agent_operations import AgentOperations  # noqa: E402
 
 
 def test_dry_run_makes_zero_writes(tmp_path):
@@ -244,7 +244,7 @@ def test_backfilled_reactions_are_retrievable_and_directional(tmp_path):
     assert reactions[0]["surprise"] == pytest.approx(0.10)
 
     # And the directional parser accepts the daily-resolution window.
-    from autonomous_causal_engine import _reaction_directional_return
+    from intelligence.autonomous_causal_engine import _reaction_directional_return
     assert _reaction_directional_return(reactions[0]["windows"]) == pytest.approx(
         (1.1051 - 1.1001) / 1.1001)
 

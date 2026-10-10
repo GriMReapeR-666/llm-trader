@@ -114,7 +114,7 @@ def create_sample_data():
     
     try:
         # Test if we can import the sample data function
-        from fetch_news_events import create_sample_calendar_data
+        from data.fetch_news_events import create_sample_calendar_data
         
         # Create a small test dataset
         sample_df = create_sample_calendar_data()

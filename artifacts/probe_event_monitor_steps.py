@@ -55,7 +55,7 @@ def step(name, fn):
 def main() -> int:
     print("=== event_monitor isolated step probe ===", flush=True)
     tmp = Path(tempfile.mkdtemp(prefix="em_probe_"))
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
     graph = MacroGraph(str(tmp / "graph.db"))
     from data.api_manager import APIManager
     manager = APIManager(store=None)
@@ -67,7 +67,7 @@ def main() -> int:
     step("1 collect_calendar_event_rows(None,None)",
          lambda: collect_calendar_event_rows(None, None))
 
-    from data_source_pipeline import catalog_fred_series, process_cycle_data_sources
+    from data.data_source_pipeline import catalog_fred_series, process_cycle_data_sources
 
     # 2-4. manager fetches (the handler runs these in nested try/except)
     step("2 get_fred_data(catalog)",
@@ -113,7 +113,7 @@ def main() -> int:
          ))
 
     # 6. realtime news ingest WITH RSS (live/paper-handler parity: include_rss=not paper)
-    from realtime_news_ingest import run as run_realtime_news_ingest
+    from data.realtime_news_ingest import run as run_realtime_news_ingest
     step("6 run_realtime_news_ingest(include_rss=True)",
          lambda: run_realtime_news_ingest(
              graph=graph,

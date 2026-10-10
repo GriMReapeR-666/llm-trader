@@ -4,15 +4,15 @@ Reinforcement folds new reaction evidence into edges that ALREADY cleared
 statistical validation (APPROVED/AUTO_APPROVED). CANDIDATE edges stay with
 ``validate_candidate_edge``; STAT_FAIL/RETIRED edges are never resurrected.
 """
-from macro_graph import MacroGraph
-from autonomous_causal_engine import (
+from intelligence.macro_graph import MacroGraph
+from intelligence.autonomous_causal_engine import (
     MIN_REACTION_SAMPLES,
     REINFORCEMENT_LIFECYCLE_SET,
     REINFORCEMENT_MAX_DELTA_PER_PASS,
     REINFORCEMENT_STEP,
     AutonomousCausalValidator,
 )
-from edge_lifecycle import current_lifecycle
+from research.edge_lifecycle import current_lifecycle
 
 
 def _primary_source(graph: MacroGraph, title: str = "Fed Policy Rate Decision") -> str:

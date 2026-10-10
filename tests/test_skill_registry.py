@@ -58,12 +58,20 @@ def test_invoke_performance_scorecard_skill():
 
 
 def test_tool_execute_dynamic_metric_analysis():
-    tool_res = execute_dynamic_metric_analysis.invoke({
-        "code": "OUTPUT = {'rolling_omega_ratio': 1.84, 'max_consecutive_losses': 2}",
-        "description": "Calculate Omega ratio and consecutive loss metric",
-    })
-    assert tool_res["success"] is False
-    assert "disabled" in tool_res["error"].lower()
+    """PI-P1/TL-S1: execute_dynamic_metric_analysis is NOT a tool surface.
+
+    The unsandboxed exec helper was removed from the tool interface; it must
+    neither expose .invoke nor appear in any tool registry/schema list, and
+    the gated executor must refuse it.
+    """
+    assert not hasattr(execute_dynamic_metric_analysis, "invoke")
+    from core.trading_tools import _build_tool_registry, execute_tool, get_tool_schemas
+    registry = _build_tool_registry()
+    assert "execute_dynamic_metric_analysis" not in registry
+    schemas = get_tool_schemas()
+    assert "execute_dynamic_metric_analysis" not in {s["function"]["name"] for s in schemas}
+    refused = execute_tool("execute_dynamic_metric_analysis", {"code": "OUTPUT = 1"})
+    assert "Unknown tool" in refused or "not allowed" in refused
 
 
 def test_tool_invoke_agent_skill():

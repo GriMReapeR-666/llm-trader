@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from feature_builder import build_snapshot
-from feature_schema import validate_snapshot
+from intelligence.feature_builder import build_snapshot
+from intelligence.feature_schema import validate_snapshot
 
 
 def _bars(at):

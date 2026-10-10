@@ -19,17 +19,17 @@ from typing import Any, Dict, List, Sequence, Tuple
 import numpy as np
 
 try:
-    from baseline_research import _is_binary, _probability_metrics
+    from research.baseline_research import _is_binary, _probability_metrics
 except ImportError:
     from research.baseline_research import _is_binary, _probability_metrics
 
 try:
-    from feature_schema import REQUIRED_VALUES
+    from intelligence.feature_schema import REQUIRED_VALUES
 except ImportError:
     from research.feature_schema import REQUIRED_VALUES
 
 try:
-    from research_validation import labelled_dataset, purged_walk_forward_splits
+    from research.research_validation import labelled_dataset, purged_walk_forward_splits
 except ImportError:
     from research.research_validation import labelled_dataset, purged_walk_forward_splits
 

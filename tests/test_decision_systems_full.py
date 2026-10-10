@@ -428,17 +428,17 @@ class TestDecisionBundle:
 # ===========================================================================
 
 class TestPostValidator:
-    def test_zscore_inconsistency_override(self):
+    def test_zscore_inconsistency_override(self, tmp_path):
         features = _make_macro_features(actual=4.5, consensus=3.0, sigma_hist=0.3)  # Z ~ +5.0
-        validator = DeterministicPostValidator(db_path=":memory:")
+        validator = DeterministicPostValidator(db_path=str(tmp_path / "post_validator.db"))
         model_answers = {"D1_economic_surprise": "IN_LINE"}  # Wrong!
         result = validator.validate(model_answers, features)
         assert result.disagreement_count >= 1
         assert result.validated_answers["D1_economic_surprise"] != "IN_LINE"
 
-    def test_blackout_safety_override(self):
+    def test_blackout_safety_override(self, tmp_path):
         features = _make_macro_features(vix=35.0, minutes_to_release=1.0)
-        validator = DeterministicPostValidator(db_path=":memory:")
+        validator = DeterministicPostValidator(db_path=str(tmp_path / "post_validator.db"))
         model_answers = {
             "blackout_freeze_boolean": False,
             "execution_veto_boolean": False,
@@ -446,16 +446,16 @@ class TestPostValidator:
         result = validator.validate(model_answers, features)
         assert result.veto_enforced is True
 
-    def test_crisis_veto(self):
+    def test_crisis_veto(self, tmp_path):
         features = _make_macro_features(vix=35.0, credit_oas_bps=450.0)
-        validator = DeterministicPostValidator(db_path=":memory:")
+        validator = DeterministicPostValidator(db_path=str(tmp_path / "post_validator.db"))
         model_answers = {"execution_veto_boolean": False}
         result = validator.validate(model_answers, features)
         assert result.veto_enforced is True
 
-    def test_safe_execution_passes(self):
+    def test_safe_execution_passes(self, tmp_path):
         features = _make_macro_features(vix=15.0, minutes_to_release=999.0)
-        validator = DeterministicPostValidator(db_path=":memory:")
+        validator = DeterministicPostValidator(db_path=str(tmp_path / "post_validator.db"))
         model_answers = {
             "blackout_freeze_boolean": False,
             "execution_veto_boolean": False,

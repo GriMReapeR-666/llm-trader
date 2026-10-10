@@ -1,10 +1,10 @@
 from pathlib import Path
 import sqlite3
 
-from research_validation import promotion_gate, setup_metrics
-from feature_schema import FEATURE_SCHEMA_VERSION, SCHEMA_HASHES, values_hash
-from trading_memory import TradingMemory
-from trading_safety import TradeProposal, TradingStore
+from research.research_validation import promotion_gate, setup_metrics
+from intelligence.feature_schema import FEATURE_SCHEMA_VERSION, SCHEMA_HASHES, values_hash
+from intelligence.trading_memory import TradingMemory
+from core.trading_safety import TradeProposal, TradingStore
 
 
 def _mark_broker_submitted(path: str, tickets) -> None:
@@ -70,7 +70,7 @@ def test_labelled_dataset_excludes_nonfinite_point_in_time_features(tmp_path: Pa
 
     _mark_broker_submitted(path, [7])
 
-    from research_validation import labelled_dataset
+    from research.research_validation import labelled_dataset
     result = labelled_dataset(path)
     assert result["sample_size"] == 0
     assert result["excluded"]["nonfinite_or_malformed_point_in_time_values"] == 1
@@ -102,7 +102,7 @@ def test_labelled_dataset_excludes_future_feature_timestamp(tmp_path: Path):
 
     _mark_broker_submitted(path, [8])
 
-    from research_validation import labelled_dataset
+    from research.research_validation import labelled_dataset
     result = labelled_dataset(path)
     assert result["sample_size"] == 0
     assert result["excluded"]["future_feature_timestamp"] == 1
@@ -110,8 +110,8 @@ def test_labelled_dataset_excludes_future_feature_timestamp(tmp_path: Path):
 
 def test_labelled_dataset_excludes_synthetic_fixture_rows(tmp_path: Path):
     """Random fixture rows must never satisfy sample/promotion evidence."""
-    from research_validation import labelled_dataset
-    from demo_sample_generator import inject_samples
+    from research.research_validation import labelled_dataset
+    from research.demo_sample_generator import inject_samples
 
     path = str(tmp_path / "synthetic.db")
     injected = inject_samples(path, count=6)
@@ -203,7 +203,7 @@ def test_labelled_dataset_requires_independent_broker_evidence(tmp_path: Path):
             (21, "WIN", "target", 1.5, "2026-01-01T00:00:00+00:00", "deterministic_v1", "AUTO"),
         )
 
-    from research_validation import labelled_dataset
+    from research.research_validation import labelled_dataset
     refused = labelled_dataset(path)
     assert refused["sample_size"] == 0
     assert refused["excluded"]["unbrokered_trade"] == 1
@@ -218,7 +218,7 @@ def test_labelled_dataset_requires_independent_broker_evidence(tmp_path: Path):
 
 def test_inject_samples_refuses_journal_with_real_trades(tmp_path: Path):
     """The generator may never mix fixtures into a broker-reconciled journal."""
-    from demo_sample_generator import inject_samples
+    from research.demo_sample_generator import inject_samples
 
     path = str(tmp_path / "real-journal.db")
     store = TradingStore(path)

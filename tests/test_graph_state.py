@@ -1,6 +1,6 @@
 """Unit tests for Agentic Graph State definitions and channel reducers."""
 import pytest
-from graph_state import (
+from intelligence.graph_state import (
     TradeProposalPayload,
     OrderIntentPayload,
     ExecutionReceiptPayload,

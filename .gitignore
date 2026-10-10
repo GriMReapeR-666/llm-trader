@@ -25,6 +25,8 @@ config.ini
 *.sqlite3
 *.sqlite-*
 *.lock
+# ...except the deck's dependency lockfile, which must be committed
+!tui_opentui/bun.lock
 *.bak
 *.bak*
 backups/

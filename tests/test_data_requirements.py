@@ -1,4 +1,4 @@
-from data_requirements import evaluate
+from data.data_requirements import evaluate
 
 
 def test_dom_required_setup_fails_closed_on_non_numeric_depth():

@@ -90,6 +90,8 @@ def test_nowcast_snapshot_golden_eight(tmp_path):
     and this check fails or passes purely on which test — or which engine run —
     touched the cache first.  An isolated cache path plus ``force_refresh``
     makes the assertion depend only on the registry and the zero-lag proxies.
+    (origin/main added the private cache path too; ``force_refresh`` is kept
+    because without it a cache younger than max_age_s is still served.)
     """
     alt_provider = AlternativeDataProvider(
         cache_path=str(tmp_path / "alternative_nowcast_cache.json")

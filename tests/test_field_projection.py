@@ -13,9 +13,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "intelligence"))
 
-from news_triage import TriageGate, project_article  # noqa: E402
-from realtime_news_ingest import normalize_article  # noqa: E402
-from data_source_pipeline import _normalize_narrative_row  # noqa: E402
+from data.news_triage import TriageGate, project_article  # noqa: E402
+from data.realtime_news_ingest import normalize_article  # noqa: E402
+from data.data_source_pipeline import _normalize_narrative_row  # noqa: E402
 
 URL = "https://www.reuters.com/world/us/proj-1"
 TITLE = "Fed holds rates steady at 4.25 percent"

@@ -2,10 +2,10 @@ from pathlib import Path
 import json
 import pytest
 
-from agent_operations import AgentOperations
-from journal_audit import qualified_metrics
-from trading_safety import TradingStore
-from trading_safety import TradeProposal
+from operations.agent_operations import AgentOperations
+from operations.journal_audit import qualified_metrics
+from core.trading_safety import TradingStore
+from core.trading_safety import TradeProposal
 
 
 def test_execution_quality_reports_rates_and_broker_metrics(tmp_path: Path):

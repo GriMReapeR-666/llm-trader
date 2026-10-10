@@ -1,0 +1,28 @@
+# Optional extras. Their imports are guarded or confined to single tools;
+# the core engine and tests run without them.
+#   pip install -r requirements-optional.txt
+# ML models (Kronos forecaster, Laya news triage)
+torch
+transformers
+safetensors
+einops
+huggingface_hub
+tqdm
+sentence-transformers
+# Research / statistics
+statsmodels
+hmmlearn
+shap
+matplotlib
+vectorbt
+yfinance
+# Security (encrypted journal backups, OS keychain for credentials)
+cryptography
+keyring
+# MCP / tools / scrapers
+fastmcp
+beautifulsoup4
+pdfplumber
+pywebview
+youtube-transcript-api
+yt-dlp

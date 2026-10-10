@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any, Union
 from enum import IntEnum
+import getpass
 import os
 import sys
 
@@ -287,7 +288,9 @@ class MT5CalendarWrapper:
         possible_paths = [
             "C:\\Program Files\\MetaTrader 5\\terminal64.dll",
             "C:\\Program Files (x86)\\MetaTrader 5\\terminal64.dll",
-            "C:\\Users\\{}\\AppData\\Roaming\\MetaQuotes\\Terminal\\terminal64.dll".format(os.getlogin()),
+            # getpass.getuser() reads the environment; os.getlogin() raises
+            # without a controlling terminal (services, background launches, CI).
+            "C:\\Users\\{}\\AppData\\Roaming\\MetaQuotes\\Terminal\\terminal64.dll".format(getpass.getuser()),
         ]
         
         for path in possible_paths:

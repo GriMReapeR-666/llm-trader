@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from readiness_report import build
-from trading_safety import TradingStore
+from operations.readiness_report import build
+from core.trading_safety import TradingStore
 
 
 def test_readiness_report_is_fail_closed_and_read_only(tmp_path: Path):
@@ -67,7 +67,7 @@ def _chain_db(tmp_path: Path, name: str = "chain.db") -> str:
     """Build a small intact ledger DB for gate tests."""
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
-    from trial_ledger import TrialLedger
+    from core.trial_ledger import TrialLedger
     db = str(tmp_path / name)
     led = TrialLedger(db_path=db)
     led.record_trial(strategy_id="t", sharpe=0.5, n_observations=100)
@@ -77,13 +77,13 @@ def _chain_db(tmp_path: Path, name: str = "chain.db") -> str:
 def test_chain_gate_ok_when_both_ledgers_intact(tmp_path, monkeypatch):
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
-    from trial_ledger import verify_chain_readonly as main_v
-    from strategy_trial_ledger import verify_chain_readonly as cpcv_v
+    from core.trial_ledger import verify_chain_readonly as main_v
+    from core.strategy_trial_ledger import verify_chain_readonly as cpcv_v
 
     main_db = _chain_db(tmp_path, "main.db")
     cpcv_db = _chain_db(tmp_path, "cpcv.db")
-    monkeypatch.setattr("readiness_report._verify_chain_main", lambda: main_v(main_db))
-    monkeypatch.setattr("readiness_report._verify_chain_cpcv", lambda: cpcv_v(cpcv_db))
+    monkeypatch.setattr("operations.readiness_report._verify_chain_main", lambda: main_v(main_db))
+    monkeypatch.setattr("operations.readiness_report._verify_chain_cpcv", lambda: cpcv_v(cpcv_db))
 
     path = str(tmp_path / "r.db")
     TradingStore(path)
@@ -100,8 +100,8 @@ def test_chain_gate_broken_ledger_is_a_blocker(tmp_path, monkeypatch):
     import sqlite3
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
-    from trial_ledger import verify_chain_readonly as main_v
-    from strategy_trial_ledger import verify_chain_readonly as cpcv_v
+    from core.trial_ledger import verify_chain_readonly as main_v
+    from core.strategy_trial_ledger import verify_chain_readonly as cpcv_v
 
     main_db = _chain_db(tmp_path, "broken.db")
     cpcv_db = _chain_db(tmp_path, "ok.db")
@@ -111,8 +111,8 @@ def test_chain_gate_broken_ledger_is_a_blocker(tmp_path, monkeypatch):
     con.commit()
     con.close()
 
-    monkeypatch.setattr("readiness_report._verify_chain_main", lambda: main_v(main_db))
-    monkeypatch.setattr("readiness_report._verify_chain_cpcv", lambda: cpcv_v(cpcv_db))
+    monkeypatch.setattr("operations.readiness_report._verify_chain_main", lambda: main_v(main_db))
+    monkeypatch.setattr("operations.readiness_report._verify_chain_cpcv", lambda: cpcv_v(cpcv_db))
 
     path = str(tmp_path / "r2.db")
     TradingStore(path)
@@ -129,12 +129,12 @@ def test_chain_gate_broken_ledger_is_a_blocker(tmp_path, monkeypatch):
 def test_chain_gate_absent_ledger_is_not_a_blocker(tmp_path, monkeypatch):
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
-    from trial_ledger import verify_chain_readonly as main_v
-    from strategy_trial_ledger import verify_chain_readonly as cpcv_v
+    from core.trial_ledger import verify_chain_readonly as main_v
+    from core.strategy_trial_ledger import verify_chain_readonly as cpcv_v
 
     missing = str(tmp_path / "does_not_exist.db")
-    monkeypatch.setattr("readiness_report._verify_chain_main", lambda: main_v(missing))
-    monkeypatch.setattr("readiness_report._verify_chain_cpcv", lambda: cpcv_v(missing))
+    monkeypatch.setattr("operations.readiness_report._verify_chain_main", lambda: main_v(missing))
+    monkeypatch.setattr("operations.readiness_report._verify_chain_cpcv", lambda: cpcv_v(missing))
 
     path = str(tmp_path / "r3.db")
     TradingStore(path)
@@ -149,8 +149,8 @@ def test_chain_gate_source_failure_fails_closed(tmp_path, monkeypatch):
     def broken():
         raise RuntimeError("disk failure")
 
-    monkeypatch.setattr("readiness_report._verify_chain_main", broken)
-    monkeypatch.setattr("readiness_report._verify_chain_cpcv", broken)
+    monkeypatch.setattr("operations.readiness_report._verify_chain_main", broken)
+    monkeypatch.setattr("operations.readiness_report._verify_chain_cpcv", broken)
 
     path = str(tmp_path / "r4.db")
     TradingStore(path)
@@ -173,7 +173,7 @@ def test_verify_chain_readonly_does_not_mutate_db(tmp_path):
     import os
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
-    from trial_ledger import verify_chain_readonly
+    from core.trial_ledger import verify_chain_readonly
 
     db = _chain_db(tmp_path, "ro.db")
     with open(db, "rb") as f:

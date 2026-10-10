@@ -5,20 +5,20 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from security_audit import audit as run_security_audit
-from broker_preflight import has_contract_changed, fingerprint, validate_envelope
-from execution_policy import load as load_policy, candidate_template, validate as validate_policy
-from trade_manager import translate_retcode, TradeManager, RETCODE_MESSAGES
-from readiness_report import build as generate_readiness_report
-from trading_safety import TradingStore
+from operations.security_audit import audit as run_security_audit
+from core.broker_preflight import has_contract_changed, fingerprint, validate_envelope
+from core.execution_policy import load as load_policy, candidate_template, validate as validate_policy
+from core.trade_manager import translate_retcode, TradeManager, RETCODE_MESSAGES
+from operations.readiness_report import build as generate_readiness_report
+from core.trading_safety import TradingStore
 
 
 def test_security_audit_scans_all_providers_and_routesme_tokens(tmp_path):
     # Test assignment scanning for TokenRouter and RoutesMe keys
     env_file = tmp_path / ".env"
     env_file.write_text(
-        "TOKENROUTER_KEY=sk-prod12345678901234567890\n"
-        "ROUTESME_KEY=rm-prod12345678901234567890\n",
+        "TOKENROUTER_KEY=sk-prod12345678901234567890\n"  # secret-scan: allow
+        "ROUTESME_KEY=rm-prod12345678901234567890\n",  # secret-scan: allow
         encoding="utf-8"
     )
     result = run_security_audit(root=tmp_path)

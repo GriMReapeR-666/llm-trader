@@ -1,6 +1,6 @@
 import pytest
 
-from live_rollout_gate import CONFIRMATION, approve, require, revoke, status, verify_evidence
+from operations.live_rollout_gate import CONFIRMATION, approve, require, revoke, status, verify_evidence
 
 
 def test_live_rollout_is_explicit_expiring_and_risk_capped(tmp_path):
@@ -38,7 +38,7 @@ def test_live_approval_rejects_reference_only_evidence(tmp_path):
 
 def test_live_status_fails_closed_on_malformed_persisted_record(tmp_path):
     path = str(tmp_path / "malformed-state.db")
-    from trading_safety import TradingStore
+    from core.trading_safety import TradingStore
     TradingStore(path).set_state("live_rollout_approval", "not-an-object")
     result = status(path)
     assert result["active"] is False

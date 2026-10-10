@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 
-from agent_operations import AgentOperations
-from cerebras_client import _usage_metadata as cerebras_usage
-from generate_with_openrouter import _usage_metadata as openrouter_usage
+from operations.agent_operations import AgentOperations
+from data.cerebras_client import _usage_metadata as cerebras_usage
+from data.generate_with_openrouter import _usage_metadata as openrouter_usage
 
 
 def _completion():

@@ -7,8 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
-from kronos_trading_integrator import MANAGEMENT_ACTIONS, KronosRLMarketSimulator
-from ppo_trainer import PPOTrainer, compute_gae, train_ppo_offline
+from research.kronos_trading_integrator import MANAGEMENT_ACTIONS, KronosRLMarketSimulator
+from research.ppo_trainer import PPOTrainer, compute_gae, train_ppo_offline
 
 
 def test_management_actions_documented():

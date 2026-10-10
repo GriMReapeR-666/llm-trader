@@ -18,8 +18,8 @@ import pytest
 
 import core.autonomous_bootstrap as bootstrap_mod
 import intelligence.provider_scorecard as psc
-from boot_datasheet import BootDatasheet
-from provider_scorecard import (
+from intelligence.boot_datasheet import BootDatasheet
+from intelligence.provider_scorecard import (
     KNOWN_API_SOURCES, build_event, derive_verdicts, load_recent_summaries,
     render, scorecard, severity_for, trend_vs_previous)
 
@@ -28,7 +28,7 @@ from provider_scorecard import (
 def _fresh_sheet(monkeypatch):
     """Isolate the process-lifetime datasheet singleton per test."""
     sheet = BootDatasheet()
-    import boot_datasheet as ds_mod
+    from intelligence import boot_datasheet as ds_mod
     monkeypatch.setattr(ds_mod, "_ds_singleton", sheet)
     monkeypatch.delenv("LLM_TRADER_BOOT_DATASHEET", raising=False)
     yield sheet

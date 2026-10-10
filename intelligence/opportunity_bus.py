@@ -12,12 +12,12 @@ import json
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 try:
-    from agent_contracts import require, require_write
+    from operations.agent_contracts import require, require_write
 except ImportError:
     from operations.agent_contracts import require, require_write
 
 try:
-    from setup_registry import classify as classify_setup
+    from research.setup_registry import classify as classify_setup
 except ImportError:
     from research.setup_registry import classify as classify_setup
 
@@ -125,7 +125,7 @@ def opportunity_from_stat_pass_edge(
     status = str(edge.get("status") or "").upper()
     stage = str(lifecycle or status).upper()
     try:
-        from edge_lifecycle import normalize_lifecycle
+        from research.edge_lifecycle import normalize_lifecycle
         stage = normalize_lifecycle(stage)
     except Exception:
         stage = status
@@ -133,7 +133,7 @@ def opportunity_from_stat_pass_edge(
         return None
 
     try:
-        from causal_setup_map import resolve_causal_setup
+        from intelligence.causal_setup_map import resolve_causal_setup
     except ImportError:
         from intelligence.causal_setup_map import resolve_causal_setup
 

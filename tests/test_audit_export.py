@@ -1,9 +1,9 @@
 import json
 
-from agent_operations import AgentOperations
-from journal_audit import write_audit_export
-from research_runs import record
-from trading_safety import TradingStore
+from operations.agent_operations import AgentOperations
+from operations.journal_audit import write_audit_export
+from research.research_runs import record
+from core.trading_safety import TradingStore
 
 
 def test_combined_audit_export_contains_operational_evidence(tmp_path):

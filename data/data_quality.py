@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import math
+import threading
 from typing import Any, Dict, List
 
 
@@ -57,6 +58,7 @@ class DataQualityGate:
         # candle timestamp is authoritative for this run; a later payload with
         # the same timestamp but different OHLC/revision data is rejected.
         self._candle_fingerprints: Dict[str, str] = {}
+        self._fingerprint_lock = threading.Lock()
 
     @staticmethod
     def _parse_time(value: Any) -> datetime:
@@ -217,16 +219,18 @@ class DataQualityGate:
                 encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
                 fingerprint = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
                 revision_key = f"{source_key}|{normalized_time}"
-                previous = self._candle_fingerprints.get(revision_key)
-                if previous is not None and previous != fingerprint:
-                    reasons.append(f"candle revision detected at {normalized_time}")
-                else:
-                    self._candle_fingerprints[revision_key] = fingerprint
+                with self._fingerprint_lock:
+                    previous = self._candle_fingerprints.get(revision_key)
+                    if previous is not None and previous != fingerprint:
+                        reasons.append(f"candle revision detected at {normalized_time}")
+                    else:
+                        self._candle_fingerprints[revision_key] = fingerprint
         # Bound memory use during continuous operation while retaining the most
         # recent point-in-time observations.
-        if len(self._candle_fingerprints) > 10000:
-            for key in list(self._candle_fingerprints)[:2000]:
-                self._candle_fingerprints.pop(key, None)
+        with self._fingerprint_lock:
+            if len(self._candle_fingerprints) > 10000:
+                for key in list(self._candle_fingerprints)[:2000]:
+                    self._candle_fingerprints.pop(key, None)
         if require_live_quote and bars and len(timestamps) != len(bars):
             reasons.append("live candle timestamp missing; point-in-time ordering cannot be verified")
         if require_live_quote and capture_time is not None and timestamps:

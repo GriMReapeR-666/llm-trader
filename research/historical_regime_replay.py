@@ -9,22 +9,22 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 try:
-    from broker_replay import ReplayIntent, ReplaySpec, replay
+    from research.broker_replay import ReplayIntent, ReplaySpec, replay
 except ImportError:
     from research.broker_replay import ReplayIntent, ReplaySpec, replay
 
 try:
-    from edge_lifecycle import advance_lifecycle, current_lifecycle
+    from research.edge_lifecycle import advance_lifecycle, current_lifecycle
 except ImportError:
     from research.edge_lifecycle import advance_lifecycle, current_lifecycle
 
 try:
-    from historical_regimes import get_template, ingest_cited_observation, research_status, template_registry
+    from research.historical_regimes import get_template, ingest_cited_observation, research_status, template_registry
 except ImportError:
     from research.historical_regimes import get_template, ingest_cited_observation, research_status, template_registry
 
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     from intelligence.macro_graph import MacroGraph
 
@@ -154,7 +154,7 @@ def replay_regime_with_bars(
         expected_slippage_price=0.00002,
         spread_price=0.00010,
     )
-    from autonomous_causal_engine import _bar_index_at_or_after, _parse_time
+    from intelligence.autonomous_causal_engine import _bar_index_at_or_after, _parse_time
 
     intents: List[ReplayIntent] = []
     event_indices: List[int] = []

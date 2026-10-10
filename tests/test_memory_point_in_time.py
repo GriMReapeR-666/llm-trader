@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from semantic_memory import search as semantic_search
-from trading_memory import TradingMemory
+from intelligence.semantic_memory import search as semantic_search
+from intelligence.trading_memory import TradingMemory
 
 
 def _seed_approved_memory(path: Path) -> TradingMemory:

@@ -78,7 +78,7 @@ class KnowledgeRetrieval:
         """Lazy-load macro causal graph."""
         if self._macro_graph is None:
             try:
-                from macro_graph import MacroGraph
+                from intelligence.macro_graph import MacroGraph
                 self._macro_graph = MacroGraph(self.db_path)
             except Exception as exc:
                 log.debug("Macro graph unavailable: %s", exc)
@@ -88,7 +88,7 @@ class KnowledgeRetrieval:
         """Lazy-load case study matcher."""
         if self._case_matcher is None:
             try:
-                from case_study_matcher import get_case_study_matcher
+                from intelligence.case_study_matcher import get_case_study_matcher
                 self._case_matcher = get_case_study_matcher()
             except Exception as exc:
                 log.debug("Case matcher unavailable: %s", exc)
@@ -98,7 +98,7 @@ class KnowledgeRetrieval:
         """Lazy-load case study library."""
         if self._case_library is None:
             try:
-                from case_study_library import get_case_study_library
+                from intelligence.case_study_library import get_case_study_library
                 self._case_library = get_case_study_library()
             except Exception as exc:
                 log.debug("Case library unavailable: %s", exc)
@@ -108,7 +108,7 @@ class KnowledgeRetrieval:
         """Lazy-load active knowledge agent."""
         if self._active_kb is None:
             try:
-                from active_knowledge_agent import ACTIVE_KNOWLEDGE_AGENT
+                from intelligence.active_knowledge_agent import ACTIVE_KNOWLEDGE_AGENT
                 self._active_kb = ACTIVE_KNOWLEDGE_AGENT
             except Exception as exc:
                 log.debug("Active knowledge agent unavailable: %s", exc)
@@ -118,7 +118,7 @@ class KnowledgeRetrieval:
         """Lazy-load semantic memory."""
         if self._semantic_memory is None:
             try:
-                import semantic_memory
+                from intelligence import semantic_memory
                 self._semantic_memory = semantic_memory
             except Exception as exc:
                 log.debug("Semantic memory unavailable: %s", exc)
@@ -278,7 +278,7 @@ class KnowledgeRetrieval:
         """Query domain knowledge pillars."""
         results = []
         try:
-            from multi_disciplinary_domain_knowledge import (
+            from intelligence.multi_disciplinary_domain_knowledge import (
                 evaluate_thucydides_trap,
                 evaluate_regime_stability,
                 evaluate_security_dilemma,

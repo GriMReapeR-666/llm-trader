@@ -63,7 +63,7 @@ def _load_registry_intervals() -> dict:
                 parent = str(candidate.parent)
                 if parent not in sys.path:
                     sys.path.insert(0, parent)
-                from agent_scheduler import SCHEDULES  # noqa: E402
+                from operations.agent_scheduler import SCHEDULES  # noqa: E402
                 return {s["name"]: int(s["interval"]) for s in SCHEDULES}
     except Exception:
         pass

@@ -25,7 +25,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from news_triage import D5A_RANK, D9_KILL_SWITCH_ACTIVE, REJECT_D0_1, _D9_TRUTHY
+from data.news_triage import D5A_RANK, D9_KILL_SWITCH_ACTIVE, REJECT_D0_1, _D9_TRUTHY
 from research.learning.contrastive_pair_miner import ContrastivePair, ContrastivePairMiner
 
 log = logging.getLogger("TriageActiveLearning")

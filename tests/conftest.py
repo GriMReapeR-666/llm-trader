@@ -9,22 +9,17 @@ root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-for subpkg in ["core", "intelligence", "operations", "research", "data", "ui"]:
-    pkg_path = os.path.join(root_dir, subpkg)
-    if os.path.isdir(pkg_path) and pkg_path not in sys.path:
-        sys.path.insert(0, pkg_path)
+
+import pytest
+
+
+import shutil
 
 # Single import root (C1): install the canonicalising finder before any
 # repository module is imported, so bare and package-qualified imports share
 # module state and tests/test_single_import_root.py can guard the invariant.
 from core._import_root import install as _install_import_root
 _install_import_root()
-
-
-import pytest
-
-
-import shutil
 
 # ---------------------------------------------------------------------------
 # Test-env pin: never load the real 421M Laya checkpoint inside pytest.
@@ -83,6 +78,70 @@ for _k in ("OPENROUTER_API_KEY", "TOKENROUTER_KEY", "TOKENROUTER_API_KEY",
     os.environ.pop(_k, None)
 
 # ---------------------------------------------------------------------------
+# Hermetic broker tests: no test may attach a real MT5 terminal.
+#
+# With a terminal running (Windows) or the macOS bridge up, tests that call
+# MetaTrader5.initialize() attached to the operator's real account (seen in
+# the bridge log during a full run). Point the bridge at nothing and make
+# initialize()/login() refuse on the module object itself, which every
+# import path shares. Tests that need a fake broker inject one. Opt in to a
+# real terminal explicitly with LLM_TRADER_TEST_ALLOW_TERMINAL=1.
+# ---------------------------------------------------------------------------
+if os.environ.get("LLM_TRADER_TEST_ALLOW_TERMINAL") != "1":
+    os.environ["MT5_BRIDGE_KEY"] = ""
+    os.environ["MT5_BRIDGE_KEY_FILE"] = os.devnull
+    os.environ["MT5_BRIDGE_PORT"] = "9"  # discard port; nothing listens
+    try:
+        import MetaTrader5 as _mt5_for_tests
+    except Exception:
+        _mt5_for_tests = None
+    if _mt5_for_tests is not None:
+        def _terminal_blocked_in_tests(*_args, **_kwargs):
+            return False
+        _mt5_for_tests.initialize = _terminal_blocked_in_tests
+        _mt5_for_tests.login = _terminal_blocked_in_tests
+
+
+# ---------------------------------------------------------------------------
+# Tests must not modify tracked files.
+#
+# A full run used to rewrite committed evidence (trial ledgers, caches,
+# scheduler reports). The sandbox fixtures below cover the known writers;
+# this check catches every other one: the session fails and lists the files.
+# Runs on the xdist controller (or a non-xdist session) only.
+# ---------------------------------------------------------------------------
+def _tracked_changes():
+    import subprocess
+    try:
+        out = subprocess.run(
+            ["git", "-C", root_dir, "status", "--porcelain", "--untracked-files=no"],
+            capture_output=True, text=True, timeout=60, check=True,
+        ).stdout
+    except Exception:
+        return None
+    return set(out.splitlines())
+
+
+def pytest_sessionstart(session):
+    if not hasattr(session.config, "workerinput"):
+        session.config._tracked_before = _tracked_changes()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    before = getattr(session.config, "_tracked_before", None)
+    if before is None or hasattr(session.config, "workerinput"):
+        return
+    after = _tracked_changes() or set()
+    changed = sorted(after - before)
+    if changed:
+        reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+        lines = ["TESTS MODIFIED TRACKED FILES (restore with: git checkout -- <file>):"]
+        lines += [f"  {line}" for line in changed[:50]]
+        if reporter:
+            reporter.write_line("\n".join(lines), red=True)
+        session.exitstatus = 1
+
+# ---------------------------------------------------------------------------
 # Meta-loop singleton isolation (production-corpus protection).
 #
 # The production meta_corpus.db is append-only hash-chained evidence. Tests
@@ -117,13 +176,6 @@ os.environ.setdefault("D9_LATCH_SINGLETON", f"pytest_{os.getpid()}")
 
 # Shared repo-root runtime state files that tests can silently pollute when
 # constructing RiskManager()/TradeManager() with default paths.
-#: Repo-root runtime state files the per-test singletons fixture must
-#: snapshot/restore: the two store-backed mirrors PLUS supervisor_state.json,
-#: whose Phase 3 gap let live_state_probe's downgrade write through to the
-#: live file during unsandboxed kickoff (observed 2026-10-10, PHASE_FORCED
-#: RUNNING→DEGRADED at a test-run timestamp). Supervisors created mid-test
-#: pick the monkeypatched state_file only if they route through get_supervisor();
-#: path-default writers bypass it, so snapshot/restore is the real safety net.
 _RUNTIME_STATE_FILES = ("supervisor_state.json", "risk_state.json", "trade_manager_state.json")
 
 
@@ -245,12 +297,17 @@ def isolate_runtime_state_singletons(tmp_path, monkeypatch):
         for attr in ("state_file", "control_file"):
             if hasattr(aut, attr):
                 monkeypatch.setattr(aut, attr, str(tmp_path / ("autonomy_" + attr)))
+        # The singleton loaded the repo-root autonomy_state.json when it was
+        # created, and trading_allowed() now re-reads state on every check,
+        # so start each test from clean defaults with no store attached.
+        fresh = autonomy_mod.AutonomyManager(
+            state_file=str(tmp_path / "autonomy_fresh_state.json"),
+            control_file=str(tmp_path / "autonomy_fresh_control"),
+        )
+        monkeypatch.setattr(aut, "_state", fresh._state)
+        monkeypatch.setattr(aut, "store", None)
     except Exception:
         pass
-    # NOTE: covers ONLY callers that route through get_supervisor()/get_autonomy().
-    # writers that default-construct a path (live_state_probe._downgrade_supervisor,
-    # external tools) reach supervisor_state.json directly; the runtime-files
-    # snapshot below is the net that catches them.
     # Snapshot shared runtime state files before each test and restore them
     # afterwards. Tests that build RiskManager()/TradeManager() with default
     # paths otherwise leak circuit-breaker pollution (e.g. peak_equity=100000
@@ -307,6 +364,25 @@ def isolate_runtime_state_singletons(tmp_path, monkeypatch):
 # artifacts/ and graph-internal state files are deliberately left alone.
 # ---------------------------------------------------------------------------
 @pytest.fixture(autouse=True)
+def isolated_kill_switch_latch(tmp_path, monkeypatch):
+    """Give every test a fresh news kill-switch latch.
+
+    The latch is enforced on the validator and gateway (Phase 3), and it
+    persists by design, so one test that trips it would otherwise block
+    entries for every later test in the same xdist worker.
+    """
+    import sys as _sys
+
+    path = str(tmp_path / "d9_kill_switch_latch.json")
+    monkeypatch.setenv("D9_LATCH_PATH", path)
+    yield
+    registry = getattr(_sys, "_d9_kill_switch_latch_registry", None)
+    if isinstance(registry, dict):
+        for token in [t for t in registry if t.endswith(path)]:
+            registry.pop(token, None)
+
+
+@pytest.fixture(autouse=True)
 def sandbox_ambient_runtime_state(tmp_path, monkeypatch):
     sandbox = tmp_path / "ambient_runtime_state"
     sandbox.mkdir(parents=True, exist_ok=True)
@@ -331,8 +407,8 @@ def sandbox_ambient_runtime_state(tmp_path, monkeypatch):
     def _sboxed(path) -> str:
         return os.path.join(str(sandbox), os.path.basename(str(path)))
 
-    import state_persistence as _sp
-    import trading_safety as _ts
+    import core.state_persistence as _sp
+    import core.trading_safety as _ts
     # Dual-import discovery: conftest puts both the repo root and each package
     # dir on sys.path, so 'trading_safety' and 'core.trading_safety' (etc.) can
     # be DISTINCT module objects with distinct classes. Discover every loaded
@@ -396,9 +472,29 @@ def sandbox_ambient_runtime_state(tmp_path, monkeypatch):
     yield
 
 
-#: Root of the current test's artifacts sandbox, or None when no test is
-#: running.  ``artifacts_sandbox_path`` resolves a logical ``artifacts/...``
-#: path to where this test's writes actually land.
+@pytest.fixture(autouse=True)
+def isolate_decision_bundle():
+    """Clear the in-memory Laya decision bundle around each test.
+
+    ``ui_state.last_decision_bundle`` is a process-wide singleton whose
+    ``bundle_age_s`` (wall-clock seconds since publish) is embedded verbatim
+    into analysis prompts. A test that leaves a bundle behind makes any
+    later in-process A/B replay (pipeline v2 golden replay runs the cycle
+    twice, minutes apart) diverge purely by elapsed time — hash mismatch
+    with no data difference. Save/clear/restore keeps each test hermetic
+    in both directions; tests that need a bundle set it in their own body.
+    """
+    try:
+        from core.shared_state import ui_state
+    except Exception:
+        yield
+        return
+    saved = getattr(ui_state, "last_decision_bundle", None)
+    ui_state.last_decision_bundle = None
+    try:
+        yield
+    finally:
+        ui_state.last_decision_bundle = saved
 _ARTIFACTS_SANDBOX_ROOT = {"path": None}
 
 
@@ -816,30 +912,6 @@ def isolate_shared_root_databases(tmp_path, monkeypatch):
     except Exception:
         pass
 
-
-@pytest.fixture(autouse=True)
-def isolate_decision_bundle():
-    """Clear the in-memory Laya decision bundle around each test.
-
-    ``ui_state.last_decision_bundle`` is a process-wide singleton whose
-    ``bundle_age_s`` (wall-clock seconds since publish) is embedded verbatim
-    into analysis prompts. A test that leaves a bundle behind makes any
-    later in-process A/B replay (pipeline v2 golden replay runs the cycle
-    twice, minutes apart) diverge purely by elapsed time — hash mismatch
-    with no data difference. Save/clear/restore keeps each test hermetic
-    in both directions; tests that need a bundle set it in their own body.
-    """
-    try:
-        from core.shared_state import ui_state
-    except Exception:
-        yield
-        return
-    saved = getattr(ui_state, "last_decision_bundle", None)
-    ui_state.last_decision_bundle = None
-    try:
-        yield
-    finally:
-        ui_state.last_decision_bundle = saved
 
 
 # ---------------------------------------------------------------------------

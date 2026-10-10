@@ -1,6 +1,6 @@
 """Unit tests for kronos_mt5_adapter.py covering all 4 MT5 technical data tasks."""
 import pytest
-from kronos_mt5_adapter import KronosMT5Adapter, MT5KronosRLSimulator
+from research.kronos_mt5_adapter import KronosMT5Adapter, MT5KronosRLSimulator
 
 
 def test_mt5_rates_normalization():

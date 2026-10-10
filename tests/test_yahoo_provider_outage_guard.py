@@ -33,8 +33,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "data"))
 
-import yahoo_finance_provider as yfp_module  # top-level identity, as tests/conftest allows
-from yahoo_finance_provider import YahooFinanceProvider
+from data import yahoo_finance_provider as yfp_module
+from data.yahoo_finance_provider import YahooFinanceProvider
 
 
 def _frame(closes) -> pd.DataFrame:
@@ -218,7 +218,7 @@ class TestPublicMethods:
 
 class TestZeroLagWiring:
     def test_zero_lag_uses_get_quote_data_and_caches(self, monkeypatch):
-        from zero_lag_macro_provider import ZeroLagMacroProvider
+        from data.zero_lag_macro_provider import ZeroLagMacroProvider
 
         monkeypatch.setenv("LLM_TRADER_YF_OFFLINE", "")
         provider = ZeroLagMacroProvider()
@@ -238,7 +238,7 @@ class TestZeroLagWiring:
         assert calls == ["CL=F"]
 
     def test_zero_lag_falls_back_when_quote_unavailable(self, monkeypatch):
-        from zero_lag_macro_provider import ZeroLagMacroProvider
+        from data.zero_lag_macro_provider import ZeroLagMacroProvider
 
         monkeypatch.setenv("LLM_TRADER_YF_OFFLINE", "")
         provider = ZeroLagMacroProvider()
@@ -251,7 +251,7 @@ class TestZeroLagWiring:
         assert provider._fetch_quote_safe("NG=F", 2.65) == pytest.approx(2.65)
 
     def test_alt_provider_routes_through_shared_path(self, monkeypatch):
-        from alternative_data_provider import AlternativeDataProvider
+        from data.alternative_data_provider import AlternativeDataProvider
 
         monkeypatch.setenv("LLM_TRADER_YF_OFFLINE", "")
         alt = AlternativeDataProvider()

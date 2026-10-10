@@ -1,6 +1,6 @@
 import pytest
 
-from trading_memory import TradingMemory
+from intelligence.trading_memory import TradingMemory
 
 
 def test_atomic_fact_requires_source_and_key(tmp_path):

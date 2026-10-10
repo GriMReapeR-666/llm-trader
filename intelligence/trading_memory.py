@@ -20,7 +20,21 @@ import sqlite3
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, Iterable, List
-from setup_labeling import classify_setup_outcome, ensure_setup_label_table, persist_setup_label
+from research.setup_labeling import classify_setup_outcome, ensure_setup_label_table, persist_setup_label
+
+
+def _add_column(con: sqlite3.Connection, statement: str) -> None:
+    """Run an ``ALTER TABLE … ADD COLUMN`` that another process may have won.
+
+    The PRAGMA check before each ALTER is check-then-act: two processes (or
+    parallel test workers) opening a fresh database both see the column
+    missing and both ALTER; the loser used to fail with "duplicate column".
+    """
+    try:
+        con.execute(statement)
+    except sqlite3.OperationalError as exc:
+        if "duplicate column" not in str(exc).lower():
+            raise
 
 
 class TradingMemory:
@@ -140,31 +154,31 @@ class TradingMemory:
             self._init_fts(con)
             label_columns = {row["name"] for row in con.execute("PRAGMA table_info(trade_labels)").fetchall()}
             if "label_rule" not in label_columns:
-                con.execute("ALTER TABLE trade_labels ADD COLUMN label_rule TEXT")
+                _add_column(con, "ALTER TABLE trade_labels ADD COLUMN label_rule TEXT")
             if "review_status" not in label_columns:
-                con.execute("ALTER TABLE trade_labels ADD COLUMN review_status TEXT NOT NULL DEFAULT 'AUTO'")
+                _add_column(con, "ALTER TABLE trade_labels ADD COLUMN review_status TEXT NOT NULL DEFAULT 'AUTO'")
             narrative_columns = {row["name"] for row in con.execute("PRAGMA table_info(narratives)").fetchall()}
             if "source_ids" not in narrative_columns:
-                con.execute("ALTER TABLE narratives ADD COLUMN source_ids TEXT NOT NULL DEFAULT '[]'")
+                _add_column(con, "ALTER TABLE narratives ADD COLUMN source_ids TEXT NOT NULL DEFAULT '[]'")
             if "status" not in narrative_columns:
-                con.execute("ALTER TABLE narratives ADD COLUMN status TEXT NOT NULL DEFAULT 'CANDIDATE'")
+                _add_column(con, "ALTER TABLE narratives ADD COLUMN status TEXT NOT NULL DEFAULT 'CANDIDATE'")
             if "reviewed_by" not in narrative_columns:
-                con.execute("ALTER TABLE narratives ADD COLUMN reviewed_by TEXT")
+                _add_column(con, "ALTER TABLE narratives ADD COLUMN reviewed_by TEXT")
             if "reviewed_at" not in narrative_columns:
-                con.execute("ALTER TABLE narratives ADD COLUMN reviewed_at TEXT")
+                _add_column(con, "ALTER TABLE narratives ADD COLUMN reviewed_at TEXT")
             verified_columns = {row["name"] for row in con.execute("PRAGMA table_info(verified_memories)").fetchall()}
             if "reviewed_by" not in verified_columns:
-                con.execute("ALTER TABLE verified_memories ADD COLUMN reviewed_by TEXT")
+                _add_column(con, "ALTER TABLE verified_memories ADD COLUMN reviewed_by TEXT")
             if "reviewed_at" not in verified_columns:
-                con.execute("ALTER TABLE verified_memories ADD COLUMN reviewed_at TEXT")
+                _add_column(con, "ALTER TABLE verified_memories ADD COLUMN reviewed_at TEXT")
             scenario_columns = {row["name"] for row in con.execute("PRAGMA table_info(scenario_documents)").fetchall()}
             if "reviewed_by" not in scenario_columns:
-                con.execute("ALTER TABLE scenario_documents ADD COLUMN reviewed_by TEXT")
+                _add_column(con, "ALTER TABLE scenario_documents ADD COLUMN reviewed_by TEXT")
             if "reviewed_at" not in scenario_columns:
-                con.execute("ALTER TABLE scenario_documents ADD COLUMN reviewed_at TEXT")
+                _add_column(con, "ALTER TABLE scenario_documents ADD COLUMN reviewed_at TEXT")
             retrieval_columns = {row["name"] for row in con.execute("PRAGMA table_info(memory_retrievals)").fetchall()}
             if "as_of" not in retrieval_columns:
-                con.execute("ALTER TABLE memory_retrievals ADD COLUMN as_of TEXT")
+                _add_column(con, "ALTER TABLE memory_retrievals ADD COLUMN as_of TEXT")
             ensure_setup_label_table(con)
 
     def _init_fts(self, con: sqlite3.Connection) -> None:
@@ -520,7 +534,7 @@ class TradingMemory:
         # Optional advisory remote mirror mirror; local SQLite row is already committed.
         if status == "APPROVED":
             try:
-                from remote_memory_mirror import maybe_mirror_semantic_record
+                from intelligence.remote_memory_mirror import maybe_mirror_semantic_record
                 maybe_mirror_semantic_record(
                     record_id=f"narrative:{narrative_id}",
                     layer="narrative",
@@ -564,7 +578,7 @@ class TradingMemory:
         memory_id = int(cursor.lastrowid)
         if status == "APPROVED":
             try:
-                from remote_memory_mirror import maybe_mirror_semantic_record
+                from intelligence.remote_memory_mirror import maybe_mirror_semantic_record
                 maybe_mirror_semantic_record(
                     record_id=f"verified:{memory_id}",
                     layer="verified",
@@ -1109,7 +1123,7 @@ class TradingMemory:
         def _semantic() -> List[Any]:
             # Structured filters/statuses are applied inside the local semantic
             # retriever before cosine ranking; source-linked approved records only.
-            from semantic_memory import search as semantic_search
+            from intelligence.semantic_memory import search as semantic_search
             return semantic_search(self.db_path, tags, semantic_limit, as_of=cutoff)
 
         def _meta_loop() -> List[Any]:

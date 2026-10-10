@@ -1,5 +1,5 @@
 """Tests for deterministic opportunity fusion (TA ∩ causal ∩ event)."""
-from opportunity_fusion import score_opportunity, fusion_block_reasons, is_macro_setup
+from intelligence.opportunity_fusion import score_opportunity, fusion_block_reasons, is_macro_setup
 
 
 def test_macro_blocks_without_causal_agree():

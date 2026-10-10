@@ -2,7 +2,7 @@ import os
 import sqlite3
 from datetime import datetime, timezone, timedelta
 import pytest
-from correlation_risk import CorrelationRisk
+from intelligence.correlation_risk import CorrelationRisk
 
 class DummyStore:
     def __init__(self, rows):

@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 try:
-    from research_validation import labelled_dataset, purged_walk_forward_splits
+    from research.research_validation import labelled_dataset, purged_walk_forward_splits
 except ImportError:
     from research.research_validation import labelled_dataset, purged_walk_forward_splits
 

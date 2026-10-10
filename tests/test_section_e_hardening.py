@@ -2,8 +2,8 @@ import pytest
 import time
 from unittest.mock import patch, MagicMock
 
-from llm_router import BaseLLMProvider, LLMRouter
-from risk_manager import RiskManager
+from data.llm_router import BaseLLMProvider, LLMRouter
+from core.risk_manager import RiskManager
 
 
 class MockFailingProvider(BaseLLMProvider):
@@ -102,7 +102,7 @@ def test_consecutive_loss_circuit_breaker(tmp_path, monkeypatch):
 
 def test_consecutive_loss_breaker_blocks_position_sizing(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("risk_manager.mt5.account_info", lambda: MagicMock(equity=10000.0))
+    monkeypatch.setattr("core.risk_manager.mt5.account_info", lambda: MagicMock(equity=10000.0))
     rm = RiskManager(balance=10000.0, max_consecutive_losses=3)
     rm.consecutive_losses = 0
     for _ in range(3):

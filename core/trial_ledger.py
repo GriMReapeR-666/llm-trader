@@ -709,49 +709,10 @@ def _cross_process_lock(db_path: str):
     """
     import sys as _sys
 
+    from core.file_lock import FileLock
     lock_path = str(db_path) + ".lock"
-    # Binary mode: msvcrt.locking operates on byte ranges
-    fh = open(lock_path, "a+b")
-    acquired = None
-    try:
-        try:
-            import fcntl  # POSIX
-            fh.seek(0)
-            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-            acquired = "flock"
-        except ImportError:
-            import msvcrt  # Windows
-            # Lock byte 0 non-blocking with retry. LockFile semantics permit
-            # locking a range beyond EOF, so no marker byte is needed — and
-            # reading one would fail with PermissionError while another
-            # process holds the lock.
-            fh.seek(0)
-            for _ in range(600):  # up to ~30s
-                try:
-                    msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
-                    acquired = "msvcrt"
-                    break
-                except OSError:
-                    time.sleep(0.05)
-                finally:
-                    fh.seek(0)
-        if acquired is None:
-            raise RuntimeError(f"ledger lockfile busy: {lock_path}")
-        try:
-            yield
-        finally:
-            try:
-                if acquired == "flock":
-                    import fcntl
-                    fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
-                elif acquired == "msvcrt":
-                    import msvcrt
-                    fh.seek(0)
-                    msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
-            except OSError:
-                pass  # lock released on close anyway
-    finally:
-        fh.close()
+    with FileLock(lock_path):
+        yield
 
 
 def get_trial_ledger(db_path: Optional[str] = None) -> TrialLedger:

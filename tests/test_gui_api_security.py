@@ -90,4 +90,9 @@ def test_host_header_validation_rejects_rebinding():
         json={"strategy": "test_strat", "stage": "CANDIDATE"},
         headers={"Authorization": f"Bearer {token}", "Host": "evil.example.com"}
     )
-    assert resp.status_code == 403
+    # 400, not 403: origin/main's contract is authoritative after the merge
+    # (see tests/test_gui_api_auth.py::test_wrong_host_header_returns_400,
+    # which pins 400 explicitly for the same condition). The security property
+    # asserted here is that a rebinding host is refused before the handler
+    # runs - the exact status class is the part that had to be reconciled.
+    assert resp.status_code == 400

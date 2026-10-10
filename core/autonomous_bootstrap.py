@@ -19,8 +19,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from boot_fetch_watchdog import run_stage_with_deadline
-from boot_datasheet import boot_datasheet_enabled, get_datasheet
+from intelligence.boot_fetch_watchdog import run_stage_with_deadline
+from intelligence.boot_datasheet import boot_datasheet_enabled, get_datasheet
 
 logger = logging.getLogger(__name__)
 

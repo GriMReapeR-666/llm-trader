@@ -1,8 +1,49 @@
 import { store } from "../store"
 import type { CycleBrief, ValidationPipelineStage, ValidationPipelineEntry, DeliberationNode, DataSource, StreamKind } from "../types"
+import { readFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
 
 const API = process.env.DECK_API ?? "http://127.0.0.1:8000"
 const WS_URL = API.replace(/^http/, "ws") + "/ws/harness-events"
+
+let cachedApiToken: string | null = null
+
+export function getApiToken(): string | null {
+  if (cachedApiToken) return cachedApiToken
+
+  const envToken = process.env.GUI_API_TOKEN || process.env.GUI_API_KEY
+  if (envToken && envToken.trim()) {
+    cachedApiToken = envToken.trim()
+    return cachedApiToken
+  }
+
+  const tokenPath = process.env.GUI_API_TOKEN_FILE
+    ? process.env.GUI_API_TOKEN_FILE
+    : process.platform === "win32"
+      ? join(process.env.APPDATA || join(homedir(), "AppData", "Roaming"), "llm-trader", "api.token")
+      : join(homedir(), ".config", "llm-trader", "api.token")
+
+  try {
+    const content = readFileSync(tokenPath, "utf8").trim()
+    if (content) {
+      cachedApiToken = content
+      return cachedApiToken
+    }
+  } catch {
+    // Token file missing or unreadable
+  }
+  return null
+}
+
+export async function apiFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
+  const token = getApiToken()
+  const headers = new Headers(init?.headers)
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`)
+  }
+  return fetch(input, { ...init, headers })
+}
 
 let ws: WebSocket | null = null
 let backoff = 1000
@@ -45,7 +86,7 @@ function str(v: unknown, d = ""): string {
 
 async function refreshAnalytics(): Promise<void> {
   try {
-    const res = await fetch(`${API}/api/analytics`)
+    const res = await apiFetch(`${API}/api/analytics`)
     if (!res.ok) return
     const a: any = await res.json()
     const patch: Record<string, unknown> = {}
@@ -108,7 +149,7 @@ async function refreshAnalytics(): Promise<void> {
 
 async function bootstrap(): Promise<boolean> {
   try {
-    const res = await fetch(`${API}/api/snapshot?v=2`)
+    const res = await apiFetch(`${API}/api/snapshot?v=2`)
     if (!res.ok) return false
     const snap = await res.json()
     applySnapshot(snap)
@@ -122,7 +163,7 @@ async function bootstrap(): Promise<boolean> {
 async function refreshSnapshot(): Promise<void> {
   if (stopped) return
   try {
-    const res = await fetch(`${API}/api/snapshot?v=2`)
+    const res = await apiFetch(`${API}/api/snapshot?v=2`)
     if (!res.ok) return
     applySnapshot(await res.json())
   } catch {
@@ -1073,7 +1114,7 @@ async function probeApi(): Promise<boolean> {
     const ctl = new AbortController()
     const timer = setTimeout(() => ctl.abort(), 3000)
     try {
-      const res = await fetch(`${API}/api/status`, { signal: ctl.signal })
+      const res = await apiFetch(`${API}/api/status`, { signal: ctl.signal })
       return res.ok
     } finally {
       clearTimeout(timer)
@@ -1141,7 +1182,9 @@ export async function startLive(): Promise<() => void> {
   const connect = () => {
     if (stopped) return
     try {
-      ws = new WebSocket(WS_URL)
+      const token = getApiToken()
+      const wsOpts = token ? ({ headers: { Authorization: `Bearer ${token}` } } as any) : undefined
+      ws = new WebSocket(WS_URL, wsOpts)
       ws.onopen = async () => {
         backoff = 1000
         wsOpen = true
@@ -1164,7 +1207,7 @@ export async function startLive(): Promise<() => void> {
         // Replay missed events from the disconnect window
         if (lastEventTs > 0) {
           try {
-            const replayRes = await fetch(`${API}/api/harness-events/recent?since=${lastEventTs}`)
+            const replayRes = await apiFetch(`${API}/api/harness-events/recent?since=${lastEventTs}`)
             if (replayRes.ok) {
               const replayData = (await replayRes.json()) as { events?: any[] }
               if (Array.isArray(replayData.events)) {
@@ -1257,7 +1300,7 @@ export async function startLive(): Promise<() => void> {
   let logTimer: ReturnType<typeof setInterval> | null = null
   async function refreshLogs(): Promise<void> {
     try {
-      const res = await fetch(`${API}/api/logs`)
+      const res = await apiFetch(`${API}/api/logs`)
       if (!res.ok) return
       const data: any = await res.json()
       if (Array.isArray(data?.entries) || Array.isArray(data)) {
@@ -1284,9 +1327,9 @@ export async function startLive(): Promise<() => void> {
   async function refreshResearch(): Promise<void> {
     try {
       const [res, skillsRes, btRes] = await Promise.all([
-        fetch(`${API}/api/research-pipeline`),
-        fetch(`${API}/api/skills`),
-        fetch(`${API}/api/backtests`),
+        apiFetch(`${API}/api/research-pipeline`),
+        apiFetch(`${API}/api/skills`),
+        apiFetch(`${API}/api/backtests`),
       ])
       if (res.ok) {
         const data = (await res.json()) as any[]
@@ -1358,30 +1401,30 @@ export async function startLive(): Promise<() => void> {
         winRes, setRes, rewRes, secRes, growRes, modelRes, metricRes,
         drillRes, interRes, alphaHealthRes,
       ] = await Promise.all([
-        fetch(`${API}/api/market`),
-        fetch(`${API}/api/agents`),
-        fetch(`${API}/api/tasks`),
-        fetch(`${API}/api/alpha-signals`),
-        fetch(`${API}/api/economic-events`),
-        fetch(`${API}/api/mtf-trends`),
-        fetch(`${API}/api/scanner`),
-        fetch(`${API}/api/compliance-full`),
-        fetch(`${API}/api/diagnostics`),
-        fetch(`${API}/api/workflows`),
-        fetch(`${API}/api/lifecycle-full`),
-        fetch(`${API}/api/causal-fusion`),
-        fetch(`${API}/api/rl-training`),
-        fetch(`${API}/api/llm-providers`),
-        fetch(`${API}/api/win-probability`),
-        fetch(`${API}/api/settings-full`),
-        fetch(`${API}/api/rewards`),
-        fetch(`${API}/api/security-full`),
-        fetch(`${API}/api/growth`),
-        fetch(`${API}/api/model-registry`),
-        fetch(`${API}/api/metrics-export`),
-        fetch(`${API}/api/drills`),
-        fetch(`${API}/api/intermarket`),
-        fetch(`${API}/api/alpha-health`),
+        apiFetch(`${API}/api/market`),
+        apiFetch(`${API}/api/agents`),
+        apiFetch(`${API}/api/tasks`),
+        apiFetch(`${API}/api/alpha-signals`),
+        apiFetch(`${API}/api/economic-events`),
+        apiFetch(`${API}/api/mtf-trends`),
+        apiFetch(`${API}/api/scanner`),
+        apiFetch(`${API}/api/compliance-full`),
+        apiFetch(`${API}/api/diagnostics`),
+        apiFetch(`${API}/api/workflows`),
+        apiFetch(`${API}/api/lifecycle-full`),
+        apiFetch(`${API}/api/causal-fusion`),
+        apiFetch(`${API}/api/rl-training`),
+        apiFetch(`${API}/api/llm-providers`),
+        apiFetch(`${API}/api/win-probability`),
+        apiFetch(`${API}/api/settings-full`),
+        apiFetch(`${API}/api/rewards`),
+        apiFetch(`${API}/api/security-full`),
+        apiFetch(`${API}/api/growth`),
+        apiFetch(`${API}/api/model-registry`),
+        apiFetch(`${API}/api/metrics-export`),
+        apiFetch(`${API}/api/drills`),
+        apiFetch(`${API}/api/intermarket`),
+        apiFetch(`${API}/api/alpha-health`),
       ]).catch(() => [] as Response[])
 
       const patch: Record<string, unknown> = {}
@@ -1792,23 +1835,69 @@ export async function startLive(): Promise<() => void> {
   }
 }
 
-export async function sendControl(action: string, payload?: Record<string, any>): Promise<boolean> {
+export interface ControlResponse {
+  ok: boolean
+  control_id?: number
+  action?: string
+  status?: string
+  reason?: string
+}
+
+export interface ControlStatus {
+  ok: boolean
+  control_id: number
+  action: string
+  actor?: string
+  source?: string
+  status: "REQUESTED" | "ACKNOWLEDGED" | "APPLIED" | "FAILED" | "EXPIRED" | string
+  issued_at?: string
+  acked_at?: string
+  applied_at?: string
+  result?: {
+    closed?: number
+    cancelled?: number
+    failed?: number
+    remaining?: number
+    sweeps?: number
+    error?: string
+    [key: string]: any
+  }
+}
+
+export async function sendControl(action: string, payload?: Record<string, any>): Promise<ControlResponse> {
   try {
-    const res = await fetch(`${API}/api/control/${action}`, {
+    const res = await apiFetch(`${API}/api/control/${action}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ actor: "operator", source: "command-deck", ...(payload ?? {}) }),
+      body: JSON.stringify({ source: "command-deck", ...(payload ?? {}) }),
     })
+    const data: any = await res.json().catch(() => ({}))
     if (res.ok) void refreshSnapshot()
-    return res.ok
+    return {
+      ok: res.ok && data.ok !== false,
+      control_id: data.control_id,
+      action: data.action ?? action,
+      status: data.status,
+      reason: data.reason ?? data.detail,
+    }
+  } catch (err: any) {
+    return { ok: false, reason: err?.message ?? "network error" }
+  }
+}
+
+export async function getControlStatus(controlId: number): Promise<ControlStatus | null> {
+  try {
+    const res = await apiFetch(`${API}/api/control/${controlId}`)
+    if (!res.ok) return null
+    return (await res.json()) as ControlStatus | null
   } catch {
-    return false
+    return null
   }
 }
 
 export async function sendApprovalDecision(approvalId: string, approve: boolean): Promise<boolean> {
   try {
-    const res = await fetch(`${API}/api/control/approve`, {
+    const res = await apiFetch(`${API}/api/control/approve`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

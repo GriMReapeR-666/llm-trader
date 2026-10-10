@@ -1,9 +1,27 @@
+import os
+import pytest
 from fastapi.testclient import TestClient
-from gui_api import app, ui_state, get_configured_api_token
+from ui.gui_api import app, ui_state
+
+
+@pytest.fixture(autouse=True)
+def _setup_api_test_env(monkeypatch):
+    engine_token = "test-engine-internal-token-1234"  # secret-scan: allow
+    gui_token = "test-gui-api-token-1234"  # secret-scan: allow
+    monkeypatch.setenv("ENGINE_INTERNAL_TOKEN", engine_token)
+    monkeypatch.setenv("GUI_API_TOKEN", gui_token)
+    monkeypatch.setenv("GUI_STRICT_AUTH", "0")
+
+
+def _get_client() -> TestClient:
+    engine_token = "test-engine-internal-token-1234"  # secret-scan: allow
+    c = TestClient(app, base_url="http://127.0.0.1:8000")
+    c.headers.update({"Authorization": f"Bearer {engine_token}"})
+    return c
 
 
 def test_gui_api_graph_status():
-    client = TestClient(app)
+    client = _get_client()
 
     # Update the gui_api module's own ui_state directly
     ui_state.active_graph_node = "technical_net"
@@ -21,7 +39,7 @@ def test_gui_api_graph_status():
 
 
 def test_gui_api_opentui_macro_endpoints():
-    client = TestClient(app)
+    client = _get_client()
 
     # 1. Snapshot
     res_snap = client.get("/api/snapshot")
@@ -49,10 +67,9 @@ def test_gui_api_opentui_macro_endpoints():
 
 def test_gui_api_internal_update_macro_state_bridge():
     """Trader-process macro telemetry must reach the GUI snapshot via the bridge."""
-    client = TestClient(app)
+    client = _get_client()
 
-    auth = {"Authorization": f"Bearer {get_configured_api_token()}"}
-    res = client.post("/api/internal/update", headers=auth, json={
+    res = client.post("/api/internal/update", json={
         "type": "macro_state",
         "data": {
             "macro_regime": "CRISIS_PANIC",
@@ -76,7 +93,7 @@ def test_gui_api_internal_update_macro_state_bridge():
     assert macro["causal_attribution"]["primary_driver"] == "liquidity"
 
     # Partial update: only the sent keys change; others keep their last value.
-    res = client.post("/api/internal/update", headers=auth, json={
+    res = client.post("/api/internal/update", json={
         "type": "macro_state",
         "data": {"macro_regime": "RISK_ON_EXPANSION"},
     })
@@ -88,15 +105,15 @@ def test_gui_api_internal_update_macro_state_bridge():
     assert macro["last_bundle"]["bundle_id"] == "BUNDLE_test"
 
     # Missing 'data' must not 500 (boundary: empty payload).
-    assert client.post("/api/internal/update", headers=auth, json={"type": "macro_state"}).status_code == 200
+    assert client.post("/api/internal/update", json={"type": "macro_state"}).status_code == 200
     # Unknown type is a no-op, not an error.
-    assert client.post("/api/internal/update", headers=auth, json={"type": "unknown_type", "data": {}}).status_code == 200
+    assert client.post("/api/internal/update", json={"type": "unknown_type", "data": {}}).status_code == 200
 
 
 def test_gui_api_no_fake_data_and_laya_registry():
     """Verify no fake/mock fallbacks: Laya metrics default to honest zeros and
     only become live values when the trader reports them via /api/internal/update."""
-    client = TestClient(app)
+    client = _get_client()
 
     # 1. Model Registry includes Laya ModernBERT-421M with honest defaults
     res_models = client.get("/api/model-registry")
@@ -111,8 +128,7 @@ def test_gui_api_no_fake_data_and_laya_registry():
     assert laya["metrics"]["win_rate"] == 0
 
     # 1b. Trader-reported metrics flow through the internal update bridge.
-    auth = {"Authorization": f"Bearer {get_configured_api_token()}"}
-    res_upd = client.post("/api/internal/update", headers=auth, json={
+    res_upd = client.post("/api/internal/update", json={
         "type": "laya_metrics",
         "data": {"validated_accuracy": 1.0, "freeze_recall": 1.0, "win_rate": 0.625},
     })
@@ -126,7 +142,7 @@ def test_gui_api_no_fake_data_and_laya_registry():
     assert laya_live["metrics"]["win_rate"] == 0.625
     # Non-numeric / NaN fields are rejected — the registry must surface
     # honest zeros, never the garbage the sender tried to push.
-    client.post("/api/internal/update", headers=auth, json={
+    client.post("/api/internal/update", json={
         "type": "laya_metrics",
         "data": {"ece": "garbage", "raw_accuracy": None},
     })
@@ -165,4 +181,4 @@ def test_gui_api_no_fake_data_and_laya_registry():
         assert len(growth_data["monteCarloSims"]) == 0
     else:
         assert len(growth_data["monteCarloSims"]) > 0
-
+

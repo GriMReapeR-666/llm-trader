@@ -1,4 +1,4 @@
-from contextual_bandit import bandit_report
+from research.contextual_bandit import bandit_report
 
 
 def test_bandit_report_records_dataset_provenance(tmp_path):

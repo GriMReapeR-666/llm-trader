@@ -17,17 +17,16 @@ import math
 import traceback
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-for sub in ["core", "research", "intelligence", "data", "operations", ""]:
-    p = str(ROOT / sub) if sub else str(ROOT)
-    if p not in sys.path:
-        sys.path.insert(0, p)
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
 
-from alpha_factors import compute_alpha_factors, _ALPHA_REGISTRY
-from alpha_ensemble import combine_alphas, format_quality_report, interpret_composite
-from alpha_decay_monitor import AlphaDecayMonitor
+from core.alpha_factors import compute_alpha_factors, _ALPHA_REGISTRY
+from core.alpha_ensemble import combine_alphas, format_quality_report, interpret_composite
+from core.alpha_decay_monitor import AlphaDecayMonitor
 
 STATE_FILE = str(ROOT / "alpha_decay_state.json")
 BACKUP_FILE = str(ROOT / "alpha_decay_state.json.bak_before_real_ic")
@@ -35,7 +34,7 @@ BACKUP_FILE = str(ROOT / "alpha_decay_state.json.bak_before_real_ic")
 def _try_fetch_demo_ohlc(symbol="EURUSD", timeframe="H1", count=2000):
     """Attempt MT5 OHLC fetch; fall back to synthetic if MT5 unavailable."""
     try:
-        from market_data_provider import fetch_ohlc
+        from data.market_data_provider import fetch_ohlc
         try:
             df = fetch_ohlc(symbol, timeframe, count=count)
             if isinstance(df, pd.DataFrame) and len(df) >= 300:
@@ -210,8 +209,8 @@ def main():
     # Optional: Broker replay + CPCV on composite signal
     print("\n[OPTIONAL] Broker replay + CPCV validation of composite signal")
     try:
-        from broker_replay import ReplaySpec, ReplayIntent, replay
-        from cpcv_backtester import run_combinatorial_purged_backtest
+        from research.broker_replay import ReplaySpec, ReplayIntent, replay
+        from core.cpcv_backtester import run_combinatorial_purged_backtest
         # Build intents: long when composite >1.0, short when <-1.0, hold else
         composite = result.composite
         # Use simple ATR-like risk: SL 80 pips, TP 160 pips for EURUSD-like synthetic (0.008/0.016)

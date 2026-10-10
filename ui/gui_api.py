@@ -1,6 +1,7 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, Request, Body as _Body, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
@@ -11,6 +12,9 @@ import math
 import asyncio
 import threading
 import warnings
+import hmac
+import secrets
+from pathlib import Path
 from itertools import zip_longest
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from typing import List, Dict, Any, Optional
@@ -74,9 +78,8 @@ class _UIState:
 ui_state = _UIState()
 import sys as _sys
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _p in (_PROJECT_ROOT, os.path.join(_PROJECT_ROOT, "operations"), os.path.join(_PROJECT_ROOT, "research"), os.path.join(_PROJECT_ROOT, "core"), os.path.join(_PROJECT_ROOT, "intelligence"), os.path.join(_PROJECT_ROOT, "data"), _PROJECT_ROOT):
-    if _p not in _sys.path:
-        _sys.path.insert(0, _p)
+if _PROJECT_ROOT not in _sys.path:
+    _sys.path.insert(0, _PROJECT_ROOT)
 from core.harness.event_stream import EventStream, HarnessEvent
 import logging
 
@@ -89,83 +92,187 @@ logger = logging.getLogger(__name__)
 # Define paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 GUI_DIST_DIR = os.path.join(BASE_DIR, "gui", "dist")
+if not os.path.exists(GUI_DIST_DIR):
+    _alt_dist = os.path.join(os.path.dirname(BASE_DIR), "gui", "dist")
+    if os.path.exists(_alt_dist):
+        GUI_DIST_DIR = _alt_dist
 
 app = FastAPI()
 
-ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-]
+# Resolved to origin/main's security block: it defines is_valid_host() and
+# get_configured_api_token(), both referenced by code that merged cleanly, and
+# it gates the dev-server origins behind GUI_DEV instead of always allowing
+# ports 3000/5173/8080.
+def is_valid_host(host_header: Optional[str]) -> bool:
+    """Validate Host header against DNS rebinding.
+
+    Resolved from origin/main's version against HEAD's ALLOWED_HOSTS. origin/main
+    hardcoded ("127.0.0.1", "localhost"), which rejects ``testserver`` - the
+    default Host Starlette's TestClient sends - so every in-process API test was
+    rejected at the host check before reaching the auth check it was asserting.
+    ALLOWED_HOSTS keeps that name so the ASGI test client works while a real
+    DNS-rebinding host (evil.example.com) is still refused.
+    """
+    if not host_header:
+        return False
+    host = host_header.strip().lower()
+    if ":" in host:
+        hostname, port = host.split(":", 1)
+        if not port.isdigit():
+            return False
+    else:
+        hostname = host
+    return hostname in ALLOWED_HOSTS
+
+
+def get_cors_allowed_origins() -> List[str]:
+    origins = [
+        "http://127.0.0.1",
+        "http://127.0.0.1:8000",
+        "http://localhost",
+        "http://localhost:8000",
+    ]
+    if os.environ.get("GUI_DEV", "0") in ("1", "true", "True"):
+        origins.extend([
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ])
+    return origins
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=get_cors_allowed_origins(),
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-def get_configured_api_token() -> str:
-    """Return the configured API token/key from environment or persistent keyfile.
-    
-    If no token exists, auto-generates a high-entropy secret in artifacts/gui_api.key.
-    """
-    token = os.environ.get("GUI_API_TOKEN") or os.environ.get("GUI_API_KEY")
-    if token and token.strip():
-        return token.strip()
+# Resolved to origin/main: the token lands in a per-user config path with 0600
+# perms and 256 bits of entropy, and the function fails closed (Optional[str])
+# instead of silently generating a secret inside the git checkout at
+# artifacts/gui_api.key, which is a checked-in-tree file.
+def get_token_file_path() -> Path:
+    env_path = os.environ.get("GUI_API_TOKEN_FILE")
+    if env_path:
+        return Path(env_path)
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        base = Path(appdata) if appdata else (Path.home() / "AppData" / "Roaming")
+        return base / "llm-trader" / "api.token"
+    else:
+        return Path.home() / ".config" / "llm-trader" / "api.token"
 
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    key_file = os.path.join(repo_root, "artifacts", "gui_api.key")
-    if os.path.exists(key_file):
-        try:
-            with open(key_file, "r", encoding="utf-8") as f:
-                saved = f.read().strip()
-                if saved:
-                    return saved
-        except Exception:
-            pass
 
-    import secrets
-    new_token = f"gui_{secrets.token_hex(24)}"
+def get_configured_api_token() -> Optional[str]:
+    """Return the configured API token/key from environment or token file.
+    If no token exists and no env var is set, generate a secure random 32-byte
+    hex token and write it to the token file with 0600 permissions."""
+    env_token = os.environ.get("GUI_API_TOKEN") or os.environ.get("GUI_API_KEY")
+    if env_token and env_token.strip():
+        return env_token.strip()
+
+    token_path = get_token_file_path()
     try:
-        os.makedirs(os.path.dirname(key_file), exist_ok=True)
-        with open(key_file, "w", encoding="utf-8") as f:
-            f.write(new_token)
+        if token_path.is_file():
+            content = token_path.read_text(encoding="utf-8").strip()
+            if content:
+                return content
     except Exception as exc:
-        logger.warning("Could not persist auto-generated GUI API token to %s: %s", key_file, exc)
-    return new_token
+        logger.error("Failed reading token file %s: %s", token_path, exc)
+        return None
+
+    # Generate secure random 32-byte hex token and write with 0600 permissions
+    try:
+        new_token = secrets.token_hex(32)
+        token_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        fd = os.open(str(token_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with open(fd, "w", encoding="utf-8") as f:
+            f.write(new_token + "\n")
+        try:
+            os.chmod(str(token_path), 0o600)
+        except OSError:
+            pass
+        return new_token
+    except Exception as exc:
+        logger.error("Failed creating token file %s: %s", token_path, exc)
+        return None
 
 
-def is_request_authenticated(headers: Any, query_params: Any = None) -> bool:
-    """Validate incoming request headers or query params against the configured token."""
+_GENERATED_ENGINE_TOKEN: Optional[str] = None
+
+
+def get_engine_internal_token() -> Optional[str]:
+    """Return the separate engine token for /api/internal/update."""
+    global _GENERATED_ENGINE_TOKEN
+    env_token = os.environ.get("ENGINE_INTERNAL_TOKEN")
+    if env_token and env_token.strip():
+        return env_token.strip()
+    if _GENERATED_ENGINE_TOKEN is None:
+        _GENERATED_ENGINE_TOKEN = secrets.token_hex(32)
+    return _GENERATED_ENGINE_TOKEN
+
+
+SESSION_COOKIE_NAME = "gui_session"
+
+
+def set_gui_session_cookie(response: Response, token: str) -> None:
+    """Provide a SameSite=Strict; HttpOnly session cookie for seamless browser GUI access."""
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        samesite="strict",
+        path="/",
+    )
+
+
+def is_request_authenticated(headers: Any, cookies: Any = None) -> bool:
+    """Validate incoming request headers or cookie against the configured token.
+    Uses hmac.compare_digest and strictly rejects query parameter authentication."""
     token = get_configured_api_token()
     if not token:
+        # Refuse to authenticate when no token is configured or token generation failed
         return False
 
     # 1. Check Authorization: Bearer <token>
     auth_header = headers.get("authorization", "") if hasattr(headers, "get") else ""
     if auth_header.startswith("Bearer "):
         bearer = auth_header[7:].strip()
-        if bearer == token:
+        if hmac.compare_digest(bearer, token):
             return True
 
     # 2. Check X-API-Key header
     api_key_header = headers.get("x-api-key", "") if hasattr(headers, "get") else ""
-    if api_key_header == token:
+    if api_key_header and hmac.compare_digest(api_key_header, token):
         return True
 
-    # 3. Check query param (e.g. for WebSockets or simple query URLs)
-    if query_params and hasattr(query_params, "get"):
-        if query_params.get("token") == token:
+    # 3. Check session cookie
+    if cookies and hasattr(cookies, "get"):
+        session_cookie = cookies.get(SESSION_COOKIE_NAME) or cookies.get("token")
+        if session_cookie and hmac.compare_digest(session_cookie, token):
             return True
 
+    # Note: query parameters (?token=...) are deliberately NOT accepted
+    return False
+
+
+def is_engine_authenticated(headers: Any) -> bool:
+    """Validate incoming request for /api/internal/update against ENGINE_INTERNAL_TOKEN."""
+    expected_token = get_engine_internal_token()
+    if not expected_token:
+        return False
+    auth_header = headers.get("authorization", "") if hasattr(headers, "get") else ""
+    if auth_header.startswith("Bearer "):
+        bearer = auth_header[7:].strip()
+        if hmac.compare_digest(bearer, expected_token):
+            return True
+    engine_header = headers.get("x-engine-token", "") if hasattr(headers, "get") else ""
+    if engine_header and hmac.compare_digest(engine_header, expected_token):
+        return True
     return False
 
 
@@ -174,27 +281,77 @@ ALLOWED_HOSTS = {"localhost", "127.0.0.1", "testserver"}
 
 @app.middleware("http")
 async def api_auth_middleware(request: Request, call_next):
-    # 1. Host header validation (DNS rebinding protection)
-    raw_host = request.headers.get("host", "").split(":")[0].strip().lower()
-    if raw_host and raw_host not in ALLOWED_HOSTS:
+# Resolved to origin/main's middleware: it reuses is_valid_host(), keeps
+    # /api/health public, adds engine-token auth for /api/internal/update, and
+    # honours GUI_STRICT_AUTH across every /api route. HEAD's version also
+    # passed request.query_params into is_request_authenticated's `cookies`
+    # argument, contradicting the "query parameters are deliberately NOT
+    # accepted" rule stated in that same function.
+    # 1. Host header validation: Host must be a permitted local host.
+    # 400 is origin/main's contract and is kept: tests/test_gui_api_auth.py::
+    # test_wrong_host_header_returns_400 pins it explicitly. HEAD's
+    # test_gui_api_security.py asserted 403 for the same condition; that
+    # assertion was updated to match. Both are refusals - the security property
+    # is that a rebinding host never reaches the handler, not the exact class.
+    host = request.headers.get("host")
+    if not is_valid_host(host):
         return JSONResponse(
-            status_code=403,
-            content={"error": f"Forbidden: Host '{raw_host}' not permitted."},
+            status_code=400,
+            content={"error": f"Bad Request: Host '{host}' not permitted."},
         )
 
-    # 2. Control plane authentication for mutating / sensitive routes
     path = request.url.path
+
+    # Public health check is always unauthenticated
+    if path == "/api/health":
+        return await call_next(request)
+
+    # 2. Engine internal update authentication
+    if path == "/api/internal/update":
+        if not is_engine_authenticated(request.headers):
+            return JSONResponse(
+                status_code=401,
+                content={"error": "Unauthorized: invalid or missing engine token"},
+            )
+        request.state.actor = "engine_internal"
+        return await call_next(request)
+
+    # 3. Sensitive / control / read routes
     is_control_route = any(
-        path.startswith(p) for p in ("/api/control", "/api/config", "/api/internal")
+        path.startswith(p) for p in ("/api/control", "/api/config", "/api/internal", "/api/latch")
     )
-    if is_control_route:
-        if not is_request_authenticated(request.headers, request.query_params):
+    strict_auth = os.environ.get("GUI_STRICT_AUTH", "1") in ("1", "true", "True")
+    # Public: the login/logout endpoints and everything outside /api (the
+    # static web GUI bundle, /docs). The GUI must load to show its sign-in
+    # screen; every data/control call it then makes is under /api and
+    # authenticated (review D6).
+    is_public_doc_or_root = path in ("/api/auth/login", "/api/auth/logout") or not path.startswith("/api")
+
+    needs_auth = is_control_route or (strict_auth and not is_public_doc_or_root)
+
+    token = get_configured_api_token()
+    if needs_auth:
+        if not token or not is_request_authenticated(request.headers, request.cookies):
             return JSONResponse(
                 status_code=401,
                 content={"error": "Unauthorized: invalid or missing API token"},
             )
 
-    return await call_next(request)
+    # Track authenticated actor on request state
+    if is_request_authenticated(request.headers, request.cookies):
+        auth_header = request.headers.get("authorization", "") if hasattr(request.headers, "get") else ""
+        if auth_header.startswith("Bearer "):
+            request.state.actor = "authenticated_operator"
+        elif request.cookies.get(SESSION_COOKIE_NAME) or request.cookies.get("token"):
+            request.state.actor = "authenticated_session"
+        else:
+            request.state.actor = "authenticated_operator"
+    else:
+        request.state.actor = "unauthenticated"
+
+    response = await call_next(request)
+
+    return response
 
 
 # Active WebSocket Clients for Harness Live Event Streaming
@@ -202,11 +359,31 @@ active_ws_clients: List[WebSocket] = []
 
 @app.get("/")
 def _root():
+    # Public index never mints an auth cookie (single-door auth rule):
+    # obtain one via POST /api/auth/login with the install-time token.
+    # Serves the web GUI when it is built (its sign-in screen calls the login).
+    index = os.path.join(GUI_DIST_DIR, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
     return {
         "status": "ok",
         "service": "LLM Trader API",
         "endpoints": "/api/snapshot, /api/analytics, /api/skills, /docs",
     }
+
+@app.post("/api/auth/login")
+def auth_login(response: Response, credentials: dict = _Body(default={})):
+    token = get_configured_api_token()
+    provided = credentials.get("token") or credentials.get("password") or ""
+    if token and provided and hmac.compare_digest(provided, token):
+        set_gui_session_cookie(response, token)
+        return {"ok": True, "status": "authenticated"}
+    return JSONResponse(status_code=401, content={"error": "Invalid credentials"})
+
+@app.post("/api/auth/logout")
+def auth_logout(response: Response):
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    return {"ok": True}
 
 @app.get("/api/health")
 def _health():
@@ -214,10 +391,18 @@ def _health():
 
 @app.websocket("/ws/harness-events")
 async def websocket_harness_events(websocket: WebSocket):
+    # Host header check
+    host = websocket.headers.get("host")
+    if not is_valid_host(host):
+        await websocket.close(code=4000, reason="Bad Request: invalid Host header")
+        return
+
+    # Authentication check
     token = get_configured_api_token()
-    if token and not is_request_authenticated(websocket.headers, websocket.query_params):
+    if not token or not is_request_authenticated(websocket.headers, websocket.cookies):
         await websocket.close(code=4001, reason="Unauthorized: invalid or missing API token")
         return
+
     await websocket.accept()
     active_ws_clients.append(websocket)
     try:
@@ -240,7 +425,6 @@ def broadcast_harness_event_to_gui(event: HarnessEvent) -> None:
 def _recent_events(since: int = 0) -> dict:
     """Fetch recent harness events since a timestamp (for WebSocket reconnect replay)."""
     try:
-        sys.path.insert(0, BASE_DIR)
         from core.harness.event_stream import EventStream
         _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         if not os.path.exists(_db):
@@ -317,7 +501,7 @@ def get_dashboard_data():
 def get_positions():
     """Live positions from journal (real-time, not push-dependent)."""
     try:
-        from live_journal_reader import read_open_positions
+        from ui.live_journal_reader import read_open_positions
         _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         live = read_open_positions(_db)
         if live:
@@ -330,7 +514,7 @@ def get_positions():
 def get_history():
     """Live trade history from journal (real-time, not push-dependent)."""
     try:
-        from live_journal_reader import read_trade_history
+        from ui.live_journal_reader import read_trade_history
         _db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         live = read_trade_history(_db, limit=50)
         if live:
@@ -380,8 +564,8 @@ def get_graph_status():
 def get_cycle_brief(symbol: str = "", strategy: str = ""):
     """Latest CycleBrief observability payload (never grants order permission)."""
     try:
-        from trading_safety import TradingStore
-        from cycle_brief import load_latest
+        from core.trading_safety import TradingStore
+        from intelligence.cycle_brief import load_latest
         store = TradingStore()
         return load_latest(store, symbol=symbol, strategy=strategy)
     except Exception as exc:
@@ -396,7 +580,7 @@ def get_cycle_brief(symbol: str = "", strategy: str = ""):
 def get_profitability():
     """Aggregated profitability foundation report (advisory only)."""
     try:
-        from profitability_foundation import report as profitability_report
+        from research.profitability_foundation import report as profitability_report
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return profitability_report(path)
     except Exception as exc:
@@ -411,7 +595,7 @@ def get_profitability():
 def get_brain_observability(symbol: str = "", strategy: str = ""):
     """Unified memory/regime/causal/macro observability (never grants orders)."""
     try:
-        from brain_observability import full_observability
+        from intelligence.brain_observability import full_observability
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return full_observability(journal_path=path, symbol=symbol, strategy=strategy)
     except Exception as exc:
@@ -425,7 +609,7 @@ def get_brain_observability(symbol: str = "", strategy: str = ""):
 @app.get("/api/brain/memory")
 def get_brain_memory(limit: int = 20):
     try:
-        from brain_observability import memory_health
+        from intelligence.brain_observability import memory_health
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return memory_health(journal_path=path, limit=min(max(int(limit), 1), 100))
     except Exception as exc:
@@ -435,7 +619,7 @@ def get_brain_memory(limit: int = 20):
 @app.get("/api/brain/regime")
 def get_brain_regime(symbol: str = "", strategy: str = ""):
     try:
-        from brain_observability import regime_snapshot
+        from intelligence.brain_observability import regime_snapshot
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return regime_snapshot(journal_path=path, symbol=symbol, strategy=strategy)
     except Exception as exc:
@@ -445,7 +629,7 @@ def get_brain_regime(symbol: str = "", strategy: str = ""):
 @app.get("/api/brain/causal-edges")
 def get_brain_causal_edges(limit: int = 12):
     try:
-        from brain_observability import top_causal_edges
+        from intelligence.brain_observability import top_causal_edges
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return top_causal_edges(journal_path=path, limit=min(max(int(limit), 1), 50))
     except Exception as exc:
@@ -455,7 +639,7 @@ def get_brain_causal_edges(limit: int = 12):
 @app.get("/api/brain/macro-observations")
 def get_brain_macro_observations(limit: int = 15):
     try:
-        from brain_observability import macro_observations_summary
+        from intelligence.brain_observability import macro_observations_summary
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return macro_observations_summary(journal_path=path, limit=min(max(int(limit), 1), 50))
     except Exception as exc:
@@ -465,7 +649,7 @@ def get_brain_macro_observations(limit: int = 15):
 @app.get("/api/brain/economic-coverage")
 def get_brain_economic_coverage():
     try:
-        from brain_observability import economic_dynamics_health
+        from intelligence.brain_observability import economic_dynamics_health
         return economic_dynamics_health()
     except Exception as exc:
         return {"status": "ERROR", "error": str(exc)[:400], "execution_authority": False}
@@ -475,7 +659,7 @@ def get_brain_economic_coverage():
 def get_brain_realtime_news(symbol: str = ""):
     """Latest governed realtime news ingest summary (never grants orders)."""
     try:
-        from brain_observability import realtime_news_summary
+        from intelligence.brain_observability import realtime_news_summary
         path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         return realtime_news_summary(journal_path=path, symbol=symbol)
     except Exception as exc:
@@ -624,6 +808,12 @@ def start_trading(config: dict):
     # Pass API Sync URL
     cmd.extend(["--api-sync", "http://127.0.0.1:8000/api/internal/update"])
 
+# Both single-instance guards are kept: they are independent files
+    # (engine.pid lease vs engine.lock), so together they close the gap where a
+    # stale pid file was the only thing standing between two engines. The lease
+    # check runs first because it returns this function's documented dict
+    # contract ("already_running" / "probe_failed").
+    #
     # Single-instance guard: the engine publishes its PID to engine.pid at boot.
     # Refuse to spawn a second engine when one is already alive — duplicate
     # engines thrash the journal DB and race MT5 (observed as 2GB twin processes).
@@ -665,8 +855,25 @@ def start_trading(config: dict):
             "message": f"Could not verify engine liveness ({_probe_exc}) — start refused to avoid a duplicate engine.",
         }
 
+    # Single-instance guard (CC-F9), from origin/main: an OS-level mutex on
+    # engine.lock. Independent of the pid lease above.
+    from core.file_lock import FileLock
+    _lock_file = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.lock")
+    _engine_lock = FileLock(_lock_file)
+    if not _engine_lock.acquire(non_blocking=True):
+        ui_state.is_running = True
+        _holder_pid = _engine_lock.read_pid()
+        raise HTTPException(
+            status_code=409,
+            detail=f"Engine already running (lock held by pid {_holder_pid or 'unknown'})",
+        )
+    _engine_lock.release()
+
     # Prepare Environment
     env = os.environ.copy()
+    engine_token = get_engine_internal_token()
+    if engine_token:
+        env["ENGINE_INTERNAL_TOKEN"] = engine_token
     if config.get("mt5_login"): env["MT5_LOGIN"] = str(config.get("mt5_login"))
     if config.get("mt5_password"): env["MT5_PASSWORD"] = str(config.get("mt5_password"))
     if config.get("mt5_server"): env["MT5_SERVER"] = str(config.get("mt5_server"))
@@ -680,7 +887,11 @@ def start_trading(config: dict):
 
     try:
         # Launch isolated subprocess
-        subprocess.Popen(cmd, env=env, cwd=os.getcwd(), creationflags=subprocess.CREATE_NEW_CONSOLE)
+        if sys.platform == "win32":
+            subprocess.Popen(cmd, env=env, cwd=os.getcwd(), creationflags=subprocess.CREATE_NEW_CONSOLE)
+        else:
+            # No console windows on macOS/Linux: detach into its own session.
+            subprocess.Popen(cmd, env=env, cwd=os.getcwd(), start_new_session=True)
         ui_state.is_running = True
         return {"status": "success", "message": "Trading started in background"}
     except Exception as e:
@@ -722,7 +933,7 @@ def get_accounts():
 
 def _store_secure_password(login, server, password: str) -> str:
     try:
-        from secure_store import store_password as _sp
+        from core.secure_store import store_password as _sp
     except ImportError:
         from core.secure_store import store_password as _sp
     return _sp(str(login), str(server), str(password))
@@ -794,8 +1005,6 @@ def test_account_login(payload: dict = {}):
     """Test MT5 login via secure_store + MCP path (reads current default account). Returns masked result."""
     try:
         import sys
-        sys.path.insert(0, BASE_DIR)
-        sys.path.insert(0, os.path.dirname(BASE_DIR))
         from mt5_trader import Config, MT5Client
         cfg = Config.from_sources()
         if not cfg.login:
@@ -803,7 +1012,7 @@ def test_account_login(payload: dict = {}):
         # quick check secure backend
         try:
             try:
-                from secure_store import has_store, masked, retrieve_password
+                from core.secure_store import has_store, masked, retrieve_password
             except ImportError:
                 from core.secure_store import has_store, masked, retrieve_password
             backend = has_store()
@@ -832,7 +1041,7 @@ def delete_account(name: str):
         if sk:
             try:
                 try:
-                    from secure_store import delete_password
+                    from core.secure_store import delete_password
                 except ImportError:
                     from core.secure_store import delete_password
                 delete_password(sk)
@@ -867,6 +1076,18 @@ def _init_deck_bridge() -> None:
         event_bridge.init(_JOURNAL_DB if os.path.exists(_JOURNAL_DB) else None)
     except Exception as exc:  # bridge must never take the API down
         print(f"[deck-bridge] init warning: {exc}")
+    # B1: the API process issues journal operator controls (flatten,
+    # killswitch) through the autonomy manager, so it needs the same journal
+    # store the engine drains. Without this, issue_control inserts nothing
+    # and success responses are lies.
+    try:
+        from core.trading_safety import TradingStore
+        from operations.autonomy import get_autonomy as _get_autonomy_api_store
+
+        _journal_path = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
+        _get_autonomy_api_store().attach_store(TradingStore(_journal_path))
+    except Exception as exc:
+        print(f"[deck-bridge] autonomy store attach warning: {exc}")
 
 
 def _broadcast_envelope(envelope: dict) -> None:
@@ -1016,8 +1237,7 @@ def _explicit_pipeline_stage() -> dict:
     """Best-effort explicit validation-pipeline stage snapshot."""
     try:
         _jq = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import read_latest_proposal, read_proposals
+        from ui.live_journal_reader import read_latest_proposal, read_proposals
         _last = read_latest_proposal(_jq)
         _props = read_proposals(_jq, limit=5)
         explicit_stage = {
@@ -1180,8 +1400,7 @@ def _datasource_heartbeat() -> dict:
     """Explicit data-source health from live orchestrator data_status and providers."""
     try:
         _jq = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import read_latest_proposal
+        from ui.live_journal_reader import read_latest_proposal
         _last = read_latest_proposal(_jq)
         data_status = None
         if _last and isinstance(_last.get("reasons"), list):
@@ -1299,8 +1518,7 @@ def _incidents_snapshot() -> dict:
         _journal_db = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
         _journal_db = _journal_db if os.path.isabs(_journal_db) else os.path.join(
             os.path.dirname(BASE_DIR), _journal_db)
-        sys.path.insert(0, os.path.dirname(BASE_DIR))
-        from health_alerts import evaluate as _eval_health
+        from operations.health_alerts import evaluate as _eval_health
         report = _eval_health(_journal_db)
         incidents["status"] = report.get("status", "OK")
         incidents["checked_at"] = report.get("checked_at")
@@ -1326,7 +1544,6 @@ def _incidents_snapshot() -> dict:
     try:
         ks = incidents.get("kill_switch")
         if ks is None:
-            sys.path.insert(0, os.path.dirname(BASE_DIR))
             from core.execution_safety_supervisor import (
                 get_execution_safety_supervisor as _get_ess,
             )
@@ -1465,8 +1682,7 @@ def deck_snapshot(v: int = 1):
     history = []
     pnl_summary = {}
     try:
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import (
+        from ui.live_journal_reader import (
             read_open_positions, read_trade_history, read_pnl_summary,
         )
         positions = read_open_positions(_journal_db)
@@ -1477,9 +1693,7 @@ def deck_snapshot(v: int = 1):
 
     brain = {}
     try:
-        sys.path.insert(0, BASE_DIR)
-        sys.path.insert(0, os.path.dirname(BASE_DIR))
-        from brain_observability import full_observability  # type: ignore
+        from intelligence.brain_observability import full_observability  # type: ignore
         brain = full_observability() or {}
     except Exception:
         brain = {}
@@ -1487,7 +1701,6 @@ def deck_snapshot(v: int = 1):
     # --- Autonomous Safety State (G5) ---
     safety = {"execution": {}, "circuits": {}, "copula": {}, "ewc": {}, "alpha_decay": {}}
     try:
-        sys.path.insert(0, os.path.join(BASE_DIR, "..", "core"))
         from core.execution_safety_supervisor import get_execution_safety_supervisor
         safety["execution"] = get_execution_safety_supervisor().inspect_safety_status()
     except Exception as exc:
@@ -1526,7 +1739,7 @@ def deck_snapshot(v: int = 1):
     # --- Live journal account state (fallback when push-based ui_state is empty) ---
     _live_account = {}
     try:
-        from live_journal_reader import read_account_state
+        from ui.live_journal_reader import read_account_state
         _risk_path = os.path.join(os.path.dirname(BASE_DIR), "risk_state.json")
         _live_account = read_account_state(_risk_path, _journal_db)
     except Exception:
@@ -1644,16 +1857,22 @@ def _apply_snapshot_extensions(snap: dict) -> None:
 
 
 @app.post("/api/control/{action}")
-def deck_control(action: str, payload: dict = _Body(default={})):
+def deck_control(action: str, request: Request, payload: dict = _Body(default={})):
     if action == "approve":
         try:
             from operations.strategy_factory import get_factory
+            # Derive actor from the authenticated session; ignore payload actor to prevent forgery
+            session_actor = getattr(request.state, "actor", "authenticated_operator")
+            if not session_actor or session_actor == "unauthenticated":
+                session_actor = "authenticated_operator"
             res = get_factory().write_decision(
                 str(payload.get("approval_id") or ""),
                 "APPROVED" if payload.get("decision", "APPROVED") != "REJECTED" else "REJECTED",
-                actor=str(payload.get("actor") or "operator"),
+                actor=session_actor,
             )
-            event_bridge_emit(payload)
+            emit_payload = dict(payload)
+            emit_payload["actor"] = session_actor
+            event_bridge_emit(emit_payload)
             return {"ok": True, "applied": res}
         except Exception as exc:
             return {"ok": False, "reason": str(exc)}
@@ -1687,66 +1906,445 @@ def deck_control(action: str, payload: dict = _Body(default={})):
         except Exception as exc:
             return {"ok": False, "reason": str(exc)}
     if action == "stop":
-        """Stop the trading engine subprocess (positions remain at the broker)."""
-        _pid_file = os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
-        # Same lease-format reason as the spawn guard: engine.pid is JSON now,
-        # so a bare int() here raised ValueError and the `except` turned every
-        # stop into "no engine.pid" — the operator could not stop a running bot.
-        try:
-            from operations.live_state_probe import engine_dead
+        """Stop the trading engine subprocess cleanly via stop.flag (CC-F4, CC-F9)."""
+        from core.file_lock import FileLock
+        _lock_file = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.lock")
+        _lock = FileLock(_lock_file)
 
-            _state = engine_dead(_pid_file)
-            _pid = int(_state.get("pid") or 0)
-        except Exception:
-            _pid = 0
-        if _pid <= 0:
-            return {"ok": False, "reason": "no running engine found in engine.pid — nothing to stop"}
-        try:
-            import psutil as _ps
-            _proc = _ps.Process(_pid)
-        except Exception:
-            return {"ok": False, "reason": f"engine pid {_pid} not running (stale pidfile)"}
-        try:
-            _proc.terminate()
+        # Check if engine is running (lock held)
+        if _lock.acquire(non_blocking=True):
+            _lock.release()
+            return {"ok": False, "reason": "engine is not running (lock not held)"}
+
+        # Engine is running — resolve its PID from the lockfile, then the lease.
+        _pid = _lock.read_pid()
+        if not _pid:
+            _pid_file = os.environ.get("LLM_TRADER_PID_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
+            # engine.pid is a JSON lease ({pid, created_at, stamped_at}) since
+            # P0-3. The bare int(open(...).read()) that used to sit here raised
+            # ValueError on the JSON, and the `except` turned every stop into
+            # "pid 0" — the operator could not stop a running bot. Read it
+            # through the lease reader, which also tolerates legacy plain-int
+            # files.
             try:
-                _proc.wait(timeout=10)
+                from operations.live_state_probe import engine_dead
+
+                _state = engine_dead(_pid_file)
+                _pid = int(_state.get("pid") or 0)
             except Exception:
-                _proc.kill()
-                _proc.wait(timeout=5)
-            try:
-                os.remove(_pid_file)  # TerminateProcess skips the engine's atexit
-            except OSError:
-                pass
-            event_bridge_emit({"action": "ENGINE_STOPPED", "pid": _pid, "source": "command-deck"})
-            return {"ok": True, "action": "stop", "pid": _pid, "message": "Engine terminated"}
+                _pid = 0
+
+        # Request graceful stop via stop.flag (CC-F4, CC-F9)
+        _stop_file = os.environ.get("MT5_TRADER_STOP_FILE", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "stop.flag")
+        try:
+            with open(_stop_file, "w", encoding="utf-8") as f:
+                json.dump({"reason": "operator stop via deck", "timestamp": time.time()}, f)
         except Exception as exc:
-            return {"ok": False, "reason": f"failed to stop engine pid {_pid}: {exc}"}
-    if action not in {"pause", "resume", "flatten", "killswitch"}:
+            logger.warning("Could not write stop.flag: %s", exc)
+
+        # Wait up to 15s for engine.lock to release cleanly
+        released = False
+        deadline = time.monotonic() + 15.0
+        while time.monotonic() < deadline:
+            if _lock.acquire(non_blocking=True):
+                _lock.release()
+                released = True
+                break
+            time.sleep(0.2)
+
+        if not released and _pid > 0:
+            # Timed out waiting for graceful stop: terminate PID
+            try:
+                import psutil as _ps
+                _proc = _ps.Process(_pid)
+                _proc.terminate()
+                try:
+                    _proc.wait(timeout=5)
+                except Exception:
+                    _proc.kill()
+                    _proc.wait(timeout=3)
+            except Exception as exc:
+                return {"ok": False, "reason": f"failed to terminate engine pid {_pid}: {exc}"}
+
+        ui_state.is_running = False
+        event_bridge_emit({"action": "ENGINE_STOPPED", "pid": _pid, "source": "command-deck", "graceful": released})
+        return {
+            "ok": True,
+            "action": "stop",
+            "pid": _pid,
+            "graceful": released,
+            "message": "Engine stopped cleanly" if released else "Engine terminated after timeout",
+        }
+    if action not in {"pause", "resume", "flatten", "killswitch", "killswitch_off"}:
         return {"ok": False, "reason": f"unsupported action {action}"}
+
+    # Session actor integrity (PH3-N3): derive actor strictly from authenticated session
+    session_actor = getattr(request.state, "actor", "authenticated_operator")
+    if not session_actor or session_actor == "unauthenticated":
+        session_actor = "authenticated_operator"
+
+    # Enforce typed confirmation
+    confirm = str(payload.get("confirm") or payload.get("confirmation") or "").strip()
+    if action == "flatten" and confirm != "FLATTEN":
+        raise HTTPException(status_code=400, detail="Confirmation required: pass confirm='FLATTEN'")
+    if action == "killswitch" and confirm != "KILL":
+        raise HTTPException(status_code=400, detail="Confirmation required: pass confirm='KILL'")
+    if action == "killswitch_off" and confirm != "KILLSWITCH_OFF":
+        raise HTTPException(status_code=400, detail="Confirmation required: pass confirm='KILLSWITCH_OFF'")
+
     try:
         from operations.autonomy import get_autonomy
         from operations import event_bridge
 
+        idempotency_key = payload.get("idempotency_key")
         result = get_autonomy().issue_control(
             action,
-            actor=str(payload.get("actor") or "operator"),
+            actor=session_actor,
             source=str(payload.get("source") or "command-deck"),
+            idempotency_key=str(idempotency_key) if idempotency_key else None,
         )
+        # B1: a control without a journal row is not issued. Fail loudly so
+        # the deck can show FAILED instead of a phantom ACKNOWLEDGED.
+        if not result.get("ok") or result.get("control_id") is None:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Control not issued: {result.get('reason', 'journal unavailable')}",
+            )
         if result.get("ok"):
-            # CONTROL_ISSUED only: this HTTP 200 means the control was
-            # QUEUED (or locally applied for pause/resume) — never that
-            # positions were closed.  The engine emits CONTROL_EXECUTED /
-            # CONTROL_PENDING / CONTROL_FAILED after it actually applies the
-            # control (C4/D1).
-            event_bridge.emit("CONTROL_ISSUED", {
-                "action": action,
-                "status": result.get("status"),
-                "actor": payload.get("actor"),
-                "source": payload.get("source"),
-            })
+            # Resolved to origin/main: it emits CONTROL_REQUESTED alongside
+            # CONTROL_ISSUED, and sets the REQUESTED / ACKNOWLEDGED / APPLIED
+            # statuses that the unconflicted get_control_status() below reads
+            # out of ctrl["status"]. The HTTP 200 still means QUEUED/ACCEPTED,
+            # never that positions were closed - the engine emits
+            # CONTROL_EXECUTED / CONTROL_PENDING / CONTROL_FAILED after it
+            # actually applies the control (C4/D1).
+            cid = result.get("control_id")
+            event_bridge.emit("CONTROL_ISSUED", {"action": action, "actor": session_actor, "control_id": cid})
+            event_bridge.emit("CONTROL_REQUESTED", {"action": action, "actor": session_actor, "control_id": cid})
+            status = "REQUESTED"
+            if action == "killswitch":
+                status = "ACKNOWLEDGED"
+            elif action in ("pause", "resume", "killswitch_off"):
+                status = "APPLIED"
+            result["status"] = status
+            result["actor"] = session_actor
         return result
+    except HTTPException:
+        raise
     except Exception as exc:
         return {"ok": False, "reason": str(exc)}
+
+
+@app.get("/api/control/{control_id}")
+def get_control_status(control_id: int):
+    from core.trading_safety import TradingStore
+    try:
+        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
+        store = TradingStore(_db)
+        ctrl = store.get_operator_control(int(control_id))
+        if not ctrl:
+            raise HTTPException(status_code=404, detail=f"Control {control_id} not found")
+        status = ctrl["status"]
+        if ctrl.get("action") == "killswitch" and status == "REQUESTED" and store.is_kill_switch_active():
+            status = "ACKNOWLEDGED"
+        return {
+            "ok": True,
+            "control_id": ctrl["id"],
+            "action": ctrl["action"],
+            "actor": ctrl["actor"],
+            "source": ctrl["source"],
+            "status": status,
+            "issued_at": ctrl["issued_at"],
+            "acked_at": ctrl["acked_at"],
+            "applied_at": ctrl["applied_at"],
+            "result": ctrl.get("result", {}),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get("/api/safety")
+def get_safety(request: Request):
+    """GET /api/safety — Unified safety telemetry for the deck safety strip (Part 1 §7.2)."""
+    if not is_request_authenticated(request.headers, request.cookies):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing API token")
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Engine status via OS file lock (CC-F9)
+    from core.file_lock import FileLock
+    _lock_file = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.lock")
+    _lock = FileLock(_lock_file)
+
+    engine_running = False
+    pid = None
+    if _lock.acquire(non_blocking=True):
+        _lock.release()
+        engine_running = False
+    else:
+        engine_running = True
+        pid = _lock.read_pid()
+
+    # Heartbeat
+    hb_age_s = None
+    if engine_running:
+        try:
+            from core.trading_safety import TradingStore
+            _journal_path = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
+            store = TradingStore(_journal_path)
+            with store._connect() as con:
+                row = con.execute("SELECT heartbeat_at FROM agent_runs ORDER BY started_at DESC LIMIT 1").fetchone()
+                if row and row["heartbeat_at"]:
+                    try:
+                        hb_dt = datetime.fromisoformat(row["heartbeat_at"])
+                        if hb_dt.tzinfo is None:
+                            hb_dt = hb_dt.replace(tzinfo=timezone.utc)
+                        hb_age_s = max(0.0, (datetime.now(timezone.utc) - hb_dt).total_seconds())
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    engine_field = {
+        "is_running": engine_running,
+        "lock_held": engine_running,
+        "heartbeat_age_s": hb_age_s,
+        "pid": pid,
+        "as_of": now,
+    }
+
+    # If engine is down, all other safety fields are null per PR 3.7 spec:
+    if not engine_running:
+        return {
+            "engine": engine_field,
+            "mode": None,
+            "autonomy": None,
+            "kill_switch": None,
+            "news_latch": None,
+            "daily_pnl": None,
+            "tick_age": None,
+            "bridge": None,
+            "llm_circuit": None,
+            "open_controls": None,
+        }
+
+    from core.trading_safety import TradingStore
+    _journal_path = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
+    store = TradingStore(_journal_path)
+
+    # Mode (H2): from the journal's persisted scope — the mode the engine
+    # actually runs under. Never from an env var nothing sets (which pinned
+    # the strip to PAPER), and null when the journal is unscopable.
+    try:
+        from operations.journal_scope import status as _scope_status
+        _scope_info = _scope_status(_journal_path)
+        _scope_mode = _scope_info.get("mode") if _scope_info.get("status") == "SCOPED" else None
+    except Exception:
+        _scope_mode = None
+    mode_field = {"value": _scope_mode, "as_of": now} if _scope_mode else None
+
+    # Autonomy (H2/B1): the API attaches the journal store at startup, so
+    # this snapshot is journal-backed. Without a store it would be stale —
+    # report null instead of a guess.
+    try:
+        from operations.autonomy import get_autonomy
+        _autonomy_mgr = get_autonomy()
+        if getattr(_autonomy_mgr, "store", None) is None:
+            autonomy_field = None
+        else:
+            snap = _autonomy_mgr.snapshot()
+            autonomy_field = {
+                "level": getattr(snap.level, "key", str(snap.level)),
+                "paused": snap.paused,
+                "halted": snap.halted,
+                "pause_reason": snap.pause_reason,
+                "halt_reason": snap.halt_reason,
+                "as_of": now,
+            }
+    except Exception:
+        autonomy_field = None
+
+    # Kill switch
+    try:
+        ks_active = store.is_kill_switch_active()
+        ks_state = store.get_state("kill_switch", {})
+        ks_reason = ks_state.get("reason", "") if isinstance(ks_state, dict) else ""
+        kill_switch_field = {
+            "active": ks_active,
+            "reason": ks_reason,
+            "as_of": now,
+        }
+    except Exception:
+        kill_switch_field = None
+
+    # News latch (H2/H5): read through the singleton bound to this journal.
+    # Attach-once: only bind when nothing is bound yet, never re-point a
+    # live backend from a status read.
+    try:
+        from data.kill_switch_latch import get_kill_switch_latch
+        latch = get_kill_switch_latch()
+        try:
+            if getattr(latch, "_store", None) is None:
+                latch.attach_store(store)
+        except Exception:
+            pass
+        st = latch.snapshot()
+        latched = bool(st.get("latched", False))
+        triggered_at = st.get("triggered_at")
+        since_iso = None
+        if latched and triggered_at:
+            try:
+                since_iso = datetime.fromtimestamp(float(triggered_at), tz=timezone.utc).isoformat()
+            except Exception:
+                since_iso = str(triggered_at)
+        news_latch_field = {
+            "latched": latched,
+            "since": since_iso,
+            "source": st.get("trigger_source"),
+            "headlines": st.get("triggered_headlines", []),
+            "as_of": now,
+        }
+    except Exception:
+        news_latch_field = None
+
+    # Daily P&L against limit & breaker state (H2): read the persisted
+    # RiskManager state only. The old code read a `daily_breaker` key that
+    # nothing writes and invented a -500 limit. P&L needs a live broker read
+    # the API doesn't have, so pnl/limit stay null unless persisted; the
+    # persisted flatten reason is the honest trip signal.
+    try:
+        risk_state = store.get_state("risk_manager_state", {})
+        if not isinstance(risk_state, dict):
+            risk_state = {}
+        _flat_reason = str(risk_state.get("flatten_reason") or "")
+        daily_pnl_field = {
+            "pnl": None,
+            "limit": None,
+            "breaker_tripped": bool(_flat_reason),
+            "trip_reason": _flat_reason or None,
+            "trading_day": risk_state.get("trading_day") or risk_state.get("date"),
+            "day_basis": risk_state.get("day_basis"),
+            "start_equity": risk_state.get("start_equity"),
+            "as_of": now,
+        }
+        if not risk_state:
+            daily_pnl_field = None
+    except Exception:
+        daily_pnl_field = None
+
+    # Last tick age per symbol
+    try:
+        tick_syms = ui_state.system_health.get("feed_ages", {}) if isinstance(ui_state.system_health, dict) else {}
+        tick_age_field = {
+            "symbols": tick_syms or {},
+            "as_of": now,
+        }
+    except Exception:
+        tick_age_field = None
+
+    # MT5 bridge status
+    try:
+        bridge_conn = bool(ui_state.is_connected)
+        bridge_field = {
+            "connected": bridge_conn,
+            "status": "CONNECTED" if bridge_conn else "DISCONNECTED",
+            "as_of": now,
+        }
+    except Exception:
+        bridge_field = None
+
+    # LLM provider circuit
+    try:
+        circuit_st = store.get_state("llm_circuit", {})
+        llm_circuit_field = {
+            "state": circuit_st.get("state", "CLOSED") if isinstance(circuit_st, dict) else "CLOSED",
+            "available": circuit_st.get("available", True) if isinstance(circuit_st, dict) else True,
+            "as_of": now,
+        }
+    except Exception:
+        llm_circuit_field = None
+
+    # Open control requests
+    try:
+        open_ctrls = store.get_open_operator_controls() if hasattr(store, "get_open_operator_controls") else []
+        open_controls_field = {
+            "count": len(open_ctrls),
+            "requests": open_ctrls,
+            "as_of": now,
+        }
+    except Exception:
+        open_controls_field = None
+
+    return {
+        "engine": engine_field,
+        "mode": mode_field,
+        "autonomy": autonomy_field,
+        "kill_switch": kill_switch_field,
+        "news_latch": news_latch_field,
+        "daily_pnl": daily_pnl_field,
+        "tick_age": tick_age_field,
+        "bridge": bridge_field,
+        "llm_circuit": llm_circuit_field,
+        "open_controls": open_controls_field,
+    }
+
+
+@app.get("/api/latch/status")
+def get_latch_status():
+    from data.kill_switch_latch import get_kill_switch_latch
+    from core.trading_safety import TradingStore
+    latch = get_kill_switch_latch()
+    try:
+        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
+        store = TradingStore(_db)
+        if getattr(latch, "_store", None) is None:
+            latch.attach_store(store)
+    except Exception:
+        pass
+    return latch.snapshot()
+
+
+@app.post("/api/latch/clear")
+def clear_latch(request: Request, payload: dict = _Body(default={})):
+    confirm = payload.get("confirm") or payload.get("confirmation")
+    if confirm != "CLEAR_LATCH":
+        raise HTTPException(
+            status_code=400,
+            detail="Confirmation required: pass confirm='CLEAR_LATCH'",
+        )
+    reason = str(payload.get("reason") or "").strip()
+    if not reason:
+        raise HTTPException(
+            status_code=400,
+            detail="Reason required to clear latch",
+        )
+    session_actor = getattr(request.state, "actor", "authenticated_operator")
+    if not session_actor or session_actor == "unauthenticated":
+        session_actor = "authenticated_operator"
+
+    from data.kill_switch_latch import get_kill_switch_latch
+    from core.trading_safety import TradingStore
+    latch = get_kill_switch_latch()
+    try:
+        _db = os.getenv("LLM_TRADER_JOURNAL_PATH", _JOURNAL_DB)
+        store = TradingStore(_db)
+        if getattr(latch, "_store", None) is None:
+            latch.attach_store(store)
+    except Exception:
+        pass
+
+    result = latch.clear(reason=reason, actor=session_actor)
+    event_bridge_emit({
+        "action": "LATCH_CLEARED",
+        "actor": session_actor,
+        "reason": reason,
+        "ts": time.time(),
+        "snapshot": result,
+    }, event_type="LATCH_CLEARED")
+    return {"ok": True, "result": result}
+
 
 
 def event_bridge_emit(payload: dict, event_type: str = "APPROVAL_DECISION") -> None:
@@ -1887,7 +2485,6 @@ def _research_pipeline() -> list:
     entries = []
     seen_names = set()
     try:
-        sys.path.insert(0, BASE_DIR)
         from operations.lifecycle import get_lifecycle_manager
         lm = get_lifecycle_manager()
         for entry in lm.all_entries():
@@ -2125,8 +2722,7 @@ def _compliance_events() -> list:
     events = []
     try:
         _jq = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import read_compliance_events
+        from ui.live_journal_reader import read_compliance_events
         events = read_compliance_events(_jq, limit=50)
     except Exception as exc:
         logger.warning("compliance events fetch failed: %s", exc)
@@ -2146,8 +2742,7 @@ def _market() -> dict:
     its own MT5 connection. Falls back to empty if stale (>30s old).
     """
     try:
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import read_market_quotes
+        from ui.live_journal_reader import read_market_quotes
         quotes = read_market_quotes()
         if quotes:
             return quotes
@@ -2155,7 +2750,6 @@ def _market() -> dict:
         pass
     # Fallback: try to read from MT5 directly (only works if MT5 is in-process)
     try:
-        sys.path.insert(0, BASE_DIR)
         from data.market_data_provider import MarketDataProvider
         from core.risk_manager import RiskManager
         mdp = MarketDataProvider(client=None, risk_manager=RiskManager())
@@ -2183,10 +2777,7 @@ def _agents() -> dict:
     """Live agent states from agent operations."""
     agents = {}
     try:
-        sys.path.insert(0, BASE_DIR)
-        sys.path.insert(0, os.path.join(os.path.dirname(BASE_DIR), "operations"))
-        sys.path.insert(0, os.path.join(os.path.dirname(BASE_DIR), "research"))
-        from agent_operations import AgentOperations
+        from operations.agent_operations import AgentOperations
         ops = AgentOperations()
         # Real per-principal liveness from the durable agent-runs ledger
         # (started_at/heartbeat_at written by the trading engine's agents).
@@ -2272,7 +2863,6 @@ def _tasks() -> list:
     """Live task/stage history from UI state or persistent journal."""
     tasks = []
     try:
-        sys.path.insert(0, BASE_DIR)
         for ev in (getattr(ui_state, '_harness_events', []) or [])[-20:]:
             if isinstance(ev, dict) and ev.get("type") in ("STAGE_START", "STAGE_DONE", "STAGE_ERROR"):
                 tasks.append({
@@ -2359,7 +2949,6 @@ def _alpha_signals() -> list:
     """Live alpha signals from market structure and factor models."""
     signals = []
     try:
-        sys.path.insert(0, BASE_DIR)
         from core.market_structure_edges import (
             detect_gamma_regime, calculate_cvd, calculate_har_rv_forecast,
             assess_index_rebalancing_signal, calculate_cross_sectional_momentum,
@@ -2395,7 +2984,6 @@ def _alpha_signals() -> list:
     except Exception:
         pass
     try:
-        sys.path.insert(0, BASE_DIR)
         from core.event_structural_edges import (
             calculate_vrp_harvest_signal, calculate_pead_signal,
             assess_spinoff_opportunity, assess_buyback_blackout,
@@ -2609,8 +3197,7 @@ def _scanner(response: Response) -> list:
     never fabricates rows.
     """
     try:
-        sys.path.insert(0, BASE_DIR)
-        from live_journal_reader import read_scanner_results
+        from ui.live_journal_reader import read_scanner_results
         results = read_scanner_results()
         if results:
             response.headers["X-Engine-Status"] = "ONLINE"
@@ -2640,7 +3227,6 @@ def _compliance_full() -> dict:
     """Full compliance audit from chain-integrity + journal audit."""
     result = {"events": [], "chainIntegrity": {"valid": True, "entriesVerified": 0, "durationMs": 0}, "moduleGroups": []}
     try:
-        sys.path.insert(0, BASE_DIR)
         from core.compliance_audit import get_audit
         audit = get_audit()
         report = audit.generate_report()
@@ -2676,7 +3262,7 @@ def _diagnostics() -> dict:
         # Fetch real returns from closed trades in trading_state.db
         returns = []
         try:
-            from live_journal_reader import _connect, _DEFAULT_DB
+            from ui.live_journal_reader import _connect, _DEFAULT_DB
             if os.path.exists(_DEFAULT_DB):
                 with _connect(_DEFAULT_DB) as con:
                     rows = con.execute(
@@ -2725,7 +3311,6 @@ def _workflows() -> list:
     """Live workflow executions from harness."""
     workflows = []
     try:
-        sys.path.insert(0, BASE_DIR)
         from core.harness.workflows import QuantWorkflowEngine
         engine = QuantWorkflowEngine()
         for wf in engine.list_workflows():
@@ -2905,7 +3490,6 @@ def _rl_training() -> dict:
         "isTraining": False,
     }
     try:
-        sys.path.insert(0, BASE_DIR)
         from research.rl_trainer import RLTrainer
         trainer = RLTrainer()
         state = trainer.get_state() if hasattr(trainer, "get_state") else {}
@@ -3010,7 +3594,6 @@ def _settings_full() -> dict:
     """Full settings from autonomy + agent contracts."""
     result = {"autonomyLevels": [], "configEntries": []}
     try:
-        sys.path.insert(0, BASE_DIR)
         from operations.autonomy import get_autonomy
         snap = get_autonomy().snapshot()
         for level in ["L0_DISABLED", "L1_PAPER", "L2_MICRO", "L3_FULL", "L4_AGGRESSIVE"]:
@@ -3136,7 +3719,6 @@ def _security_full() -> dict:
     """Security scans from security audit."""
     result = {"scans": [], "secretsHygiene": [], "journalScope": "LIVE", "gitScrubStatus": "clean", "lastScrubTs": int(time.time() * 1000)}
     try:
-        sys.path.insert(0, BASE_DIR)
         from operations.security_audit import audit
         report = audit(BASE_DIR)
         if isinstance(report, dict):
@@ -3382,7 +3964,6 @@ def _metrics_export() -> dict:
     """Prometheus metrics from exporter."""
     result = {"prometheusMetrics": [], "heartbeats": [], "exportStatus": "active", "lastExportTs": 0}
     try:
-        sys.path.insert(0, BASE_DIR)
         from operations.metrics_exporter import collect
         metrics = collect()
         for name, help_text, value in (metrics or []):
@@ -3513,6 +4094,17 @@ def kill_port(port):
     import subprocess
     import re
     
+    if sys.platform != "win32":
+        try:
+            out = subprocess.run(["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"],
+                                 capture_output=True, text=True).stdout
+            for pid in {int(p) for p in out.split()} - {os.getpid()}:
+                print(f"killing process {pid} on port {port}...")
+                os.kill(pid, 9)
+        except Exception:
+            pass  # Port likely free
+        return
+
     try:
         # Find PID
         cmd = f"netstat -ano | findstr :{port}"

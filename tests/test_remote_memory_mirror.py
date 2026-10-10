@@ -5,7 +5,7 @@ import os
 import tempfile
 import gc
 
-from remote_memory_mirror import (
+from intelligence.remote_memory_mirror import (
     RemoteMemoryMirror,
     RemoteMirrorConfig,
     default_memory,
@@ -231,7 +231,7 @@ def test_probe_ok_with_fake_connection():
 
 
 def test_agent_operations_local_write_succeeds_when_remote_disabled():
-    from agent_operations import AgentOperations
+    from operations.agent_operations import AgentOperations
 
     fd, path = tempfile.mkstemp()
     os.close(fd)
@@ -252,7 +252,7 @@ def test_agent_operations_local_write_succeeds_when_remote_disabled():
 
 
 def test_agent_operations_mirrors_when_configured(monkeypatch):
-    from agent_operations import AgentOperations
+    from operations.agent_operations import AgentOperations
 
     store = _FakeStore()
     memory = RemoteMemoryMirror(
@@ -263,7 +263,7 @@ def test_agent_operations_mirrors_when_configured(monkeypatch):
     def _fake_maybe(entry, *, env=None):
         return memory.maybe_mirror_working_entry(entry)
 
-    monkeypatch.setattr("remote_memory_mirror.maybe_mirror_working_memory", _fake_maybe)
+    monkeypatch.setattr("intelligence.remote_memory_mirror.maybe_mirror_working_memory", _fake_maybe)
 
     fd, path = tempfile.mkstemp()
     os.close(fd)

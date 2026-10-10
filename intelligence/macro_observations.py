@@ -12,7 +12,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
-from economic_dynamics_catalog import FREE_DATA_BINDINGS
+from intelligence.economic_dynamics_catalog import FREE_DATA_BINDINGS
 
 
 def utcnow() -> str:

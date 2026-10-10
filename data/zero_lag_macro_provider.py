@@ -186,7 +186,7 @@ class ZeroLagMacroProvider:
                 self._yahoo_provider = YahooFinanceProvider()
             except Exception:
                 try:
-                    from yahoo_finance_provider import YahooFinanceProvider
+                    from data.yahoo_finance_provider import YahooFinanceProvider
                     self._yahoo_provider = YahooFinanceProvider()
                 except Exception:
                     self._yahoo_provider = False

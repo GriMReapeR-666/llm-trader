@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
-from trade_manager import TradeManager
-from trading_safety import TradingStore
+from core.trade_manager import TradeManager
+from core.trading_safety import TradingStore
 
 
 def test_trade_manager_action_state_uses_authoritative_store(tmp_path):

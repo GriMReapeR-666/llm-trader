@@ -1,5 +1,5 @@
 """Multi-hop causal propagation with lag attenuation."""
-from causal_propagate import propagate
+from intelligence.causal_propagate import propagate
 
 
 def test_propagate_scores_path_with_attenuation():

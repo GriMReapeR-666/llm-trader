@@ -1,7 +1,7 @@
 """Unit tests for kronos_trading_integrator.py covering all 4 live trading tasks."""
 import pytest
-from kronos_trading_integrator import KronosTradingIntegrator, KronosRLMarketSimulator
-from rl_trainer import RLTrainer
+from research.kronos_trading_integrator import KronosTradingIntegrator, KronosRLMarketSimulator
+from research.rl_trainer import RLTrainer
 
 
 def test_task_1_alpha_factor():

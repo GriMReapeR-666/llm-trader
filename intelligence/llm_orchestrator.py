@@ -34,7 +34,8 @@ import logging
 import math
 import hashlib
 import json as _json
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, fields, replace
+from types import SimpleNamespace
 from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime, timedelta, timezone
 import numpy as np
@@ -66,7 +67,7 @@ try:
     from ui.scanner import MarketScanner
 except ImportError:
     try:
-        from scanner import MarketScanner
+        from ui.scanner import MarketScanner
     except ImportError:
         MarketScanner = None
 
@@ -88,137 +89,137 @@ def _get_fetch_ohlc():
     mt5_mod = sys.modules.get("mt5_trader")
     if mt5_mod is not None and hasattr(mt5_mod, "fetch_ohlc"):
         return mt5_mod.fetch_ohlc
-    from market_data_provider import fetch_ohlc
+    from data.market_data_provider import fetch_ohlc
     return fetch_ohlc
 
-from risk_manager import RiskManager
-from trade_manager import TradeManager
-from rl_trainer import RLTrainer
-from trading_safety import (
-    DeterministicValidator, PortfolioRiskArbiter,
+from core.risk_manager import RiskManager
+from core.trade_manager import TradeManager
+from research.rl_trainer import RLTrainer
+from core.trading_safety import (
+    BOT_MAGICS, DeterministicValidator, PortfolioRiskArbiter,
     TradeProposal, TradingStore, ValidationResult,
     safe_risk_fraction, exposure_buckets,
 )
-from trading_memory import TradingMemory
-from journal_audit import audit as audit_journal, baseline_metrics, qualified_metrics, write_report, write_audit_export
-from journal_migration import migrate as migrate_legacy_journal
-from agent_operations import AgentOperations
-from local_llm_memory import process_outbox as process_local_memory_outbox
-from boot_fetch_watchdog import run_stage_with_deadline, stage_budgets
-from boot_datasheet import boot_datasheet_enabled, get_datasheet
+from intelligence.trading_memory import TradingMemory
+from operations.journal_audit import audit as audit_journal, baseline_metrics, qualified_metrics, write_report, write_audit_export
+from operations.journal_migration import migrate as migrate_legacy_journal
+from operations.agent_operations import AgentOperations
+from intelligence.local_llm_memory import process_outbox as process_local_memory_outbox
+from intelligence.boot_fetch_watchdog import run_stage_with_deadline, stage_budgets
+from intelligence.boot_datasheet import boot_datasheet_enabled, get_datasheet
 try:
-    from research_validation import promotion_gate as research_promotion_gate, labelled_dataset
+    from research.research_validation import promotion_gate as research_promotion_gate, labelled_dataset
 except ImportError:
     from research.research_validation import promotion_gate as research_promotion_gate, labelled_dataset
-from promotion_package import write as write_promotion_package, verify as verify_promotion_package
-from baseline_research import baseline_report
-from adaptive_research_service import AdaptiveResearchService
-from data_quality import DataQualityGate
-from provider_circuit import ProviderCircuitBreaker
+from research.promotion_package import write as write_promotion_package, verify as verify_promotion_package
+from research.baseline_research import baseline_report
+from research.adaptive_research_service import AdaptiveResearchService
+from data.data_quality import DataQualityGate
+from data.provider_circuit import ProviderCircuitBreaker
 try:
-    from setup_registry import SETUPS, classify as classify_setup
+    from research.setup_registry import SETUPS, classify as classify_setup
 except ImportError:
     from research.setup_registry import SETUPS, classify as classify_setup
-import strategy_lifecycle
-from strategy_lifecycle import block_info as strategy_lifecycle_block
-from strategy_evaluation import evaluate as evaluate_strategy_lifecycle
-from broker_preflight import persist_preflight, validate_envelope
-from execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
-from feature_builder import build_snapshot as build_feature_snapshot
+from operations import strategy_lifecycle
+from operations.strategy_lifecycle import block_info as strategy_lifecycle_block
+from operations.strategy_evaluation import evaluate as evaluate_strategy_lifecycle
+from core.broker_preflight import persist_preflight, validate_envelope
+from core.execution_planning import build_pending_entry, validate_emergency_exit_request, validate_quote
+from intelligence.feature_builder import build_snapshot as build_feature_snapshot
 try:
-    from macro_graph import MacroGraph
+    from intelligence.macro_graph import MacroGraph
 except ImportError:
     from intelligence.macro_graph import MacroGraph
 from intelligence.reflection_graph import build_reflection_graph
-from graph_state import MemoryReflectionState
-from lag_delay_engine import (
+from intelligence.graph_state import MemoryReflectionState
+from intelligence.lag_delay_engine import (
     TimestampedEvent, HeartbeatTracker, ConfidenceDecayEngine, SmithPredictorEngine,
     SlippageCalibrator, utcnow_iso,
 )
-from rl_action_bridge import bridge_rl_action, merge_bridge_into_decision
-from autonomous_causal_engine import AutonomousCausalValidator, CausalChainSetupAnalyzer
-from account_growth import AccountGrowthController
-from strategy_accuracy import build_strategy_accuracy_scorecard
-from research_sprint_planner import plan_and_persist as plan_research_sprints
-from opportunity_bus import (
+from research.rl_action_bridge import bridge_rl_action, merge_bridge_into_decision
+from intelligence.autonomous_causal_engine import AutonomousCausalValidator, CausalChainSetupAnalyzer
+from operations.account_growth import AccountGrowthController
+from research.strategy_accuracy import build_strategy_accuracy_scorecard
+from research.research_sprint_planner import plan_and_persist as plan_research_sprints
+from intelligence.opportunity_bus import (
     publish as publish_opportunities,
     publish_from_scan,
     publish_from_stat_pass_edges,
     opportunity_from_features,
     bus_snapshot,
 )
-from opportunity_fusion import score_opportunity, fusion_block_reasons
-from cycle_brief import build as build_cycle_brief, persist as persist_cycle_brief
-from causal_propagate import propagate as propagate_causal_paths
-from macro_state_vector import build_macro_state_vector
-from data_source_pipeline import (
+from intelligence.opportunity_fusion import score_opportunity, fusion_block_reasons
+from intelligence.cycle_brief import build as build_cycle_brief, persist as persist_cycle_brief
+from intelligence.causal_propagate import propagate as propagate_causal_paths
+from intelligence.macro_state_vector import build_macro_state_vector
+from data.data_source_pipeline import (
     catalog_fred_series,
     process_cycle_data_sources,
 )
-from realtime_news_ingest import run as run_realtime_news_ingest
-from profitability_foundation import report as profitability_report
-from agent_scheduler import bootstrap as bootstrap_schedules
-from dual_velocity import DualVelocityExecutor
-from market_filters import evaluate as evaluate_market_conditions, session_name
-from market_microstructure import MicrostructureMonitor
-from event_policy import evaluate as evaluate_event_policy, symbol_currencies
-from correlation_risk import CorrelationRisk
-from intermarket_regime import (
+from data.realtime_news_ingest import run as run_realtime_news_ingest
+from research.profitability_foundation import report as profitability_report
+from operations.agent_scheduler import bootstrap as bootstrap_schedules
+from operations.dual_velocity import DualVelocityExecutor
+from intelligence.market_filters import evaluate as evaluate_market_conditions, session_name
+from intelligence.market_microstructure import MicrostructureMonitor
+from operations.event_policy import evaluate as evaluate_event_policy, symbol_currencies
+from intelligence.correlation_risk import CorrelationRisk
+from intelligence.intermarket_regime import (
     build_intermarket_regime_snapshot,
     filter_edges_for_live_regime,
 )
-from margin_safety import MarginSafetyGate
-from daily_reconciliation import compare_day as compare_broker_day
-from data_requirements import evaluate as evaluate_data_requirements
-from cost_estimator import assess_costs
-from feature_schema import validate_snapshot as validate_feature_schema
-from model_registry import list_models, register as register_model, review as review_model, drift_report as model_drift_report
-from research_stress import stress_report
-from contextual_bandit import bandit_report
-from semantic_memory import search as semantic_memory_search
-from health_alerts import evaluate as evaluate_health_alerts
-from alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, acknowledge as acknowledge_alert, recover_expired as recover_alerts, status as alert_outbox_status, outbox_health as alert_outbox_health
-from legacy_reconciliation import report as legacy_reconciliation_report, quarantine as quarantine_legacy_record
-from journal_backup import (
+from core.margin_safety import MarginSafetyGate
+from operations.daily_reconciliation import compare_day as compare_broker_day
+from data.data_requirements import evaluate as evaluate_data_requirements
+from intelligence.cost_estimator import assess_costs
+from intelligence.feature_schema import validate_snapshot as validate_feature_schema
+from research.model_registry import list_models, register as register_model, review as review_model, drift_report as model_drift_report
+from research.research_stress import stress_report
+from research.contextual_bandit import bandit_report
+from intelligence.semantic_memory import search as semantic_memory_search
+from operations.health_alerts import evaluate as evaluate_health_alerts
+from operations.alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, acknowledge as acknowledge_alert, recover_expired as recover_alerts, status as alert_outbox_status, outbox_health as alert_outbox_health
+from operations.legacy_reconciliation import report as legacy_reconciliation_report, quarantine as quarantine_legacy_record
+from operations.journal_backup import (
     create_backup, verify_backup, restore_backup,
     create_encrypted_backup, verify_encrypted_backup, restore_encrypted_backup,
     prune_backups,
 )
-from restart_recovery import smoke as restart_recovery_smoke
-from journal_scope import status as journal_scope_status, ensure_scope
-from historical_regimes import research_status as historical_research_status
-from macro_extraction import status as macro_extraction_status
-from model_family_gate import evaluation_plan as model_family_evaluation_plan
-from execution_policy import load as load_execution_policy, candidate_for_store as execution_policy_candidate, approve_for_store as approve_execution_policy
-from forward_test_report import compare as compare_forward_test
-from security_audit import audit as security_audit
-from supervised_training import train as train_supervised_baseline
-from research_runs import record as record_validation_run, list_runs as list_validation_runs
-from live_rollout_gate import status as live_rollout_status, approve as approve_live_rollout, revoke as revoke_live_rollout, require as require_live_rollout, verify_evidence as verify_live_evidence
-from sample_gate import report as sample_gate_report
-from mt5_auth_diagnostics import report as mt5_auth_report
-from readiness_report import build as readiness_report
-from incident_drills import run as run_incident_drills
-from research_influence_gate import allows as research_influence_allows, status as research_influence_status, approve as approve_research_influence, revoke as revoke_research_influence, evidence_fingerprint as research_evidence_fingerprint
-from dashboard_report import build as dashboard_report
+from operations.restart_recovery import smoke as restart_recovery_smoke
+from operations.journal_scope import status as journal_scope_status, ensure_scope
+from research.historical_regimes import research_status as historical_research_status
+from intelligence.macro_extraction import status as macro_extraction_status
+from research.model_family_gate import evaluation_plan as model_family_evaluation_plan
+from core.execution_policy import load as load_execution_policy, candidate_for_store as execution_policy_candidate, approve_for_store as approve_execution_policy
+from research.forward_test_report import compare as compare_forward_test
+from operations.security_audit import audit as security_audit
+from research.supervised_training import train as train_supervised_baseline
+from research.research_runs import record as record_validation_run, list_runs as list_validation_runs
+from operations.live_rollout_gate import status as live_rollout_status, approve as approve_live_rollout, revoke as revoke_live_rollout, require as require_live_rollout, verify_evidence as verify_live_evidence
+from research.sample_gate import report as sample_gate_report
+from operations.mt5_auth_diagnostics import report as mt5_auth_report
+from operations.readiness_report import build as readiness_report
+from operations.incident_drills import run as run_incident_drills
+from operations.research_influence_gate import allows as research_influence_allows, status as research_influence_status, approve as approve_research_influence, revoke as revoke_research_influence, evidence_fingerprint as research_evidence_fingerprint
+from ui.dashboard_report import build as dashboard_report
 
 try:
-    from llm_router import LLMRouter, get_router, reset_router
+    from data.llm_router import LLMRouter, get_router, reset_router
     LLM_ROUTER_AVAILABLE = True
 except ImportError:
     LLM_ROUTER_AVAILABLE = False
 
-from technical_indicators import (
+from core.technical_indicators import (
     ema, rsi, macd, atr, wma, hma, adx, compute_indicators
 )
-from order_execution import (
+from core.order_execution import (
     PaperBroker, _symbol_tick, _broker_market_filling_mode,
     validate_order_params, validate_pending_entry_geometry,
     place_market_order, emergency_market_exit, place_pending_order,
     place_urgency_routed_order,
     modify_order_sltp, cancel_pending_order
 )
-from market_data_provider import (
+from data.market_data_provider import (
     TIMEFRAME_MAP, tf_const, fetch_ohlc, collect_calendar_event_rows,
     DOMCollector, PerformanceMonitor, MarketDataProvider, ohlc_records
 )
@@ -622,7 +623,7 @@ class LLMOrchestrator:
         bootstrap_schedules(self.operations)
         # Idempotent Economic Dynamics catalog seed (CANDIDATE only).
         try:
-            from economic_dynamics_seed import seed_economic_dynamics
+            from intelligence.economic_dynamics_seed import seed_economic_dynamics
             seed_result = seed_economic_dynamics(graph=self.macro_graph)
             self.store.set_state("economic_dynamics_seed", {
                 **{k: seed_result.get(k) for k in (
@@ -754,7 +755,7 @@ class LLMOrchestrator:
         
         if enable_rl:
             try:
-                from rl_trainer import RLTrainer
+                from research.rl_trainer import RLTrainer
                 self.rl_trainer = RLTrainer()
             except ImportError as e:
                 logging.getLogger("LLMOrchestrator").warning(f"RL trainer not available: {e}")
@@ -768,7 +769,7 @@ class LLMOrchestrator:
         self.kronos_integrator = None
         if self.enable_kronos_advisory:
             try:
-                from kronos_trading_integrator import KronosTradingIntegrator
+                from research.kronos_trading_integrator import KronosTradingIntegrator
                 self.kronos_integrator = KronosTradingIntegrator(
                     model_key=os.getenv("TRADING_KRONOS_MODEL", "kronos-mini"),
                 )
@@ -818,8 +819,40 @@ class LLMOrchestrator:
                 self.risk.set_active_positions_provider(lambda: len(getattr(self.paper_broker, "positions", {})))
             if hasattr(self.risk, "set_portfolio_heat_provider"):
                 self.risk.set_portfolio_heat_provider(self._calc_paper_portfolio_heat)
+            if hasattr(self.risk, "set_equity_provider"):
+                # Paper has no MT5 terminal, so RiskManager.current_equity()
+                # would otherwise freeze on the seed balance for the whole run.
+                self.risk.set_equity_provider(self._calc_paper_equity)
         except NameError:
              self.paper_broker = None
+
+        # Single-door OrderGateway: process-wide broker door (Phase 2).
+        # Configured once here so order_execution / trade_manager / guardian
+        # all share one reservation ledger, one MT5 lock, one journal mode.
+        try:
+            from core.order_gateway import configure_default_gateway
+            _gw_mode = "PAPER"
+            try:
+                if getattr(self, "store", None) is not None:
+                    _scope = getattr(self.store, "scope", None)
+                    if isinstance(_scope, dict) and _scope.get("mode"):
+                        _gw_mode = str(_scope["mode"])
+                    elif getattr(self.store, "mode", None):
+                        _gw_mode = str(self.store.mode)
+            except Exception:
+                pass
+            configure_default_gateway(
+                getattr(self, "store", None), mode=_gw_mode,
+                paper_broker=getattr(self, "paper_broker", None),
+                arbiter=getattr(self, "arbiter", None),
+            )
+            from core.order_gateway import get_default_gateway
+            self.order_gateway = get_default_gateway()
+            # Every magic the engine issues (swing/scalp/neocortex): operator
+            # flatten must close every owned position.
+            self.owned_magics = set(BOT_MAGICS)
+        except Exception as _gw_exc:
+            logger.warning("OrderGateway default configuration failed (fail-closed on first order): %s", _gw_exc)
 
         # Bounded-Autonomy Pipeline (NZE, 2026: R ∘ V_LLM ∘ S)
         self.enable_bounded_autonomy = bounded_autonomy
@@ -850,6 +883,59 @@ class LLMOrchestrator:
             trade_manager.attach_safety(store=self.store, arbiter=_arbiter)
         except Exception as exc:
             logger.error("Failed to attach safety arbiter to TradeManager: %s; trades will lack safety validation!", exc)
+
+    def _calc_paper_equity(self) -> Optional[float]:
+        """The paper venue's real equity: realised P&L plus open floating P&L.
+
+        Without this, a paper session has no authenticated MT5 terminal, so every
+        ``RiskManager`` equity read fell back to ``risk.balance`` - a seed value
+        that ``data/market_data_provider.update_account`` only ever rewrites with
+        itself when the terminal is absent. Sizing therefore never compounded as
+        the simulated account won or lost.
+
+        Mirrors the paper portfolio heat calculation below: measure the venue's
+        own book rather than trusting a cached seed.
+        """
+        broker = getattr(self, "paper_broker", None)
+        if broker is None:
+            return None
+
+        realised = getattr(broker, "realised_pnl", None)
+        if realised is None:
+            # Older PaperBroker builds keep the running total elsewhere; fall
+            # back to its closed-trade ledger rather than reporting a wrong 0.0.
+            history = getattr(broker, "history", None) or []
+            try:
+                realised = sum(float(d.get("profit") or 0.0) for d in history)
+            except (TypeError, ValueError, AttributeError):
+                realised = 0.0
+        try:
+            realised = float(realised)
+        except (TypeError, ValueError):
+            realised = 0.0
+
+        floating = 0.0
+        try:
+            for pos in (getattr(broker, "positions", None) or {}).values():
+                floating += float(
+                    (pos.get("profit") or 0.0)
+                    if "profit" in pos
+                    else ((float(pos.get("price_current") or 0.0)
+                           - float(pos.get("price_open") or 0.0))
+                          * float(pos.get("volume") or 0.0))
+                )
+        except (TypeError, ValueError, AttributeError):
+            floating = 0.0
+
+        try:
+            base = float(self.risk.current_equity())
+        except Exception:
+            base = float(getattr(self.risk, "balance", 0.0) or 0.0)
+        if base <= 0:
+            return None
+
+        equity = base + realised + floating
+        return equity if equity > 0 else None
 
     def _calc_paper_portfolio_heat(self) -> Optional[float]:
         """Measured open paper portfolio heat in R units.
@@ -953,6 +1039,14 @@ class LLMOrchestrator:
 
     def shutdown(self) -> None:
         """Stop background lanes without granting or changing execution authority."""
+        # M1: join the sched-bounded worker (10 s bound) so schedule batches
+        # are not killed mid-write at shutdown.
+        try:
+            _batch_thread = getattr(self, "_schedule_batch_thread", None)
+            if _batch_thread is not None and _batch_thread.is_alive():
+                _batch_thread.join(timeout=10.0)
+        except Exception:
+            pass
         self.velocity.shutdown(wait=False)
 
     def _llm_provider_and_budget(self, strategy: str) -> Tuple[str, Dict[str, Any]]:
@@ -1030,7 +1124,7 @@ class LLMOrchestrator:
         is_cerebras = False
         if model_name and (model_name.startswith("cerebras") or "llama" in model_name.lower()):
             try:
-                from cerebras_client import CerebrasGenerator
+                from data.cerebras_client import CerebrasGenerator
                 llm = CerebrasGenerator()
                 if llm.client:
                     is_cerebras = True
@@ -1041,7 +1135,7 @@ class LLMOrchestrator:
                 logging.getLogger("LLMOrchestrator").warning("Cerebras client not found. Falling back to OpenRouter.")
         
         if not is_cerebras:
-            from generate_with_openrouter import OpenRouterGenerator
+            from data.generate_with_openrouter import OpenRouterGenerator
             llm = OpenRouterGenerator(api_key=api_key)
         return llm
 
@@ -1783,26 +1877,59 @@ class LLMOrchestrator:
             for attempt in range(max_retries):
                 try:
                     self._last_llm_trace["attempts"] = attempt + 1
-                    # Use tool-calling loop when tools are available
+                    # Use tool-calling loop when tools are available (read-only decision toolkit, PI-P1 / TL-S1)
                     try:
-                        from core.trading_tools import get_tool_schemas, execute_tool
-                        _tool_schemas = get_tool_schemas()
+                        from core.trading_tools import get_tool_schemas, execute_tool, DECISION_READONLY_TOOLS
+                        _tool_schemas = get_tool_schemas(toolkits=DECISION_READONLY_TOOLS)
+                        _allowed_decision_tools = set(DECISION_READONLY_TOOLS)
+                        def _decision_executor(name, args):
+                            return execute_tool(name, args, allowed_tools=_allowed_decision_tools)
                     except Exception:
                         _tool_schemas = []
+                        _decision_executor = None
 
-                    if _tool_schemas and hasattr(self.llm, 'generate_with_tools'):
-                        response_content = self.llm.generate_with_tools(
-                            messages, tools=_tool_schemas, tool_executor=execute_tool,
-                            model=self.model_name, temperature=0, seed=42, max_tokens=4096,
+                    if _tool_schemas and hasattr(self.llm, 'generate_with_tools') and _decision_executor is not None:
+                        # B4: bound the provider call itself. A timeout here
+                        # means HOLD via the normal retry path. This is the
+                        # only safe place for a deadline: the provider call
+                        # returns text and can never submit an order, unlike
+                        # an abandoned pipeline stage wrapping execute_cycle.
+                        from run_bounded import run_bounded as _run_llm_bounded
+                        import os as _os
+                        try:
+                            _llm_budget = float(_os.getenv("LLM_TRADER_LLM_CALL_TIMEOUT_S", "120"))
+                        except (TypeError, ValueError):
+                            _llm_budget = 120.0
+                        _ok, _resp, _err = _run_llm_bounded(
+                            lambda: self.llm.generate_with_tools(
+                                messages, tools=_tool_schemas, tool_executor=_decision_executor,
+                                model=self.model_name, temperature=0, seed=42, max_tokens=4096,
+                            ),
+                            _llm_budget,
                         )
+                        if not _ok:
+                            raise TimeoutError(f"LLM provider call exceeded {_llm_budget}s: {_err}")
+                        response_content = _resp
                     else:
-                        response_content = self.llm.generate(
-                            messages, 
-                            model=self.model_name, 
-                            temperature=0, 
-                            seed=42,
-                            max_tokens=4096 
+                        from run_bounded import run_bounded as _run_llm_bounded
+                        import os as _os
+                        try:
+                            _llm_budget = float(_os.getenv("LLM_TRADER_LLM_CALL_TIMEOUT_S", "120"))
+                        except (TypeError, ValueError):
+                            _llm_budget = 120.0
+                        _ok, _resp, _err = _run_llm_bounded(
+                            lambda: self.llm.generate(
+                                messages,
+                                model=self.model_name,
+                                temperature=0,
+                                seed=42,
+                                max_tokens=4096
+                            ),
+                            _llm_budget,
                         )
+                        if not _ok:
+                            raise TimeoutError(f"LLM provider call exceeded {_llm_budget}s: {_err}")
+                        response_content = _resp
                     
                     if not isinstance(response_content, str):
                         # Handle case where wrapper might return object (defensive)
@@ -2348,6 +2475,39 @@ class LLMOrchestrator:
             logging.getLogger("LLMOrchestrator").warning(f"Failed to build RL state: {e}")
             return {}
 
+    def _live_order_token(self):
+        """Short-lived ORDER_WRITE token for one broker entry (PH2-N1).
+
+        The authority is the sandbox mt5_trader grants (``order_write_sandbox``):
+        for --live after its fail-closed capability gate, for --demo only when
+        the broker reports a demo account. ``order_write_mode`` names the
+        journal it was granted for, and the journal must match. A DEMO grant
+        re-checks the broker account on every order, so a terminal switched to
+        a real account gets nothing. The orchestrator's own fallback harness
+        context never grants authority. None -> order_execution refuses.
+        """
+        sandbox = getattr(self, "order_write_sandbox", None)
+        if sandbox is None:
+            return None
+        from core.harness.sandbox import PermissionLevel
+        if getattr(sandbox, "default_level", 0) < PermissionLevel.ORDER_WRITE:
+            return None
+        granted = str(getattr(self, "order_write_mode", "LIVE") or "").upper()
+        scope = getattr(self.store, "scope", None)
+        mode = (scope.get("mode") if isinstance(scope, dict) else None) or getattr(self.store, "mode", None)
+        if granted not in ("LIVE", "DEMO") or str(mode or "").upper() != granted:
+            return None
+        if granted == "DEMO":
+            try:
+                broker = _get_mt5()
+                trade_mode = getattr(broker.account_info(), "trade_mode", None)
+                if trade_mode is None or int(trade_mode) != int(getattr(broker, "ACCOUNT_TRADE_MODE_DEMO", 0)):
+                    return None
+            except Exception:
+                return None
+        return sandbox.issue_token(PermissionLevel.ORDER_WRITE, scopes=["broker"], duration_minutes=2,
+                                   issuer="LLMOrchestrator.live_entry")
+
     def _validate_proposal(self, decision: Dict[str, Any], toon: Dict[str, Any], symbol: str, strategy: str, paper_mode: bool = False) -> Tuple[Optional[TradeProposal], ValidationResult]:
         """Translate an LLM hypothesis into a deterministic, auditable gate."""
         mt5 = _get_mt5()
@@ -2424,8 +2584,8 @@ class LLMOrchestrator:
             features["setup_version"] = setup["spec"].get("version")
         # Phase C: link opportunity bus candidate onto durable proposal features.
         try:
-            from opportunity_bus import load_open
-            from reward_attribution import match_open_candidate_id
+            from intelligence.opportunity_bus import load_open
+            from operations.reward_attribution import match_open_candidate_id
             bus = toon.get("opportunity_bus") if isinstance(toon.get("opportunity_bus"), dict) else {}
             bus_ids = list(bus.get("candidate_ids") or []) if isinstance(bus, dict) else []
             candidate_id = bus_ids[0] if bus_ids else None
@@ -3066,7 +3226,7 @@ class LLMOrchestrator:
                                     }, run_id=self.run_id, correlation_id=proposal.setup_key(),
                                     severity="INFO" if result.approved else "WARNING")
         try:
-            from local_agent_memory import maybe_remember_trade_cycle
+            from intelligence.local_agent_memory import maybe_remember_trade_cycle
             maybe_remember_trade_cycle(
                 cycle_key=str(proposal.setup_key()),
                 stage="risk_decision" if result.approved else "reject",
@@ -3485,7 +3645,7 @@ class LLMOrchestrator:
         """
         log = logging.getLogger("LLMOrchestrator")
         try:
-            from provider_scorecard import (
+            from intelligence.provider_scorecard import (
                 KNOWN_API_SOURCES, build_event, load_recent_summaries,
                 render, scorecard, trend_vs_previous)
             current = scorecard(
@@ -3792,7 +3952,7 @@ class LLMOrchestrator:
         Advisory only: never invents bars, never grants execution authority, and
         is rate-limited so the market pulse stays cheap.
         """
-        from intermarket_regime import ENTITY_SYMBOL_PROXIES
+        from intelligence.intermarket_regime import ENTITY_SYMBOL_PROXIES
 
         summary: Dict[str, Any] = {
             "recorded": {},
@@ -4319,7 +4479,7 @@ class LLMOrchestrator:
                 return
 
             try:
-                from reward_attribution import enrich_trade_result_attribution
+                from operations.reward_attribution import enrich_trade_result_attribution
                 trade_result = enrich_trade_result_attribution(trade_result, self.store)
             except Exception as exc:
                 logging.getLogger("LLMOrchestrator").debug("Reward attribution enrichment failed: %s", exc)
@@ -4346,10 +4506,10 @@ class LLMOrchestrator:
                 if len(self._rl_updated_tickets) > 2000:
                     self._rl_updated_tickets = set(sorted(self._rl_updated_tickets)[-1000:])
             try:
-                from reward_ledger import emit_terminal_trade_rewards
+                from operations.reward_ledger import emit_terminal_trade_rewards
                 lifecycle_lookup = None
                 try:
-                    from edge_lifecycle import current_lifecycle
+                    from research.edge_lifecycle import current_lifecycle
                     graph = getattr(self, "macro_graph", None)
                     if graph is not None:
                         def lifecycle_lookup(edge_id, _graph=graph):
@@ -4419,7 +4579,7 @@ class LLMOrchestrator:
                 from core.bocpd import BayesianOnlineChangepointDetector
             except Exception:
                 try:
-                    from bocpd import BayesianOnlineChangepointDetector
+                    from core.bocpd import BayesianOnlineChangepointDetector
                 except Exception:
                     return None
             detector = BayesianOnlineChangepointDetector(
@@ -4460,7 +4620,7 @@ class LLMOrchestrator:
             from intelligence.win_probability_model import WinProbabilityModel
         except Exception:
             try:
-                from win_probability_model import WinProbabilityModel
+                from intelligence.win_probability_model import WinProbabilityModel
             except Exception:
                 return model
         try:
@@ -4538,7 +4698,7 @@ class LLMOrchestrator:
             from core.metrics import calculate_survival_edge_audit, calculate_hurst_exponent
         except Exception:
             try:
-                from metrics import calculate_survival_edge_audit, calculate_hurst_exponent
+                from core.metrics import calculate_survival_edge_audit, calculate_hurst_exponent
             except Exception:
                 return
         try:
@@ -5267,7 +5427,7 @@ class LLMOrchestrator:
                     })
                     self.operations.event("reconciler", "trade_closed", {"ticket": ticket, "pnl": total_pnl, "label": label["label"]}, run_id=self.run_id, correlation_id=str(ticket))
                     try:
-                        from local_agent_memory import maybe_remember_trade_cycle
+                        from intelligence.local_agent_memory import maybe_remember_trade_cycle
                         maybe_remember_trade_cycle(
                             cycle_key=str(ticket),
                             stage="closed",
@@ -5410,6 +5570,16 @@ class LLMOrchestrator:
         # Unresolved broker outcomes are retried as bounded, read-only history
         # lookups.  The retry claim never resubmits an order; operator review
         # remains mandatory after the retry budget is exhausted.
+        # Reservations orphaned between reserve and send (crash/exception) are
+        # resolved against the broker before the regular pass (review D4).
+        try:
+            from core.order_gateway import get_default_gateway
+            for _key, _status in get_default_gateway().sweep_stale_created(mt5_client=None if paper_mode else mt5).items():
+                if _status == "UNRESOLVED":
+                    self.operations.flag_execution_review(
+                        _key, "stale reservation: order reached the broker, outcome unknown", severity="CRITICAL")
+        except Exception as _sweep_exc:
+            logging.getLogger("LLMOrchestrator").warning("Stale order-intent sweep skipped: %s", _sweep_exc)
         due_retries = {item["intent_key"] for item in self.operations.claim_due_execution_review_retries()}
         for intent in self.operations.order_intents(("PENDING", "UNRESOLVED")):
             intent_key = str(intent.get("intent_key", ""))
@@ -5456,14 +5626,28 @@ class LLMOrchestrator:
                     self.store.log_lifecycle_event(int(ticket), "", "UNRESOLVED", "reconciler", {"intent_key": intent["intent_key"], "reason": "expiry cancellation not confirmed"})
                 continue
             if not exists:
-                if not paper_mode and ticket:
-                    try:
-                        now = datetime.now()
-                        recent = mt5.history_deals_get(now - timedelta(days=7), now) or []
-                        matching = [deal for deal in recent if int(getattr(deal, "order", 0) or 0) == int(ticket)]
-                    except Exception as exc:
-                        matching = []
-                        logging.getLogger("LLMOrchestrator").warning("Cannot inspect pending-order deal history for %s: %s", ticket, exc)
+                if ticket and (not paper_mode or self.paper_broker):
+                    if paper_mode:
+                        # Paper fills have no MT5 history: the paper book's open
+                        # (or already closed) position for this ticket is the fill
+                        # proof. Without it a paper market entry stayed PENDING ->
+                        # UNRESOLVED and reserved risk forever (Phase 2 review D2).
+                        _pos = (self.paper_broker.positions.get(int(ticket))
+                                or next((h for h in reversed(getattr(self.paper_broker, "history", []))
+                                         if int(h.get("ticket", 0) or 0) == int(ticket)), None))
+                        matching = [SimpleNamespace(
+                            order=int(ticket), position_id=int(ticket), ticket=int(ticket), entry=0,
+                            volume=float(_pos.get("volume", 0) or 0), price=float(_pos.get("price_open", 0) or 0),
+                            commission=0.0, swap=0.0,
+                        )] if _pos else []
+                    else:
+                        try:
+                            now = datetime.now()
+                            recent = mt5.history_deals_get(now - timedelta(days=7), now) or []
+                            matching = [deal for deal in recent if int(getattr(deal, "order", 0) or 0) == int(ticket)]
+                        except Exception as exc:
+                            matching = []
+                            logging.getLogger("LLMOrchestrator").warning("Cannot inspect pending-order deal history for %s: %s", ticket, exc)
                     if matching:
                         entry_deals = [deal for deal in matching if getattr(deal, "entry", None) != getattr(mt5, "DEAL_ENTRY_OUT", 1)]
                         if not entry_deals:
@@ -5486,7 +5670,10 @@ class LLMOrchestrator:
                         latency_ms = max(0.0, time.time() * 1000 - float(submitted_msc)) if submitted_msc else None
                         proposal_payload = self.store.latest_proposal(str(payload.get("setup_key", "")))
                         if proposal_payload:
-                            original = TradeProposal(**proposal_payload)
+                            # log_proposal stores extra keys (validation_trace) next to
+                            # the dataclass fields; passing them crashed every fill.
+                            _proposal_fields = {f.name for f in fields(TradeProposal)}
+                            original = TradeProposal(**{k: v for k, v in proposal_payload.items() if k in _proposal_fields})
                             filled = replace(original, entry=fill_price)
                             self.store.record_open_trade(
                                 position_id, filled, fill_volume,
@@ -5702,13 +5889,31 @@ class LLMOrchestrator:
                     self._schedule_batch_running = False
                 _done.set()
 
-        _th.Thread(target=_worker, name="sched-bounded", daemon=True).start()
+        # M1: keep a joinable reference to the sched-bounded worker. The
+        # shutdown path used to join `bounded_pipeline` (an object, not a
+        # thread), so the join was dead code and the worker was never joined.
+        _batch_thread = _th.Thread(target=_worker, name="sched-bounded", daemon=True)
+        try:
+            with self._schedule_thread_lock:
+                self._schedule_batch_thread = _batch_thread
+        except Exception:
+            pass
+        _batch_thread.start()
         if not _done.wait(timeout=self._SCHEDULE_WAIT):
             # Batch continues in the background; single-flight stays held by
             # the worker until it actually finishes.
             return
         if _err:
             _log.warning("schedule batch failed: %s", _err[0])
+
+    def join_schedule_batch(self, timeout: float = 10.0) -> None:
+        """Join the sched-bounded worker if still running (M1 shutdown order)."""
+        try:
+            thread = getattr(self, "_schedule_batch_thread", None)
+            if thread is not None and thread.is_alive():
+                thread.join(timeout=max(0.0, float(timeout)))
+        except Exception:
+            pass
 
     def _fast_lane_order(
             self, claimed_batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -6484,7 +6689,7 @@ class LLMOrchestrator:
                     reinforcement = self._reinforce_causal_edges_from_reactions()
                     replay_floors: List[Dict[str, Any]] = []
                     try:
-                        from autonomous_causal_engine import CausalEdgeBacktestOptimizer
+                        from intelligence.autonomous_causal_engine import CausalEdgeBacktestOptimizer
                         bars = self.store.get_state("causal_replay_bars", []) or []
                         if not isinstance(bars, list):
                             bars = []
@@ -6527,7 +6732,7 @@ class LLMOrchestrator:
                     )
             elif schedule_name == "economic_dynamics_seed":
                 try:
-                    from economic_dynamics_seed import seed_economic_dynamics
+                    from intelligence.economic_dynamics_seed import seed_economic_dynamics
                     seed_result = seed_economic_dynamics(graph=self.macro_graph)
                     payload = {
                         **{k: seed_result.get(k) for k in (
@@ -6550,7 +6755,7 @@ class LLMOrchestrator:
                     )
             elif schedule_name == "catalog_measurement_pass":
                 try:
-                    from economic_dynamics_measure import run_catalog_measurement_pass
+                    from intelligence.economic_dynamics_measure import run_catalog_measurement_pass
                     payload = run_catalog_measurement_pass(
                         self.macro_graph, validator=self.causal_validator,
                     )
@@ -6569,8 +6774,8 @@ class LLMOrchestrator:
                     )
             elif schedule_name == "historical_regime_research":
                 try:
-                    from historical_regime_replay import regime_research_package
-                    from historical_regimes import template_registry, research_status
+                    from research.historical_regime_replay import regime_research_package
+                    from research.historical_regimes import template_registry, research_status
                     packages = []
                     for template in template_registry()[:8]:
                         rid = str(template.get("regime_id") or "")
@@ -6696,7 +6901,7 @@ class LLMOrchestrator:
                     run_id=getattr(self, "run_id", None),
                     correlation_id=schedule_name, severity="INFO",
                 )
-                from alert_outbox import enqueue as _enqueue
+                from operations.alert_outbox import enqueue as _enqueue
                 journal_path = getattr(getattr(self, "store", None), "path", "trading_state.db")
                 _enqueue(journal_path, [{
                     "code": f"SCHEDULE_SESSION_SKIP_{schedule_name}",
@@ -6761,7 +6966,7 @@ class LLMOrchestrator:
             severity="WARNING",
         )
         try:
-            from alert_outbox import enqueue as _enqueue
+            from operations.alert_outbox import enqueue as _enqueue
             journal_path = getattr(getattr(self, "store", None), "path", "trading_state.db")
             _enqueue(journal_path, [{
                 "code": f"SCHEDULE_SESSION_SKIP_{name}",
@@ -7529,7 +7734,7 @@ class LLMOrchestrator:
         log.info(f"DEBUG: execute_cycle called with display_instance={display_instance}")
         start_time = time.time()
 
-        # --- fail-soft lifecycle telemetry (never gates the cycle) ---
+        # --- fail-soft cycle telemetry (never gates the cycle) ---
         try:
             from operations.event_bridge import emit as _emit
             from operations.supervisor import get_supervisor as _get_supervisor
@@ -7541,10 +7746,12 @@ class LLMOrchestrator:
         except Exception as exc:
             logging.getLogger("LLMOrchestrator").debug("Cycle telemetry failed: %s", exc)
 
-        # --- autonomy gate (C4: fail CLOSED) ---
-        # Drains the control queue, applies flatten/killswitch for real, and
-        # returns a HOLD tuple when trading must not continue.  A broken gate
-        # is a HOLD, never a silently skipped check.
+# --- autonomy gate (C4: fail CLOSED) ---
+        # Resolved to the _autonomy_gate() helper rather than origin/main's inline
+        # copy: the helper is a strict superset - it drains the control queue and
+        # applies operator controls (flatten / kill-switch) before evaluating
+        # trading_allowed, and fails closed on every path. Keeping the inline
+        # version too would double-gate the cycle and skip the control drain.
         _gate_result = self._autonomy_gate(symbol, strategy, paper_mode=paper_mode)
         if _gate_result is not None:
             return _gate_result
@@ -7682,15 +7889,22 @@ class LLMOrchestrator:
                 return {"action": "HOLD",
                         "reasoning": f"Data quality gate rejected: {_dq_reasons}"}, 0.0
         except Exception as _dq_exc:
-            log.debug("DataQualityGate check skipped (fail-open): %s", _dq_exc)
+            log.warning("DataQualityGate check failed (fail-closed to HOLD): %s", _dq_exc)
+            try:
+                self.operations.release_task(cycle_key, reason="data_quality_exception")
+            except Exception:
+                pass
+            return {"action": "HOLD",
+                    "reasoning": f"Data quality gate exception: {_dq_exc}"}, 0.0
 
         # --- NEWS TRADING GATE ---
         # Block entries during pre-spike / spike blackout phases
         # Also fetch live FRED indicators for NFP/CPI predictions and ESI
+        _corr_engine = None
+        _news_events = []
         try:
             from core.news_trading import NewsTradingGate, get_news_trading_context
             # Wire correlation engine for dynamic blackout windows
-            _corr_engine = None
             try:
                 from core.news_regime_correlation import NewsRegimeCorrelation
                 if not hasattr(self, '_news_corr_engine'):
@@ -7809,7 +8023,13 @@ class LLMOrchestrator:
                 "cpi_bias": _news_ctx.get("cpi_prediction", {}).get("directional_bias", "N/A") if _news_ctx.get("cpi_prediction") else "N/A",
             }, cycle_num, symbol)
         except Exception as _news_exc:
-            log.debug("NewsTradingGate check skipped (fail-open): %s", _news_exc)
+            log.warning("NewsTradingGate check failed (fail-closed to HOLD): %s", _news_exc)
+            try:
+                self.operations.release_task(cycle_key, reason="news_gate_exception")
+            except Exception:
+                pass
+            return {"action": "HOLD",
+                    "reasoning": f"News trading gate exception: {_news_exc}"}, 0.0
 
         self._v2_seam("cycle.seams.causal_ready")
 
@@ -8007,7 +8227,7 @@ class LLMOrchestrator:
         self.trade_memory.record_events(toon.get("news", []))
         toon["event_state"] = evaluate_event_policy(symbol, toon.get("news", []))
         try:
-            from economic_dynamics_catalog import EVENT_TEMPLATES
+            from intelligence.economic_dynamics_catalog import EVENT_TEMPLATES
             toon["event_playbooks"] = [
                 {**dict(template), "execution_authority": False}
                 for template in EVENT_TEMPLATES
@@ -8209,7 +8429,7 @@ class LLMOrchestrator:
         # Mirror measured reactions onto catalog seed, then emit STAT_PASS
         # opportunities only (advisory bus — no order authority).
         try:
-            from economic_dynamics_measure import mirror_recent_reactions
+            from intelligence.economic_dynamics_measure import mirror_recent_reactions
             recent_rows = toon.get("recent_event_reactions") or []
             if isinstance(recent_rows, dict):
                 recent_rows = recent_rows.get("reactions") or recent_rows.get("items") or []
@@ -8227,7 +8447,7 @@ class LLMOrchestrator:
                 "execution_authority": False,
             }
         try:
-            from edge_lifecycle import current_lifecycle
+            from research.edge_lifecycle import current_lifecycle
             lifecycle_by_edge = {}
             for edge in (toon.get("macro_causal_context_regime") or []):
                 if not isinstance(edge, dict) or edge.get("edge_id") is None:
@@ -8317,7 +8537,7 @@ class LLMOrchestrator:
         try:
             obs_ingest = toon.get("macro_observations_ingest") or {}
             fred_obs = obs_ingest.get("fred") if isinstance(obs_ingest, dict) else {}
-            from macro_observations import recent as recent_macro_obs
+            from intelligence.macro_observations import recent as recent_macro_obs
             recent_obs = recent_macro_obs(self.store.path, limit=30)
             toon["macro_state_vector"] = build_macro_state_vector(
                 macro_observations=recent_obs.get("items") or [],
@@ -8566,11 +8786,16 @@ class LLMOrchestrator:
         # A live broker run must remain deterministic and model-independent.
         # RL state is captured for PAPER and DEMO modes (non-LIVE) to enable
         # the online learning loop. Action influence requires explicit opt-in.
-        # Live mode is detected by checking if execution authority is enabled
-        # on the data provider (paper brokers don't have execution authority).
-        has_paper_broker = getattr(self.data_provider, "paper", None) is not None
-        has_execution_authority = getattr(self.data_provider, "execution_authority", False)
-        non_live = has_paper_broker or not has_execution_authority
+        # Live mode is detected by checking the authoritative journal scope/mode
+        journal_mode = "PAPER"
+        if hasattr(self, "store") and self.store:
+            if getattr(self.store, "scope", None) and isinstance(self.store.scope, dict):
+                journal_mode = str(self.store.scope.get("mode") or "PAPER").upper()
+            elif getattr(self.store, "mode", None):
+                journal_mode = str(self.store.mode).upper()
+        else:
+            journal_mode = str(os.getenv("TRADING_JOURNAL_MODE", "PAPER")).upper()
+        non_live = journal_mode != "LIVE"
         rl_learning_allowed = non_live and (
             paper_mode
             or self.rl_offline_updates_enabled
@@ -8640,6 +8865,7 @@ class LLMOrchestrator:
             strategy=strategy, provider=provider,
             model=self.model_name, trigger_key=f"llm:{cycle_key}", run_id=self.run_id,
             **budget)
+        self._active_llm_request_id = llm_request_id if allowed else None
         if not allowed:
             self.operations.complete_task(cycle_key, {"action": "HOLD", "reason": llm_request_id})
             return {"action": "HOLD", "reasoning": f"LLM request not permitted: {llm_request_id}"}, 0.0
@@ -8736,7 +8962,7 @@ class LLMOrchestrator:
             if not getattr(self, "enable_bounded_autonomy", False) and not provider_outage:
                 bridged_payload = toon.get("rl_bridged_params") or {}
                 if bridged_payload.get("action") in {"BUY", "SELL"}:
-                    from rl_action_bridge import BridgedExecutionParams
+                    from research.rl_action_bridge import BridgedExecutionParams
                     bridged_obj = BridgedExecutionParams.from_dict(bridged_payload)
                     decision = merge_bridge_into_decision(decision, bridged_obj, fill_missing_only=True)
             if llm_request_id:
@@ -8770,7 +8996,9 @@ class LLMOrchestrator:
                     correlation_id=llm_request_id,
                     severity="INFO" if llm_success else "WARNING",
                 )
+                self._active_llm_request_id = None
         except KeyboardInterrupt:
+            self._active_llm_request_id = None
             if llm_request_id:
                 try:
                     self.operations.finish_llm(
@@ -8784,6 +9012,7 @@ class LLMOrchestrator:
             self.operations.fail_task(cycle_key, "Interrupted by user (KeyboardInterrupt)")
             raise
         except Exception as exc:
+            self._active_llm_request_id = None
             if llm_request_id:
                 trace = getattr(self, "_last_llm_trace", {}) or {}
                 usage = getattr(self.llm, "last_usage", {}) or {}
@@ -8844,7 +9073,7 @@ class LLMOrchestrator:
                                     "proposal_received", {"action": decision.get("action"), "confidence": decision.get("confidence")},
                                     run_id=self.run_id, correlation_id=cycle_key)
         try:
-            from local_agent_memory import maybe_remember_trade_cycle
+            from intelligence.local_agent_memory import maybe_remember_trade_cycle
             maybe_remember_trade_cycle(
                 cycle_key=str(cycle_key),
                 stage="proposal",
@@ -9029,6 +9258,9 @@ Total Trades: {len(closed_trades)}"""
         
         if action in ["BUY", "SELL"]:
             proposal, validation = self._validate_proposal(decision, toon, symbol, strategy, paper_mode=paper_mode)
+            if proposal is not None and getattr(validation, "approved", False):
+                # Bind the evidence to this setup for the OrderGateway (review R6).
+                validation.setup_key = proposal.setup_key()
             try:
                 from operations.event_bridge import emit as _emit
                 from operations.supervisor import get_supervisor as _get_sup
@@ -9276,6 +9508,24 @@ Total Trades: {len(closed_trades)}"""
                         log.warning(reason)
                         return {"action": "HOLD", "reasoning": reason}, 0.0
                     self._v2_seam("cycle.seams.sized")
+
+                    # Check hold_only flag (P1-H2)
+                    from operations.autonomy import get_autonomy
+                    _autonomy_hold = get_autonomy().is_hold_only() if hasattr(get_autonomy(), "is_hold_only") else False
+                    _pipeline_hold = False
+                    try:
+                        from core.harness.pipeline_v2 import get_tls_hold_only
+                        _pipeline_hold = get_tls_hold_only()
+                    except ImportError:
+                        pass
+                    if _pipeline_hold or _autonomy_hold:
+                        _hold_reason = "hold_only active: order execution blocked"
+                        log.info(_hold_reason)
+                        self.operations.event("trading", "hold_only_blocked_order", {
+                            "symbol": symbol, "action": action, "pipeline_hold": _pipeline_hold, "autonomy_hold": _autonomy_hold,
+                        }, run_id=self.run_id, severity="INFO")
+                        return {"action": "HOLD", "reasoning": _hold_reason}, 0.0
+
                     intent_key = f"{proposal.setup_key()}:{proposal.magic}"
                     created, _intent = self.operations.create_order_intent(intent_key, {
                         "symbol": symbol, "side": action, "entry": entry, "volume": safe_vol,
@@ -9354,7 +9604,9 @@ Total Trades: {len(closed_trades)}"""
                         except Exception as _urg_exc:
                             log.debug("UrgencySOR pre-route skipped: %s", _urg_exc)
 
-                        # Route via UrgencySOR if available and order is market-like
+                        # Route via UrgencySOR if available and order is market-like.
+                        # Single-door rule: validated evidence travels with the
+                        # order into OrderGateway (reservation + margin + send).
                         if _use_urgency and execution_plan.order_type.upper() in ("MARKET", "BUY", "SELL"):
                             res = place_urgency_routed_order(
                                 symbol=symbol, side=action, volume=safe_vol,
@@ -9362,6 +9614,10 @@ Total Trades: {len(closed_trades)}"""
                                 comment="llm_auto",
                                 paper=self.paper_broker if paper_mode else None,
                                 atr=atr_val, magic=proposal.magic,
+                                validation_result=validation, setup_key=proposal.setup_key(),
+                                risk_amount=proposed_risk, intent_key=intent_key,
+                                account_equity=equity,
+                                token=None if paper_mode else self._live_order_token(),
                             )
                         else:
                             expires_at = datetime.fromisoformat(execution_plan.expires_at)
@@ -9377,6 +9633,10 @@ Total Trades: {len(closed_trades)}"""
                                 paper=self.paper_broker if paper_mode else None,
                                 magic=proposal.magic,
                                 expires_at=expires_at,
+                                validation_result=validation, setup_key=proposal.setup_key(),
+                                risk_amount=proposed_risk, intent_key=intent_key,
+                                account_equity=equity,
+                                token=None if paper_mode else self._live_order_token(),
                             )
                         self.operations.record_raw_trace(
                             "mt5_order_response", {"intent_key": intent_key, "result": res or {}},

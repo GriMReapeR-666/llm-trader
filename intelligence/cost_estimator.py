@@ -15,7 +15,7 @@ try:
     _HAS_TCE = True
 except Exception:
     try:
-        from transaction_cost_engine import TransactionCostEngine as _TCE
+        from core.transaction_cost_engine import TransactionCostEngine as _TCE
         _HAS_TCE = True
     except Exception:
         _TCE = None

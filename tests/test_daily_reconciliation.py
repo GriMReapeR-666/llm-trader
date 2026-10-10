@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from daily_reconciliation import compare_day
-from trading_safety import SCALP_MAGIC, TradeProposal, TradingStore
+from operations.daily_reconciliation import compare_day
+from core.trading_safety import SCALP_MAGIC, TradeProposal, TradingStore
 
 
 def _window():

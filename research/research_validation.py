@@ -21,17 +21,17 @@ MAX_PROMOTION_STRESS_DD_P95 = 0.35
 try:
     from research.adaptive_models import fractional_bayesian_kelly
 except ImportError:
-    from adaptive_models import fractional_bayesian_kelly
+    from research.adaptive_models import fractional_bayesian_kelly
 
 try:
     from operations.journal_audit import audit
 except ImportError:
-    from journal_audit import audit
+    from operations.journal_audit import audit
 
 try:
     from intelligence.feature_schema import SCHEMA_HASHES, values_hash
 except ImportError:
-    from feature_schema import SCHEMA_HASHES, values_hash
+    from intelligence.feature_schema import SCHEMA_HASHES, values_hash
 
 
 
@@ -489,7 +489,7 @@ def promotion_gate(path: str = "trading_state.db", minimum_closed_per_setup: int
     integrity = audit(path)
     dataset = labelled_dataset(path)
     metrics = setup_metrics(path)
-    from research_stress import stress_report
+    from research.research_stress import stress_report
     stress = stress_report(path, minimum_samples=effective_threshold)
     stress_reasons = _stress_floor_reasons(stress)
     integrity_passed = bool(integrity.get("passed", False))

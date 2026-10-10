@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from alpha_factors import (
+from core.alpha_factors import (
     _ALPHA_REGISTRY,
     _vwap,
     alpha_001,
@@ -260,7 +260,7 @@ class TestComputeAlphaFactors:
 class TestIndicatorPipeline:
     def test_alpha_via_compute_indicators(self, sample_ohlcv):
         """compute_indicators should accept ALPHA requests."""
-        from technical_indicators import compute_indicators
+        from core.technical_indicators import compute_indicators
         result = compute_indicators(sample_ohlcv, ["RSI", "ALPHA012", "ALPHA101"])
         assert "rsi_14" in result.columns
         assert "alpha_012" in result.columns
@@ -268,7 +268,7 @@ class TestIndicatorPipeline:
 
     def test_alpha_batch_computed(self, sample_ohlcv):
         """Multiple ALPHA requests should all appear in output."""
-        from technical_indicators import compute_indicators
+        from core.technical_indicators import compute_indicators
         result = compute_indicators(sample_ohlcv, [
             "ALPHA001", "ALPHA005", "ALPHA009", "ALPHA012",
             "ALPHA014", "ALPHA017", "ALPHA019", "ALPHA022",

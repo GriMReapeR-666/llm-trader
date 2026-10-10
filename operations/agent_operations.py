@@ -27,12 +27,12 @@ try:
     )
     from operations.setup_labeling import persist_setup_label
 except ImportError:
-    from agent_contracts import (
+    from operations.agent_contracts import (
         require as require_agent_action,
         require_order_authority,
         require_write as require_agent_write,
     )
-    from setup_labeling import persist_setup_label
+    from research.setup_labeling import persist_setup_label
 
 
 def utcnow() -> str:
@@ -342,7 +342,7 @@ class AgentOperations:
             con.execute("INSERT INTO operational_events(created_at,run_id,actor,event_type,correlation_id,severity,payload,payload_hash) VALUES(?,?,?,?,?,?,?,?)", (utcnow(), run_id, actor, event_type, correlation_id, severity, encoded, payload_hash))
         # Optional local local document/KV agent memory (offline SQLite). Never blocks, never authorizes.
         try:
-            from local_agent_memory import maybe_remember_event
+            from intelligence.local_agent_memory import maybe_remember_event
             maybe_remember_event(
                 actor=actor,
                 event_type=event_type,
@@ -442,7 +442,7 @@ class AgentOperations:
         # Optional remote mirror: never blocks local authority, never authorizes.
         remote_mirror = {"mirrored": False, "reason": "not_attempted", "execution_authority": False}
         try:
-            from remote_memory_mirror import maybe_mirror_working_memory
+            from intelligence.remote_memory_mirror import maybe_mirror_working_memory
             remote_mirror = maybe_mirror_working_memory({
                 "namespace": namespace.strip()[:120],
                 "memory_key": memory_key.strip()[:200],
@@ -460,7 +460,7 @@ class AgentOperations:
         # Offline local local document/KV document store (no cloud). Fail-closed.
         local_memory = {"stored": False, "reason": "not_attempted", "execution_authority": False}
         try:
-            from local_agent_memory import maybe_remember_working_memory
+            from intelligence.local_agent_memory import maybe_remember_working_memory
             local_memory = maybe_remember_working_memory({
                 "namespace": namespace.strip()[:120],
                 "memory_key": memory_key.strip()[:200],
@@ -751,7 +751,7 @@ class AgentOperations:
         with self._con() as con:
             con.execute("INSERT OR IGNORE INTO data_snapshots(snapshot_id,captured_at,run_id,kind,symbol,timeframe,candle_id,source_hash,payload) VALUES(?,?,?,?,?,?,?,?,?)", (snapshot_id, utcnow(), run_id, kind, symbol, timeframe, candle_id, digest, encoded))
         try:
-            from local_agent_memory import maybe_remember_journal_snapshot
+            from intelligence.local_agent_memory import maybe_remember_journal_snapshot
             maybe_remember_journal_snapshot(
                 kind=kind,
                 payload=safe_payload,
@@ -1444,7 +1444,7 @@ class AgentOperations:
             con.execute("INSERT OR IGNORE INTO memory_outbox(created_at,kind,status,next_attempt_at,source_id,payload) VALUES(?,?, 'PENDING',?,?,?)", (utcnow(), kind, utcnow(), source_id, json.dumps(safe_payload, default=str)))
         # Also remember closed-trade / event-reaction cycles in local agent memory.
         try:
-            from local_agent_memory import maybe_remember_trade_cycle
+            from intelligence.local_agent_memory import maybe_remember_trade_cycle
             stage = "closed" if str(kind) == "closed_trade" else str(kind or "memory_outbox")
             maybe_remember_trade_cycle(
                 cycle_key=str(source_id),

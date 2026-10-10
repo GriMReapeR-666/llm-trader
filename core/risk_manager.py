@@ -13,9 +13,11 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple, Optional, Callable
 
 try:
-    from state_persistence import StoreBackedState
+    from core.state_persistence import StoreBackedState
 except ImportError:
     from core.state_persistence import StoreBackedState
+
+from core.trading_safety import BOT_MAGICS
 
 class RiskManager(StoreBackedState):
     store_key = "risk_manager_state"
@@ -96,9 +98,10 @@ class RiskManager(StoreBackedState):
         self.opportunity_cost_hurdle_r: float = 0.05
         # Maximum concurrent open positions enforced per strategy/bot
         self.max_active_positions = 2
-        self.managed_magics = {460001, 460002}
+        self.managed_magics = set(BOT_MAGICS)
         self._active_positions_provider: Optional[Callable[[], int]] = None
         self._portfolio_heat_provider: Optional[Callable[[], Optional[float]]] = None
+        self._equity_provider: Optional[Callable[[], Optional[float]]] = None
         # When daily loss or peak DD trips, open positions must flatten — not only block entries.
         self._flatten_reason: Optional[str] = None
 
@@ -436,13 +439,17 @@ class RiskManager(StoreBackedState):
         """Level 1 Circuit Breaker: Returns False if daily loss >= 3.0R (e.g. 3%).
         On breach, halts new entries for 24h and marks protective flatten request.
         """
-        if self.daily_start_equity <= 0:
-            return True
+        if not self._finite(self.daily_start_equity, positive=True):
+            logging.warning("Daily drawdown check failed closed: daily_start_equity=%s is invalid", self.daily_start_equity)
+            return False
         equity = current_equity
         if equity is None:
-            equity = self._account_equity()
+            equity = self.current_equity()
         if equity is None:
             equity = self.balance
+        if not self._finite(equity, positive=False):
+            logging.warning("Daily drawdown check failed closed: equity=%s is non-finite", equity)
+            return False
         current_dd = (self.daily_start_equity - equity) / self.daily_start_equity
         if current_dd >= self.max_daily_loss:
             reason = f"daily_loss_limit:{current_dd:.2%}>={self.max_daily_loss:.2%}"
@@ -462,7 +469,7 @@ class RiskManager(StoreBackedState):
             return True
         equity = current_equity
         if equity is None:
-            equity = self._account_equity()
+            equity = self.current_equity()
         if equity is None:
             equity = self.balance
         
@@ -583,7 +590,7 @@ class RiskManager(StoreBackedState):
             return False
         equity = current_equity
         if equity is None:
-            equity = self._account_equity()
+            equity = self.current_equity()
         if equity is None:
             equity = self.balance
         floor = self.initial_balance * self.equity_floor_fraction
@@ -610,11 +617,11 @@ class RiskManager(StoreBackedState):
         """Drawdown control ladder vs peak equity: 1.0 / 0.75 / 0.50 / 0.25 / 0.0."""
         equity = current_equity
         if equity is None:
-            equity = self._account_equity()
+            equity = self.current_equity()
         if equity is None:
             equity = self.balance
         if not self._finite(equity, positive=True) or not self._finite(self.peak_equity, positive=True):
-            return 1.0
+            return 0.0
         dd = (float(self.peak_equity) - float(equity)) / float(self.peak_equity)
         if dd < 0.05:
             return 1.0
@@ -791,7 +798,7 @@ anyone reasoning about how much drawdown the account can absorb.
 """
         equity = current_equity
         if equity is None:
-            equity = self._account_equity()
+            equity = self.current_equity()
         if equity is None:
             equity = self.balance
         self.peak_equity = max(self.peak_equity, equity)
@@ -877,6 +884,43 @@ anyone reasoning about how much drawdown the account can absorb.
         """Inject a custom portfolio heat provider (e.g. for paper broker)."""
         self._portfolio_heat_provider = provider
 
+    def set_equity_provider(self, provider: Callable[[], Optional[float]]) -> None:
+        """Inject a callable returning the venue's current equity (paper broker).
+
+        Mirrors ``set_active_positions_provider``/``set_portfolio_heat_provider``.
+        Without it, a paper session has no authenticated MT5 terminal, so
+        ``mt5.account_info()`` returns None at every read and every caller falls
+        back to ``self.balance`` - a value only refreshed by the single
+        ``update_account`` call in data/market_data_provider.py, which is itself
+        a no-op when ``acc_info`` is absent. The paper seed balance was
+        therefore frozen for the whole process: sizing never compounded as the
+        simulated account won or lost, and the drawdown anchor never moved.
+        """
+        self._equity_provider = provider
+
+    def current_equity(self) -> float:
+        """The account's equity right now, best source first.
+
+        MT5 (live/demo) -> injected venue provider (paper) -> last known
+        snapshot. Always returns a positive float so callers can divide by it
+        without re-guarding; every existing ``_account_equity() or
+        self.balance`` pair in this module now routes through here so the
+        precedence rule exists in exactly one place.
+        """
+        live = self._account_equity()
+        if live is not None and self._finite(live, positive=True):
+            return float(live)
+
+        if self._equity_provider is not None:
+            try:
+                supplied = float(self._equity_provider())
+            except Exception:
+                supplied = None
+            if supplied is not None and self._finite(supplied, positive=True):
+                return supplied
+
+        return float(self.balance)
+
     def check_active_trade_limit(self, custom_count: Optional[int] = None) -> bool:
         """Enforce maximum simultaneous open positions across paper, demo, and live.
 
@@ -896,7 +940,7 @@ anyone reasoning about how much drawdown the account can absorb.
             if mt5 is not None:
                 positions = mt5.positions_get()
                 if positions is not None:
-                    managed = getattr(self, "managed_magics", None) or {460001, 460002}
+                    managed = getattr(self, "managed_magics", None) or BOT_MAGICS
                     owned_count = sum(1 for p in positions if getattr(p, "magic", 0) in managed)
                     return owned_count < self.max_active_positions
                 else:
@@ -974,7 +1018,7 @@ anyone reasoning about how much drawdown the account can absorb.
             positions = list(mt5.positions_get() or [])
         except Exception:
             return None
-        equity = self._account_equity() or self.balance
+        equity = self.current_equity()
         if equity is None or equity <= 0:
             return None
         unit = equity * self.risk_per_trade
@@ -1082,7 +1126,7 @@ anyone reasoning about how much drawdown the account can absorb.
         if entry == sl: return 0.0
 
         # 2. Strict Risk Calculation (Universal 1R with Circuit Step-Down)
-        equity = self._account_equity()
+        equity = self.current_equity()
         if equity is None:
             equity = self.balance
         if not self._finite(equity, positive=True):

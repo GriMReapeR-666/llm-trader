@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from grpo_proposer import (
+from research.grpo_proposer import (
     FROZEN_AGENT,
     PROPOSER_ACTIONS,
     TRAINABLE_AGENT,

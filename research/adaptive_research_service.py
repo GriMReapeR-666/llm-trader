@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, Iterable
 
-from adaptive_models import OnlineGarch, OnlineHMM
+from research.adaptive_models import OnlineGarch, OnlineHMM
 
 
 class AdaptiveResearchService:

@@ -5,11 +5,12 @@ Verifies:
 2. Toxic VPIN burst -> Rejection by safety shield.
 3. Phantom liquidity / quote stuffing -> Rejection by safety shield.
 4. Avellaneda-Stoikov limit price optimization under inventory skew.
-5. 100% backward compatibility with 150 historical scalp trades (snapshot).
+5. 100% backward compatibility with 150 historical scalp trades in trading_state.db.
 """
 from datetime import datetime, timedelta, timezone
 import json
 import os
+import sqlite3
 import numpy as np
 import pytest
 
@@ -48,9 +49,14 @@ def _mock_indicators():
 
 
 def _market_env():
+    # Complete evidence (P1-H4): the fail-closed validator rejects any
+    # missing gate input.
     return {
         "market_open": True, "tick_age_ms": 15, "max_tick_age_ms": 5000,
         "symbol_tradable": True, "spread": 0.0001, "max_spread": 0.0005,
+        "clock_ok": True, "session_allowed": True,
+        "liquidity_ok": True, "microstructure_ok": True,
+        "required_data_ok": True,
         "completed_candle": True, "breakout_event": True,
         "stop_distance": 0.0020, "min_stop_distance": 0.0005,
         "high_impact_news": False, "setup_cooldown_seconds": 0,
@@ -147,33 +153,25 @@ def test_e2e_avellaneda_stoikov_inventory_adjustment():
 
 
 def test_e2e_backward_compatibility_with_150_journal_trades(tmp_path):
-    """Ensure all 150 historical scalp trades remain 100% compliant.
+    """Ensure all 150 historical scalp trades (synthetic fixtures) remain 100% compliant.
 
-    These rows used to be read straight out of the live repo-root
-    ``trading_state.db`` (``sqlite3.connect("trading_state.db")``), which made
-    the test depend on shared runtime state in two ways: it only passed on a
-    machine whose production database held that history, and under the pytest
-    root-database sandbox (tests/conftest.py::sandbox_root_databases) the same
-    connect resolves to an empty per-test copy with no ``trades`` table at all.
-
-    Seeded from the checked-in snapshot instead — the payloads are the real
-    historical ones, captured once from the live database, so the
-    classification and validator checks below still exercise real setups.
-    """
-    snapshot_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "fixtures", "scalp_journal_trades_150.json")
-    with open(snapshot_path, encoding="utf-8") as fh:
-        snapshot = json.load(fh)
-    rows = [(r["setup_id"], r["payload"]) for r in snapshot["rows"]]
+    Reads the committed evidence snapshot read-only; the runtime trading_state.db
+    is not part of the repo and must never be opened by tests."""
+    evidence = os.path.join(os.path.dirname(__file__), "..", "data", "evidence", "trading_state_evidence.db")
+    if not os.path.exists(evidence):
+        pytest.skip("evidence snapshot not present")
+    conn = sqlite3.connect(f"file:{os.path.abspath(evidence)}?mode=ro", uri=True)
+    cursor = conn.cursor()
+    cursor.execute("SELECT setup_id, payload FROM trades WHERE strategy='scalp'")
+    rows = cursor.fetchall()
     assert len(rows) == 150
 
     store = TradingStore(str(tmp_path / "safety_test.db"))
     validator = DeterministicValidator(store)
 
-    for setup_id, payload in rows:
+    for setup_id, payload_str in rows:
         assert setup_id == "trend_pullback_v1"
-        payload = payload or {}
+        payload = json.loads(payload_str) if payload_str else {}
         prop_feat = payload.get("proposal_features", {})
         assert prop_feat.get("setup_id") == "trend_pullback_v1"
         feat_vals = prop_feat.get("feature_values", {})

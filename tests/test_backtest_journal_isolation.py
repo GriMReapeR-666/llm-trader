@@ -3,7 +3,10 @@ from unittest.mock import MagicMock
 from research.mt5_backtest_engine import MT5BrokerBacktestEngine, BacktestMetrics
 
 def test_backtest_journaling_does_not_pollute_live_trades(tmp_path):
-    db_file = str(tmp_path / "trading_state.db")
+    # Must NOT be named trading_state.db: the backtest engine hard-refuses any
+    # path with that basename (research/mt5_backtest_engine.py:137) precisely so
+    # simulated fills cannot reach the production journal, even in tmp_path.
+    db_file = str(tmp_path / "backtest_state.db")
     engine = MT5BrokerBacktestEngine(db_path=db_file)
     
     # Create empty live trades table

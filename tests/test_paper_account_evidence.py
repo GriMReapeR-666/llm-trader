@@ -22,11 +22,11 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 
-from agent_operations import AgentOperations
+from operations.agent_operations import AgentOperations
 from data.market_data_provider import MarketDataProvider
 import data.market_data_provider as mdp
 from mt5_trader import LLMOrchestrator
-from trading_safety import TradingStore
+from core.trading_safety import TradingStore
 
 
 def _orchestrator(journal_mode, tmp_path):
@@ -36,11 +36,14 @@ def _orchestrator(journal_mode, tmp_path):
     risk.open_positions = []
     db = str(tmp_path / f"orch_{journal_mode}.db")
     with _patch_store(db):
+        # DEMO/LIVE journals refuse to open without an account fingerprint
+        # (operations/journal_scope.py), so give them one.
+        fingerprint = "test-account" if journal_mode in ("LIVE", "DEMO") else ""
         orch = LLMOrchestrator(
             MagicMock(), risk, MagicMock(), "api_key", enable_rl=False,
-            journal_mode=journal_mode,
+            journal_mode=journal_mode, account_fingerprint=fingerprint,
         )
-    orch.store = TradingStore(path=db, mode=journal_mode or "PAPER")
+    orch.store = TradingStore(path=db, mode=journal_mode or "PAPER", account_fingerprint=fingerprint)
     orch.operations = AgentOperations(db)
     return orch
 

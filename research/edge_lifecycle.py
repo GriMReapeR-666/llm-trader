@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Dict, FrozenSet, Optional
 
 try:
-    from macro_graph import MacroGraph, utcnow
+    from intelligence.macro_graph import MacroGraph, utcnow
 except ImportError:
     from intelligence.macro_graph import MacroGraph, utcnow
 

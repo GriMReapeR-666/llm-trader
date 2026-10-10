@@ -20,12 +20,11 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Ensure project root is on sys.path
+# Single import root (P1-C1/M3): only the repo root may be added to sys.path;
+# subpackage folders never (they double-load modules and split singletons).
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _sub in ("core", "intelligence", "operations", "research", "data", "ui"):
-    _p = os.path.join(_PROJECT_ROOT, _sub)
-    if os.path.isdir(_p) and _p not in sys.path:
-        sys.path.insert(0, _p)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 
 @dataclass
@@ -94,6 +93,93 @@ class BacktestMetrics:
         }
 
 
+DEFAULT_BACKTEST_DB = os.getenv("LLM_TRADER_BACKTEST_JOURNAL_PATH", "backtest_state.db")
+if os.path.basename(DEFAULT_BACKTEST_DB).lower() == "trading_state.db":
+    DEFAULT_BACKTEST_DB = "backtest_state.db"
+
+
+def validate_backtest_journal_path(path: Any) -> str:
+    """Validate that the journal/database path is a dedicated backtest or research store.
+
+    Refuses 'trading_state.db' or any database path where TradingStore mode or
+    journal scope is LIVE or DEMO.
+    Raises ValueError if the path targets a production database.
+    """
+    if path is None:
+        raise ValueError("journal_path cannot be None")
+
+    if hasattr(path, "path"):
+        scope_attr = getattr(path, "scope", None)
+        store_mode = ""
+        if isinstance(scope_attr, dict):
+            store_mode = str(scope_attr.get("mode") or "").strip().upper()
+        if store_mode in {"LIVE", "DEMO"}:
+            raise ValueError(
+                f"Backtest engine cannot use TradingStore with {store_mode} mode. "
+                f"Backtest engine must only ever write to a dedicated backtest or research database."
+            )
+        path = path.path
+
+    path_str = str(path).strip()
+    if not path_str:
+        raise ValueError("journal_path cannot be empty")
+
+    # Resolve symlinks/relative segments before the filename check so
+    # link-trading_state.db cannot smuggle the production journal in.
+    try:
+        real_path = os.path.realpath(path_str)
+    except Exception:
+        real_path = path_str
+    norm_path = os.path.normpath(real_path)
+    base_name = os.path.basename(norm_path).lower()
+
+    # 1. Refuse trading_state.db by filename (after symlink resolution)
+    if base_name == "trading_state.db":
+        raise ValueError(
+            f"Backtest engine cannot write to production database '{path_str}'. "
+            f"Backtest engine must only ever write to a dedicated backtest or research database."
+        )
+
+    # 2. Refuse if path matches active environment journal (resolved)
+    env_journal = os.getenv("LLM_TRADER_JOURNAL_PATH")
+    if env_journal:
+        try:
+            if os.path.realpath(path_str) == os.path.realpath(env_journal):
+                raise ValueError(
+                    f"Backtest engine cannot write to active environment journal '{path_str}'. "
+                    f"Backtest engine must only ever write to a dedicated backtest or research database."
+                )
+        except ValueError:
+            raise
+        except Exception:
+            pass
+
+    # 3. Check existing database for LIVE or DEMO journal scope
+    if os.path.exists(path_str):
+        try:
+            with sqlite3.connect(path_str, timeout=5.0) as con:
+                tables = {
+                    row[0]
+                    for row in con.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    ).fetchall()
+                }
+                if "journal_scope" in tables:
+                    rows = con.execute("SELECT mode FROM journal_scope").fetchall()
+                    for r in rows:
+                        if r and r[0]:
+                            mode = str(r[0]).strip().upper()
+                            if mode in {"LIVE", "DEMO"}:
+                                raise ValueError(
+                                    f"Backtest engine cannot use database '{path_str}' with {mode} journal scope. "
+                                    f"Backtest engine must only ever write to a dedicated backtest or research database."
+                                )
+        except sqlite3.DatabaseError:
+            pass
+
+    return path_str
+
+
 class MT5BrokerBacktestEngine:
     """Institutional-grade backtest engine that connects directly to MetaTrader 5,
     acquires live broker specifications and historical execution deals, simulates
@@ -106,12 +192,24 @@ class MT5BrokerBacktestEngine:
         spread_pips: float = 1.5,
         slippage_pips: float = 0.5,
         commission_per_lot: float = 7.0,
-        db_path: str = "trading_state.db",
+        journal_path: Optional[str] = None,
+        db_path: Optional[str] = None,
     ):
         self.spread_pips = spread_pips
         self.slippage_pips = slippage_pips
         self.commission_per_lot = commission_per_lot
-        self.db_path = db_path
+
+        if journal_path is not None and db_path is not None and journal_path != db_path:
+            raise ValueError(
+                f"Conflicting journal_path ('{journal_path}') and db_path ('{db_path}') provided."
+            )
+
+        raw_path = journal_path if journal_path is not None else db_path
+        if raw_path is None:
+            raw_path = DEFAULT_BACKTEST_DB
+
+        self.journal_path = validate_backtest_journal_path(raw_path)
+        self.db_path = self.journal_path
         self.last_friction_breakdown: Dict[str, Any] = {}
         self.last_broker_specs: Dict[str, Any] = {}
 
@@ -598,10 +696,15 @@ class MT5BrokerBacktestEngine:
         symbol: str = "EURUSD",
         strategy_name: str = "default",
         timeframe: str = "M15",
+        journal_path: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Perform strategy improvement: Deflated Sharpe Ratio gate, CPCV / PBO checks,
-        and StrategyLifecycle advancement or automated demotion.
+        and StrategyLifecycle evaluation.
+
+        NOTE: Per PR 2.4 (LA-B4 / 1b-R2), lifecycle promotions are removed from the backtest
+        engine. Setup promotion must only be performed by human operators through the lifecycle.
         """
+        target_path = validate_backtest_journal_path(journal_path) if journal_path is not None else self.journal_path
         improvement: Dict[str, Any] = {
             "strategy_id": strategy_name,
             "dsr_gate": {"passed": False, "dsr": 0.0},
@@ -653,16 +756,16 @@ class MT5BrokerBacktestEngine:
                 "required": 20,
             }
 
-        # 3. Strategy Lifecycle Gate Advancement / Auto-Demotion
+        # 3. Strategy Lifecycle Check (No Automated Promotion)
         try:
-            from operations.strategy_lifecycle import current_states, transition, register_candidate
-            states = current_states(self.db_path)
+            from operations.strategy_lifecycle import current_states, register_candidate
+            states = current_states(target_path)
             current_state = states.get(strategy_name)
 
             if current_state is None:
-                # Register newly tested strategy as CANDIDATE
+                # Register newly tested strategy as CANDIDATE in dedicated backtest database
                 register_candidate(
-                    self.db_path,
+                    target_path,
                     setup_id=strategy_name,
                     reason=f"Registered by MT5BrokerBacktestEngine backtest for {symbol}",
                     evidence=metrics.to_dict(),
@@ -672,7 +775,7 @@ class MT5BrokerBacktestEngine:
 
             improvement["lifecycle"]["current_state"] = current_state
 
-            # Promotion Check: CANDIDATE -> VALIDATING -> PAPER_PROVEN
+            # Promotion Eligibility Check: evaluate criteria without mutating lifecycle state
             passes_promotion = (
                 metrics.sharpe_ratio >= 0.8
                 and metrics.win_rate >= 45.0
@@ -681,27 +784,8 @@ class MT5BrokerBacktestEngine:
                 and metrics.max_drawdown_pct <= 25.0
             )
 
-            if current_state == "CANDIDATE" and passes_promotion:
-                t1 = transition(
-                    self.db_path, strategy_name, "VALIDATING",
-                    actor="system", reason="Passed initial backtest thresholds",
-                    evidence=metrics.to_dict(), allow_auto=True,
-                )
-                t2 = transition(
-                    self.db_path, strategy_name, "PAPER_PROVEN",
-                    actor="system", reason="Validated by MT5BrokerBacktestEngine with full broker friction",
-                    evidence=metrics.to_dict(), allow_auto=True,
-                )
-                improvement["lifecycle"]["transition_applied"] = f"CANDIDATE -> PAPER_PROVEN (passed)"
-
-            # Decay Check: DEPLOYED -> DECAYING -> FROZEN
-            elif current_state in ("DEPLOYED", "PAPER_PROVEN") and (metrics.sharpe_ratio < 0.0 or metrics.expectancy_r < -0.1 or metrics.max_drawdown_pct > 35.0):
-                t_decay = transition(
-                    self.db_path, strategy_name, "DECAYING",
-                    actor="evaluation", reason=f"Severe backtest degradation: Sharpe {metrics.sharpe_ratio:.2f}, DD {metrics.max_drawdown_pct:.1f}%",
-                    evidence=metrics.to_dict(), allow_auto=True,
-                )
-                improvement["lifecycle"]["transition_applied"] = f"{current_state} -> DECAYING (decay detected)"
+            improvement["lifecycle"]["eligible_for_promotion"] = bool(passes_promotion)
+            improvement["lifecycle"]["transition_applied"] = None
         except Exception as exc:
             improvement["lifecycle"]["error"] = str(exc)
 
@@ -714,10 +798,12 @@ class MT5BrokerBacktestEngine:
         strategy_name: str = "default",
         config: Optional[Dict[str, Any]] = None,
         data_improvement: Optional[Dict[str, Any]] = None,
+        journal_path: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Record the complete backtest run and trade log into SQLite trading_state.db
+        """Record the complete backtest run and trade log into dedicated SQLite backtest DB
         under research_validation_runs and trades tables.
         """
+        target_path = validate_backtest_journal_path(journal_path) if journal_path is not None else self.journal_path
         run_id = f"bt_{symbol}_{strategy_name}_{int(time.time())}"
         now_iso = datetime.now(timezone.utc).isoformat()
         dataset_hash = hashlib.sha256(f"{symbol}_{time.time()}".encode()).hexdigest()[:16]
@@ -734,11 +820,11 @@ class MT5BrokerBacktestEngine:
             "run_id": run_id,
             "persisted_run": False,
             "trades_logged": 0,
-            "database_path": self.db_path,
+            "database_path": target_path,
         }
 
         try:
-            con = sqlite3.connect(self.db_path, timeout=10.0)
+            con = sqlite3.connect(target_path, timeout=10.0)
             with con:
                 # 1. Persist validation run
                 con.execute("""
@@ -842,10 +928,17 @@ class MT5BrokerBacktestEngine:
         symbol: str = "EURUSD",
         strategy_name: str = "default",
         timeframe: str = "M15",
+        journal_path: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Perform system health meta-reflection, diagnose drawdown clusters,
-        and update TradingMemory and the active playbook with empirical backtest lessons.
+        and synthesize empirical backtest lessons.
+
+        NOTE: Per PR 2.4 (LA-B4 / 1b-R2), writes of APPROVED memories and playbook rules
+        are removed from the backtest engine; those must only be done by operators.
         """
+        if journal_path is not None:
+            validate_backtest_journal_path(journal_path)
+
         reflection: Dict[str, Any] = {
             "health_audit": {},
             "drawdown_analysis": {},
@@ -884,62 +977,7 @@ class MT5BrokerBacktestEngine:
         }
         reflection["lessons_recorded"] = lessons
 
-        # 3. Update TradingMemory & Playbook
-        try:
-            from intelligence.trading_memory import TradingMemory
-            mem = TradingMemory(db_path=self.db_path)
-
-            day = datetime.now(timezone.utc).date().isoformat()
-            con = sqlite3.connect(self.db_path, timeout=5.0)
-            con.row_factory = sqlite3.Row
-            with con:
-                # Ensure playbooks table exists
-                con.execute("""
-                    CREATE TABLE IF NOT EXISTS playbooks (
-                        session_date TEXT PRIMARY KEY, content TEXT NOT NULL, created_at TEXT NOT NULL
-                    )
-                """)
-                for l_text in lessons:
-                    try:
-                        con.execute("""
-                            INSERT INTO case_study_memories
-                            (created_at, case_id, label, primary_domain, entities, historical_outcomes, status)
-                            VALUES (?, ?, ?, ?, ?, ?, 'APPROVED')
-                        """, (
-                            datetime.now(timezone.utc).isoformat(),
-                            f"bt_{symbol}_{strategy_name}",
-                            f"Backtest Replay {symbol}",
-                            "TECHNICAL_BACKTEST",
-                            json.dumps([symbol, strategy_name]),
-                            l_text,
-                        ))
-                    except Exception:
-                        pass
-
-                # Inject backtest lessons into current session playbook
-                row = con.execute("SELECT content FROM playbooks WHERE session_date=?", (day,)).fetchone()
-                playbook = json.loads(row["content"]) if row else {
-                    "date": day, "symbol_focus": symbol, "rule": "Only trade validated proposals",
-                }
-                playbook["backtest_lessons"] = playbook.get("backtest_lessons", []) + lessons
-                playbook["backtest_metrics_summary"] = {
-                    "symbol": symbol,
-                    "strategy": strategy_name,
-                    "sharpe": metrics.sharpe_ratio,
-                    "win_rate": metrics.win_rate,
-                    "expectancy_r": metrics.expectancy_r,
-                    "max_drawdown": metrics.max_drawdown_pct,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                }
-                con.execute("""
-                    INSERT OR REPLACE INTO playbooks (session_date, content, created_at)
-                    VALUES (?, ?, ?)
-                """, (day, json.dumps(playbook, default=str), datetime.now(timezone.utc).isoformat()))
-                reflection["playbook_updated"] = True
-            con.close()
-        except Exception as exc:
-            reflection["playbook_error"] = str(exc)
-
+        # NOTE: Writes to case_study_memories (APPROVED) and playbooks are removed per PR 2.4.
         return reflection
 
     def run_full_autonomous_backtest(
@@ -952,18 +990,21 @@ class MT5BrokerBacktestEngine:
         slow_period: int = 26,
         sl_pips: float = 30.0,
         tp_pips: float = 60.0,
+        journal_path: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Orchestrate the complete autonomous end-to-end backtesting pipeline:
         1. Live MT5 Broker Data & Specifications Acquisition
         2. Data Improvement (Validation, Quality Audit, Regimes, Volatility)
         3. Backtest Simulation with Realistic Broker Friction Drag
-        4. Strategy Improvement (DSR Multiple-Testing, CPCV, Lifecycle Transition)
-        5. Journaling (SQLite research_validation_runs, trades table, EventBridge)
-        6. Reflection & Meta-Learning (Health Audit, Case Studies, Playbook Update)
+        4. Strategy Improvement (DSR Multiple-Testing, CPCV, Lifecycle Check)
+        5. Journaling (Dedicated backtest SQLite research_validation_runs, trades table, EventBridge)
+        6. Reflection & Meta-Learning (Health Audit, Drawdown Diagnostics)
         """
         logger.info("=" * 60)
         logger.info("RUNNING FULL AUTONOMOUS MT5 BACKTEST: %s %s (%s)", symbol, timeframe, strategy_name)
         logger.info("=" * 60)
+
+        active_journal = validate_backtest_journal_path(journal_path) if journal_path is not None else self.journal_path
 
         # 1. Fetch live MT5 broker specs & market data
         broker_specs = self.fetch_broker_specs(symbol)
@@ -997,29 +1038,32 @@ class MT5BrokerBacktestEngine:
             "commission_per_lot": self.commission_per_lot,
         }
 
-        # 4. Strategy Improvement
+        # 4. Strategy Improvement (no automated lifecycle promotions)
         strategy_improvement = self.process_strategy_improvement(
             metrics=metrics,
             symbol=symbol,
             strategy_name=strategy_name,
             timeframe=timeframe,
+            journal_path=active_journal,
         )
 
-        # 5. Journaling
+        # 5. Journaling (dedicated backtest DB)
         journaling = self.process_journaling(
             metrics=metrics,
             symbol=symbol,
             strategy_name=strategy_name,
             config=config_summary,
             data_improvement=data_improvement,
+            journal_path=active_journal,
         )
 
-        # 6. Reflection & Meta-Learning
+        # 6. Reflection & Meta-Learning (no writes to memories or playbooks)
         reflection = self.process_reflection(
             metrics=metrics,
             symbol=symbol,
             strategy_name=strategy_name,
             timeframe=timeframe,
+            journal_path=active_journal,
         )
 
         result = {

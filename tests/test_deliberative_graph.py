@@ -1,8 +1,8 @@
 """Integration tests for the LangGraph Deliberative Decision Graph."""
 import pytest
-from graph_state import create_initial_trading_cycle_state
-from deliberative_graph import build_deliberative_graph
-from graph_checkpointer import SqliteCheckpointSaver
+from intelligence.graph_state import create_initial_trading_cycle_state
+from intelligence.deliberative_graph import build_deliberative_graph
+from intelligence.graph_checkpointer import SqliteCheckpointSaver
 
 
 def test_deliberative_graph_execution_with_rejection(tmp_path):

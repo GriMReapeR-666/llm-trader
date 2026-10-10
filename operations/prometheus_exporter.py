@@ -268,7 +268,7 @@ class MetricsHandler(BaseHTTPRequestHandler):
         pass
 
 
-def start_exporter(port: int = 9090, host: str = "0.0.0.0") -> HTTPServer:
+def start_exporter(port: int = 9090, host: str = "127.0.0.1") -> HTTPServer:
     """Start the Prometheus metrics exporter server."""
     server = HTTPServer((host, port), MetricsHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -282,7 +282,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Prometheus Metrics Exporter")
     parser.add_argument("--port", type=int, default=9090, help="Port to listen on")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--once", action="store_true", help="Print metrics once and exit")
     args = parser.parse_args()
 

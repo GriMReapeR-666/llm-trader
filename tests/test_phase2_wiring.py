@@ -1,5 +1,5 @@
-from macro_graph import MacroGraph
-from autonomous_causal_engine import AutonomousCausalValidator, MIN_REACTION_SAMPLES
+from intelligence.macro_graph import MacroGraph
+from intelligence.autonomous_causal_engine import AutonomousCausalValidator, MIN_REACTION_SAMPLES
 
 
 def _seed_reactions(graph: MacroGraph, source_id: str, *, count: int, symbol: str = "EURUSD") -> None:

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import logging
 
-from api_manager import APIManager
+from data.api_manager import APIManager
 
 
 def _manager(cache):

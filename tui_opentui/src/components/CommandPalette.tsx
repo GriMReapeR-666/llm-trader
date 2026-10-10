@@ -330,18 +330,51 @@ export function CommandPalette(props: { onClose: () => void }) {
   )
 }
 
+export function renderControlOutcome(ctrl: {
+  status: string
+  result?: {
+    closed?: number
+    cancelled?: number
+    failed?: number
+    remaining?: number
+    sweeps?: number
+    error?: string
+    [key: string]: any
+  }
+}): string {
+  if (ctrl.status === "APPLIED") {
+    const r = ctrl.result || {}
+    const parts: string[] = []
+    if (typeof r.closed === "number") parts.push(`${r.closed} closed`)
+    if (typeof r.cancelled === "number") parts.push(`${r.cancelled} cancelled`)
+    if (typeof r.failed === "number" && r.failed > 0) parts.push(`${r.failed} failed`)
+    const details = parts.length > 0 ? ` (${parts.join(", ")})` : ""
+    return `APPLIED${details}`
+  }
+  if (ctrl.status === "FAILED") {
+    return `FAILED (${ctrl.result?.error || "unknown error"})`
+  }
+  if (ctrl.status === "EXPIRED") {
+    return "EXPIRED"
+  }
+  return ctrl.status
+}
+
 export function ConfirmDialog() {
   const confirm = useDeck((s) => s.confirm)
+  const [typedConfirm, setTypedConfirm] = useState("")
   if (!confirm) return null
   const danger = confirm.action !== "pause"
+  const isTypedAction = confirm.action === "flatten" || confirm.action === "kill"
+  const requiredToken = confirm.action === "flatten" ? "FLATTEN" : confirm.action === "kill" ? "KILL" : ""
 
   return (
     <box
       position="absolute"
-      top="35%"
-      left="28%"
-      width="44%"
-      height={9}
+      top="32%"
+      left="26%"
+      width="48%"
+      height={isTypedAction ? 12 : 9}
       borderStyle="single"
       borderColor={danger ? T.down : T.warn}
       backgroundColor={T.panel}
@@ -350,11 +383,32 @@ export function ConfirmDialog() {
     >
       <text fg={danger ? T.down : T.warn}>{danger ? "⚠ CONFIRM INTERVENTION" : "CONFIRM"}</text>
       <text fg={T.bright}>{confirm.label}</text>
+      {isTypedAction && (
+        <box flexDirection="column" marginTop={1}>
+          <text fg={T.dim}>Type {requiredToken} to confirm, or press Esc / select CANCEL:</text>
+          <input
+            placeholder={`type ${requiredToken}…`}
+            focused
+            value={typedConfirm}
+            onInput={(v) => setTypedConfirm(v)}
+            onSubmit={() => {
+              if (typedConfirm.trim() === requiredToken) {
+                store.set({ confirm: null })
+                applyIntervention(confirm.action, requiredToken)
+              }
+            }}
+            backgroundColor={T.raised}
+            focusedBackgroundColor={T.raised}
+            textColor={T.bright}
+            cursorColor={T.cyan}
+          />
+        </box>
+      )}
       <box flexDirection="row" marginTop={1} gap={2}>
         <select
           width="40%"
           height={3}
-          focused
+          focused={!isTypedAction}
           options={[
             { name: "CANCEL", description: "", value: "cancel" },
             { name: danger ? "CONFIRM ⚠" : "CONFIRM", description: "", value: "go" },
@@ -367,7 +421,11 @@ export function ConfirmDialog() {
             const v = String(opt?.value ?? "cancel")
             store.set({ confirm: null })
             if (v !== "go") return
-            applyIntervention(confirm.action)
+            if (isTypedAction && typedConfirm.trim() !== requiredToken) {
+              store.pushAlert("warn", `Intervention cancelled: must type ${requiredToken}`)
+              return
+            }
+            applyIntervention(confirm.action, isTypedAction ? requiredToken : undefined)
           }}
         />
       </box>
@@ -375,58 +433,81 @@ export function ConfirmDialog() {
   )
 }
 
-async function applyIntervention(action: "pause" | "flatten" | "kill" | "stop"): Promise<void> {
+export async function applyIntervention(
+  action: "pause" | "flatten" | "kill" | "stop",
+  confirmToken?: string,
+): Promise<void> {
   const live = store.get().transport === "live"
   if (!live) {
-    // Honest feedback (D1): without a control channel nothing was applied.
-    store.pushAlert("critical", `${action.toUpperCase()} NOT SENT — control channel offline; nothing was applied`)
+    store.pushAlert("critical", "NOT SENT: deck offline")
     return
   }
-  const { sendControl } = await import("../transport/live")
-  const target = action === "stop" ? "stop" : action === "kill" ? "killswitch" : action
-  const ok = await sendControl(target)
-  if (!ok) {
-    store.pushAlert("critical", `${action.toUpperCase()} FAILED — control channel refused`)
+
+  const { sendControl, getControlStatus } = await import("../transport/live")
+  const reqAction = action === "kill" ? "killswitch" : action
+  const payload: Record<string, any> = {}
+  if (confirmToken) {
+    payload.confirm = confirmToken
+  }
+
+  const res = await sendControl(reqAction, payload)
+  if (!res.ok) {
+    store.pushAlert("critical", `${action.toUpperCase()} FAILED — ${res.reason || "control channel refused"}`)
     return
   }
-  if (action === "pause") {
-    // pause/resume are applied synchronously by the control plane.
-    store.set({ halted: true })
-    store.pushOpEvent({
-      ts: Date.now(),
-      actor: "OPERATOR",
-      type: "PAUSE",
-      severity: "warn",
-      payload: "via control channel (applied)",
-    })
-    store.pushAlert("warn", "PAUSE applied — autonomy state updated")
+
+  const controlId = res.control_id
+  // A control without a journal id was never issued: FAILED, never poll.
+  if (controlId === undefined || controlId === null) {
+    store.pushAlert("critical", `${action.toUpperCase()} FAILED — no control_id (engine journal unavailable)`)
     return
   }
-  if (action === "stop") {
-    store.pushOpEvent({
-      ts: Date.now(),
-      actor: "OPERATOR",
-      type: "ENGINE_STOP",
-      severity: "critical",
-      payload: "via control channel",
-    })
-    store.pushAlert("critical", "ENGINE STOPPED — trading process terminated (positions untouched)")
-    return
+  let currentStatus = res.status || "REQUESTED"
+  store.pushAlert("warn", `${action.toUpperCase()} ${currentStatus}`)
+
+  if (controlId) {
+    let attempts = 0
+    const pollInterval = 400
+    // Poll until a terminal state (APPLIED/FAILED/EXPIRED). Cap at ~72 s,
+    // past the 60 s control expiry: on cap, report presumed-EXPIRED loudly
+    // instead of going silent.
+    const maxAttempts = 180
+    const intervalId = setInterval(async () => {
+      attempts++
+      const stat = await getControlStatus(controlId)
+      if (!stat) {
+        if (attempts >= maxAttempts) {
+          clearInterval(intervalId)
+          store.pushAlert("critical", `${action.toUpperCase()} FAILED — no terminal state after 72 s (treat as EXPIRED, verify via journal)`)
+        }
+        return
+      }
+      if (stat.status !== currentStatus) {
+        currentStatus = stat.status
+        const rendered = renderControlOutcome(stat)
+        store.pushAlert(
+          stat.status === "FAILED" || stat.status === "EXPIRED" ? "critical" : "warn",
+          `${action.toUpperCase()} ${rendered}`,
+        )
+      }
+      if (stat.status === "APPLIED" || stat.status === "FAILED" || stat.status === "EXPIRED" || attempts >= maxAttempts) {
+        clearInterval(intervalId)
+        if (attempts >= maxAttempts && stat.status !== "APPLIED" && stat.status !== "FAILED" && stat.status !== "EXPIRED") {
+          store.pushAlert("critical", `${action.toUpperCase()} FAILED — no terminal state after 72 s (treat as EXPIRED, verify via journal)`)
+        }
+        // Only reflect halted locally once the engine confirms the outcome.
+        if (stat.status === "APPLIED" && (action === "kill" || action === "pause")) {
+          store.set({ halted: true })
+        }
+        const rendered = renderControlOutcome(stat)
+        store.pushOpEvent({
+          ts: Date.now(),
+          actor: "OPERATOR",
+          type: action.toUpperCase(),
+          severity: stat.status === "APPLIED" ? (action === "pause" ? "warn" : "critical") : "critical",
+          payload: rendered,
+        })
+      }
+    }, pollInterval)
   }
-  // flatten / killswitch are QUEUED here; the engine applies them on its
-  // next cycle and reports CONTROL_EXECUTED / CONTROL_FAILED (D1).  We must
-  // not claim positions are closed before that confirmation arrives.
-  store.pushOpEvent({
-    ts: Date.now(),
-    actor: "OPERATOR",
-    type: action.toUpperCase(),
-    severity: "critical",
-    payload: "via control channel (queued — awaiting engine apply)",
-  })
-  store.pushAlert(
-    "critical",
-    action === "kill"
-      ? "KILLSWITCH QUEUED — engine applies and confirms on next cycle"
-      : "FLATTEN QUEUED — engine closes positions on next cycle",
-  )
 }

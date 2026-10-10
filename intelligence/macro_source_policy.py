@@ -67,6 +67,39 @@ RUNTIME_PUBLISHER_TOKENS = (
     "bloomberg",
 )
 
+# Wire-service hosts whose headlines may count toward the D9 news latch (H3).
+# Keyed by URL host ONLY: a publisher string saying "reuters" on any other
+# host (e.g. attacker.example) never counts. Aggregators (Yahoo, Seeking
+# Alpha, bare NewsAPI) are excluded — they re-host wire copy with delay and
+# would double-count one event into multiple confirmations.
+WIRE_DOMAINS = frozenset({
+    "reuters.com",
+    "feeds.reuters.com",
+    "www.reuters.com",
+    "bloomberg.com",
+    "www.bloomberg.com",
+    "feeds.bloomberg.com",
+})
+
+
+def counts_toward_latch(assessment: Any) -> bool:
+    """True when a source assessment may contribute to the D9 latch (H3).
+
+    PRIMARY (official releases, domain-keyed) always counts; RUNTIME_FEED
+    counts only on wire-service hosts. Everything else — aggregators,
+    publisher-name matches, unverified — never counts.
+    """
+    if not isinstance(assessment, dict):
+        return False
+    if not assessment.get("allowed"):
+        return False
+    if assessment.get("tier") == "PRIMARY":
+        return True
+    return (
+        assessment.get("tier") == "RUNTIME_FEED"
+        and str(assessment.get("domain") or "").lower() in WIRE_DOMAINS
+    )
+
 
 
 def _host(url: str) -> str:

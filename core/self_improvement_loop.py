@@ -26,7 +26,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from state_persistence import StoreBackedState
+from core.state_persistence import StoreBackedState
 
 import numpy as np
 
@@ -111,7 +111,7 @@ def create_replay_simulator(
         db_path = getattr(store, "path", "trading_state.db")
         try:
             try:
-                from research_validation import broker_reconciled_tickets
+                from research.research_validation import broker_reconciled_tickets
             except ImportError:
                 from research.research_validation import broker_reconciled_tickets
             tickets = sorted(broker_reconciled_tickets(str(db_path)))
@@ -383,7 +383,7 @@ class EmpiricalSimulator:
         try:
             import sqlite3
             try:
-                from research_validation import broker_reconciled_tickets
+                from research.research_validation import broker_reconciled_tickets
             except ImportError:
                 from research.research_validation import broker_reconciled_tickets
             tickets = sorted(broker_reconciled_tickets(self.db_path))

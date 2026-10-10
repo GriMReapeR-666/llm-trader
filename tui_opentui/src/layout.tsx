@@ -171,3 +171,5 @@ export function wrapSegs(avail: number, segs: Seg[], indent = 0): Seg[][] {
   if (cur.length > 0) lines.push(cur)
   return lines
 }
+
+export { SafetyStrip } from "./components/SafetyStrip"

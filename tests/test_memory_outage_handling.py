@@ -18,10 +18,10 @@ tests pin the corrected behavior:
 import json
 from pathlib import Path
 
-from agent_operations import AgentOperations
-from local_llm_memory import _fallback, process_outbox
-from trading_memory import TradingMemory
-from trading_safety import TradeProposal, TradingStore
+from operations.agent_operations import AgentOperations
+from intelligence.local_llm_memory import _fallback, process_outbox
+from intelligence.trading_memory import TradingMemory
+from core.trading_safety import TradeProposal, TradingStore
 
 
 class FakeLLM:

@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-from economic_dynamics_catalog import CORRELATION_REGIMES, edges_for_regime
+from intelligence.economic_dynamics_catalog import CORRELATION_REGIMES, edges_for_regime
 
 
 # Broker/Yahoo symbol aliases → catalog entity names used in regime pair_signs.

@@ -5,8 +5,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"))
 
-from macro_source_policy import assess_source
-from news_triage import (
+from intelligence.macro_source_policy import assess_source
+from data.news_triage import (
     D5A_RANK,
     TriageVerdict,
     _deterministic_d5a,
@@ -14,7 +14,7 @@ from news_triage import (
     triage_article,
     triage_articles,
 )
-from realtime_news_ingest import normalize_article
+from data.realtime_news_ingest import normalize_article
 
 
 def _art(title, summary="", key=None, url="https://www.reuters.com/geo"):

@@ -7,7 +7,7 @@ import json
 # Add parent dir to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from trade_manager import TradeManager
+from core.trade_manager import TradeManager
 from mt5_trader import LLMOrchestrator
 
 class TestTradeManagement(unittest.TestCase):
@@ -16,7 +16,7 @@ class TestTradeManagement(unittest.TestCase):
         self.mock_risk = MagicMock()
         self.tm = TradeManager(self.mock_client, self.mock_risk)
 
-    @patch("trade_manager.mt5")
+    @patch("core.trade_manager.mt5")
     def test_get_position_context(self, mock_mt5):
         # Mock a position
         mock_pos = MagicMock()
@@ -46,7 +46,7 @@ class TestTradeManagement(unittest.TestCase):
         self.assertEqual(ctx["r_multiple"], 0.5)
         self.assertEqual(ctx["pnl"], 500.0)
 
-    @patch("trade_manager.mt5")
+    @patch("core.trade_manager.mt5")
     def test_execute_partial_close(self, mock_mt5):
         # Mock Position
         mock_pos = MagicMock()
@@ -74,7 +74,7 @@ class TestTradeManagement(unittest.TestCase):
         self.assertEqual(args[0]["volume"], 0.5)
         self.assertIn("AI: AI Test", args[0]["comment"])
 
-    @patch("trade_manager.mt5")
+    @patch("core.trade_manager.mt5")
     def test_modify_sl_rejects_broker_stop_distance(self, mock_mt5):
         mock_pos = MagicMock()
         mock_pos.ticket = 12345
@@ -91,7 +91,7 @@ class TestTradeManagement(unittest.TestCase):
         assert self.tm.execute_modify_sl(12345, 1.0995, "too close") is False
         mock_mt5.order_send.assert_not_called()
 
-    @patch("trade_manager.mt5")
+    @patch("core.trade_manager.mt5")
     def test_management_volume_uses_broker_step_and_bounds(self, mock_mt5):
         mock_mt5.symbol_info.return_value = MagicMock(
             volume_min=0.1, volume_max=2.0, volume_step=0.1, filling_mode=3
@@ -107,7 +107,7 @@ class TestTradeManagement(unittest.TestCase):
         mock_mt5.symbol_info.return_value.filling_mode = 0
         assert self.tm._broker_filling_mode("XAUUSD") is None
 
-    @patch("trade_manager.mt5")
+    @patch("core.trade_manager.mt5")
     def test_management_refuses_unowned_position(self, mock_mt5):
         position = MagicMock(ticket=12345, symbol="EURUSD", magic=999999, volume=1.0, type=0)
         self.tm._execute_partial_close(position)
@@ -204,7 +204,7 @@ class TestTradeManagement(unittest.TestCase):
         self.assertEqual(args[0], "EURUSD")
         self.assertTrue(all(not row.get("execution_authority") for row in args[1]))
 
-    @patch("trade_manager.mt5")
+    @patch("core.trade_manager.mt5")
     def test_programmatic_conditions_do_not_close(self, mock_mt5):
         """Matched LLM smart-exit text must journal only — never order_send."""
         store = MagicMock()

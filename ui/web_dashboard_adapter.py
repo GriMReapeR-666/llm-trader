@@ -1,7 +1,8 @@
 try:
     from core.shared_state import state
 except ImportError:
-    from shared_state import state
+    from core.shared_state import state
+import os
 import datetime
 import requests
 import json
@@ -29,7 +30,11 @@ class WebDashboardAdapter:
                 self._queue.task_done()
                 continue
             try:
-                requests.post(self.api_url, json={"type": type_str, "data": data}, timeout=1)
+                headers = {}
+                token = os.environ.get("ENGINE_INTERNAL_TOKEN") or os.environ.get("GUI_API_TOKEN")
+                if token:
+                    headers["Authorization"] = f"Bearer {token}"
+                requests.post(self.api_url, json={"type": type_str, "data": data}, headers=headers, timeout=1)
             except Exception as e:
                 _push_logger.debug("Dashboard push failed: %s", e)
             finally:

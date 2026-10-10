@@ -1,4 +1,4 @@
-from sample_gate import evaluate, report
+from research.sample_gate import evaluate, report
 
 
 def test_sample_gate_requires_sample_and_multiple_known_regimes():

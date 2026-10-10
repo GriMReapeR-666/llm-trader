@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Tuple
 
 try:
-    from research_validation import labelled_dataset
+    from research.research_validation import labelled_dataset
 except ImportError:
     from research.research_validation import labelled_dataset
 

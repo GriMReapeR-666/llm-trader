@@ -21,12 +21,12 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 log = logging.getLogger(__name__)
 
 try:
-    from journal_scope import ensure_scope
+    from operations.journal_scope import ensure_scope
 except ImportError:
     from operations.journal_scope import ensure_scope
 
 try:
-    from setup_labeling import ensure_setup_label_table, persist_setup_label
+    from research.setup_labeling import ensure_setup_label_table, persist_setup_label
 except ImportError:
     from research.setup_labeling import ensure_setup_label_table, persist_setup_label
 
@@ -40,6 +40,12 @@ except ImportError:
 SWING_MAGIC = 460001
 SCALP_MAGIC = 460002
 NEOCORTEX_MAGIC = 460003
+
+#: Every magic number the engine itself issues. Operator flatten, kill-switch
+#: cancellation, position management, risk limits and reconciliation must all
+#: use this set: anything outside it is manual trading and is left alone by
+#: owned-only actions (the guardian's RED trip still flattens everything).
+BOT_MAGICS = frozenset({SWING_MAGIC, SCALP_MAGIC, NEOCORTEX_MAGIC})
 
 
 @dataclass(frozen=True)
@@ -71,12 +77,161 @@ class TradeProposal:
         return hashlib.sha256(raw.encode()).hexdigest()[:24]
 
 
+@dataclass(frozen=True)
+class MarketEvidence:
+    """Frozen typed market evidence required by DeterministicValidator (P1-H4).
+
+    Every gate input is a required field with no default — except
+    `breakout_event` (an optional trigger; absent means False) and
+    `setup_cooldown_seconds` (configuration with a 900 s default), which
+    are not evidence (M6). Both still fail safe when absent.
+    """
+    market_open: bool
+    tick_age_ms: float
+    max_tick_age_ms: float
+    symbol_tradable: bool
+    spread: float
+    max_spread: float
+    clock_ok: bool
+    session_allowed: bool
+    liquidity_ok: bool
+    microstructure_ok: bool
+    required_data_ok: bool
+    completed_candle: bool
+    breakout_event: bool = False
+    stop_distance: float = 0.0
+    min_stop_distance: float = 0.0
+    high_impact_news: bool = False
+    setup_cooldown_seconds: float = 900.0
+    raw: Dict[str, Any] = field(default_factory=dict)
+
+    REQUIRED_FIELDS = (
+        "market_open",
+        "tick_age_ms",
+        "max_tick_age_ms",
+        "symbol_tradable",
+        "spread",
+        "max_spread",
+        "clock_ok",
+        "session_allowed",
+        "liquidity_ok",
+        "microstructure_ok",
+        "required_data_ok",
+        "completed_candle",
+        "stop_distance",
+        "min_stop_distance",
+        "high_impact_news",
+    )
+
+    # Optional non-evidence inputs: validated when supplied, defaulted when absent.
+    OPTIONAL_FIELDS = ("breakout_event", "setup_cooldown_seconds")
+
+    @classmethod
+    def parse(cls, market: Any) -> Tuple[Optional["MarketEvidence"], List[str]]:
+        problems: List[str] = []
+        if not isinstance(market, dict):
+            return None, ["missing evidence: market evidence must be a dict"]
+
+        for field_name in cls.REQUIRED_FIELDS:
+            if field_name not in market or market[field_name] is None:
+                problems.append(f"missing evidence: {field_name}")
+            else:
+                val = market[field_name]
+                if isinstance(val, (int, float)) and not isinstance(val, bool):
+                    if not math.isfinite(val):
+                        problems.append(f"missing evidence: {field_name}")
+                elif not isinstance(val, (bool, int, float)):
+                    problems.append(f"missing evidence: {field_name}")
+
+        # Check non-finite optional numeric inputs when supplied
+        for opt in ("changepoint_probability", "lag_confidence", "friction_r", "min_net_ev_r", "entry_tolerance", "execution_price"):
+            if opt in market and market[opt] is not None:
+                try:
+                    v = float(market[opt])
+                    if not math.isfinite(v):
+                        problems.append(f"missing evidence: {opt}")
+                except (TypeError, ValueError):
+                    problems.append(f"missing evidence: {opt}")
+
+        if problems:
+            return None, problems
+
+        def _optional_bool(name: str, default: bool = False) -> bool:
+            val = market.get(name, default)
+            return bool(val) if isinstance(val, (bool, int, float)) else default
+
+        def _optional_float(name: str, default: float) -> float:
+            val = market.get(name, default)
+            try:
+                num = float(val) if val is not None else default
+                return num if math.isfinite(num) else default
+            except (TypeError, ValueError):
+                return default
+
+        return cls(
+            market_open=bool(market["market_open"]),
+            tick_age_ms=float(market["tick_age_ms"]),
+            max_tick_age_ms=float(market["max_tick_age_ms"]),
+            symbol_tradable=bool(market["symbol_tradable"]),
+            spread=float(market["spread"]),
+            max_spread=float(market["max_spread"]),
+            clock_ok=bool(market["clock_ok"]),
+            session_allowed=bool(market["session_allowed"]),
+            liquidity_ok=bool(market["liquidity_ok"]),
+            microstructure_ok=bool(market["microstructure_ok"]),
+            required_data_ok=bool(market["required_data_ok"]),
+            completed_candle=bool(market["completed_candle"]),
+            breakout_event=_optional_bool("breakout_event", False),
+            stop_distance=float(market["stop_distance"]),
+            min_stop_distance=float(market["min_stop_distance"]),
+            high_impact_news=bool(market["high_impact_news"]),
+            setup_cooldown_seconds=_optional_float("setup_cooldown_seconds", 900.0),
+            raw=dict(market),
+        ), []
+
+
 @dataclass
 class ValidationResult:
     approved: bool
     reasons: List[str]
     confluence_score: int
     rule_trace: Dict[str, Any] = field(default_factory=dict)
+    # Evidence binding for OrderGateway (review R6): which setup was approved
+    # and when. The gateway refuses LIVE/DEMO entries whose evidence is for
+    # another setup or older than its max_evidence_age_s.
+    setup_key: str = ""
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+# Order-intent states that hold risk budget (CC-F1). A ticketed FILLED/ERROR
+# intent reserves only until a trades row exists for its ticket; once the
+# journal has the trade (open or closed) the trade row is the record, so a
+# broker-side SL/TP close releases the budget (review R1).
+RESERVING_INTENT_STATUSES = ("CREATED", "PENDING", "PARTIAL", "UNRESOLVED")
+TICKETED_INTENT_STATUSES = ("FILLED", "ERROR")
+
+
+def reserving_intent_payloads(con: sqlite3.Connection, exclude_key: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Payloads of order intents that still reserve risk, deduped against trades."""
+    def table(name: str) -> bool:
+        return con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+    if not table("order_intents"):
+        return []
+    traded = {r[0] for r in con.execute("SELECT ticket FROM trades").fetchall()} if table("trades") else set()
+    statuses = RESERVING_INTENT_STATUSES + TICKETED_INTENT_STATUSES
+    marks = ",".join("?" for _ in statuses)
+    out: List[Dict[str, Any]] = []
+    for key, status, ticket, payload in con.execute(
+            f"SELECT intent_key, status, mt5_ticket, payload FROM order_intents WHERE status IN ({marks})", statuses):
+        if key == exclude_key or (ticket is not None and ticket in traded):
+            continue
+        if status in TICKETED_INTENT_STATUSES and ticket is None:
+            continue
+        try:
+            out.append(json.loads(payload) if isinstance(payload, str) else dict(payload or {}))
+        except Exception:
+            continue
+    return out
 
 
 class TradingStore:
@@ -101,7 +256,7 @@ class TradingStore:
         # first creation, not a side table that appears only after a research
         # CLI run. The local import avoids an import-time dependency cycle.
         try:
-            from research_runs import ensure as ensure_research_validation_runs
+            from research.research_runs import ensure as ensure_research_validation_runs
         except ImportError:
             try:
                 from research.research_runs import ensure as ensure_research_validation_runs
@@ -288,6 +443,20 @@ class TradingStore:
             );
             CREATE INDEX IF NOT EXISTS idx_execution_reviews_status
               ON execution_reviews(status, last_detected_at);
+            CREATE TABLE IF NOT EXISTS operator_controls (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              action TEXT NOT NULL,
+              actor TEXT NOT NULL,
+              source TEXT NOT NULL,
+              issued_at TEXT NOT NULL,
+              status TEXT NOT NULL CHECK(status IN ('REQUESTED', 'ACKNOWLEDGED', 'APPLIED', 'FAILED', 'EXPIRED')),
+              acked_at TEXT,
+              applied_at TEXT,
+              result_json TEXT,
+              idempotency_key TEXT UNIQUE
+            );
+            CREATE INDEX IF NOT EXISTS idx_operator_controls_status
+              ON operator_controls(status, issued_at);
             """)
             columns = {row["name"] for row in con.execute("PRAGMA table_info(trades)").fetchall()}
             if "setup_id" not in columns:
@@ -369,6 +538,275 @@ class TradingStore:
     def is_kill_switch_active(self) -> bool:
         value = self.get_state("kill_switch", {"active": False})
         return bool(value.get("active", False)) if isinstance(value, dict) else bool(value)
+
+    def create_operator_control(
+        self,
+        action: str,
+        actor: str = "operator",
+        source: str = "command-deck",
+        idempotency_key: Optional[str] = None,
+    ) -> int:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            try:
+                if idempotency_key:
+                    existing = con.execute(
+                        "SELECT id FROM operator_controls WHERE idempotency_key = ?",
+                        (idempotency_key,),
+                    ).fetchone()
+                    if existing:
+                        con.commit()
+                        return int(existing["id"])
+                cur = con.execute(
+                    """INSERT INTO operator_controls
+                       (action, actor, source, issued_at, status, idempotency_key)
+                       VALUES (?, ?, ?, ?, 'REQUESTED', ?)""",
+                    (action, actor, source, now, idempotency_key),
+                )
+                cid = int(cur.lastrowid)
+                con.commit()
+                return cid
+            except Exception:
+                con.rollback()
+                raise
+
+    #: A control request older than this with a stale/missing engine
+    #: heartbeat means the engine is down: surface EXPIRED (H4).
+    CONTROL_EXPIRY_S = 60.0
+    #: Engine heartbeat older than this counts as offline (H4).
+    ENGINE_HEARTBEAT_STALE_S = 90.0
+
+    def engine_heartbeat_age_s(self) -> Optional[float]:
+        """Age of the freshest agent_runs heartbeat, or None when unknown."""
+        try:
+            with self._connect() as con:
+                tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+                if "agent_runs" not in tables:
+                    return None
+                row = con.execute("SELECT MAX(heartbeat_at) AS hb FROM agent_runs").fetchone()
+                if not row or not row["hb"]:
+                    return None
+                try:
+                    hb_dt = datetime.fromisoformat(str(row["hb"]))
+                except (TypeError, ValueError):
+                    return None
+                if hb_dt.tzinfo is None:
+                    hb_dt = hb_dt.replace(tzinfo=timezone.utc)
+                return max(0.0, (datetime.now(timezone.utc) - hb_dt).total_seconds())
+        except Exception:
+            return None
+
+    def _engine_offline_for_control(self, issued_at: Optional[str]) -> bool:
+        """H4: expiry keys off engine liveness, never request age alone.
+
+        A control expires only when it is older than CONTROL_EXPIRY_S *and*
+        the engine heartbeat is stale or absent (engine down). While the
+        engine lives, even an old request is still claimed — dropping an
+        operator flatten is worse than running it late.
+        """
+        try:
+            if not issued_at:
+                return True
+            born = datetime.fromisoformat(str(issued_at))
+            if born.tzinfo is None:
+                born = born.replace(tzinfo=timezone.utc)
+            age_s = (datetime.now(timezone.utc) - born).total_seconds()
+            if age_s < self.CONTROL_EXPIRY_S:
+                return False
+            hb_age = self.engine_heartbeat_age_s()
+            return hb_age is None or hb_age > self.ENGINE_HEARTBEAT_STALE_S
+        except Exception:
+            return True
+
+    def recover_stale_controls(self) -> int:
+        """H4: at engine boot, fail rows a dead engine left ACKNOWLEDGED.
+
+        An ACKNOWLEDGED row predating this boot means the previous engine
+        claimed the control and died before applying it. Re-running it
+        blindly could double-apply; mark FAILED so the operator re-issues
+        deliberately. Returns the recovered count.
+        """
+        now_iso = datetime.now(timezone.utc).isoformat()
+        try:
+            with self._connect() as con:
+                con.execute("BEGIN IMMEDIATE")
+                try:
+                    cur = con.execute(
+                        """UPDATE operator_controls
+                           SET status='FAILED', applied_at=?,
+                               result_json='{"error": "engine restarted before applying (stale ACKNOWLEDGED recovered)"}'
+                           WHERE status='ACKNOWLEDGED'""",
+                        (now_iso,),
+                    )
+                    con.commit()
+                    return int(cur.rowcount or 0)
+                except Exception:
+                    con.rollback()
+                    raise
+        except Exception:
+            return 0
+
+    def get_operator_control(self, control_id: int) -> Optional[Dict[str, Any]]:
+        with self._connect() as con:
+            row = con.execute(
+                "SELECT * FROM operator_controls WHERE id = ?",
+                (int(control_id),),
+            ).fetchone()
+            if not row:
+                return None
+            res = dict(row)
+            if res.get("result_json"):
+                try:
+                    res["result"] = json.loads(res["result_json"])
+                except Exception:
+                    res["result"] = res["result_json"]
+            else:
+                res["result"] = {}
+            if res.get("action") == "killswitch" and res.get("status") == "REQUESTED":
+                if self.is_kill_switch_active():
+                    res["status"] = "ACKNOWLEDGED"
+            # H4 read-side expiry: with the engine down nobody runs the
+            # claim sweep, so surface EXPIRED here — otherwise the deck polls
+            # a REQUESTED row forever and never sees a terminal state.
+            if res.get("status") == "REQUESTED" and self._engine_offline_for_control(res.get("issued_at")):
+                try:
+                    con.execute("BEGIN IMMEDIATE")
+                    try:
+                        cur = con.execute(
+                            """UPDATE operator_controls
+                               SET status='EXPIRED',
+                                   result_json='{"error": "engine offline: not acknowledged within expiry window"}'
+                               WHERE id=? AND status='REQUESTED'""",
+                            (int(control_id),),
+                        )
+                        con.commit()
+                        if cur.rowcount == 1:
+                            res["status"] = "EXPIRED"
+                            res["result"] = {"error": "engine offline: not acknowledged within expiry window"}
+                    except Exception:
+                        con.rollback()
+                except Exception:
+                    pass
+            return res
+
+    def get_open_operator_controls(self) -> List[Dict[str, Any]]:
+        with self._connect() as con:
+            rows = con.execute(
+                "SELECT * FROM operator_controls WHERE status IN ('REQUESTED', 'CLAIMED') ORDER BY id DESC"
+            ).fetchall()
+            controls = []
+            for r in rows:
+                c = dict(r)
+                if c.get("result_json"):
+                    try:
+                        c["result"] = json.loads(c["result_json"])
+                    except Exception:
+                        c["result"] = c["result_json"]
+                else:
+                    c["result"] = {}
+                controls.append(c)
+            return controls
+
+    def claim_pending_operator_controls(
+        self,
+        expiry_seconds: float = 60.0,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        now_dt = datetime.now(timezone.utc)
+        now_iso = now_dt.isoformat()
+        claimed: List[Dict[str, Any]] = []
+        with self._connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            try:
+                # 1. Expire stale requested controls — but only when the
+                # engine is actually offline (H4). This sweep runs inside
+                # the live engine, whose heartbeat is normally fresh, so in
+                # practice nothing expires here: even an old request is
+                # still claimed below. Dropping an operator flatten because
+                # a cycle ran long is worse than running it late.
+                hb_age = self.engine_heartbeat_age_s()
+                if hb_age is None or hb_age > self.ENGINE_HEARTBEAT_STALE_S:
+                    cutoff = (now_dt - timedelta(seconds=expiry_seconds)).isoformat()
+                    con.execute(
+                        """UPDATE operator_controls
+                           SET status = 'EXPIRED',
+                               result_json = '{"error": "engine offline: not acknowledged within expiry window"}'
+                           WHERE status = 'REQUESTED' AND issued_at < ?""",
+                        (cutoff,),
+                    )
+                # 2. Select pending requested controls
+                query = """SELECT id, action, actor, source, issued_at, idempotency_key
+                           FROM operator_controls
+                           WHERE status = 'REQUESTED'
+                           ORDER BY id ASC"""
+                params: tuple = ()
+                if limit is not None:
+                    query += " LIMIT ?"
+                    params = (int(limit),)
+                rows = con.execute(query, params).fetchall()
+                # 3. Compare-and-set claim each
+                for row in rows:
+                    cid = int(row["id"])
+                    cur = con.execute(
+                        """UPDATE operator_controls
+                           SET status = 'ACKNOWLEDGED', acked_at = ?
+                           WHERE id = ? AND status = 'REQUESTED'""",
+                        (now_iso, cid),
+                    )
+                    if cur.rowcount == 1:
+                        ctrl = dict(row)
+                        ctrl["status"] = "ACKNOWLEDGED"
+                        ctrl["acked_at"] = now_iso
+                        claimed.append(ctrl)
+                con.commit()
+                return claimed
+            except Exception:
+                con.rollback()
+                raise
+
+    def complete_operator_control(
+        self,
+        control_id: int,
+        status: str,
+        result: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Mark a control terminal (APPLIED/FAILED/EXPIRED), exactly once (M5).
+
+        Compare-and-set against non-terminal states: a late APPLIED must not
+        overwrite an EXPIRED or FAILED row, and a second drainer cannot
+        re-complete a finished control. Terminal rows are immutable.
+        """
+        now_iso = datetime.now(timezone.utc).isoformat()
+        res_json = json.dumps(result or {})
+        with self._connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            try:
+                con.execute(
+                    """UPDATE operator_controls
+                       SET status = ?, applied_at = ?, result_json = ?
+                       WHERE id = ? AND status IN ('REQUESTED', 'ACKNOWLEDGED')""",
+                    (status, now_iso, res_json, int(control_id)),
+                )
+                con.commit()
+            except Exception:
+                con.rollback()
+                raise
+
+    def set_autonomy_paused(self, paused: bool, actor: str = "operator", reason: str = "") -> None:
+        self.update_state(
+            "autonomy_state",
+            lambda curr: {
+                **(curr or {"level": "L1_PAPER", "halted": False, "halt_reason": "", "history": []}),
+                "paused": bool(paused),
+                "pause_reason": reason or (f"operator:{actor}" if paused else ""),
+            },
+            default={"level": "L1_PAPER", "halted": False, "halt_reason": "", "paused": bool(paused), "pause_reason": reason or (f"operator:{actor}" if paused else ""), "history": []},
+        )
+
+    def is_autonomy_paused(self) -> bool:
+        st = self.get_state("autonomy_state", {})
+        return bool(st.get("paused", False)) if isinstance(st, dict) else False
 
     def log_proposal(self, proposal: TradeProposal, result: ValidationResult) -> None:
         # Preserve the model hypothesis before recording the deterministic
@@ -846,7 +1284,7 @@ class TradingStore:
             self._risk_reservations.pop(str(reservation_id), None)
 
     def reserved_risk(self) -> float:
-        """Return the sum of all active, unexpired risk reservations."""
+        """Sum of all active, unexpired risk reservations."""
         with self._risk_reservations_lock:
             now = time.time()
             expired = [k for k, (amt, exp) in self._risk_reservations.items() if exp < now]
@@ -854,21 +1292,42 @@ class TradingStore:
                 del self._risk_reservations[k]
             return float(sum(amt for amt, exp in self._risk_reservations.values()))
 
-    def open_risk(self, include_reserved: bool = True) -> float:
+    def open_risk(self, include_pending_intents: bool = True,
+                  include_reserved: bool = True) -> float:
+        """Total risk currently committed against the open-risk cap.
+
+        Merged from both sides of the conflict. Both independently fixed K1/K2
+        (concurrent open-risk cap breach) with different machinery:
+
+        * origin/main: pending ``order_intents`` (``include_pending_intents``),
+        * HEAD: in-memory TTL reservations (``include_reserved``).
+
+        Both are counted, so neither path can be used to slip under the cap, and
+        neither calling convention is broken - callers using either keyword, or
+        no keyword, keep working. Double-counting a reservation errs toward
+        refusing a trade, never toward admitting one.
+        """
         with self._connect() as con:
             row = con.execute("SELECT COALESCE(SUM(risk_amount),0) AS total FROM trades WHERE closed_at IS NULL").fetchone()
-        trades_risk = float(row["total"])
+            total = float(row["total"])
+            if include_pending_intents:
+                total += sum(float(pl.get("risk_amount", 0.0) or 0.0) for pl in reserving_intent_payloads(con))
         if include_reserved:
-            trades_risk += self.reserved_risk()
-        return trades_risk
+            total += self.reserved_risk()
+        return total
 
-    def open_bucket_risk(self, bucket: str) -> float:
+    def open_bucket_risk(self, bucket: str, include_pending_intents: bool = True) -> float:
         with self._connect() as con:
             rows = con.execute("SELECT symbol,side,risk_amount FROM trades WHERE closed_at IS NULL").fetchall()
-        total = 0.0
-        for row in rows:
-            if bucket in exposure_buckets(row["symbol"], row["side"]):
-                total += float(row["risk_amount"])
+            total = 0.0
+            for row in rows:
+                if bucket in exposure_buckets(row["symbol"], row["side"]):
+                    total += float(row["risk_amount"])
+            if include_pending_intents:
+                for pl in reserving_intent_payloads(con):
+                    sym, side = pl.get("symbol", ""), pl.get("side", "")
+                    if sym and side and bucket in exposure_buckets(sym, side):
+                        total += float(pl.get("risk_amount", 0.0) or 0.0)
         return total
 
     def realized_loss(self, since_iso: str) -> float:
@@ -998,7 +1457,7 @@ class DeterministicValidator:
         a missing/corrupt journal; validate() degrades to cold-start behavior.
         """
         try:
-            from research_validation import broker_reconciled_tickets
+            from research.research_validation import broker_reconciled_tickets
         except ImportError:
             from research.research_validation import broker_reconciled_tickets
         tickets = broker_reconciled_tickets(self.store.path)
@@ -1028,33 +1487,52 @@ class DeterministicValidator:
 
     def validate(self, proposal: TradeProposal, market: Dict[str, Any]) -> ValidationResult:
         reasons: List[str] = []
-        kill_switch_active = self.store.is_kill_switch_active()
+        evidence, problems = MarketEvidence.parse(market)
+        if problems:
+            reasons.extend(problems)
+
+        from core.kill_switch import entries_blocked
+        blocked, block_reason = entries_blocked(self.store)
+        kill_switch_active = blocked
+        if blocked:
+            reasons.append(block_reason)
         try:
             tick_age = float(market.get("tick_age_ms", 10**9))
             max_tick_age = float(market.get("max_tick_age_ms", 5_000))
-            tick_fresh = tick_age <= max_tick_age
+            tick_fresh = math.isfinite(tick_age) and math.isfinite(max_tick_age) and 0 <= tick_age <= max_tick_age
         except (TypeError, ValueError):
             tick_age, max_tick_age, tick_fresh = None, None, False
         try:
             spread = float(market.get("spread", float("inf")))
             max_spread = float(market.get("max_spread", 0))
-            spread_ok = spread <= max_spread
+            spread_ok = math.isfinite(spread) and math.isfinite(max_spread) and 0 <= spread <= max_spread
         except (TypeError, ValueError):
             spread, max_spread, spread_ok = None, None, False
-        if kill_switch_active: reasons.append("kill switch active")
         if not market.get("market_open"): reasons.append("market not open")
         if not tick_fresh: reasons.append("stale tick")
-        if not market.get("clock_ok", True): reasons.append("broker/local clock health rejected tick")
+        if not market.get("clock_ok"): reasons.append("broker/local clock health rejected tick")
         if not market.get("symbol_tradable"): reasons.append("symbol not tradable")
         if not spread_ok: reasons.append("spread too wide")
-        if not market.get("session_allowed", True): reasons.append("session/rollover no-trade filter")
-        if not market.get("liquidity_ok", True): reasons.append("liquidity filter rejected entry")
-        if not market.get("microstructure_ok", True): reasons.append("microstructure filter rejected entry")
-        if not market.get("required_data_ok", True): reasons.extend(str(reason) for reason in market.get("required_data_reasons", []) if reason)
+        if not market.get("session_allowed"): reasons.append("session/rollover no-trade filter")
+        if not market.get("liquidity_ok"): reasons.append("liquidity filter rejected entry")
+        if not market.get("microstructure_ok"): reasons.append("microstructure filter rejected entry")
+        if not market.get("required_data_ok"):
+            req_reasons = [str(r) for r in market.get("required_data_reasons", []) if r]
+            if req_reasons:
+                reasons.extend(req_reasons)
+            else:
+                reasons.append("required data incomplete")
         reasons.extend(str(reason) for reason in market.get("market_condition_reasons", []) if reason)
         reasons.extend(str(reason) for reason in market.get("microstructure_reasons", []) if reason)
         try:
-            planned_entry_ok = bool(market.get("breakout_event")) or abs(float(market.get("execution_price", proposal.entry)) - proposal.entry) <= float(market.get("entry_tolerance", 0))
+            raw_exec = market.get("execution_price", proposal.entry)
+            raw_tol = market.get("entry_tolerance", 0)
+            exec_p = float(raw_exec) if raw_exec is not None else proposal.entry
+            tol = float(raw_tol) if raw_tol is not None else 0.0
+            if not (math.isfinite(exec_p) and math.isfinite(tol)):
+                planned_entry_ok = False
+            else:
+                planned_entry_ok = bool(market.get("breakout_event")) or abs(exec_p - proposal.entry) <= tol
         except (TypeError, ValueError):
             planned_entry_ok = False
         if not planned_entry_ok:
@@ -1062,22 +1540,28 @@ class DeterministicValidator:
         completed_or_breakout = bool(market.get("completed_candle")) or bool(market.get("breakout_event"))
         if not completed_or_breakout: reasons.append("no completed-candle/breakout trigger")
         try:
-            stop_distance = float(market.get("stop_distance", 0))
-            min_stop_distance = float(market.get("min_stop_distance", 0))
-            stop_ok = stop_distance >= min_stop_distance
+            raw_stop = market.get("stop_distance")
+            raw_min_stop = market.get("min_stop_distance")
+            if raw_stop is None or raw_min_stop is None:
+                stop_distance, min_stop_distance, stop_ok = None, None, False
+            else:
+                stop_distance = float(raw_stop)
+                min_stop_distance = float(raw_min_stop)
+                stop_ok = math.isfinite(stop_distance) and math.isfinite(min_stop_distance) and stop_distance >= min_stop_distance
         except (TypeError, ValueError):
             stop_distance, min_stop_distance, stop_ok = None, None, False
         if not stop_ok: reasons.append("stop too close")
         required_rr = max(self.min_rr, float(market.get("setup_min_rr", self.min_rr) or self.min_rr))
         reward_risk_ok = proposal.reward_risk >= required_rr
         if not reward_risk_ok: reasons.append(f"reward/risk below setup minimum {required_rr:.2f}")
-        event_window_ok = not (market.get("setup_event_exclusion", False) and market.get("high_impact_news", True))
+        hin = market.get("high_impact_news")
+        event_window_ok = not (market.get("setup_event_exclusion", False) and (hin is not False))
         if not event_window_ok:
             reasons.append("setup excludes high-impact event window")
         score = self.confluence(proposal.features, proposal.side)
         confluence_ok = score >= self.min_confluence
         if not confluence_ok: reasons.append("insufficient deterministic confluence")
-        news_safe = not bool(market.get("high_impact_news", True))
+        news_safe = (hin is False)
         if not news_safe: reasons.append("news data missing or high-impact event")
         setup_recent = self.store.setup_seen_recently(proposal.setup_key(), market.get("setup_cooldown_seconds", 900))
         setup_cooldown_ok = not setup_recent
@@ -1145,9 +1629,9 @@ class DeterministicValidator:
                 changepoint_probability = float(market.get("changepoint_probability"))
                 cp_threshold = float(market.get("max_changepoint_probability",
                                                 self.max_changepoint_probability))
-                changepoint_ok = not (
+                changepoint_ok = (
                     math.isfinite(changepoint_probability)
-                    and changepoint_probability > cp_threshold)
+                    and changepoint_probability <= cp_threshold)
             except (TypeError, ValueError):
                 changepoint_probability, changepoint_ok = None, False
             if not changepoint_ok:
@@ -1181,7 +1665,10 @@ class DeterministicValidator:
                 wfe_value = float(wfe_raw.get("wfe", 0.0))
                 n_folds = int(wfe_raw.get("n_folds", 0))
                 mean_test = float(wfe_raw.get("mean_test_sharpe", 0.0))
-                if n_folds >= 2 and mean_test <= 0.0:
+                if not (math.isfinite(wfe_value) and math.isfinite(mean_test)):
+                    wfe_ok = False
+                    reasons.append("walk-forward efficiency REJECT: non-finite WFE or mean test Sharpe")
+                elif n_folds >= 2 and mean_test <= 0.0:
                     wfe_ok = False
                     reasons.append(
                         f"walk-forward efficiency REJECT: OOS unprofitable "
@@ -1192,7 +1679,8 @@ class DeterministicValidator:
                         f"walk-forward efficiency REJECT: WFE {wfe_value:.3f} "
                         f"below floor {self.min_walk_forward_efficiency:.2f}")
             except (TypeError, ValueError):
-                wfe_value, wfe_ok = None, True
+                wfe_value, wfe_ok = None, False
+                reasons.append("walk-forward efficiency REJECT: invalid WFE structure")
 
         # --- Overfit Gate (UAQP P0) ---
         overfit_ok = True
@@ -1468,4 +1956,3 @@ def exposure_buckets(symbol: str, side: str) -> set[str]:
 
 # Specification alias (P22 / UAQP)
 TradingConstraintEngine = DeterministicValidator
-

@@ -28,6 +28,7 @@ class StageSpec:
     retries: int = 0              # only for idempotent stages
     fallback: str = "continue"    # continue | skip | degrade | abort_cycle
     emits_done: bool = True
+    abandonable: bool = False     # can be run under deadline and abandoned
     notes: str = ""
     meta: Dict[str, Any] = field(default_factory=dict)
 

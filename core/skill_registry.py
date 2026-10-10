@@ -222,8 +222,18 @@ def skill_dynamic_code_runner(code: str, db_path: str = "trading_state.db") -> D
                 "verdict": review.verdict.value,
                 "needs_human_review": True,
             }
-    except Exception:
-        pass  # ζ unavailable — fall through to original behavior
+        if review.verdict != SafetyVerdict.APPROVED:
+            return {
+                "success": False,
+                "error": f"ζ review did not approve execution (verdict: {review.verdict})",
+                "verdict": str(getattr(review.verdict, "value", review.verdict)),
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"ζ review failed closed: {e}",
+            "verdict": "ERROR",
+        }
     interpreter = DynamicMetricInterpreter(db_path=db_path)
     res = interpreter.execute_code(code)
     return res.to_dict()

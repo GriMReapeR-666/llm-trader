@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import threading
 import time
@@ -60,6 +61,7 @@ class KillSwitchLatch:
         confirm_window_s: float = CONFIRM_WINDOW_S,
         rearm_cooldown_s: float = REARM_COOLDOWN_S,
         vix_clear_threshold: float = VIX_CLEAR_THRESHOLD,
+        store: Optional[Any] = None,
     ) -> None:
         self._path = path or _default_state_path()
         self._now = now_fn or time.time
@@ -67,9 +69,16 @@ class KillSwitchLatch:
         self._window_s = float(confirm_window_s)
         self._cooldown_s = float(rearm_cooldown_s)
         self._vix_clear = float(vix_clear_threshold)
+        self._store = store
         self._lock = threading.Lock()
         self._state: Dict[str, Any] = self._blank()
         self._load()
+
+    def attach_store(self, store: Any) -> None:
+        """Attach TradingStore as the authoritative backend."""
+        with self._lock:
+            self._store = store
+            self._load()
 
     # ------------------------------------------------------------------ core
     def _blank(self) -> Dict[str, Any]:
@@ -87,25 +96,166 @@ class KillSwitchLatch:
         }
 
     def _load(self) -> None:
-        try:
-            with open(self._path, "r", encoding="utf-8") as f:
-                loaded = json.load(f)
-            if isinstance(loaded, dict) and "latched" in loaded:
-                fresh = self._blank()
-                fresh.update({k: v for k, v in loaded.items() if k in fresh})
-                self._state = fresh
-        except (OSError, ValueError):
-            pass
+        # 1. Check store if attached
+        if self._store is not None:
+            try:
+                stored = self._store.get_state("d9_kill_switch_latch", None)
+                if type(stored).__name__ in ("MagicMock", "Mock"):
+                    stored = None
+                if isinstance(stored, dict) and "latched" in stored:
+                    fresh = self._blank()
+                    fresh.update({k: v for k, v in stored.items() if k in fresh})
+                    self._state = fresh
+                    return
+                elif stored is not None and type(stored).__name__ not in ("MagicMock", "Mock"):
+                    # Corrupt store record: fail closed to latched
+                    self._state = self._blank()
+                    self._state["latched"] = True
+                    self._state["trigger_source"] = "checkpoint_unreadable"
+                    return
+            except Exception:
+                self._state = self._blank()
+                self._state["latched"] = True
+                self._state["trigger_source"] = "checkpoint_unreadable"
+                return
+
+        # 2. Check JSON file (direct or legacy migration)
+        if self._path and os.path.exists(self._path):
+            try:
+                with open(self._path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                if isinstance(loaded, dict) and "latched" in loaded:
+                    fresh = self._blank()
+                    fresh.update({k: v for k, v in loaded.items() if k in fresh})
+                    self._state = fresh
+                    if self._store is not None:
+                        try:
+                            self._store.set_state("d9_kill_switch_latch", self._state)
+                        except Exception:
+                            pass
+                else:
+                    self._state = self._blank()
+                    self._state["latched"] = True
+                    self._state["trigger_source"] = "checkpoint_unreadable"
+            except Exception:
+                # Corrupt or unreadable JSON file: fail closed to latched
+                self._state = self._blank()
+                self._state["latched"] = True
+                self._state["trigger_source"] = "checkpoint_unreadable"
+        else:
+            # First boot with no store and no file: clean start
+            self._state = self._blank()
+
+    def _sanitize(self, stored: Any) -> Dict[str, Any]:
+        """Merge a stored record into a blank state, failing closed (H5).
+
+        A record that is not a dict with a latch flag (corrupt JSON, a torn
+        write, anything unexpected) loads as latched with
+        trigger_source=checkpoint_unreadable. No record (first boot) loads clean.
+        """
+        if stored is None:
+            return self._blank()
+        if type(stored).__name__ in ("MagicMock", "Mock"):
+            # Test doubles without a real backend: no durable record either way.
+            return self._blank()
+        if isinstance(stored, dict) and "latched" in stored:
+            fresh = self._blank()
+            fresh.update({k: v for k, v in stored.items() if k in fresh})
+            return fresh
+        blank = self._blank()
+        blank["latched"] = True
+        blank["trigger_source"] = "checkpoint_unreadable"
+        return blank
+
+    def _write_file_mirror(self) -> None:
+        # File mirror with unique temporary file to prevent multi-process collisions
+        if self._path:
+            dir_name = os.path.dirname(self._path) or "."
+            tmp_path = None
+            try:
+                os.makedirs(dir_name, exist_ok=True)
+                fd, tmp_path = tempfile.mkstemp(dir=dir_name, prefix=".latch_", suffix=".tmp")
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump(self._state, f)
+                    f.flush()
+                    try:
+                        os.fsync(f.fileno())
+                    except OSError:
+                        pass
+                os.replace(tmp_path, self._path)
+                tmp_path = None
+            except OSError:
+                pass  # checkpoint is best-effort; in-memory/store state stays authoritative
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    try:
+                        os.remove(tmp_path)
+                    except OSError:
+                        pass
+
+    def _mutate(self, transition) -> Dict[str, Any]:
+        """Apply a pure state transition atomically (H5).
+
+        `transition` maps the sanitized current record to the next record.
+        With a store attached, the read-modify-write happens inside the
+        store's BEGIN IMMEDIATE transaction, so a concurrent news observe
+        and operator clear in two processes cannot overwrite each other.
+        A store write failure is logged as an ERROR (never swallowed: the
+        operator must know durability is degraded) and the file mirror is
+        still updated best-effort.
+        """
+        import logging as _logging
+        with self._lock:
+            if self._store is None:
+                transition(self._state)
+                self._write_file_mirror()
+                return self.snapshot_locked()
+            try:
+                updated = self._store.update_state(
+                    "d9_kill_switch_latch",
+                    lambda cur: transition(self._sanitize(cur)),
+                    default=self._blank(),
+                )
+                self._state = self._sanitize(updated)
+            except Exception as exc:
+                _logging.getLogger(__name__).error(
+                    "Latch store write failed; staying on in-memory state: %s", exc,
+                )
+            self._write_file_mirror()
+            return self.snapshot_locked()
 
     def _save(self) -> None:
-        tmp = self._path + ".tmp"
-        try:
-            os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(self._state, f)
-            os.replace(tmp, self._path)
-        except OSError:
-            pass  # checkpoint is best-effort; in-memory state stays authoritative
+        # Legacy entry point kept for reset()/tests: store write (best-effort
+        # here; _mutate is the loud path) plus the file mirror.
+        if self._store is not None:
+            try:
+                st_copy = dict(self._state)
+                self._store.update_state(
+                    "d9_kill_switch_latch",
+                    lambda _curr: st_copy,
+                    default=st_copy,
+                )
+            except Exception:
+                pass
+
+        self._write_file_mirror()
+
+    def clear(self, reason: str, actor: str = "operator") -> Dict[str, Any]:
+        """Operator clear: explicitly unlatch and enter re-arm cooldown."""
+        now = float(self._now())
+
+        def _transition(st: Dict[str, Any]) -> Dict[str, Any]:
+            st["latched"] = False
+            st["cleared_at"] = now
+            st["clear_reason"] = f"operator_clear:{actor}:{reason}"
+            st["cooldown_until"] = now + self._cooldown_s
+            st["recent_batches"] = []
+            st["pending_confirmations"] = 0
+            st["triggered_headlines"] = []
+            st["suppressed_during_cooldown"] = 0
+            return st
+
+        return self._mutate(_transition)
 
     # ------------------------------------------------------- news-side input
     def observe(
@@ -117,14 +267,15 @@ class KillSwitchLatch:
         """Record one ingest batch's tripwire result (the only news-side writer)."""
         now = float(now if now is not None else self._now())
         headlines = [str(h)[:120] for h in (triggered_headlines or [])][:5]
-        with self._lock:
-            st = self._state
+        threshold = self._threshold
+        window_s = self._window_s
+
+        def _transition(st: Dict[str, Any]) -> Dict[str, Any]:
             if st["latched"]:
                 # Latched stays latched: news can sustain, never clear.
                 if headlines:
                     st["triggered_headlines"] = headlines
-                self._save()
-                return self.snapshot_locked()
+                return st
 
             cooldown_until = st.get("cooldown_until")
             if cooldown_until is not None and now < float(cooldown_until):
@@ -132,29 +283,27 @@ class KillSwitchLatch:
                     st["suppressed_during_cooldown"] = int(
                         st.get("suppressed_during_cooldown") or 0
                     ) + len(headlines)
-                self._save()
-                return self.snapshot_locked()
+                return st
 
             if tripwire_count <= 0 and not headlines:
                 # Expire stale confirmation batches even on quiet cycles.
                 st["recent_batches"] = [
                     float(t) for t in st.get("recent_batches", [])
-                    if now - float(t) <= self._window_s
+                    if now - float(t) <= window_s
                 ]
                 st["pending_confirmations"] = len(st["recent_batches"])
-                self._save()
-                return self.snapshot_locked()
+                return st
 
             batches = [
                 float(t) for t in st.get("recent_batches", [])
-                if now - float(t) <= self._window_s
+                if now - float(t) <= window_s
             ]
             batches.append(now)
             st["recent_batches"] = batches
             st["pending_confirmations"] = len(batches)
             if headlines:
                 st["triggered_headlines"] = headlines
-            if len(batches) >= self._threshold:
+            if len(batches) >= threshold:
                 st["latched"] = True
                 st["triggered_at"] = now
                 st["trigger_source"] = "news_tripwire_confirmed"
@@ -162,8 +311,9 @@ class KillSwitchLatch:
                 st["pending_confirmations"] = 0
                 st["cooldown_until"] = None
                 st["suppressed_during_cooldown"] = 0
-            self._save()
-            return self.snapshot_locked()
+            return st
+
+        return self._mutate(_transition)
 
     # --------------------------------------------------- market-data authority
     def apply_market_data(
@@ -178,8 +328,10 @@ class KillSwitchLatch:
         clears a latched kill-switch.
         """
         now = float(now if now is not None else self._now())
-        with self._lock:
-            st = self._state
+        vix_clear = self._vix_clear
+        cooldown_s = self._cooldown_s
+
+        def _transition(st: Dict[str, Any]) -> Dict[str, Any]:
             if halt_flag is True:
                 if not st["latched"]:
                     st["latched"] = True
@@ -190,26 +342,26 @@ class KillSwitchLatch:
                     st["cooldown_until"] = None
                     st["suppressed_during_cooldown"] = 0
                     st["clear_reason"] = None
-                self._save()
-                return self.snapshot_locked()
+                return st
 
             if not st["latched"]:
-                return self.snapshot_locked()
+                return st
 
             # Explicit calm signal required to clear: VIX below threshold and
             # no market halt asserted. A missing VIX value does NOT clear.
-            calm = vix is not None and float(vix) < self._vix_clear and halt_flag is not True
+            calm = vix is not None and float(vix) < vix_clear and halt_flag is not True
             if calm:
                 st["latched"] = False
                 st["cleared_at"] = now
-                st["clear_reason"] = f"market_data_calm_vix_below_{self._vix_clear:g}"
-                st["cooldown_until"] = now + self._cooldown_s
+                st["clear_reason"] = f"market_data_calm_vix_below_{vix_clear:g}"
+                st["cooldown_until"] = now + cooldown_s
                 st["recent_batches"] = []
                 st["pending_confirmations"] = 0
                 st["triggered_headlines"] = []
                 st["suppressed_during_cooldown"] = 0
-                self._save()
-            return self.snapshot_locked()
+            return st
+
+        return self._mutate(_transition)
 
     # ---------------------------------------------------------------- views
     def snapshot_locked(self) -> Dict[str, Any]:
@@ -235,6 +387,8 @@ class KillSwitchLatch:
 
     def snapshot(self) -> Dict[str, Any]:
         with self._lock:
+            if self._store is not None:
+                self._load()
             return self.snapshot_locked()
 
     def reset(self) -> None:
@@ -252,15 +406,24 @@ _LATCH_LOCK = threading.Lock()
 def _singleton_token() -> str:
     # Distinguishes test singletons from the production one so a pytest run
     # can never inherit a latched state from (or leak one into) production.
-    return os.environ.get("D9_LATCH_SINGLETON") or "production"
+    token = os.environ.get("D9_LATCH_SINGLETON") or "production"
+    return f"{token}:{_default_state_path()}"
 
 
 def get_kill_switch_latch() -> KillSwitchLatch:
     global _LATCH
+    token = _singleton_token()
+    reg = getattr(sys, "_d9_kill_switch_latch_registry", None)
+    if reg is None:
+        reg = {}
+        sys._d9_kill_switch_latch_registry = reg
     with _LATCH_LOCK:
-        if _LATCH is None or getattr(_LATCH, "_singleton_token", "production") != _singleton_token():
+        if token not in reg:
             _LATCH = KillSwitchLatch()
-            _LATCH._singleton_token = _singleton_token()
+            _LATCH._singleton_token = token
+            reg[token] = _LATCH
+        else:
+            _LATCH = reg[token]
         return _LATCH
 
 

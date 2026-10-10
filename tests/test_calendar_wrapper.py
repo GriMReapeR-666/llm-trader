@@ -17,7 +17,7 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mt5_calendar_wrapper import (
+from data.mt5_calendar_wrapper import (
     MT5CalendarWrapper, CalendarCountry, CalendarEvent, CalendarValue,
     CalendarEventImportance, CalendarEventImpact, CalendarEventType,
     CalendarEventSector, CalendarEventFrequency, CalendarEventTimeMode,
@@ -26,7 +26,7 @@ from mt5_calendar_wrapper import (
     LONG_MIN, MICRO_MULTIPLIER
 )
 
-from mt5_calendar_enhanced import (
+from data.mt5_calendar_enhanced import (
     EnhancedMT5CalendarWrapper, CalendarFilter, create_enhanced_calendar_wrapper
 )
 
@@ -140,6 +140,7 @@ class TestMT5CalendarWrapper(unittest.TestCase):
             with self.assertRaises(MT5CalendarConnectionError):
                 MT5CalendarWrapper()
     
+    @pytest.mark.skipif(sys.platform != "win32", reason="ctypes.WinDLL exists only on Windows")
     def test_initialize_success(self):
         """Test successful initialization"""
         with patch('ctypes.WinDLL') as mock_dll:
@@ -155,6 +156,7 @@ class TestMT5CalendarWrapper(unittest.TestCase):
             self.assertTrue(wrapper._initialized)
             mock_dll.assert_called_once_with("test.dll")
     
+    @pytest.mark.skipif(sys.platform != "win32", reason="ctypes.WinDLL exists only on Windows")
     def test_initialize_failure(self):
         """Test initialization failure"""
         with patch('ctypes.WinDLL', side_effect=Exception("DLL error")):
@@ -177,7 +179,7 @@ class TestMT5CalendarWrapper(unittest.TestCase):
         # Mock function call
         self.wrapper._calendar_countries.return_value = 1
         
-        with patch('mt5_calendar_wrapper.MqlCalendarCountry') as mock_struct:
+        with patch('data.mt5_calendar_wrapper.MqlCalendarCountry') as mock_struct:
             mock_struct.return_value = mock_country
             
             countries = self.wrapper.get_countries(max_count=1)
@@ -216,7 +218,7 @@ class TestMT5CalendarWrapper(unittest.TestCase):
         # Mock function call
         self.wrapper._calendar_event_by_id.return_value = True
         
-        with patch('mt5_calendar_wrapper.MqlCalendarEvent') as mock_struct:
+        with patch('data.mt5_calendar_wrapper.MqlCalendarEvent') as mock_struct:
             mock_struct.return_value = mock_event
             
             event = self.wrapper.get_event_by_id(123)
@@ -255,7 +257,7 @@ class TestMT5CalendarWrapper(unittest.TestCase):
         date_from = datetime.now(timezone.utc) - timedelta(days=7)
         date_to = datetime.now(timezone.utc)
         
-        with patch('mt5_calendar_wrapper.MqlCalendarValue') as mock_struct:
+        with patch('data.mt5_calendar_wrapper.MqlCalendarValue') as mock_struct:
             mock_struct.return_value = mock_value
             
             values = self.wrapper.get_value_history(date_from=date_from, date_to=date_to, max_count=1)

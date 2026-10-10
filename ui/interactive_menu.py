@@ -8,6 +8,7 @@ Provides a beautiful interface for configuring trading parameters
 """
 
 import os
+import sys
 import questionary
 from questionary import Style
 from rich.console import Console
@@ -649,7 +650,7 @@ if __name__ == "__main__":
         print(json.dumps(config, indent=2))
         
         # Construct CLI Command
-        cmd = ["python", "mt5_trader.py", "llm-trade"]
+        cmd = [sys.executable, "mt5_trader.py", "llm-trade"]
         
         # Mode
         if config['mode'] == "paper":

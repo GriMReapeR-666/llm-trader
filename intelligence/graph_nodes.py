@@ -11,7 +11,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from graph_state import (
+from intelligence.graph_state import (
     TradingCycleState,
     TradeProposalPayload,
     OrderIntentPayload,
@@ -19,7 +19,7 @@ from graph_state import (
     MemoryReflectionState,
     utcnow_iso,
 )
-from agent_contracts import require as require_agent_action, can as can_agent_action
+from operations.agent_contracts import require as require_agent_action, can as can_agent_action
 from core.trading_safety import (
     DeterministicValidator,
     TradeProposal,
@@ -413,7 +413,7 @@ class MacroAnalystNode:
         # fact-vs-opinion signals (advisory; never order authority).
         news_evidence = None
         try:
-            from news_triage import summarize_cycle_evidence
+            from data.news_triage import summarize_cycle_evidence
             news_evidence = summarize_cycle_evidence(state.get("news_articles") or [])
         except Exception as exc:
             logger.debug("news evidence summary skipped: %s", exc)
@@ -440,8 +440,9 @@ class MacroAnalystNode:
         # latch unclearable (news asserted halt → calm market can't clear).
         try:
             _latch = get_kill_switch_latch()
-            _halt_flag = bool(snapshot.get("is_market_halt", False)) or None
-            _market_vix = float(snapshot.get("vix", features.get("vix", 18.0)))
+            _raw_vix = snapshot.get("vix", features.get("vix") if features else None)
+            _market_vix = float(_raw_vix) if _raw_vix is not None else None
+            _halt_flag = bool(snapshot.get("halt_flag") or snapshot.get("market_halt") or False)
             latch_snapshot = _latch.apply_market_data(vix=_market_vix, halt_flag=_halt_flag)
             if latch_snapshot["latched"]:
                 kill_switch = dict(kill_switch or {})
@@ -513,7 +514,7 @@ class MacroAnalystNode:
         # trader process was launched with --api-sync; adapter api_url unset =
         # no receiver configured, and posting would be a permanent dead drop).
         try:
-            from web_dashboard_adapter import dashboard as _dash
+            from ui.web_dashboard_adapter import dashboard as _dash
             if getattr(_dash, "api_url", None):
                 _dash._push("macro_state", {
                     "macro_regime": ui_state.macro_regime,
@@ -785,7 +786,7 @@ class SignalArbitratorNode:
             self._arbitrate = arbitrate_signals
         except ImportError:
             try:
-                from signal_arbitrator import arbitrate_signals
+                from intelligence.signal_arbitrator import arbitrate_signals
                 self._arbitrate = arbitrate_signals
             except ImportError:
                 self._arbitrate = None

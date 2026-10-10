@@ -14,9 +14,9 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-from agent_operations import AgentOperations
+from operations.agent_operations import AgentOperations
 from mt5_trader import LLMOrchestrator
-from trading_safety import TradingStore
+from core.trading_safety import TradingStore
 
 
 def _orchestrator(tmp_path, ablation_env=None):

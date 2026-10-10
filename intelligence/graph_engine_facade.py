@@ -11,16 +11,16 @@ import json
 import logging
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-from graph_state import (
+from intelligence.graph_state import (
     TradingCycleState,
     MemoryReflectionState,
     FastLaneState,
     create_initial_trading_cycle_state,
     utcnow_iso,
 )
-from graph_checkpointer import SqliteCheckpointSaver
-from deliberative_graph import build_deliberative_graph
-from reflection_graph import build_reflection_graph
+from intelligence.graph_checkpointer import SqliteCheckpointSaver
+from intelligence.deliberative_graph import build_deliberative_graph
+from intelligence.reflection_graph import build_reflection_graph
 from operations.dual_velocity import DualVelocityExecutor
 from operations.agent_operations import AgentOperations
 
@@ -108,7 +108,7 @@ class TradingGraphEngine:
 
         if sync_ui:
             try:
-                from shared_state import state as ui_state
+                from core.shared_state import state as ui_state
                 ui_state.reset_graph_pipeline(symbol=symbol, timeframe=timeframe)
             except Exception as exc:
                 logger.debug("state snapshot failed: %s", exc)
@@ -125,7 +125,7 @@ class TradingGraphEngine:
             for node_name, state_update in event.items():
                 if sync_ui:
                     try:
-                        from shared_state import state as ui_state
+                        from core.shared_state import state as ui_state
                         ui_state.update_graph_step(node_name, state_update)
                     except Exception as exc:
                         logger.debug("event emission failed: %s", exc)

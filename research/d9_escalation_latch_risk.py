@@ -37,8 +37,9 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for p in ("", "data", "intelligence"):
-    sys.path.insert(0, os.path.join(ROOT, p) if p else ROOT)
+# Single import root (P1-C1/M3): repo root only, never subpackage folders.
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
 from data.kill_switch_latch import KillSwitchLatch  # noqa: E402
 from data.kill_switch_latch import CONFIRM_WINDOW_S, REARM_COOLDOWN_S  # noqa: E402
@@ -61,8 +62,8 @@ def det_fp_rate() -> float:
     the D9 FP probe corpus when importable; else the recorded 33/47."""
     try:
         sys.argv = [sys.argv[0]]
-        from d9_false_positive_probe import benign  # type: ignore
-        from news_triage import _deterministic_d9
+        from research.d9_false_positive_probe import benign  # type: ignore
+        from data.news_triage import _deterministic_d9
 
         texts = [t for t in benign if isinstance(t, str) and t.strip()]
         trips = sum(1 for t in texts if _deterministic_d9({"title": t, "text_or_summary": t}))

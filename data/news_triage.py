@@ -30,11 +30,11 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 try:
-    from macro_source_policy import assess_source
+    from intelligence.macro_source_policy import assess_source
 except ImportError:
     from intelligence.macro_source_policy import assess_source
 try:
-    from economic_dynamics_measure import classify_runtime_event
+    from intelligence.economic_dynamics_measure import classify_runtime_event
 except ImportError:
     from intelligence.economic_dynamics_measure import classify_runtime_event
 from research.decision_models.extended_taxonomy import (
@@ -83,15 +83,60 @@ _OFFICIAL_HOSTS = (
 # earliest available signal; false positives cost missed research evidence
 # while false negatives cost capital, so the net is deliberately wide.
 _D9_KILL_PATTERN = re.compile(
-    r"\b(trading halt(?:ed|s)?|halts? (?:trading|all trading)|exchange halt|"
+    r"\b(trading halt(?:ed|s)?|halts? (?:[a-zA-Z]+ )?trading|halts? (?:trading|all trading)|exchange halt|"
     r"circuit breaker(?:s)?(?: triggered| hit)?|markets? closed (?:indefinitely|until further notice)|"
     r"stock exchange closed|de[- ]pegs?|de[- ]pegged|de[- ]pegging|abandons? (?:the )?peg|"
-    r"breaks? (?:the )?peg|peg (?:breaks|collapses)|"
+    r"breaks? (?:the )?peg|peg (?:breaks|collapses)|peg (?:is |was )?abandoned|"
     r"emergency (?:rate (?:cut|hike|meeting)|ban|measure|action)|"
     r"flash crash|market crash|freeze(?:s|d)? (?:redemptions|withdrawals)|"
     r"bank runs?|suspends? withdrawals|capital controls)\b",
     re.IGNORECASE,
 )
+
+# Guard against false positives: commentary, retrospective and explicit
+# negation markers. Deliberately narrow (H3): speculative modals (may /
+# could / might), conditionals (if / when / how), "review" and bare "no"
+# suppressed REAL crises ("Fed may intervene", "officials review damage",
+# "no end in sight"), and the "halts trading in" rule hid single-venue halts
+# ("halts trading in all stocks"). Only explicit negation ("not on the
+# table", "never", "no longer", question-then-denial, failed-to-materialise),
+# reversal (lifts/lifted/eases/removed/ends), retrospective and forecast
+# markers, explainer form ("How X works"), routine corporate-action context
+# (merger talks, pending news) and single-instrument scope suppress.
+# Market-wide scope ("all", "every", "market-wide") overrides every
+# suppression: a market-wide halt always trips.
+_D9_GUARD = re.compile(
+    r"\b(warn\w*|possible|possibility|forecast|expect\w*|anniversary|revisited|"
+    r"retrospective|histor\w*|stud(?:y|ies)|debate\w*|propose\w*|bill|would|whether|"
+    r"not on the table|never|no longer|lifts?|lifted|eases?|"
+    r"removes?|\b(?:halt|crisis|ban|freeze|run)s? ends?\b|\bends? (?:the )?(?:trading halt|halt|crisis|bank run|freeze|ban)\b|"
+    r"\bago\b|of (?:19|20)\d{2}|in (?:19|20)\d{2}|last quarter|"
+    r"briefly|blamed|fat-finger|\ba single\b|"
+    r"halt(?:ed|s)? trading in (?:a single|one) |trade normally|for the day|"
+    r"shares? of|merger talks|pending news|(?:after|under|pending) review|"
+    r"materialis\w*|fail(?:ed|s)? to materialis\w*)\b|"
+    r"\?\s*No\b|^how\b.{0,40}\bworks?\b",
+    re.IGNORECASE,
+)
+# Market-wide scope always trips, even if a suppression cue also matches.
+_D9_MARKET_WIDE = re.compile(
+    r"\b(all (?:stocks|trading|markets)|every|market[\s-]?wide|exchange[\s-]?wide|"
+    r"across the market|all trading)\b",
+    re.IGNORECASE,
+)
+_D9_PRESENT_CUE = re.compile(
+    r"\b(announces?\w*|declares?|imposes?|spreads?|underway|hits?|forces?|plunges?|"
+    r"slides?|calls?|triggers?|wipes?|drags?)\b",
+    re.IGNORECASE,
+)
+
+
+def _d9_guard_suppresses(text: str) -> bool:
+    # Market-wide scope overrides suppression: a market-wide halt trips even
+    # if commentary/negation cues also appear in the headline.
+    if _D9_MARKET_WIDE.search(text or ""):
+        return False
+    return bool(_D9_GUARD.search(text)) and not _D9_PRESENT_CUE.search(text)
 
 # D9 headline classes (noul-style booleans with explicit abstain/absent value).
 D9_KILL_SWITCH_ACTIVE = "EMERGENCY_HALT_ACTIVE"
@@ -659,7 +704,8 @@ def _deterministic_d9(article: Dict[str, Any]) -> str:
         str(article.get("text_or_summary") or ""),
     ))
     if _D9_KILL_PATTERN.search(text):
-        return D9_KILL_SWITCH_ACTIVE
+        if not _d9_guard_suppresses(text):
+            return D9_KILL_SWITCH_ACTIVE
     if not text.strip():
         return D9_KILL_SWITCH_NO_DATA
     return D9_KILL_SWITCH_NORMAL

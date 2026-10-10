@@ -194,7 +194,7 @@ def test_api_control_blocks_unauthorized_when_token_configured(monkeypatch):
 def test_api_control_allows_authorized_token(monkeypatch):
     monkeypatch.setenv("GUI_API_TOKEN", "secret-test-token-123")
     client = TestClient(app)
-    resp = client.post("/api/control/start", json={"symbol": "EURUSD"}, headers={"Authorization": "Bearer secret-test-token-123"})
+    resp = client.post("/api/control/start", json={"symbol": "EURUSD"}, headers={"Authorization": "Bearer secret-test-token-123"})  # secret-scan: allow
     assert resp.status_code in [200, 400, 422]  # Authenticated passed gate
 ```
 

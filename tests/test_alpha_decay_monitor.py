@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from alpha_decay_monitor import (
+from core.alpha_decay_monitor import (
     AlphaDecayMonitor,
     AlphaHealth,
     DecayAlert,
@@ -293,7 +293,7 @@ class TestReporting:
         """_emit_alert refreshes the unresolved outbox row; live IC metrics in
         the payload must not mint a new fingerprint per check (audit
         2026-09-26: 185 PENDING copies of one alpha's alert)."""
-        from alert_outbox import status, claim, acknowledge
+        from operations.alert_outbox import status, claim, acknowledge
 
         db = str(tmp_path / "decay_outbox.db")
         monitor = AlphaDecayMonitor(alert_db_path=db)

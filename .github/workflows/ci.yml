@@ -1,0 +1,60 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Same MetaTrader5 stand-in as the macOS setup; tests never reach a terminal.
+      PYTHONPATH: compat/mt5_bridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - name: Install
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Tests
+        # conftest fails the session if any tracked file changes during the run
+        run: python -m pytest -n auto -p no:cacheprovider
+      - name: Tracked files untouched
+        run: git diff --exit-code --stat
+      - name: Double-import ratchet (Phase 3 drove this to 0; M3 keeps it there)
+        run: python scripts/ci/import_guard.py --max 0
+      - name: Secret scan
+        run: python -m operations.security_audit --fail-on-findings > /dev/null
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Deck typecheck
+        working-directory: tui_opentui
+        run: |
+          bun install --frozen-lockfile
+          bunx tsc --noEmit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+      - name: Web GUI typecheck
+        working-directory: gui
+        run: |
+          npm ci
+          npx tsc --noEmit -p .

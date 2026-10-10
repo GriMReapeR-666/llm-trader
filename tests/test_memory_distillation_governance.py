@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from agent_operations import AgentOperations
-from health_alerts import evaluate as evaluate_alerts
-from local_llm_memory import process_outbox
-from trading_memory import TradingMemory
-from trading_safety import TradeProposal, TradingStore
+from operations.agent_operations import AgentOperations
+from operations.health_alerts import evaluate as evaluate_alerts
+from intelligence.local_llm_memory import process_outbox
+from intelligence.trading_memory import TradingMemory
+from core.trading_safety import TradeProposal, TradingStore
 
 
 class FakeLLM:

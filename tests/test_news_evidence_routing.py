@@ -6,8 +6,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "intelligence"))
 
-from news_triage import summarize_cycle_evidence, triage_articles
-from realtime_news_ingest import normalize_article
+from data.news_triage import summarize_cycle_evidence, triage_articles
+from data.realtime_news_ingest import normalize_article
 
 
 def _article(key, title, summary, source="laya", action="INGEST", d0_1="VERIFIED_OUTLET", d0_2="FIRST_REPORT", d0_3="VERIFIED_FACT", confidence=0.9):

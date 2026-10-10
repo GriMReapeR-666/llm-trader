@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from alpha_ensemble import (
+from core.alpha_ensemble import (
     AlphaQuality,
     EnsembleResult,
     combine_alphas,

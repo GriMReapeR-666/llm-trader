@@ -182,6 +182,42 @@ class AutonomyManager(StoreBackedState):
         except OSError as exc:
             logger.warning("legacy control queue archive failed: %s", exc)
 
+    def attach_store(self, store: Any) -> Dict[str, Any]:
+        report = super().attach_store(store)
+        self._retire_control_plane_file()
+        return report
+
+    def _retire_control_plane_file(self) -> None:
+        if not getattr(self, "control_file", None) or not os.path.exists(self.control_file):
+            return
+        if getattr(self, "store", None) is None:
+            return
+        try:
+            with open(self.control_file, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not rec.get("consumed"):
+                        cid = self.store.create_operator_control(
+                            action=rec.get("action", "unknown"),
+                            actor=rec.get("actor", "operator"),
+                            source=rec.get("source", "retired_control_plane"),
+                        )
+                        self.store.complete_operator_control(
+                            cid,
+                            "EXPIRED",
+                            {"error": "imported from retired control_plane.jsonl as EXPIRED"},
+                        )
+            retired_name = self.control_file + ".retired"
+            os.replace(self.control_file, retired_name)
+        except Exception as exc:
+            logger.warning("Retiring control_plane.jsonl failed: %s", exc)
+
     # ---------- persistence ----------
     def _load(self) -> None:
         try:
@@ -210,6 +246,7 @@ class AutonomyManager(StoreBackedState):
     # ---------- levels ----------
     def snapshot(self) -> AutonomySnapshot:
         with self._lock:
+            self._load()
             return AutonomySnapshot(
                 level=self._state["level"],
                 halted=self._state["halted"],
@@ -279,14 +316,44 @@ class AutonomyManager(StoreBackedState):
             self._state["paused"] = False
             self._state["pause_reason"] = ""
             self._record_locked("RESUME", {"actor": actor})
+            if getattr(self, "store", None) is not None:
+                try:
+                    self.store.set_autonomy_paused(False, actor=actor)
+                except Exception:
+                    pass
+            self._persist_locked()
+
+    def pause(self, reason: str = "") -> None:
+        with self._lock:
+            self._state["paused"] = True
+            self._state["pause_reason"] = reason or "paused"
+            self._record_locked("PAUSE", {"reason": self._state["pause_reason"]})
+            if getattr(self, "store", None) is not None and hasattr(self.store, "set_autonomy_paused"):
+                try:
+                    self.store.set_autonomy_paused(True, actor="pipeline_runner", reason=self._state["pause_reason"])
+                except Exception:
+                    pass
+            self._persist_locked()
+
+    def is_hold_only(self) -> bool:
+        with self._lock:
+            return bool(self._state.get("flags", {}).get("hold_only", False))
+
+    def set_hold_only(self, hold_only: bool = True, why: str = "") -> None:
+        with self._lock:
+            self._state.setdefault("flags", {})
+            self._state["flags"]["hold_only"] = hold_only
+            if why:
+                self._state["flags"]["hold_only_why"] = why
             self._persist_locked()
 
     def trading_allowed(self) -> tuple[bool, str]:
         with self._lock:
-            if self._state["halted"]:
-                return False, self._state["halt_reason"] or "kill switch engaged"
-            if self._state["paused"]:
-                return False, self._state["pause_reason"] or "operator pause active"
+            self._load()
+            if self._state.get("halted"):
+                return False, self._state.get("halt_reason") or "kill switch engaged"
+            if self._state.get("paused"):
+                return False, self._state.get("pause_reason") or "operator pause active"
             return True, ""
 
     # ---------- circuits ----------
@@ -332,48 +399,129 @@ class AutonomyManager(StoreBackedState):
         return trips
 
     # ---------- operator control plane ----------
-    def issue_control(self, action: str, actor: str = "operator", source: str = "api") -> Dict[str, Any]:
+    def issue_control(
+        self,
+        action: str,
+        actor: str = "operator",
+        source: str = "api",
+        idempotency_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
         action = action.lower().strip()
         if action not in CONTROL_ACTIONS:
             return {"ok": False, "reason": f"unsupported action {action}"}
-        with self._lock:
-            self._ensure_schema_locked()
-            con = self._connect_locked()
+
+        # Journal store first (origin/main): it supports idempotency_key and returns
+        # the control_id the code below and get_control_status() consume.
+        # Falls back to the local control_queue table (HEAD) when no journal
+        # store is attached - a manager built from a state file alone still has
+        # to be able to queue a control, and refusing there would mean a
+        # killswitch issued without a store was silently dropped. Only when
+        # BOTH are unavailable do we fail closed: reporting ok with nowhere to
+        # put the control would be a lie (B1).
+        _has_store = self.store is not None and hasattr(self.store, "create_operator_control")
+        if not _has_store:
             try:
-                con.execute(
-                    "INSERT INTO control_queue (ts, action, actor, source, consumed) VALUES (?, ?, ?, ?, 0)",
-                    (time.time(), action, str(actor), str(source)),
-                )
-                con.commit()
-            finally:
-                con.close()
-            self._record_locked("CONTROL_ISSUED", {"action": action, "actor": actor, "source": source})
-            if action == "pause":
-                # Apply locally so this process's snapshot is immediately
-                # honest; the consuming engine applies its own copy on drain.
-                self._state["paused"] = True
-                self._state["pause_reason"] = f"operator:{actor}"
-                self._persist_locked()
-            elif action == "resume":
-                self.resume(str(actor))
-            if action in ("pause", "resume"):
-                status = "applied"
-            else:
-                # flatten/killswitch require the engine's runtime handles;
-                # they are queued for it to apply and report honestly (D1).
-                self._record_locked("CONTROL_ACK_QUEUED", {"action": action})
-                status = "queued"
-        return {"ok": True, "action": action, "status": status}
+                self._ensure_schema_locked()
+                con = self._connect_locked()
+                try:
+                    con.execute(
+                        "INSERT INTO control_queue (ts, action, actor, source, consumed) "
+                        "VALUES (?, ?, ?, ?, 0)",
+                        (time.time(), action, str(actor), str(source)),
+                    )
+                    con.commit()
+                finally:
+                    con.close()
+                self._record_locked("CONTROL_ISSUED", {"action": action, "actor": actor, "source": source})
+                control_id = None
+            except Exception as exc:
+                logger.error("issue_control(%s) refused: no journal store and control_queue unavailable: %s", action, exc)
+                return {"ok": False, "reason": f"engine journal unavailable: control not issued ({exc})"}
+        else:
+            with self._lock:
+                try:
+                    control_id = self.store.create_operator_control(
+                        action=action,
+                        actor=actor,
+                        source=source,
+                        idempotency_key=idempotency_key,
+                    )
+                except Exception as exc:
+                    logger.warning("Failed to insert into operator_controls: %s", exc)
+                    return {"ok": False, "reason": f"control journal write failed: {exc}"}
+                if control_id is None:
+                    return {"ok": False, "reason": "control journal write failed: no id returned"}
+
+                self._record_locked("CONTROL_ISSUED", {"action": action, "actor": actor, "source": source, "control_id": control_id})
+                if action == "pause":
+                    # Apply locally so this process's snapshot is immediately
+                    # honest; the consuming engine applies its own copy on drain.
+                    self._state["paused"] = True
+                    self._state["pause_reason"] = f"operator:{actor}"
+                    try:
+                        self.store.set_autonomy_paused(True, actor=actor, reason=f"operator:{actor}")
+                    except Exception as exc:
+                        logger.warning("set_autonomy_paused failed: %s", exc)
+                        return {"ok": False, "control_id": control_id, "reason": f"pause not persisted: {exc}"}
+                    self._persist_locked()
+                    try:
+                        self.store.complete_operator_control(control_id, "APPLIED", {"action": "pause", "paused": True})
+                    except Exception as exc:
+                        return {"ok": False, "control_id": control_id, "reason": f"pause applied but not recorded: {exc}"}
+                elif action == "resume":
+                    self._state["paused"] = False
+                    self._state["pause_reason"] = ""
+                    self._state["halted"] = False
+                    self._state["halt_reason"] = ""
+                    try:
+                        self.store.set_autonomy_paused(False, actor=actor)
+                    except Exception as exc:
+                        logger.warning("set_autonomy_paused failed: %s", exc)
+                        return {"ok": False, "control_id": control_id, "reason": f"resume not persisted: {exc}"}
+                    self._persist_locked()
+                    try:
+                        self.store.complete_operator_control(control_id, "APPLIED", {"action": "resume", "paused": False})
+                    except Exception as exc:
+                        return {"ok": False, "control_id": control_id, "reason": f"resume applied but not recorded: {exc}"}
+                elif action == "killswitch":
+                    try:
+                        self.store.set_kill_switch(True, f"operator:{actor}")
+                    except Exception as exc:
+                        logger.warning("set_kill_switch failed: %s", exc)
+                        return {"ok": False, "control_id": control_id, "reason": f"kill switch not set: {exc}"}
+                    self._record_locked("CONTROL_ACK_QUEUED", {"action": action, "control_id": control_id})
+                elif action == "killswitch_off":
+                    try:
+                        self.store.set_kill_switch(False, f"operator:{actor}")
+                    except Exception as exc:
+                        logger.warning("set_kill_switch failed: %s", exc)
+                        return {"ok": False, "control_id": control_id, "reason": f"kill switch not cleared: {exc}"}
+                    try:
+                        self.store.complete_operator_control(control_id, "APPLIED", {"action": "killswitch_off"})
+                    except Exception as exc:
+                        return {"ok": False, "control_id": control_id, "reason": f"killswitch_off applied but not recorded: {exc}"}
+                elif action == "flatten":
+                    self._record_locked("CONTROL_ACK_QUEUED", {"action": action, "control_id": control_id})
+
+                res = {"ok": True, "action": action}
+                if control_id is not None:
+                    res["control_id"] = control_id
+                return res
 
     def drain_controls(self) -> List[Dict[str, Any]]:
-        """Atomically claim unconsumed controls (compare-and-set per row).
+        """Claim unissued controls exactly once.
 
-        Each row is claimed by exactly one drainer: the UPDATE ... WHERE
-        consumed=0 is the CAS point, so two engine threads or the API process
-        and the engine can never apply the same control twice (K5).
+        Journal store first (origin/main), then the local control_queue table
+        (HEAD), then the jsonl control file. The queue branch is the counterpart
+        of issue_control's fallback: controls written there are only visible if
+        something can drain them, and each row is claimed by exactly one drainer
+        via the ``UPDATE ... WHERE consumed = 0`` compare-and-set, so the API
+        process and the engine can never apply the same control twice (K5).
         """
-        pending: List[Dict[str, Any]] = []
         with self._lock:
+            if self.store is not None and hasattr(self.store, "claim_pending_operator_controls"):
+                return self.store.claim_pending_operator_controls()
+
             try:
                 self._ensure_schema_locked()
                 con = self._connect_locked()
@@ -382,6 +530,7 @@ class AutonomyManager(StoreBackedState):
                         "SELECT seq, ts, action, actor, source FROM control_queue "
                         "WHERE consumed = 0 ORDER BY seq"
                     ).fetchall()
+                    claimed: List[Dict[str, Any]] = []
                     for seq, ts, action, actor, source in rows:
                         cur = con.execute(
                             "UPDATE control_queue SET consumed = 1, consumed_by = ?, consumed_at = ? "
@@ -389,10 +538,8 @@ class AutonomyManager(StoreBackedState):
                             (f"pid:{os.getpid()}", time.time(), seq),
                         )
                         if cur.rowcount == 1:
-                            pending.append({
-                                "ts": ts, "action": action, "actor": actor,
-                                "source": source, "consumed": True,
-                            })
+                            claimed.append({"ts": ts, "action": action, "actor": actor,
+                                            "source": source, "consumed": True})
                     # Retention: keep the last 500 consumed records.
                     con.execute(
                         "DELETE FROM control_queue WHERE consumed = 1 AND seq NOT IN "
@@ -401,23 +548,50 @@ class AutonomyManager(StoreBackedState):
                     con.commit()
                 finally:
                     con.close()
+                if claimed:
+                    # pause/resume mutate local state, so apply them in the
+                    # consuming process rather than only at issue time.
+                    for rec in claimed:
+                        act = rec.get("action")
+                        who = str(rec.get("actor", "operator"))
+                        if act == "resume":
+                            self.resume(who)
+                        elif act == "pause":
+                            self._state["paused"] = True
+                            self._state["pause_reason"] = f"operator:{who}"
+                            self._record_locked("CONTROL_APPLIED", {"action": "pause", "actor": who})
+                            self._persist_locked()
+                    return claimed
             except Exception as exc:
-                logger.error("drain_controls failed: %s", exc)
-        # Apply the state-mutating controls in the consuming process.  pause is
-        # applied here too (not only at issue time) so a pause issued from the
-        # API process actually reaches the engine's autonomy state.
-        for rec in pending:
-            action = rec.get("action")
-            actor = str(rec.get("actor", "operator"))
-            if action == "resume":
-                self.resume(actor)
-            elif action == "pause":
-                with self._lock:
-                    self._state["paused"] = True
-                    self._state["pause_reason"] = f"operator:{actor}"
-                    self._record_locked("CONTROL_APPLIED", {"action": "pause", "actor": actor})
-                    self._persist_locked()
-        return pending
+                logger.error("control_queue drain failed: %s", exc)
+
+            if self.control_file and os.path.exists(self.control_file):
+                pending: List[Dict[str, Any]] = []
+                kept: List[Dict[str, Any]] = []
+                try:
+                    with open(self.control_file, "r", encoding="utf-8") as fh:
+                        for line in fh:
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                rec = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
+                            if rec.get("consumed"):
+                                kept.append(rec)
+                                continue
+                            rec["consumed"] = True
+                            kept.append(rec)
+                            pending.append(rec)
+                    safe_atomic_write_lines(self.control_file, [json.dumps(rec) for rec in kept[-500:]])
+                except Exception as exc:
+                    logger.error("drain_controls failed: %s", exc)
+                for rec in pending:
+                    if rec.get("action") == "resume":
+                        self.resume(str(rec.get("actor", "operator")))
+                return pending
+            return []
 
 
 def _cancel_pending_intents(operations: Any, paper_broker: Any) -> Dict[str, Any]:
@@ -553,10 +727,13 @@ def apply_operator_control(
 
 
 _default_manager: Optional[AutonomyManager] = None
+_default_manager_lock = threading.Lock()
 
 
 def get_autonomy() -> AutonomyManager:
     global _default_manager
     if _default_manager is None:
-        _default_manager = AutonomyManager()
+        with _default_manager_lock:
+            if _default_manager is None:
+                _default_manager = AutonomyManager()
     return _default_manager

@@ -12,10 +12,7 @@ import os
 import sqlite3
 from typing import Any, Dict, Iterable, List, Optional
 
-from trading_safety import SCALP_MAGIC, SWING_MAGIC
-
-
-BOT_MAGICS = {SWING_MAGIC, SCALP_MAGIC}
+from core.trading_safety import BOT_MAGICS
 
 # Provenance of the "broker" side of a reconciliation.
 #

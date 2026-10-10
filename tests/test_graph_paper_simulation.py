@@ -1,7 +1,7 @@
 """Integration tests for live paper trading simulation with the compiled LangGraph engine."""
 import pytest
-from graph_engine_facade import TradingGraphEngine
-from shared_state import state as ui_state
+from intelligence.graph_engine_facade import TradingGraphEngine
+from core.shared_state import state as ui_state
 
 
 def test_graph_paper_trading_simulation(tmp_path):

@@ -16,13 +16,13 @@ import logging
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mt5_calendar_wrapper import (
+from data.mt5_calendar_wrapper import (
     MT5CalendarWrapper, CalendarCountry, CalendarEvent, CalendarValue,
     CalendarEventImportance, CalendarEventImpact, CalendarEventType,
     MT5CalendarError, MT5CalendarConnectionError, MT5CalendarDataError
 )
 
-from mt5_calendar_enhanced import (
+from data.mt5_calendar_enhanced import (
     EnhancedMT5CalendarWrapper, CalendarFilter, create_enhanced_calendar_wrapper
 )
 

@@ -3,7 +3,8 @@ import os
 import re
 import subprocess
 import pytest
-from bs4 import BeautifulSoup
+bs4 = pytest.importorskip("bs4", reason="optional dependency (requirements-optional.txt)")
+BeautifulSoup = bs4.BeautifulSoup
 
 BUNDLE_HTML_PATH = "visualizer/llm_trader_knowledge_studio.html"
 PAYLOAD_PATH = "visualizer/data/knowledge_graph_payload.json"

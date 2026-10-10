@@ -14,52 +14,52 @@ from pathlib import Path
 from typing import Any, Callable, Dict
 
 try:
-    from broker_preflight import validate_envelope
+    from core.broker_preflight import validate_envelope
 except ImportError:
     from core.broker_preflight import validate_envelope
 
 try:
-    from journal_audit import audit as audit_journal
+    from operations.journal_audit import audit as audit_journal
 except ImportError:
     from operations.journal_audit import audit as audit_journal
 
 try:
-    from legacy_reconciliation import report as legacy_report
+    from operations.legacy_reconciliation import report as legacy_report
 except ImportError:
     from operations.legacy_reconciliation import report as legacy_report
 
 try:
-    from live_rollout_gate import status as live_rollout_status
+    from operations.live_rollout_gate import status as live_rollout_status
 except ImportError:
     from operations.live_rollout_gate import status as live_rollout_status
 
 try:
-    from mt5_auth_diagnostics import report as auth_report
+    from operations.mt5_auth_diagnostics import report as auth_report
 except ImportError:
     from operations.mt5_auth_diagnostics import report as auth_report
 
 try:
-    from sample_gate import report as sample_report
+    from research.sample_gate import report as sample_report
 except ImportError:
     from research.sample_gate import report as sample_report
 
 try:
-    from security_audit import audit as security_audit
+    from operations.security_audit import audit as security_audit
 except ImportError:
     from operations.security_audit import audit as security_audit
 
 try:
-    from research_influence_gate import status as research_influence_status
+    from operations.research_influence_gate import status as research_influence_status
 except ImportError:
     from operations.research_influence_gate import status as research_influence_status
 
 try:
-    from trial_ledger import verify_chain_readonly as _verify_chain_main
+    from core.trial_ledger import verify_chain_readonly as _verify_chain_main
 except ImportError:
     from core.trial_ledger import verify_chain_readonly as _verify_chain_main
 
 try:
-    from strategy_trial_ledger import verify_chain_readonly as _verify_chain_cpcv
+    from core.strategy_trial_ledger import verify_chain_readonly as _verify_chain_cpcv
 except ImportError:
     try:
         from core.strategy_trial_ledger import verify_chain_readonly as _verify_chain_cpcv
@@ -243,7 +243,7 @@ def build(path: str = "trading_state.db", *, auth_fn: Callable[[], Dict[str, Any
     ledger_chain = _safe_source("trial_ledger_chain", _chain_gate)
     preflight_envelope = {}
     try:
-        from trading_safety import TradingStore
+        from core.trading_safety import TradingStore
         store = TradingStore(path)
         preflight_envelope = store.get_state("broker_preflight", {}) or {}
     except Exception as exc:

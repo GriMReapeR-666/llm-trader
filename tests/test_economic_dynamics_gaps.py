@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
 
-from causal_setup_map import is_research_transmission, resolve_causal_setup
-from economic_dynamics_catalog import tradable_setup_gaps, validate_catalog
-from intermarket_regime import filter_edges_for_live_regime
-from macro_graph import MacroGraph
+from intelligence.causal_setup_map import is_research_transmission, resolve_causal_setup
+from intelligence.economic_dynamics_catalog import tradable_setup_gaps, validate_catalog
+from intelligence.intermarket_regime import filter_edges_for_live_regime
+from intelligence.macro_graph import MacroGraph
 from mt5_trader import LLMOrchestrator
-from agent_scheduler import SCHEDULES
+from operations.agent_scheduler import SCHEDULES
 
 
 def test_approved_edges_include_auto_approved(tmp_path):

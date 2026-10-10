@@ -1,6 +1,6 @@
 """Unit tests for openbb_provider_registry.py."""
 import pytest
-from openbb_provider_registry import (
+from data.openbb_provider_registry import (
     PROVIDERS,
     DATA_TYPES,
     active_providers,

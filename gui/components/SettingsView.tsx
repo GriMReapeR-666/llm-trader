@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from './ui/Card';
 import { Play, RefreshCw, AlertTriangle } from 'lucide-react';
+import { apiFetch } from '../api';
 
 interface Model {
   id: string;
@@ -41,7 +42,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onStart }) => {
 
   const fetchAccounts = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/config/accounts');
+      const res = await apiFetch('/config/accounts');
       const data = await res.json();
       setSavedAccounts(data.accounts || []);
     } catch (e) {
@@ -51,7 +52,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onStart }) => {
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/status');
+      const res = await apiFetch('/status');
       const data = await res.json();
       if (data.activeAccountId) {
         setActiveAccount(data.activeAccountId);
@@ -63,7 +64,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onStart }) => {
 
   const fetchModels = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/config/models');
+      const res = await apiFetch('/config/models');
       const data = await res.json();
       setModels(data);
     } catch (e) {
@@ -74,7 +75,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onStart }) => {
   const handleStart = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/control/start', {
+      const res = await apiFetch('/control/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)

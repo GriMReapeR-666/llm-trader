@@ -12,8 +12,8 @@ import {
   Bar,
   Legend
 } from 'recharts';
+import { apiFetch } from '../api';
 
-const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : '/api';
 
 type Observability = {
   memory?: {
@@ -52,13 +52,13 @@ export const BrainView: React.FC = () => {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const res = await fetch(`${API_BASE}/brain/metrics`);
+        const res = await apiFetch(`/brain/metrics`);
         if (res.ok) setMetrics(await res.json());
       } catch (e) { console.error(e); }
     };
     const fetchObs = async () => {
       try {
-        const res = await fetch(`${API_BASE}/brain/observability`);
+        const res = await apiFetch(`/brain/observability`);
         if (res.ok) setObs(await res.json());
       } catch (e) { console.error(e); }
     };

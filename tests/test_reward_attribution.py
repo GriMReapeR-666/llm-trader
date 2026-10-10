@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from reward_attribution import (
+from operations.reward_attribution import (
     causal_credit_shares,
     eligible_edge_ids,
     enrich_trade_result_attribution,
@@ -13,8 +13,8 @@ from reward_attribution import (
     score_edges_from_ledger,
     score_opportunities_from_ledger,
 )
-from reward_ledger import emit_terminal_trade_rewards, list_reward_events
-from reward_sustainability import cvar, cvar_mixture_objective, throttle_agreement_reward
+from operations.reward_ledger import emit_terminal_trade_rewards, list_reward_events
+from operations.reward_sustainability import cvar, cvar_mixture_objective, throttle_agreement_reward
 
 
 def test_lifecycle_gate_replay_pass():

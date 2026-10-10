@@ -85,6 +85,8 @@ def atomic_write_json(path: Any, data: Any) -> bool:
     """Best-effort atomic JSON write (tmp + os.replace); never raises."""
     try:
         target = Path(str(path))
+        if not target.name or target.is_dir():
+            return False  # "" / "." / a directory: nothing to write (left "<dir>.tmp" behind before)
         if not target.is_absolute():
             state_alt = Path("data") / "state" / target.name
             if state_alt.exists() or ((Path("data") / "state").is_dir() and not target.exists()):
@@ -317,7 +319,7 @@ class StoreBackedState(StatefulModule):
 def _resolve_store(store: Any) -> Any:
     """Accept a TradingStore instance or a DB path; construct lazily to avoid cycles."""
     if isinstance(store, str):
-        from trading_safety import TradingStore
+        from core.trading_safety import TradingStore
 
         return TradingStore(store)
     return store

@@ -1,4 +1,4 @@
-from llm_router import LLMRouter
+from data.llm_router import LLMRouter
 import json
 
 
@@ -77,7 +77,7 @@ class _NullChoicesCompletions:
 
 
 def _broken_provider(error=None):
-    from llm_router import OpenRouterProvider
+    from data.llm_router import OpenRouterProvider
 
     provider = OpenRouterProvider(["k"], max_retries=1, base_delay=0.0)
     provider.clients = [_types.SimpleNamespace(

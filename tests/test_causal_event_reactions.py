@@ -1,5 +1,5 @@
 """Calendar releases schedule causal event-reaction measurement correctly."""
-from macro_graph import MacroGraph
+from intelligence.macro_graph import MacroGraph
 
 
 def test_calendar_release_schedules_and_measures_reaction(tmp_path):

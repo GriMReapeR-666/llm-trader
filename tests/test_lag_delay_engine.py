@@ -1,7 +1,7 @@
 """Unit tests for lag_delay_engine.py."""
 import time
 import pytest
-from lag_delay_engine import (
+from intelligence.lag_delay_engine import (
     TimestampedEvent,
     HeartbeatTracker,
     ConfidenceDecayEngine,

@@ -23,12 +23,12 @@ for _p in [_ROOT, _TESTS] + [os.path.join(_ROOT, _sub) for _sub in
     if os.path.isdir(_p) and _p not in sys.path:
         sys.path.insert(0, _p)
 
-from autonomous_causal_engine import (
+from intelligence.autonomous_causal_engine import (
     MIN_REACTION_SAMPLES,
     AutonomousCausalValidator,
     _directional_hit,
 )
-from macro_graph import MacroGraph
+from intelligence.macro_graph import MacroGraph
 
 from tests.test_autonomous_causal_engine import _primary_source, _seed_reactions
 

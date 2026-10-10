@@ -13,44 +13,44 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 try:
-    from forward_test_report import compare as compare_forward_test
-    from forward_test_report import MIN_FORWARD_SAMPLE
+    from research.forward_test_report import compare as compare_forward_test
+    from research.forward_test_report import MIN_FORWARD_SAMPLE
 except ImportError:
     from research.forward_test_report import compare as compare_forward_test
     from research.forward_test_report import MIN_FORWARD_SAMPLE
 
 try:
-    from journal_audit import audit, qualified_metrics
+    from operations.journal_audit import audit, qualified_metrics
 except ImportError:
     from operations.journal_audit import audit, qualified_metrics
 
 try:
-    from live_rollout_gate import status as live_approval_status
+    from operations.live_rollout_gate import status as live_approval_status
 except ImportError:
     from operations.live_rollout_gate import status as live_approval_status
 
 try:
-    from research_stress import stress_report
+    from research.research_stress import stress_report
 except ImportError:
     from research.research_stress import stress_report
 
 try:
-    from research_validation import promotion_gate
+    from research.research_validation import promotion_gate
 except ImportError:
     from research.research_validation import promotion_gate
 
 try:
-    from research_runs import list_runs as list_validation_runs
+    from research.research_runs import list_runs as list_validation_runs
 except ImportError:
     from research.research_runs import list_runs as list_validation_runs
 
 try:
-    from sample_gate import report as sample_report
+    from research.sample_gate import report as sample_report
 except ImportError:
     from research.sample_gate import report as sample_report
 
 try:
-    from security_audit import audit as security_audit
+    from operations.security_audit import audit as security_audit
 except ImportError:
     from operations.security_audit import audit as security_audit
 

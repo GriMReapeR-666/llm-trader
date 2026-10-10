@@ -251,10 +251,13 @@ class Supervisor(StoreBackedState):
 
 
 _default_supervisor: Optional[Supervisor] = None
+_default_supervisor_lock = threading.Lock()
 
 
 def get_supervisor() -> Supervisor:
     global _default_supervisor
     if _default_supervisor is None:
-        _default_supervisor = Supervisor()
+        with _default_supervisor_lock:
+            if _default_supervisor is None:
+                _default_supervisor = Supervisor()
     return _default_supervisor

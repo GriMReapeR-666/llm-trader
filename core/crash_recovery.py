@@ -418,3 +418,24 @@ def complete_checkpoint(checkpoint_id: Optional[int] = None) -> bool:
     """Convenience: complete the current cycle checkpoint."""
     recovery = get_recovery()
     return recovery.complete_cycle_checkpoint(checkpoint_id)
+
+
+def shutdown_requested() -> bool:
+    """Convenience: True once a graceful shutdown has been requested.
+
+    Signal handlers only set the event; they never do cleanup inline, so a
+    long-running loop can poll this flag without risking a deadlock inside
+    the handler itself.
+    """
+    return get_recovery()._shutdown_event.is_set()
+
+
+def reset_shutdown_request() -> None:
+    """Clear the shutdown flag (test/loop-restart use).
+
+    This does NOT undo a completed shutdown snapshot — it only re-arms the
+    event so a fresh loop can run within the same process.
+    """
+    mgr = get_recovery()
+    mgr._shutdown_event.clear()
+    mgr._shutdown_in_progress = False

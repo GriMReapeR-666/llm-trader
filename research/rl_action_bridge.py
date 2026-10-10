@@ -13,7 +13,7 @@ import math
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Optional
 
-from trading_safety import SCALP_MAGIC, SWING_MAGIC
+from core.trading_safety import SCALP_MAGIC, SWING_MAGIC
 
 DISCRETE_ACTIONS = frozenset({"BUY", "SELL", "HOLD"})
 
@@ -213,10 +213,13 @@ def merge_bridge_into_decision(
     *,
     fill_missing_only: bool = True,
 ) -> Dict[str, Any]:
-    """Overlay bridged continuous params onto an LLM decision without granting authority.
+    """Overlay bridged continuous numeric params onto an LLM decision without granting authority.
+
+The RL bridge may fill numeric fields only (entry, stop_loss, take_profit)
+    and NEVER mutates or overrides the decision 'action'. A HOLD/NONE stays
+    HOLD/NONE.
 
     When ``fill_missing_only`` is True, only empty/null numeric fields are filled.
-    The action is NEVER replaced if the decision action is HOLD or absent —
     RL exploration is strictly advisory and cannot convert a HOLD into a trade (01a F4).
     """
     out = dict(decision or {})
@@ -233,6 +236,7 @@ def merge_bridge_into_decision(
 
     overlay = bridged.to_decision_overlay()
     if fill_missing_only:
+# Numeric continuous execution parameters only: action is NEVER changed
         for key in ("entry", "stop_loss", "take_profit"):
             if out.get(key) in (None, "", 0, 0.0) and overlay.get(key) is not None:
                 out[key] = overlay[key]

@@ -19,7 +19,7 @@ for p in (str(ROOT), str(ROOT / "data"), str(ROOT / "intelligence")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import news_triage  # noqa: E402
+from data import news_triage
 
 TEMPLATES = [
     ("Fed holds rates steady at 4.25 percent, signals patience",

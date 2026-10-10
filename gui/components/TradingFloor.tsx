@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Card } from './ui/Card';
 import { XCircle, Edit, Ban, PauseCircle } from 'lucide-react';
 import { TradePosition, HistorySession } from '../types';
+import { apiFetch } from '../api';
 
-const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : '/api';
 
 export const TradingFloor: React.FC = () => {
   const [positions, setPositions] = useState<TradePosition[]>([]);
@@ -12,10 +12,10 @@ export const TradingFloor: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const posRes = await fetch(`${API_BASE}/trading/positions`);
+        const posRes = await apiFetch(`/trading/positions`);
         if (posRes.ok) setPositions(await posRes.json());
 
-        const histRes = await fetch(`${API_BASE}/trading/history`);
+        const histRes = await apiFetch(`/trading/history`);
         if (histRes.ok) setHistory(await histRes.json());
       } catch (e) {
         console.error(e);

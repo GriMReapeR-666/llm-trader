@@ -11,13 +11,13 @@ import threading
 import requests
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from datetime import datetime, timedelta, timezone
-from rate_limiter import MultiAPIRateLimiter
+from core.rate_limiter import MultiAPIRateLimiter
 
 
 def _ds_note(src: str, outcome: str, note: str) -> None:
     """Best-effort boot-datasheet marker (never fatal, no-op when disabled)."""
     try:
-        from boot_datasheet import boot_datasheet_enabled, get_datasheet
+        from intelligence.boot_datasheet import boot_datasheet_enabled, get_datasheet
         if boot_datasheet_enabled():
             get_datasheet().record_degraded(src, outcome, note)
     except Exception:
@@ -71,25 +71,25 @@ except ImportError:
     FRED_AVAILABLE = False
 
 try:
-    from yahoo_finance_provider import YahooFinanceProvider
+    from data.yahoo_finance_provider import YahooFinanceProvider
     YAHOO_AVAILABLE = True
 except ImportError:
     YAHOO_AVAILABLE = False
 
 try:
-    from openbb_data_bridge import OpenBBDataBridge
+    from data.openbb_data_bridge import OpenBBDataBridge
     OPENBB_AVAILABLE = True
 except ImportError:
     OPENBB_AVAILABLE = False
 
 try:
-    from portfolio123_provider import Portfolio123Provider
+    from data.portfolio123_provider import Portfolio123Provider
     P123_AVAILABLE = True
 except ImportError:
     P123_AVAILABLE = False
 
 try:
-    from seeking_alpha_provider import SeekingAlphaProvider
+    from data.seeking_alpha_provider import SeekingAlphaProvider
     SA_AVAILABLE = True
 except ImportError:
     SA_AVAILABLE = False
@@ -240,7 +240,7 @@ class APIManager:
             self.log.debug("Failed to load SEC CIK cache: %s", e)
         # Fetch fresh from SEC
         try:
-            from http_retry import request_with_retry
+            from core.http_retry import request_with_retry
             headers = {"User-Agent": "Trading Bot contact@example.com"}
             resp = request_with_retry(None, "GET", "https://www.sec.gov/files/company_tickers.json",
                                       headers=headers, timeout=15, max_retries=2)
@@ -614,7 +614,7 @@ class APIManager:
             }
             
             url = f"https://data.sec.gov/submissions/CIK{str(cik).zfill(10)}.json"
-            from http_retry import request_with_retry
+            from core.http_retry import request_with_retry
             response = request_with_retry(None, "GET", url, headers=headers, timeout=10, max_retries=3)
             
             if response.status_code == 200:

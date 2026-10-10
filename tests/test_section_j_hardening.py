@@ -1,9 +1,9 @@
 import pytest
 
-import sample_gate
-from live_rollout_gate import status as live_status, approve as live_approve, CONFIRMATION
-from trading_safety import TradingStore
-from broker_replay import ReplaySpec, ReplayIntent, replay
+from research import sample_gate
+from operations.live_rollout_gate import status as live_status, approve as live_approve, CONFIRMATION
+from core.trading_safety import TradingStore
+from research.broker_replay import ReplaySpec, ReplayIntent, replay
 
 
 def test_sample_gate_qualification_and_rejection():

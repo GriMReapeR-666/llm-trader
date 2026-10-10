@@ -8,16 +8,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from agent_operations import AgentOperations
-from lag_delay_engine import ConfidenceDecayEngine, SmithPredictorEngine, TimestampedEvent, utcnow_iso
-from margin_safety import MarginSafetyGate
-from rate_limiter import RateLimiter
-from rl_action_bridge import bridge_rl_action
-from rl_trainer import RLTrainer
-from semantic_memory import embed, embedding_backend_name, status as semantic_status
-from setup_labeling import classify_setup_outcome
-from local_agent_memory import LocalAgentMemory, LocalAgentMemoryConfig
-from trading_safety import DeterministicValidator, TradeProposal, TradingStore
+from operations.agent_operations import AgentOperations
+from intelligence.lag_delay_engine import ConfidenceDecayEngine, SmithPredictorEngine, TimestampedEvent, utcnow_iso
+from core.margin_safety import MarginSafetyGate
+from core.rate_limiter import RateLimiter
+from research.rl_action_bridge import bridge_rl_action
+from research.rl_trainer import RLTrainer
+from intelligence.semantic_memory import embed, embedding_backend_name, status as semantic_status
+from research.setup_labeling import classify_setup_outcome
+from intelligence.local_agent_memory import LocalAgentMemory, LocalAgentMemoryConfig
+from core.trading_safety import DeterministicValidator, TradeProposal, TradingStore
 
 
 def test_assess_from_mt5_queries_account_and_margin():
@@ -145,6 +145,9 @@ def test_end_to_end_trade_lifecycle_without_mt5(tmp_path):
     market = {
         "market_open": True, "tick_age_ms": 10, "max_tick_age_ms": 5000,
         "symbol_tradable": True, "spread": 0.0001, "max_spread": 0.001,
+        "clock_ok": True, "session_allowed": True,
+        "liquidity_ok": True, "microstructure_ok": True,
+        "required_data_ok": True,
         "completed_candle": True, "breakout_event": False,
         "stop_distance": abs(proposal.entry - proposal.stop_loss),
         "min_stop_distance": 0.0001,

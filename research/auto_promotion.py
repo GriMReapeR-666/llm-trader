@@ -337,7 +337,7 @@ class AutoPromoter:
         fixture (one distinct entry/stop/TP, labelled source="broker") drive
         DSR, walk-forward and live-performance gates.
         """
-        from research_validation import broker_reconciled_tickets
+        from research.research_validation import broker_reconciled_tickets
         tickets = broker_reconciled_tickets(self.db_path)
         if not tickets:
             return []
@@ -532,7 +532,7 @@ class AutoPromoter:
     def _check_no_divergence(self, strategy_key: str) -> Dict[str, Any]:
         """Check for live-vs-backtest divergence."""
         try:
-            from divergence_monitor import DivergenceMonitor
+            from research.divergence_monitor import DivergenceMonitor
             monitor = DivergenceMonitor(self.base_dir)
             # Check most recent symbol
             result = monitor.check_divergence("EURUSD")

@@ -210,7 +210,7 @@ def baseline_metrics(path: str = "trading_state.db") -> Dict[str, Any]:
     # Import locally because research_validation imports ``audit`` from this
     # module; a module-level import would create a circular import.
     try:
-        from research_validation import broker_reconciled_tickets
+        from research.research_validation import broker_reconciled_tickets
     except ImportError:
         from research.research_validation import broker_reconciled_tickets
     broker_tickets = sorted(broker_reconciled_tickets(path))
@@ -284,7 +284,7 @@ def qualified_metrics(path: str = "trading_state.db") -> Dict[str, Any]:
     # research dataset is extracted separately via labelled_dataset().
     # Local import: research_validation imports ``audit`` from this module.
     try:
-        from research_validation import broker_reconciled_tickets
+        from research.research_validation import broker_reconciled_tickets
     except ImportError:
         from research.research_validation import broker_reconciled_tickets
     broker_tickets = sorted(broker_reconciled_tickets(path))
@@ -305,7 +305,7 @@ def qualified_metrics(path: str = "trading_state.db") -> Dict[str, Any]:
     # Import locally because research_validation imports ``audit`` from this
     # module; a module-level import would create a circular import.
     try:
-        from research_validation import labelled_dataset
+        from research.research_validation import labelled_dataset
     except ImportError:
         from research.research_validation import labelled_dataset
     research_dataset = labelled_dataset(path)
@@ -904,9 +904,9 @@ def write_report(path: str = "trading_state.db", output: str = "journal_audit.js
 def write_audit_export(path: str = "trading_state.db", output: str = "journal_audit.json",
                        *, operational_limit: int = 10000) -> Dict[str, Any]:
     """Write trading and operational evidence into one non-authoritative file."""
-    from agent_operations import AgentOperations
-    from research_runs import list_runs as list_validation_runs
-    from trading_memory import TradingMemory
+    from operations.agent_operations import AgentOperations
+    from research.research_runs import list_runs as list_validation_runs
+    from intelligence.trading_memory import TradingMemory
 
     report = write_report(path, output=output)
     report["operational"] = AgentOperations(path).audit_export(limit=operational_limit)
