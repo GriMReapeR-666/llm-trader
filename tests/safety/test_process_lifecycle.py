@@ -206,6 +206,12 @@ def test_flag_only_signal_handler():
 
 def test_probe_p6_sigterm_while_checkpoint_lock_held():
     """Probe P6: Subprocess receives SIGTERM while holding lock, exits within 5s with rc 0."""
+    if sys.platform == "win32":
+        pytest.skip(
+            "Windows implements signal.SIGTERM via TerminateProcess, which hard-kills "
+            "the child (rc=1) and never dispatches to Python signal handlers. The "
+            "graceful-shutdown path is exercised by the POSIX run of this test."
+        )
     child_env = os.environ.copy()
     child_env["PYTHONUNBUFFERED"] = "1"
     child_env["PYTHONPATH"] = REPO_ROOT
@@ -256,6 +262,12 @@ def test_probe_p6_sigterm_while_checkpoint_lock_held():
 
 def test_probe_p7_sigterm_while_idle():
     """Probe P7: Subprocess idle in loop exits within 2s on SIGTERM."""
+    if sys.platform == "win32":
+        pytest.skip(
+            "Windows implements signal.SIGTERM via TerminateProcess, which hard-kills "
+            "the child (rc=1) and never dispatches to Python signal handlers. The "
+            "graceful-shutdown path is exercised by the POSIX run of this test."
+        )
     child_env = os.environ.copy()
     child_env["PYTHONUNBUFFERED"] = "1"
     child_env["PYTHONPATH"] = REPO_ROOT
