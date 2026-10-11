@@ -175,7 +175,11 @@ from intelligence.cost_estimator import assess_costs
 from intelligence.feature_schema import validate_snapshot as validate_feature_schema
 from research.model_registry import list_models, register as register_model, review as review_model, drift_report as model_drift_report
 from research.research_stress import stress_report
-from research.contextual_bandit import bandit_report
+# NOTE: research.contextual_bandit.bandit_report is intentionally NOT imported here.
+# It is an offline, operator-invoked research artifact (`journal bandit-status`)
+# that returns promotion_safe=False by construction; wiring it into the live
+# pulse would imply an influence on trading that it must never have. See
+# docs/BANDIT_AND_LEARNING_CHAIN_FINDING.md.
 from intelligence.semantic_memory import search as semantic_memory_search
 from operations.health_alerts import evaluate as evaluate_health_alerts
 from operations.alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, acknowledge as acknowledge_alert, recover_expired as recover_alerts, status as alert_outbox_status, outbox_health as alert_outbox_health
