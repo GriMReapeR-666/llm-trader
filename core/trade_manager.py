@@ -807,15 +807,15 @@ class TradeManager(StoreBackedState):
                     self.store.record_manual_activity("REFUSED_PYRAMID", ticket=int(pos.ticket), symbol=str(pos.symbol),
                                                       magic=getattr(pos, "magic", None), payload={"reason": "unowned"})
                 return
-            # 1a-F8 fix: paper-mode pyramiding must never reach the real broker.
-            # Paper books simulate locally; live/DEMO requires gateway evidence
-            # (absent here, so the gateway fails closed until Phase 4).
-            if self.paper_broker is not None:
-                self.log.info("Pyramid in paper mode stays in the paper book for #%s", getattr(pos, "ticket", None))
-                if self.store is not None:
-                    self.store.record_manual_activity("REFUSED_PYRAMID", ticket=int(pos.ticket), symbol=str(pos.symbol),
-                                                      magic=getattr(pos, "magic", None), payload={"reason": "paper_pyramid_no_live_send"})
-                return
+            # 1a-F8: paper-mode pyramiding must never reach the real broker.
+            # This guard used to return unconditionally here, which also blocked
+            # the safe paper fill further down and left the branch below
+            # unreachable: a paper pyramid was refused outright instead of being
+            # placed in the paper book. Paper books are simulated locally and
+            # never touch mt5, so the live-broker protection is provided by
+            # routing below through self.paper_broker, not by refusing here.
+            # Live/DEMO pyramiding still requires gateway evidence and fails
+            # closed there (the intent carries validation_result=None).
             vol = self._normalize_volume(pos.symbol, float(pos.volume) * 0.5, max_volume=float(pos.volume))
             if vol <= 0:
                 self.log.warning("Pyramid volume rejected by broker volume specification for #%s", pos.ticket)

@@ -3,7 +3,11 @@ import pytest
 from core.trade_manager import TradeManager, PaperPosition
 from core.order_execution import PaperBroker
 
-def test_paper_pyramid_does_not_call_real_mt5(tmp_path):
+def test_paper_pyramid_does_not_call_real_mt5(tmp_path, monkeypatch):
+    # Pyramiding is off by default (PYRAMIDING_ENABLED=0) as a safety
+    # default. Opt in explicitly so this test exercises the paper path rather
+    # than the disable switch.
+    monkeypatch.setenv("PYRAMIDING_ENABLED", "1")
     state_f = str(tmp_path / "state.json")
     cond_f = str(tmp_path / "cond.json")
     mock_risk = MagicMock()

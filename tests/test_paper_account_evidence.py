@@ -17,6 +17,7 @@ Contract pinned here:
 """
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -71,8 +72,25 @@ def _paper_df(n: int = 100) -> pd.DataFrame:
 def _provider(risk) -> MarketDataProvider:
     # Paper-authentic client: terminal-only session yields no account info.
     client = MagicMock()
+    # Must be a real empty dict, not an unstubbed MagicMock: a Mock is truthy,
+    # so the provider treated it as genuine broker account evidence and returned
+    # a populated account dict, breaking the fail-closed assertions. These tests
+    # exist precisely to prove that empty broker evidence stays empty.
     client.get_account_info.return_value = {}
-    provider = MarketDataProvider(client=client, risk_manager=risk)
+    # Stub the api_manager: fetch_data otherwise performs live NewsAPI/FRED
+    # calls that hang the suite on network latency. Those branches are
+    # fail-soft, so empty returns are the correct hermetic shape - these tests
+    # cover paper account evidence, not macro data.
+    api = SimpleNamespace(
+        get_news=lambda *a, **k: [],
+        get_hot_topics=lambda *a, **k: [],
+        get_fred_data=lambda *a, **k: {},
+        get_status=lambda *a, **k: {},
+    )
+    provider = MarketDataProvider(client=client, risk_manager=risk, api_manager=api)
+    # Guards against a regression where the ctor builds its own APIManager
+    # and silently re-introduces live NewsAPI/FRED calls into the test.
+    assert provider.api_manager is api
     return provider
 
 
@@ -80,6 +98,13 @@ def _risk(balance: float = 10000.0, equity: float = 10045.5) -> MagicMock:
     risk = MagicMock()
     risk.balance = balance
     risk.equity = equity
+    # fetch_data() seeds paper account evidence from risk.current_equity()
+    # (market_data_provider.py:1492). An unstubbed MagicMock returns a Mock,
+    # and float(Mock) == 1.0, which passed the "> 0.0" guard and invented an
+    # account dict even when the risk state was seeded with zero. Returning the
+    # seeded equity keeps the test asserting what it means to assert: that a
+    # zeroed risk state yields an EMPTY account, not a fabricated 1.0.
+    risk.current_equity.return_value = equity
     risk.risk_per_trade = 0.01
     risk.max_drawdown = 0.05
     risk.open_positions = []
