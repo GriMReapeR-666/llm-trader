@@ -19,7 +19,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data.mt5_calendar_wrapper import (
     MT5CalendarWrapper, CalendarCountry, CalendarEvent, CalendarValue,
     CalendarEventImportance, CalendarEventImpact, CalendarEventType,
-    MT5CalendarError, MT5CalendarConnectionError, MT5CalendarDataError
+    MT5CalendarError, MT5CalendarConnectionError, MT5CalendarDataError,
+    find_mt5_dll,
 )
 
 from data.mt5_calendar_enhanced import (
@@ -31,9 +32,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-@unittest.skipIf(not os.path.exists("C:\\Program Files\\MetaTrader 5\\terminal64.dll") and 
-                not os.path.exists("C:\\Program Files (x86)\\MetaTrader 5\\terminal64.dll"),
-                "MT5 not installed - skipping integration tests")
+@pytest.mark.integration
+@unittest.skipIf(find_mt5_dll() is None,
+                 "MT5 terminal64.dll (MQL5 calendar exports) not present - skipping integration tests")
 class TestMT5CalendarIntegration(unittest.TestCase):
     """Integration tests requiring real MT5 connection"""
     
@@ -185,9 +186,9 @@ class TestMT5CalendarIntegration(unittest.TestCase):
         logger.info(f"Retrieved {len(usd_values)} USD-related calendar values")
 
 
-@unittest.skipIf(not os.path.exists("C:\\Program Files\\MetaTrader 5\\terminal64.dll") and 
-                not os.path.exists("C:\\Program Files (x86)\\MetaTrader 5\\terminal64.dll"),
-                "MT5 not installed - skipping integration tests")
+@pytest.mark.integration
+@unittest.skipIf(find_mt5_dll() is None,
+                 "MT5 terminal64.dll (MQL5 calendar exports) not present - skipping integration tests")
 class TestEnhancedMT5CalendarIntegration(unittest.TestCase):
     """Integration tests for enhanced calendar wrapper"""
     
