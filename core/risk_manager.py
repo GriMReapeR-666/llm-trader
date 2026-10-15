@@ -1411,6 +1411,33 @@ anyone reasoning about how much drawdown the account can absorb.
 
         # 4. Volume Calculation
         dist = abs(entry - sl)
+
+        # Gold Scaling Ladder Overlay (Micro-account 9-rung ladder & step-delay elimination)
+        if any(g in symbol.upper() for g in ("XAU", "GOLD")):
+            try:
+                from core.gold_scaling_ladder import GoldScalingLadder
+                ladder = GoldScalingLadder(peak_equity=self.peak_equity)
+                sl_pips = dist / 0.10  # 1 retail pip = $0.10/oz on gold
+                ladder_res = ladder.calculate_lot_size(
+                    current_equity=equity,
+                    proposed_stop_pips=sl_pips,
+                    spread_points=float(market.get("spread", 15.0)) if market else 15.0,
+                    adx_14=float(market.get("adx", 25.0)) if market and "adx" in market else None,
+                    daily_atr_dollars=float(market.get("daily_atr", 50.0)) if market and "daily_atr" in market else None,
+                )
+                if ladder_res.get("status") == "REJECTED":
+                    logging.getLogger("RiskManager").warning("GoldScalingLadder rejected: %s", ladder_res.get("reason"))
+                    return 0.0
+                ladder_lot = float(ladder_res.get("calculated_lot", 0.0) or 0.0)
+                if ladder_lot > 0:
+                    logging.getLogger("RiskManager").info(
+                        "GoldScalingLadder: Rung %s (%s) → %.2f lots",
+                        ladder_res.get("rung_id"), ladder_res.get("rule_applied"), ladder_lot,
+                    )
+                    return ladder_lot
+            except Exception as _gsl_exc:
+                logging.getLogger("RiskManager").debug("GoldScalingLadder overlay skipped: %s", _gsl_exc)
+
         info = self._symbol_spec(symbol)
         
         if not info:

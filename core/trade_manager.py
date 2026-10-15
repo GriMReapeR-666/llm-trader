@@ -621,6 +621,35 @@ class TradeManager(StoreBackedState):
         risk_dist = self._initial_risk_for(pos, atr)
 
         # 1. Breakeven Check — move SL to entry at +1R
+        symbol = getattr(pos, "symbol", "")
+        if any(g in symbol.upper() for g in ("XAU", "GOLD")):
+            try:
+                from core.gold_scaling_ladder import GoldScalingLadder
+                g_ladder = GoldScalingLadder()
+                direction = "LONG" if pos_type == mt5.ORDER_TYPE_BUY else "SHORT"
+                exit_eval = g_ladder.evaluate_dynamic_exits(
+                    entry_price=open_price,
+                    current_price=current_price,
+                    direction=direction,
+                    current_sl=current_sl,
+                    m15_atr=atr,
+                )
+                if exit_eval.get("partial_close_pct", 0.0) >= 0.50 and float(getattr(pos, "volume", 0.0) or 0.0) >= 0.02:
+                    stage_key = f"gold_stage1_closed_{ticket}"
+                    if not getattr(self, stage_key, False):
+                        setattr(self, stage_key, True)
+                        self._execute_partial_close(pos, fraction=0.50, stage=1)
+                new_gold_sl = float(exit_eval.get("proposed_sl", 0.0) or 0.0)
+                if new_gold_sl > 0:
+                    if pos_type == mt5.ORDER_TYPE_BUY and new_gold_sl > current_sl:
+                        self._record_management(ticket, "GOLD_DYNAMIC_SL_UPDATE", {"old_sl": current_sl, "new_sl": new_gold_sl, "stage": exit_eval.get("active_stage")})
+                        self._modify_sl(ticket, new_gold_sl, exit_eval.get("active_stage", "GoldTrailing"))
+                    elif pos_type == mt5.ORDER_TYPE_SELL and (current_sl == 0 or new_gold_sl < current_sl):
+                        self._record_management(ticket, "GOLD_DYNAMIC_SL_UPDATE", {"old_sl": current_sl, "new_sl": new_gold_sl, "stage": exit_eval.get("active_stage")})
+                        self._modify_sl(ticket, new_gold_sl, exit_eval.get("active_stage", "GoldTrailing"))
+            except Exception as _g_exit_exc:
+                self.log.debug("Gold dynamic exit evaluation skipped: %s", _g_exit_exc)
+
         if pos_type == mt5.ORDER_TYPE_BUY:
             profit_dist = current_price - open_price
             if profit_dist > (risk_dist * self.breakeven_r_mult):

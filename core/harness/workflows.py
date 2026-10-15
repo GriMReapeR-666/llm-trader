@@ -1192,3 +1192,82 @@ class QuantWorkflowEngine:
 
         snap = market_snapshot or {"symbol": symbol, "price": 1.0850, "atr": 0.0015, "bid": 1.0849, "ask": 1.0851}
         return workflow.execute(ctx=ctx, symbol=symbol, market_snapshot=snap)
+
+    def evaluate_and_select_best_workflow(
+        self,
+        ctx: TradingContext,
+        symbol: str = "EURUSD",
+        market_snapshot: Optional[Dict[str, Any]] = None,
+        candidate_workflows: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Evaluates all candidate quant workflows and selects the highest-scoring candidate."""
+        snap = market_snapshot or {"symbol": symbol, "price": 1.0850, "atr": 0.0015, "bid": 1.0849, "ask": 1.0851}
+        
+        candidates = candidate_workflows or [
+            "statistical_arbitrage",
+            "mean_reversion",
+            "macro_momentum",
+            "microstructure",
+            "neural_kronos",
+            "macro_event_alpha",
+            "retail_quant",
+        ]
+
+        scored_evaluations: List[Dict[str, Any]] = []
+
+        for wf_name in candidates:
+            try:
+                res = self.execute_workflow(wf_name, ctx=ctx, symbol=symbol, market_snapshot=snap)
+                res_dict = res.to_dict()
+                
+                # Base score from decision state
+                decision = res.decision
+                if decision == "EXECUTE":
+                    base_score = 100.0
+                elif decision == "HOLD":
+                    base_score = 50.0
+                elif decision == "REJECT":
+                    base_score = 10.0
+                else:
+                    base_score = -50.0
+                    
+                # Bonus from passed pipeline steps
+                steps = res.steps
+                step_score = (sum(1 for s in steps if s.passed) / max(1, len(steps))) * 50.0
+                
+                # Bonus from signal confidence
+                conf = float(res.signals.get("confidence", 0.0) or 0.0)
+                conf_score = conf * 30.0
+                
+                composite_score = base_score + step_score + conf_score
+                
+                scored_evaluations.append({
+                    "workflow_name": wf_name,
+                    "composite_score": round(composite_score, 2),
+                    "decision": decision,
+                    "passed_steps": sum(1 for s in steps if s.passed),
+                    "total_steps": len(steps),
+                    "result": res_dict,
+                })
+            except Exception as e:
+                scored_evaluations.append({
+                    "workflow_name": wf_name,
+                    "composite_score": -999.0,
+                    "decision": "ERROR",
+                    "error": str(e),
+                })
+
+        scored_evaluations.sort(key=lambda x: x.get("composite_score", -999.0), reverse=True)
+        best = scored_evaluations[0] if scored_evaluations else {}
+
+        return {
+            "status": "READY_FOR_REVIEW",
+            "evaluated_count": len(scored_evaluations),
+            "selected_workflow_name": best.get("workflow_name", "retail_quant"),
+            "best_composite_score": best.get("composite_score", 0.0),
+            "best_decision": best.get("decision", "HOLD"),
+            "best_result": best.get("result"),
+            "all_evaluations": scored_evaluations,
+            "execution_authority": False,
+        }
+
