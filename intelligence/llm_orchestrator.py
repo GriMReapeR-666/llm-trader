@@ -235,6 +235,11 @@ except ImportError:
     NewsExecutionEngine = None
 
 try:
+    from core.macro_playbook_router import route_event as _route_macro_event
+except ImportError:
+    _route_macro_event = None
+
+try:
     from core.llm_decision_logger import LLMDecisionLogger
 except ImportError:
     LLMDecisionLogger = None
@@ -8111,10 +8116,10 @@ class LLMOrchestrator:
             except Exception as _corr_exc:
                 log.debug("NewsRegimeCorrelation init skipped: %s", _corr_exc)
             _news_gate = NewsTradingGate(correlation_engine=_corr_engine)
-            _news_events = toon.get("news", [])
+            _news_events = list(toon.get("news", []) or [])
             if not _news_events and self.data_provider.api_manager:
                 try:
-                    _news_events = self.data_provider.api_manager.get_calendar() or []
+                    _news_events = list(self.data_provider.api_manager.get_calendar() or [])
                 except Exception:
                     _news_events = []
             if "no_news" in self.ablation_modes:
@@ -8132,7 +8137,8 @@ class LLMOrchestrator:
                     {"symbol": symbol, "strategy": strategy},
                     run_id=self.run_id)
             else:
-                _news_result = _news_gate.evaluate(symbol=symbol, now=datetime.now(timezone.utc), events=_news_events)
+                from datetime import datetime as _ng_dt, timezone as _ng_tz
+                _news_result = _news_gate.evaluate(symbol=symbol, now=_ng_dt.now(_ng_tz.utc), events=_news_events)
             if not _news_result.allowed:
                 self._bus_emit("ω", "NEWS_GATE", "blocked", {
                     "phase": _news_result.phase,
@@ -8170,22 +8176,27 @@ class LLMOrchestrator:
                     _live_fetcher = self._live_indicator_fetcher
                 except Exception as _fetcher_exc:
                     log.debug("LiveIndicatorFetcher init skipped: %s", _fetcher_exc)
+                    import traceback as _ftb
+                    for _ln in _ftb.format_exception(_fetcher_exc):
+                        log.debug("LiveIndicatorFetcher init traceback: %s", _ln.rstrip())
             # Store news context in toon for LLM prompt (with live indicators)
             _news_ctx = get_news_trading_context(
                 symbol=symbol, events=_news_events,
                 live_indicator_fetcher=_live_fetcher,
             )
             toon["news_trading_context"] = _news_ctx
-            toon["news_gate"] = {"phase": _news_result.phase, "allowed": True}
+            toon["news_gate"] = {"phase": _news_result.phase, "allowed": _news_result.allowed, "ablated": False}
+            log.debug("news_gate set: phase=%s allowed=%s events=%d", _news_result.phase, _news_result.allowed, len(_news_events))
             # ── News Execution Engine (Blind Spot #10) ───────────────────────
             try:
                 if not hasattr(self, '_news_exec_engine') and NewsExecutionEngine is not None:
                     self._news_exec_engine = NewsExecutionEngine()
-                if hasattr(self, '_news_exec_engine') and _news_events:
-                    for _evt in _news_events:
+                for _evt in (_news_events or []):
                         _evt_actual = _evt.get("actual") or _evt.get("value")
                         _evt_consensus = _evt.get("forecast") or _evt.get("consensus")
-                        if _evt_actual is not None and _evt_consensus is not None:
+                        if (hasattr(self, '_news_exec_engine')
+                                and _evt_actual is not None
+                                and _evt_consensus is not None):
                             try:
                                 _news_plan = self._news_exec_engine.create_execution_plan(
                                     event_name=_evt.get("title", _evt.get("event", "")),
@@ -8197,13 +8208,51 @@ class LLMOrchestrator:
                                         "current_prices": {symbol: float(toon.get("context", {}).get("midpoint", 0))},
                                         "macro_regime": toon.get("regime", {}).get("regime_id", "EXPANSION"),
                                     },
-                                    account_balance=float(self.store.get_account_info().get("balance", 100000)),
+                                    account_balance=float(getattr(self.risk, "balance", 100000.0) or 100000.0),
                                 )
                                 toon["news_execution_plan"] = _news_plan.to_dict()
                                 if _news_plan.blackout_active:
                                     log.info("NEWS EXEC BLACKOUT: %s — %s", symbol, _news_plan.reasoning[:200])
                             except Exception as _nexe:
                                 log.debug("News execution plan skipped: %s", _nexe)
+                        # Wire macro_playbook_router verdicts into downstream context (observational only)
+                        try:
+                            if _route_macro_event is not None:
+                                _ev_title = _evt.get("title") or _evt.get("event") or _evt.get("name") or ""
+                                _ev_time = _evt.get("datetime") or _evt.get("time") or _evt.get("date")
+                                minutes_since = None
+                                if _ev_time:
+                                    try:
+                                        if isinstance(_ev_time, datetime):
+                                            _et = _ev_time.astimezone(timezone.utc)
+                                        else:
+                                            _et = datetime.fromisoformat(str(_ev_time).replace("Z", "+00:00"))
+                                        minutes_since = max(0.0, (datetime.now(timezone.utc) - _et).total_seconds() / 60.0)
+                                    except Exception:
+                                        minutes_since = None
+                                _mreg = None
+                                try:
+                                    _mreg = toon.get("regime", {}).get("regime_id") or toon.get("intermarket_regime", {}).get("regime_id")
+                                except Exception:
+                                    _mreg = None
+                                _routed = _route_macro_event(
+                                    event_title=_ev_title or "",
+                                    minutes_since_event=minutes_since,
+                                    phase_name=_news_result.phase if "_news_result" in locals() else None,
+                                    actual=float(_evt_actual) if _evt_actual is not None else None,
+                                    consensus=float(_evt_consensus) if _evt_consensus is not None else None,
+                                    historical_std=None,
+                                    disaggregated_components=None,
+                                    macro_regime=str(_mreg) if _mreg else "EXPANSION",
+                                    cot_speculative_percentile=None,
+                                )
+                                toon.setdefault("macro_routed_verdicts", []).append({
+                                    "event_title": _ev_title,
+                                    "verdict": _routed,
+                                    "execution_authority": False,
+                                })
+                        except Exception as _rte:
+                            log.debug("macro_playbook_router.route_event skipped: %s", _rte)
             except Exception as _ne_exc:
                 log.debug("NewsExecutionEngine init skipped: %s", _ne_exc)
             # Store NFP/CPI predictions for position sizing and LLM prompt
