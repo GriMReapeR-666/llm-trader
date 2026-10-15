@@ -381,6 +381,17 @@ class SealedSandboxEvaluator:
         candidate.ic_std = float(np.std(ic_values))
         candidate.ic_ir = candidate.ic_mean / max(candidate.ic_std, 1e-6)
 
+        # Apply thresholds (fail closed: require strictly positive IC and IC_IR)
+        if candidate.ic_mean < self.min_ic_mean:
+            candidate.status = "REJECTED"
+            candidate.rejection_reason = f"IC mean too low: {candidate.ic_mean:.4f} < {self.min_ic_mean}"
+            return candidate
+
+        if candidate.ic_ir < self.min_ic_ir:
+            candidate.status = "REJECTED"
+            candidate.rejection_reason = f"IC_IR too low: {candidate.ic_ir:.4f} < {self.min_ic_ir}"
+            return candidate
+
         # Out-of-sample validation on test set
         test_alpha = self.evaluator.evaluate(candidate.expression, test_df)
         if test_alpha is not None and "close" in test_df.columns:
@@ -412,17 +423,6 @@ class SealedSandboxEvaluator:
         if alpha_series.notna().sum() > 1:
             changes = alpha_series.diff().abs()
             candidate.turnover = float(changes.mean())
-
-        # Apply thresholds
-        if abs(candidate.ic_ir) < self.min_ic_ir:
-            candidate.status = "REJECTED"
-            candidate.rejection_reason = f"IC_IR too low: {candidate.ic_ir:.4f} < {self.min_ic_ir}"
-            return candidate
-
-        if abs(candidate.ic_mean) < self.min_ic_mean:
-            candidate.status = "REJECTED"
-            candidate.rejection_reason = f"IC mean too low: {candidate.ic_mean:.4f}"
-            return candidate
 
         candidate.status = "VALIDATED"
         candidate.discovered_at = time.time()

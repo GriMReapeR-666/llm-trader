@@ -144,6 +144,22 @@ class TestRotationLogic:
         active = fresh_engine.get_active_set()
         assert len(active) >= fresh_engine.min_alphas
 
+    def test_evicts_dead_alpha_without_replacement_when_above_min_alphas(self, fresh_engine):
+        """When pool has no candidate, dead alpha is evicted without replacement if above min_alphas."""
+        health = {name: {"status": "DEAD", "ic_mean": -0.05, "ic_ir": -0.5} for name in FULL_POOL}
+        active = fresh_engine.get_active_set()[:5]
+        fresh_engine._active_set = list(active)
+        for a in active[:4]:
+            health[a] = {"status": "HEALTHY", "ic_mean": 0.04, "ic_ir": 0.5}
+        health[active[4]] = {"status": "DEAD", "ic_mean": -0.05, "ic_ir": -0.5}
+
+        events = fresh_engine.update(health, FULL_POOL, current_bar=100)
+        assert len(events) == 1
+        assert events[0].removed_alpha == active[4]
+        assert events[0].promoted_alpha == "NONE"
+        assert active[4] not in fresh_engine.get_active_set()
+        assert len(fresh_engine.get_active_set()) == 4
+
     def test_reversed_alpha_triggers_rotation(self, fresh_engine):
         health = _make_health(
             alpha_012={"status": "HEALTHY", "ic_mean": 0.04, "ic_ir": 0.5},

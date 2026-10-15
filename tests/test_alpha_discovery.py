@@ -185,6 +185,31 @@ class TestSealedSandbox:
         result = evaluator.evaluate_candidate(candidate, train, test)
         assert result.status == "REJECTED"
 
+    def test_negative_ic_rejected(self):
+        from core.alpha_discovery import SealedSandboxEvaluator, AlphaCandidate
+        evaluator = SealedSandboxEvaluator(min_ic_ir=0.15, min_ic_mean=0.02)
+        n = 300
+        t = np.linspace(0, 50, n)
+        close = 100.0 + np.sin(t) * 10.0
+        df = pd.DataFrame({
+            "open": close,
+            "high": close + 1,
+            "low": close - 1,
+            "close": close,
+            "volume": np.ones(n) * 1000,
+        })
+        train = df.iloc[:200]
+        test = df.iloc[200:]
+        candidate = AlphaCandidate(
+            expression="0 - delta(close, 1)",
+            name="neg_alpha",
+            category="momentum",
+        )
+        result = evaluator.evaluate_candidate(candidate, train, test)
+        # Must be rejected because IC mean and IC_IR are negative
+        assert result.status == "REJECTED"
+        assert "too low" in result.rejection_reason
+
 
 # ===========================================================================
 # 4. Experience Memory

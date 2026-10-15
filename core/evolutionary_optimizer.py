@@ -4,9 +4,10 @@ Implements evolutionary optimization of trading strategy parameters:
   1. POPULATION: Maintain diverse strategy configurations
   2. EVALUATE: Backtest each candidate to compute fitness
   3. SELECT: Tournament selection of parents
-  4. CROSSOVER: Blend parameters from two parents
-  5. MUTATE: Random perturbation of parameters
+  4. CROSSOVER: Block-wise blend that preserves parameter coherence
+  5. MUTATE: Random perturbation of parameters, then re-repair coherence
   6. ELITISM: Preserve top performers across generations
+  7. SEED (opt-in): LLM-proposed initial genes, repaired on ingest
 
 Parameter budget enforcement (MadEvolve insight):
   "Every additional free parameter expands the effective search space
@@ -22,11 +23,12 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import os
 import random
 import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -106,6 +108,95 @@ DEFAULT_ALPHA_NAMES = [
 
 
 # ---------------------------------------------------------------------------
+# Gene coherence
+# ---------------------------------------------------------------------------
+
+#: Parameters that only make sense together. Averaging ``stop_loss_atr`` from
+#: one parent with ``take_profit_atr`` from the other can invert the R:R, so
+#: crossover moves these as a unit instead of per-scalar.
+COHERENT_BLOCKS: Dict[str, List[str]] = {
+    "entry": ["entry_confidence_threshold"],
+    "risk_reward": ["stop_loss_atr", "take_profit_atr", "partial_close_r",
+                    "trailing_stop_activate_r"],
+    "sizing": ["risk_per_trade", "max_positions", "regime_position_scale"],
+    "regime": ["regime_risk_multiplier"],
+    "timing": ["holding_period_bars"],
+}
+
+
+def _clamp(value: Any, lo: float, hi: float, default: float) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    if parsed != parsed:  # NaN
+        return default
+    if parsed in (float("inf"), float("-inf")):
+        return default
+    return max(lo, min(hi, parsed))
+
+
+def repair_gene(gene: StrategyGene) -> StrategyGene:
+    """Restore structural coherence to a gene. Returns the same object.
+
+    Per-parameter bounds are necessary but not sufficient. A gene can satisfy
+    every range in ``PARAM_SPACE`` and still be incoherent: ``take_profit_atr``
+    below ``stop_loss_atr`` gives an inverted payoff, so every trade in it is a
+    structural loser regardless of how well the entry was signalled. Averaging
+    crossover can manufacture exactly that from two individually-good parents.
+
+    This is also the trust boundary for LLM-proposed genes: a model asked for a
+    configuration will happily emit out-of-range or sign-flipped values, and a
+    GA that ingests those unrepaired silently optimizes nonsense.
+    """
+    for param, (lo, hi, ptype) in PARAM_SPACE.items():
+        if ptype == "int":
+            try:
+                value = int(round(float(getattr(gene, param, lo))))
+            except (TypeError, ValueError):
+                value = int(lo)
+            setattr(gene, param, int(max(int(lo), min(int(hi), value))))
+        else:
+            lo_f, hi_f = float(lo), float(hi)
+            setattr(gene, param, _clamp(getattr(gene, param, lo), lo_f, hi_f, lo_f))
+
+    tp_lo, tp_hi = (float(PARAM_SPACE["take_profit_atr"][0]),
+                    float(PARAM_SPACE["take_profit_atr"][1]))
+    # Target must exceed stop by a margin, so realized R:R stays above 1.
+    if gene.take_profit_atr <= gene.stop_loss_atr * 1.05:
+        gene.take_profit_atr = _clamp(gene.stop_loss_atr * 1.25, tp_lo, tp_hi, tp_lo)
+
+    realized_rr = gene.take_profit_atr / max(gene.stop_loss_atr, 1e-9)
+    pc_lo, pc_hi = (float(PARAM_SPACE["partial_close_r"][0]),
+                    float(PARAM_SPACE["partial_close_r"][1]))
+    # A partial close beyond the target R is unreachable by construction.
+    gene.partial_close_r = _clamp(gene.partial_close_r, pc_lo,
+                                  min(pc_hi, realized_rr * 0.9), pc_lo)
+    ts_lo, ts_hi = (float(PARAM_SPACE["trailing_stop_activate_r"][0]),
+                    float(PARAM_SPACE["trailing_stop_activate_r"][1]))
+    # Trailing must engage no later than the partial, else it never runs.
+    gene.trailing_stop_activate_r = _clamp(gene.trailing_stop_activate_r,
+                                           ts_lo, min(ts_hi, gene.partial_close_r), ts_lo)
+
+    weights: Dict[str, float] = {}
+    for name, raw in (gene.alpha_weights or {}).items():
+        try:
+            w = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if w == w and w > 0:  # drop NaN and non-positive
+            weights[str(name)] = w
+    if not weights:
+        weights = {DEFAULT_ALPHA_NAMES[0]: 1.0}
+    total = sum(weights.values())
+    gene.alpha_weights = ({k: v / total for k, v in weights.items()}
+                          if total > 0 else weights)
+
+    gene.max_positions = max(1, int(gene.max_positions))
+    return gene
+
+
+# ---------------------------------------------------------------------------
 # Evolutionary Operators
 # ---------------------------------------------------------------------------
 
@@ -165,6 +256,67 @@ def crossover(parent_a: StrategyGene, parent_b: StrategyGene, child_id: str, gen
     )
 
 
+def semantic_crossover(
+    parent_a: StrategyGene,
+    parent_b: StrategyGene,
+    child_id: str,
+    generation: int,
+    *,
+    exploration: float = 0.25,
+) -> StrategyGene:
+    """Block-wise crossover that keeps related parameters coherent.
+
+    ``crossover`` averages every scalar independently. That is the cheapest
+    possible blend and it is structurally wrong: ``stop_loss_atr`` and
+    ``take_profit_atr`` are only meaningful as a pair, so independently
+    averaging them lets a child inherit a stop from one parent and a target
+    from the other whose ordering inverts the payoff. Averaging two good
+    parents can therefore produce a strictly worse child than either.
+
+    Here each coherent block is inherited whole from one parent, chosen with a
+    bias toward the fitter parent and an ``exploration`` probability of taking
+    the weaker one (so a single elite cannot collapse the population). Ties and
+    unevaluated genes fall back to a coin flip.
+    """
+    child = StrategyGene(
+        gene_id=child_id,
+        alpha_weights={},
+        generation=generation,
+        parent_ids=[parent_a.gene_id, parent_b.gene_id],
+    )
+
+    fa, fb = float(parent_a.fitness or 0.0), float(parent_b.fitness or 0.0)
+    if fa == fb:
+        p_take_a = 0.5
+    else:
+        # Tempered preference for the better parent: never fully deterministic.
+        p_take_a = 0.5 + min(0.35, abs(fa - fb) * 0.25)
+        if not (fa > fb):
+            p_take_a = 1.0 - p_take_a
+
+    for block in COHERENT_BLOCKS.values():
+        src = parent_a if random.random() < p_take_a else parent_b
+        if random.random() < exploration:
+            src = parent_b if src is parent_a else parent_a
+        for param in block:
+            setattr(child, param, copy.deepcopy(getattr(src, param)))
+
+    weights: Dict[str, float] = {}
+    for name in set(parent_a.alpha_weights) | set(parent_b.alpha_weights):
+        weights[name] = (parent_a.alpha_weights.get(name, 0.0)
+                         + parent_b.alpha_weights.get(name, 0.0)) / 2.0
+    child.alpha_weights = weights
+    # Fitness fields describe a measurement, never inherit them from a parent.
+    child.fitness = 0.0
+    child.sharpe = 0.0
+    child.win_rate = 0.0
+    child.max_drawdown = 0.0
+    child.total_return = 0.0
+    child.calmar = 0.0
+    child.n_trades = 0
+    return repair_gene(child)
+
+
 def mutate(gene: StrategyGene, mutation_rate: float = 0.2, mutation_strength: float = 0.15) -> StrategyGene:
     """Mutate a gene with random perturbations."""
     child = copy.deepcopy(gene)
@@ -192,7 +344,142 @@ def mutate(gene: StrategyGene, mutation_rate: float = 0.2, mutation_strength: fl
     if total > 0:
         child.alpha_weights = {k: v / total for k, v in child.alpha_weights.items()}
 
-    return child
+    # Per-parameter clamping above cannot see relations BETWEEN parameters, so
+    # a mutation that lifts take_profit_atr's floor over a raised stop loss can
+    # still invert the payoff. Re-establish coherence before the child is
+    # allowed into the population.
+    return repair_gene(child)
+
+
+def llm_seed_gene(
+    gene_id: str = "",
+    generation: int = 0,
+    *,
+    router: Any = None,
+    agent: str = "evolutionary_optimizer",
+    model: Optional[str] = None,
+    elites: Optional[Sequence[StrategyGene]] = None,
+) -> Dict[str, Any]:
+    """Ask the LLM for a seed gene; fall back to random on any failure.
+
+    Returns ``{"gene", "source", "reason"}`` so callers can audit how many
+    population members actually came from the model rather than assuming the
+    seeding path is live. The gene is repaired before return and never carries
+    execution authority -- a proposed gene still has to earn fitness like every
+    other individual.
+
+    Degrades deterministically: no reachable provider, a non-JSON reply, a
+    schema mismatch, or a router error all fall back to ``random_gene`` rather
+    than failing the caller.
+    """
+    fallback_id = gene_id or f"gene_{random.randint(0, 999999)}"
+
+    def _fallback(reason: str) -> Dict[str, Any]:
+        return {
+            "gene": repair_gene(random_gene(gene_id=fallback_id, generation=generation)),
+            "source": "random_fallback",
+            "reason": reason,
+            "execution_authority": False,
+        }
+
+    try:
+        if router is None:
+            from data.llm_router import get_router
+            router = get_router()
+        if agent not in getattr(router, "agents", {}):
+            available = list(getattr(router, "providers", {}).keys())
+            if not available:
+                return _fallback("llm_router_has_no_providers")
+            primary = "openrouter" if "openrouter" in available else available[0]
+            router.register_agent(
+                agent,
+                provider=primary,
+                model=model or os.getenv(
+                    "EVOL_LLM_MODEL", "meta-llama/llama-3.2-11b-vision-instruct:free"),
+                fallback_providers=[p for p in available if p != primary],
+                allow_failover=True,
+            )
+    except Exception as exc:  # noqa: BLE001 - seeding is opportunistic
+        return _fallback(f"router_unavailable:{type(exc).__name__}")
+
+    elite_lines = [
+        f"  fitness={e.fitness:.3f} sharpe={e.sharpe:.3f} dd={e.max_drawdown:.3f} "
+        f"sl_atr={e.stop_loss_atr:.2f} tp_atr={e.take_profit_atr:.2f} "
+        f"threshold={e.entry_confidence_threshold:.2f} risk={e.risk_per_trade:.4f}"
+        for e in list(elites or [])[:5]
+    ] or ["  (no evaluated individuals yet)"]
+
+    prompt = (
+        "Propose ONE trading-strategy configuration as a single JSON object.\n\n"
+        f"Valid alpha ids: {', '.join(DEFAULT_ALPHA_NAMES)}\n\n"
+        "Ranges (inclusive):\n"
+        + "\n".join(f"  {k}: {v[0]}..{v[1]}" for k, v in PARAM_SPACE.items())
+        + "\n\nHard requirements:\n"
+        "  take_profit_atr MUST be greater than stop_loss_atr.\n"
+        "  partial_close_r MUST be less than take_profit_atr / stop_loss_atr.\n"
+        "  trailing_stop_activate_r MUST be <= partial_close_r.\n"
+        "  alpha_weights must sum to 1.0.\n\n"
+        "Best individuals so far (higher fitness is better):\n"
+        + "\n".join(elite_lines)
+        + "\n\nPropose something that DIFFERS from the elite above. JSON only.\n"
+    )
+
+    try:
+        raw = router.generate(
+            agent,
+            [{"role": "system", "content":
+              "You propose trading-strategy configurations. Reply with one JSON "
+              "object and nothing else."},
+             {"role": "user", "content": prompt}],
+        )
+    except Exception as exc:  # noqa: BLE001
+        return _fallback(f"llm_call_failed:{type(exc).__name__}")
+
+    if not raw:
+        return _fallback("empty_llm_response")
+    text = str(raw).strip()
+    start, end = text.find("{"), text.rfind("}")
+    if start < 0 or end <= start:
+        return _fallback("no_json_in_response")
+    try:
+        payload = json.loads(text[start:end + 1])
+    except (ValueError, json.JSONDecodeError):
+        return _fallback("json_decode_failed")
+    if not isinstance(payload, dict):
+        return _fallback("json_not_object")
+
+    base = random_gene(gene_id=fallback_id, generation=generation)
+    accepted: List[str] = []
+    for key in PARAM_SPACE:
+        if key in payload:
+            try:
+                setattr(base, key, payload[key])
+            except Exception:  # noqa: BLE001
+                continue
+            accepted.append(key)
+
+    raw_weights = payload.get("alpha_weights")
+    if isinstance(raw_weights, dict) and raw_weights:
+        picked: Dict[str, float] = {}
+        for k, v in raw_weights.items():
+            if str(k) in DEFAULT_ALPHA_NAMES:
+                try:
+                    picked[str(k)] = float(v)
+                except (TypeError, ValueError):
+                    continue
+        if picked:
+            base.alpha_weights = picked
+            accepted.append("alpha_weights")
+    if not accepted:
+        return _fallback("no_usable_fields")
+
+    return {
+        "gene": repair_gene(base),
+        "source": "llm",
+        "reason": f"accepted={sorted(accepted)}",
+        "fields_from_llm": len(accepted),
+        "execution_authority": False,
+    }
 
 
 def tournament_select(population: List[StrategyGene], tournament_size: int = 3) -> StrategyGene:
@@ -433,7 +720,7 @@ class EvolutionaryOptimizer(StoreBackedState):
             parent_b = tournament_select(self.population, self.tournament_size)
 
             child_id = f"gen{self.state.generation}_{len(new_population)}"
-            child = crossover(parent_a, parent_b, child_id, self.state.generation)
+            child = semantic_crossover(parent_a, parent_b, child_id, self.state.generation)
             child = mutate(child, self.mutation_rate, self.mutation_strength)
 
             # Enforce parameter budget
@@ -564,3 +851,77 @@ class EvolutionaryOptimizer(StoreBackedState):
                 "worst_fitness": self.population[-1].fitness if self.population else 0.0,
             },
         }
+
+
+# ---------------------------------------------------------------------------
+# MAP-Elites Quality-Diversity Behavioral Archive
+# ---------------------------------------------------------------------------
+
+class MAPElitesArchive:
+    """Quality-Diversity Multi-dimensional Archive of Phenotypic Elites (MAP-Elites).
+
+    Illuminates the strategy search space by mapping candidates into a 2D behavioral
+    niche grid (e.g. holding period duration x payoff ratio or profit factor).
+    Each niche cell preserves only the highest-performing elite candidate, ensuring
+    the optimizer maintains a diverse library of distinct viable strategies rather
+    than collapsing onto clones of a single local optimum.
+    """
+
+    def __init__(
+        self,
+        dim1_bounds: Tuple[float, float] = (1.0, 100.0),
+        dim1_bins: int = 5,
+        dim2_bounds: Tuple[float, float] = (0.5, 5.0),
+        dim2_bins: int = 5,
+    ) -> None:
+        self.dim1_bounds = dim1_bounds
+        self.dim1_bins = max(1, int(dim1_bins))
+        self.dim2_bounds = dim2_bounds
+        self.dim2_bins = max(1, int(dim2_bins))
+        self.grid: Dict[Tuple[int, int], Dict[str, Any]] = {}
+
+    def _discretize(self, features: Tuple[float, float]) -> Tuple[int, int]:
+        f1, f2 = float(features[0]), float(features[1])
+        min1, max1 = self.dim1_bounds
+        min2, max2 = self.dim2_bounds
+
+        norm1 = 0.0 if max1 <= min1 else (f1 - min1) / (max1 - min1)
+        norm2 = 0.0 if max2 <= min2 else (f2 - min2) / (max2 - min2)
+
+        idx1 = int(np.clip(norm1 * self.dim1_bins, 0, self.dim1_bins - 1))
+        idx2 = int(np.clip(norm2 * self.dim2_bins, 0, self.dim2_bins - 1))
+        return (idx1, idx2)
+
+    def add_candidate(self, gene: Any, fitness: float, features: Tuple[float, float]) -> bool:
+        """Add candidate to its behavioral niche.
+
+        Replaces existing occupant only if new fitness is strictly greater.
+        Returns True if candidate was placed (new niche) or replaced existing elite, False otherwise.
+        """
+        cell = self._discretize(features)
+        fit = float(fitness)
+        if cell not in self.grid or fit > self.grid[cell]["fitness"]:
+            self.grid[cell] = {
+                "gene": gene,
+                "fitness": fit,
+                "features": (float(features[0]), float(features[1])),
+            }
+            return True
+        return False
+
+    def get_elites(self) -> List[Tuple[Any, float]]:
+        """Return list of (gene, fitness) tuples for all occupied niches."""
+        return [(entry["gene"], entry["fitness"]) for entry in self.grid.values()]
+
+    def coverage(self) -> float:
+        """Return proportion of grid niches occupied by elites (0.0 to 1.0)."""
+        total = self.total_niches()
+        return len(self.grid) / total if total > 0 else 0.0
+
+    def total_niches(self) -> int:
+        """Total number of niche bins available across dimensions."""
+        return self.dim1_bins * self.dim2_bins
+
+    def occupied_niches(self) -> int:
+        """Number of populated niches in the archive."""
+        return len(self.grid)

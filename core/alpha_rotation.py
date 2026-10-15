@@ -272,15 +272,36 @@ class AlphaRotationEngine(StoreBackedState):
 
             # Find best candidate for promotion
             candidate = self._find_best_candidate(active, health, current_bar)
+            ic_mean = h.get("ic_mean", 0.0)
             if candidate is None:
-                log.info(
-                    "Alpha %s is %s but no candidate available for promotion",
-                    alpha, h.get("status"),
-                )
+                if len(active) > self.min_alphas:
+                    active.remove(alpha)
+                    self._dead_timestamps[alpha] = current_bar
+                    self._bars_since_rotation = 0
+                    self._last_rotation_bar = current_bar
+                    self._total_rotations += 1
+                    event = RotationEvent(
+                        timestamp=current_bar,
+                        removed_alpha=alpha,
+                        promoted_alpha="NONE",
+                        reason=f"{h.get('status', 'DEAD')}: ic_mean={ic_mean:.4f} (evicted without replacement)",
+                        removed_ic_mean=ic_mean,
+                        promoted_ic_mean=0.0,
+                    )
+                    events.append(event)
+                    self._rotation_history.append(event)
+                    log.info(
+                        "EVICTION: removed dead/reversed %s (ic=%.4f, status=%s) without replacement (%d active remain, min=%d)",
+                        alpha, ic_mean, h.get("status"), len(active), self.min_alphas,
+                    )
+                else:
+                    log.info(
+                        "Alpha %s is %s but no candidate available for promotion and min_alphas=%d reached",
+                        alpha, h.get("status"), self.min_alphas,
+                    )
                 continue
 
             # Execute rotation
-            ic_mean = h.get("ic_mean", 0.0)
             active.remove(alpha)
             active.append(candidate.name)
 
