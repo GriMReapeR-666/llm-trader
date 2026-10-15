@@ -58,6 +58,7 @@ class MacroGraph:
               FOREIGN KEY(contradiction_of) REFERENCES macro_edges(edge_id)
             );
             CREATE INDEX IF NOT EXISTS idx_macro_edges_lookup ON macro_edges(source_entity,target_entity,status);
+            CREATE INDEX IF NOT EXISTS idx_macro_sources_kind ON macro_sources(json_extract(payload,'$.kind'));
             CREATE TABLE IF NOT EXISTS macro_edge_history (
               history_id INTEGER PRIMARY KEY, edge_id INTEGER NOT NULL, changed_at TEXT NOT NULL,
               action TEXT NOT NULL, status TEXT NOT NULL, reviewer TEXT, payload TEXT NOT NULL,
@@ -413,7 +414,12 @@ class MacroGraph:
         if not isinstance(source_quality, str) or not source_quality.strip():
             raise ValueError("event reaction source quality is required")
         actual_value, forecast_value, previous_value = number(actual), number(forecast), number(previous)
-        surprise = actual_value - forecast_value if actual_value is not None and forecast_value is not None else None
+        if actual_value is not None and forecast_value is not None:
+            surprise = actual_value - forecast_value
+        elif actual_value is not None and previous_value is not None:
+            surprise = actual_value - previous_value
+        else:
+            surprise = None
         with self._con() as con:
             cursor = con.execute("INSERT INTO event_reactions(event_source_id,symbol,observed_at,actual,forecast,previous,surprise,windows,source_quality) VALUES(?,?,?,?,?,?,?,?,?)",
                                 (event_source_id, symbol, utcnow(), actual_value, forecast_value, previous_value, surprise,
@@ -532,12 +538,27 @@ class MacroGraph:
                 if count >= len(windows):
                     rows = con.execute("SELECT window_name,target_seconds,observed_seconds,observed_price,return_fraction,observed_at FROM event_reaction_measurements WHERE tracker_key=? ORDER BY target_seconds", (tracker["tracker_key"],)).fetchall()
                     actual, forecast = tracker["actual"], tracker["forecast"]
-                    surprise = float(actual) - float(forecast) if actual is not None and forecast is not None else None
+                    previous = tracker["previous"]
+                    surprise_method = "CONSENSUS_DELTA"
+                    if actual is not None and forecast is not None:
+                        surprise = float(actual) - float(forecast)
+                    elif actual is not None and previous is not None:
+                        surprise = float(actual) - float(previous)
+                        surprise_method = "PREVIOUS_DELTA"
+                    else:
+                        surprise = None
+                        surprise_method = None
+                    windows_dict = {row["window_name"]: dict(row) for row in rows}
+                    if surprise_method:
+                        windows_dict["_surprise_method"] = surprise_method
+                    source_quality = tracker["source_quality"]
+                    if surprise_method == "PREVIOUS_DELTA":
+                        source_quality = f"{source_quality}; surprise=previous_delta"
                     cursor = con.execute("INSERT INTO event_reactions(event_source_id,symbol,observed_at,actual,forecast,previous,surprise,windows,source_quality) VALUES(?,?,?,?,?,?,?,?,?)",
                                          (tracker["event_source_id"], symbol, now.isoformat(), actual, forecast,
                                           tracker["previous"], surprise,
-                                          self._json({row["window_name"]: dict(row) for row in rows}),
-                                          tracker["source_quality"]))
+                                          self._json(windows_dict),
+                                          source_quality))
                     reaction_id = int(cursor.lastrowid)
                     con.execute("UPDATE event_reaction_trackers SET status='COMPLETE',final_reaction_id=? WHERE tracker_key=?", (reaction_id, tracker["tracker_key"]))
                     completed += 1

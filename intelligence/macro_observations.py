@@ -46,6 +46,39 @@ def ensure_schema(path: str) -> None:
         con.execute(
             "CREATE INDEX IF NOT EXISTS idx_macro_obs_entity ON macro_observations(entity, captured_at)"
         )
+        con.execute(
+            "CREATE INDEX IF NOT EXISTS idx_macro_obs_series_provider ON macro_observations(series, provider)"
+        )
+        ensure_provenance_column(con)
+
+
+def ensure_provenance_column(con) -> None:
+    """Add ``data_provenance`` and its index if the table predates them.
+
+    Roughly two thirds of this table is placeholder data -- 42 series carry a
+    constant sentinel, and the duplicated frequency series hold 14-18 real
+    points inside ~6,300 rows. Quarantining that by deleting it would destroy
+    research history, and leaving it unlabelled means the next consumer cannot
+    tell real from synthetic. So the rows stay and carry their verdict.
+
+    Additive and constant-default, so ``ALTER TABLE`` here is metadata-only and
+    existing ``SELECT *`` consumers (which all convert rows via ``dict(row)``)
+    are unaffected.
+    """
+    existing = {r[1] for r in con.execute("PRAGMA table_info(macro_observations)")}
+    if "data_provenance" not in existing:
+        con.execute(
+            "ALTER TABLE macro_observations ADD COLUMN data_provenance TEXT"
+            " NOT NULL DEFAULT 'UNCLASSIFIED'"
+        )
+    con.execute(
+        "CREATE INDEX IF NOT EXISTS idx_macro_obs_provenance"
+        " ON macro_observations(data_provenance, series)"
+    )
+    con.execute(
+        "CREATE INDEX IF NOT EXISTS idx_macro_obs_series_provider"
+        " ON macro_observations(series, provider)"
+    )
 
 
 def _series_to_entity() -> Dict[str, str]:
@@ -268,20 +301,39 @@ def recent(
     *,
     entity: str = "",
     limit: int = 20,
+    evidence_only: bool = True,
 ) -> Dict[str, Any]:
     ensure_schema(path)
     with _con(path) as con:
-        if entity:
-            rows = con.execute(
-                """SELECT * FROM macro_observations WHERE entity=?
-                   ORDER BY observation_id DESC LIMIT ?""",
-                (str(entity)[:120], int(limit)),
-            ).fetchall()
+        if evidence_only:
+            from intelligence.observation_provenance import QUARANTINED_VERDICTS
+            marks = ",".join("?" * len(QUARANTINED_VERDICTS))
+            if entity:
+                rows = con.execute(
+                    f"""SELECT * FROM macro_observations
+                       WHERE entity=? AND data_provenance NOT IN ({marks})
+                       ORDER BY observation_id DESC LIMIT ?""",
+                    (str(entity)[:120], *QUARANTINED_VERDICTS, int(limit)),
+                ).fetchall()
+            else:
+                rows = con.execute(
+                    f"""SELECT * FROM macro_observations
+                       WHERE data_provenance NOT IN ({marks})
+                       ORDER BY observation_id DESC LIMIT ?""",
+                    (*QUARANTINED_VERDICTS, int(limit)),
+                ).fetchall()
         else:
-            rows = con.execute(
-                "SELECT * FROM macro_observations ORDER BY observation_id DESC LIMIT ?",
-                (int(limit),),
-            ).fetchall()
+            if entity:
+                rows = con.execute(
+                    """SELECT * FROM macro_observations WHERE entity=?
+                       ORDER BY observation_id DESC LIMIT ?""",
+                    (str(entity)[:120], int(limit)),
+                ).fetchall()
+            else:
+                rows = con.execute(
+                    "SELECT * FROM macro_observations ORDER BY observation_id DESC LIMIT ?",
+                    (int(limit),),
+                ).fetchall()
     return {
         "status": "OK",
         "count": len(rows),
