@@ -74,7 +74,8 @@ os.environ.setdefault("LLM_TRADER_OPENBB_OFFLINE", "1")
 # ---------------------------------------------------------------------------
 for _k in ("OPENROUTER_API_KEY", "TOKENROUTER_KEY", "TOKENROUTER_API_KEY",
            "ROUTESME_KEY", "ROUTESME_API_KEY", "CEREBRAS_API_KEY",
-           "NVIDIA_KEY", "NVIDIA_API_KEY"):
+           "NVIDIA_KEY", "NVIDIA_API_KEY",
+           "OMNIROUTER_KEY", "OMNIROUTER_API_KEY"):
     os.environ.pop(_k, None)
 
 # ---------------------------------------------------------------------------

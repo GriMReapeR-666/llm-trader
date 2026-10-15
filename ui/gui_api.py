@@ -1640,11 +1640,15 @@ def _nowcasts_snapshot(brain: dict) -> list:
             if os.path.exists(_db_path):
                 with sqlite3.connect(_db_path) as con:
                     con.row_factory = sqlite3.Row
+                    from intelligence.observation_provenance import QUARANTINED_VERDICTS
+                    marks = ",".join("?" * len(QUARANTINED_VERDICTS))
                     rows = con.execute(
-                        """SELECT entity, series, value, previous, surprise 
+                        f"""SELECT entity, series, value, previous, surprise 
                            FROM macro_observations 
                            WHERE value IS NOT NULL 
-                           ORDER BY observation_id DESC LIMIT 10"""
+                             AND data_provenance NOT IN ({marks})
+                           ORDER BY observation_id DESC LIMIT 10""",
+                        QUARANTINED_VERDICTS,
                     ).fetchall()
                     for r in rows:
                         val = float(r["value"])
@@ -3520,31 +3524,103 @@ def _rl_training() -> dict:
     return result
 
 
+# Display labels for router provider ids (ids are the stable machine keys).
+_LLM_PROVIDER_LABELS = {
+    "openrouter": "OpenRouter",
+    "tokenrouter": "TokenRouter",
+    "routesme": "RoutesMe",
+    "cerebras": "Cerebras",
+    "nvidia_nim": "NVIDIA NIM",
+    "omnirouter": "OmniRouter",
+}
+
+
 @app.get("/api/llm-providers")
 def _llm_providers() -> list:
-    """LLM provider configs from environment and router."""
-    providers = []
+    """LLM provider status, read from the live router.
+
+    This used to return a hardcoded five-row list keyed off ``GEMINI_API_KEY``
+    and ``DEEPSEEK_API_KEY`` -- providers with no client implementation
+    anywhere in the tree -- while omitting the ones that do exist. It also
+    returned ``model``/``status``/``apiKey``, none of which the TUI reads: the
+    client's mapping (tui_opentui/src/transport/live.ts) then defaulted
+    ``health`` to "healthy" and ``models`` to ``[]``, so the deck rendered
+    every provider as a solid green dot with nothing under it, regardless of
+    the real state.
+
+    Read the router instead: it knows which providers exist, which are
+    actually initialized, and their live circuit / quota state. The response
+    shape matches ``LLMProvider`` (tui_opentui/src/types.ts).
+
+    Providers that are configured but not currently serving requests (no keys,
+    or deselected via ``configure(active_providers=...)``) are reported as
+    "down" rather than omitted, so an operator debugging "why isn't my
+    provider being used" can see it listed.
+    """
     try:
-        known = [
-            ("OpenRouter", "OPENROUTER_API_KEY", os.environ.get("OPENROUTER_MODEL", "mistralai/mistral-nemo")),
-            ("Cerebras", "CEREBRAS_API_KEY", os.environ.get("CEREBRAS_MODEL", "llama-3.3-70b")),
-            ("NVIDIA NIM", "NVIDIA_API_KEY", os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct")),
-            ("Gemini", "GEMINI_API_KEY", os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")),
-            ("DeepSeek", "DEEPSEEK_API_KEY", os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")),
-        ]
-        for name, env_var, model in known:
-            key = os.environ.get(env_var, "")
-            has_key = bool(key and len(key) > 5)
-            providers.append({
-                "id": name.lower().replace(" ", "_"),
-                "name": name,
-                "model": model,
-                "status": "active" if has_key else "disabled",
-                "apiKey": ("***" + key[-4:]) if has_key else "(not configured)",
-            })
+        from data.llm_router import get_router
+
+        router = get_router()
     except Exception as exc:
         logger.warning("LLM providers endpoint failed: %s", exc)
-    return providers
+        return []
+
+    try:
+        config = getattr(router, "config", {}) or {}
+        status = router.get_status().get("providers", {})
+        fallback_order = config.get("global_fallback_order", []) or []
+        # The model an agent is actually configured on, per provider.
+        default_models = {
+            cfg.get("provider"): cfg.get("model")
+            for cfg in (getattr(router, "agents", {}) or {}).values()
+            if isinstance(cfg, dict)
+        }
+
+        out = []
+        for name in config.get("providers", {}):
+            inst = getattr(router, "providers", {}).get(name)
+            live = status.get(name, {})
+            cfg = config["providers"][name]
+
+            if inst is None:
+                health = "down"
+            elif getattr(inst, "is_circuit_open", None) and inst.is_circuit_open():
+                health = "circuit_open"
+            elif live.get("status") == "PAUSED_QUOTA":
+                health = "degraded"
+            else:
+                health = "healthy"
+
+            models = [
+                {
+                    "id": m["id"],
+                    "name": m["name"],
+                    "provider": m.get("provider", name),
+                    # Per-model latency/token counters are not tracked by the
+                    # router; reported as absent rather than faked.
+                    "isDefault": m["id"] == default_models.get(name),
+                }
+                for m in router.get_available_models(name)
+            ]
+
+            base_url = ""
+            clients = getattr(inst, "clients", None) or []
+            if clients:
+                base_url = str(getattr(clients[0], "base_url", "") or "")
+
+            out.append({
+                "id": name,
+                "name": _LLM_PROVIDER_LABELS.get(name, name.replace("_", " ").title()),
+                "baseUrl": base_url,
+                "health": health,
+                "rpm": live.get("rpm", cfg.get("rpm", 0)),
+                "models": models,
+                "failoverPriority": fallback_order.index(name) if name in fallback_order else -1,
+            })
+        return out
+    except Exception as exc:
+        logger.warning("LLM providers endpoint failed: %s", exc)
+        return []
 
 
 @app.get("/api/win-probability")

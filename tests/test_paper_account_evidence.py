@@ -128,7 +128,9 @@ def test_paper_flag_surfaces_labeled_simulated_account(monkeypatch):
     assert acc["mode"] == "PAPER_SIMULATED"
     assert acc["simulated"] is True
     assert acc["server"] == "PAPER_SIMULATED"
-    assert acc["source"] == "risk_manager_seed"
+    # risk_manager_equity: paper equity comes from risk.current_equity()
+    # (open floating P&L), not the raw balance seed it used to echo.
+    assert acc["source"] == "risk_manager_equity"
     assert acc["balance"] == 10000.0
     assert acc["equity"] == 10045.5
     assert acc["margin_free"] == acc["equity"]

@@ -52,6 +52,7 @@ class MetaImprovementOrchestrator:
         self.db_path = db_path or os.path.join(self.base_dir, "trading_state.db")
         self.state_path = os.path.join(self.base_dir, "artifacts", "meta_improvement_state.json")
         self.state = self._load_state()
+        self.persistence_ok = self._ensure_schema()
 
         # Lazy-load subsystems
         self._meta_adaptive = None
@@ -59,15 +60,42 @@ class MetaImprovementOrchestrator:
         self._self_improvement = None
         self._meta_reflector = None
 
+    def _ensure_schema(self) -> bool:
+        """Create the improvement ledger if absent; report whether it is usable.
+
+        ``_apply_improvements`` has always inserted into ``meta_improvements``
+        but no ``CREATE TABLE`` existed anywhere in the tree, so every write
+        raised ``no such table`` and was swallowed at DEBUG. The orchestrator
+        reported "no improvements" forever while its counter stayed at zero.
+        A health check that cannot see its own storage is not a health check.
+        """
+        try:
+            with sqlite3.connect(self.db_path, timeout=5) as con:
+                con.execute(
+                    """CREATE TABLE IF NOT EXISTS meta_improvements (
+                       id INTEGER PRIMARY KEY,
+                       improvement_type TEXT NOT NULL,
+                       strategy TEXT,
+                       description TEXT NOT NULL,
+                       validation_state TEXT NOT NULL DEFAULT 'UNVALIDATED',
+                       applied_at TEXT NOT NULL)"""
+                )
+                con.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_meta_improvements_applied"
+                    " ON meta_improvements(applied_at)"
+                )
+            return True
+        except Exception as exc:  # noqa: BLE001 - surfaced via health_check
+            log.error(
+                "meta_improvements ledger unusable (%s: %s); improvement "
+                "persistence is DISABLED for this process",
+                type(exc).__name__, exc,
+            )
+            return False
+
     def _load_state(self) -> Dict[str, Any]:
         """Load orchestrator state."""
-        if os.path.exists(self.state_path):
-            try:
-                with open(self.state_path, "r") as f:
-                    return json.load(f)
-            except Exception:
-                pass
-        return {
+        defaults: Dict[str, Any] = {
             "last_cycle": None,
             "total_cycles": 0,
             "improvements_applied": 0,
@@ -76,6 +104,22 @@ class MetaImprovementOrchestrator:
             "hypotheses_generated": 0,
             "hypotheses_validated": 0,
         }
+        if os.path.exists(self.state_path):
+            try:
+                with open(self.state_path, "r") as f:
+                    loaded = json.load(f)
+            except Exception:
+                loaded = {}
+            if isinstance(loaded, dict):
+                # This file is shared with AutoQuantTools' GRPO proposal-verdict
+                # writer (core/auto_quant_tools.py), whose schema carries only
+                # last_proposal_verdict/proposal_verdicts. Merge over defaults
+                # so our counters always exist after that write — otherwise
+                # run_cycle's total_cycles increment KeyErrors on a fresh host.
+                for key, val in defaults.items():
+                    loaded.setdefault(key, val)
+                return loaded
+        return defaults
 
     def _save_state(self) -> None:
         """Save orchestrator state."""
@@ -290,6 +334,14 @@ class MetaImprovementOrchestrator:
         else:
             health["subsystems"]["self_improvement"] = {"status": "unavailable"}
 
+        # Check the improvement ledger itself. Without this the orchestrator
+        # reports HEALTHY while every improvement write fails.
+        health["subsystems"]["improvement_ledger"] = (
+            {"status": "available", "path": self.db_path}
+            if self.persistence_ok
+            else {"status": "error", "error": "meta_improvements ledger not writable"}
+        )
+
         # Compute overall status
         subsystem_statuses = [s.get("status", "unknown") for s in health["subsystems"].values()]
         if all(s == "available" for s in subsystem_statuses):
@@ -377,43 +429,67 @@ class MetaImprovementOrchestrator:
         return hypotheses
 
     def _validate_hypotheses(self, hypotheses: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Validate hypotheses in shadow mode."""
-        validated = []
+        """Tier hypotheses by author-assigned confidence -- this is NOT validation.
 
+        The previous version gated on ``hyp["confidence"] >= 0.6`` and stamped
+        the survivors ``validation_method="confidence_threshold"``. That
+        ``confidence`` is a literal written by the same function that generated
+        the hypothesis, so the check compared a constant against itself and
+        every generated hypothesis passed by construction.
+
+        There is no out-of-sample artifact behind these hypotheses: they are
+        qualitative strings ("consider tightening entry criteria"), not weight
+        deltas. ``ShadowDeploy.validate_proposal`` scores ``DeltaPriors``
+        against alpha weights over a held-out corpus window, so it cannot
+        consume them. Rather than dress a tautology up as a gate, record the
+        truth: these are UNVALIDATED proposals, kept for operator review.
+
+        Anything that must gate promotion belongs in
+        ``operations.research_influence_gate`` (fail-closed, DSR/WFE/CPCV
+        backed), not here.
+        """
+        validated: List[Dict[str, Any]] = []
         for hyp in hypotheses:
-            # For now, mark high-confidence hypotheses as validated
-            # In production, this would run shadow backtests
-            if hyp.get("confidence", 0) >= 0.6:
-                validated.append({
-                    **hyp,
-                    "validated_at": datetime.now(timezone.utc).isoformat(),
-                    "validation_method": "confidence_threshold",
-                })
+            confidence = hyp.get("confidence")
+            if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+                continue
+            validated.append({
+                **hyp,
+                "validated_at": datetime.now(timezone.utc).isoformat(),
+                "validation_state": "UNVALIDATED",
+                "validation_method": "author_confidence_only",
+                "author_confidence": float(confidence),
+                "execution_authority": False,
+            })
 
         return validated
 
     def _apply_improvements(self, validated: List[Dict[str, Any]]) -> int:
         """Apply validated improvements."""
         applied = 0
+        if not self.persistence_ok:
+            # Surface it once per cycle at a level that is actually visible,
+            # rather than silently reporting "nothing to do" forever.
+            log.error("improvement ledger unavailable; skipping %d improvement(s)", len(validated))
+            return 0
 
         for imp in validated:
-            # Record the improvement
             try:
-                con = sqlite3.connect(self.db_path, timeout=2)
-                con.execute(
-                    "INSERT INTO meta_improvements "
-                    "(improvement_type, strategy, description, applied_at) "
-                    "VALUES (?, ?, ?, ?)",
-                    (imp.get("type", "unknown"),
-                     imp.get("strategy", ""),
-                     json.dumps(imp, default=str),
-                     datetime.now(timezone.utc).isoformat())
-                )
-                con.commit()
-                con.close()
+                with sqlite3.connect(self.db_path, timeout=2) as con:
+                    con.execute(
+                        "INSERT INTO meta_improvements "
+                        "(improvement_type, strategy, description, validation_state, applied_at) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        (imp.get("type", "unknown"),
+                         imp.get("strategy", ""),
+                         json.dumps(imp, default=str),
+                         str(imp.get("validation_state", "UNVALIDATED")),
+                         datetime.now(timezone.utc).isoformat())
+                    )
                 applied += 1
-            except Exception as exc:
-                log.debug("Failed to record improvement: %s", exc)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("failed to record improvement %s: %s: %s",
+                            imp.get("type", "?"), type(exc).__name__, exc)
 
         return applied
 

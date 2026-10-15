@@ -76,6 +76,7 @@ import json
 import logging
 import math
 import hashlib
+import threading
 from dataclasses import dataclass, replace
 from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime, timedelta, timezone # Added timezone for UTC support
@@ -1513,7 +1514,7 @@ def _drain_operator_controls(orch: Any) -> None:
 
 def main() -> None:
     """Main entry point for the MT5 LLM Trader"""
-    global mt5
+    global mt5, pd, np
     
     # Initialize configuration and logging
     cfg = Config.from_sources()
@@ -1790,6 +1791,8 @@ def main() -> None:
                         help="Mount named plugin profile (paper/live/research/backtest). Auto-maps from --paper/--live flags if not set.")
     ap_llm.add_argument("--list-profiles", action="store_true", help="List available plugin profiles and exit")
     ap_llm.add_argument("--bounded-autonomy", action="store_true", help="Enable Bounded-Autonomy LLM Agent Pipeline (NZE 2026: R ∘ V_LLM ∘ S)")
+    ap_llm.add_argument("--execution-engine", choices=["orchestrator", "graph"], default="orchestrator",
+                        help="Primary decision engine: 'orchestrator' (legacy multi-strategy) or 'graph' (modular LangGraph Deliberative Engine)")
 
     # ── Demo Trading Orchestrator (live training pipeline) ───────────────────
     ap_demo = sub.add_parser("demo-run", help="Autonomous demo trading with live training pipeline")
@@ -3292,7 +3295,6 @@ def main() -> None:
             return
 
     if args.cmd == "research-sim":
-        import numpy as np
         if args.action == "simulate-ar1":
             from research.synthetic_path_simulator import fit_ar1_model, generate_synthetic_paths, optimize_strategy_ensemble, default_mean_reversion_strategy
             np.random.seed(42)
@@ -4215,7 +4217,8 @@ def execute_skill(**kwargs):
                         "Error: No LLM providers have API keys configured "
                         "(every decision would be a deterministic HOLD).\n"
                         "Set at least one provider key in .env "
-                        "(OPENROUTER_API_KEY, CEREBRAS_API_KEY, NVIDIA_API_KEY, ROUTESME_KEY)."
+                        "(OPENROUTER_API_KEY, CEREBRAS_API_KEY, NVIDIA_API_KEY, ROUTESME_KEY, "
+                        "OMNIROUTER_KEY)."
                     )
                     sys.exit(1)
             except Exception as e:
@@ -4861,6 +4864,27 @@ def execute_skill(**kwargs):
                             "Autonomous pipeline tick FAILED: %s", _pipe_exc
                         )
 
+                # --- Autonomous recursive self-improvement tick (every 25 loops) ---
+                if cycle_count % 25 == 0:
+                    try:
+                        from core.self_improvement_loop import RecursiveSelfImprovementEngine
+                        _rsi_store = getattr(orch, "store", None)
+                        _rsi_engine = RecursiveSelfImprovementEngine(state_file="artifacts/self_improvement_state.json")
+                        _rsi_res = _rsi_engine.run_improvement_cycle(store=_rsi_store)
+                        if _rsi_res:
+                            _proposals = _rsi_res if isinstance(_rsi_res, list) else [_rsi_res]
+                            for _p in _proposals:
+                                _st = getattr(_p, "status", "") if not isinstance(_p, dict) else _p.get("status", "")
+                                _imp = getattr(_p, "improvement_pct", 0.0) if not isinstance(_p, dict) else _p.get("improvement_pct", 0.0)
+                                _cat = getattr(_p, "category", "") if not isinstance(_p, dict) else _p.get("category", "")
+                                if _st in ("APPLIED", "VALIDATED"):
+                                    logging.getLogger("main").info(
+                                        "Recursive self-improvement cycle %d -> %s (+%.2f%%) | %s",
+                                        cycle_count, _st, _imp, _cat
+                                    )
+                    except Exception as _rsi_exc:
+                        logging.getLogger("main").debug("Recursive self-improvement tick skipped: %s", _rsi_exc)
+
                 # Auto-Select Symbol
                 current_symbol = args.symbol
                 skip_analysis = False
@@ -5090,11 +5114,51 @@ def execute_skill(**kwargs):
                     _delib_app = harness_ctx.get("deliberative_graph")
                     logging.getLogger("main").info(
                         "Deliberative Graph shadow mode enabled.")
+                if _delib_app is None and getattr(args, "execution_engine", "orchestrator") == "graph":
+                    try:
+                        from intelligence.deliberative_graph import build_deliberative_graph
+                        _delib_app = build_deliberative_graph(
+                            db_path=getattr(args, "journal_path", None) or "trading_state.db",
+                            router=getattr(orch, "router", None),
+                            broker=getattr(orch, "client", None) or getattr(orch, "paper_broker", None),
+                        )
+                        logging.getLogger("main").info("Primary Deliberative Graph execution engine initialized.")
+                    except Exception as _dg_exc:
+                        logging.getLogger("main").warning("Deliberative Graph init failed: %s", _dg_exc)
 
                 # Run strategy cycles — parallel when multiple strategies active
                 def _run_one_strategy(_sname, _stf):
                     _ct0 = time.time()
                     try:
+                        if getattr(args, "execution_engine", "orchestrator") == "graph" and _delib_app is not None:
+                            from intelligence.graph_state import create_initial_trading_cycle_state as _mk_graph_state
+                            from core.shared_state import ui_state as _ui_state
+                            _ui_state.reset_graph_pipeline(symbol=current_symbol, timeframe=_stf)
+                            _g_init = _mk_graph_state(
+                                symbol=current_symbol,
+                                timeframe=_stf,
+                                strategy=_sname,
+                                paper_mode=args.paper,
+                            )
+                            _g_tid = f"exec_{current_symbol}_{_stf}_{cycle_count}"
+                            _g_final = _delib_app.invoke(_g_init, config={"configurable": {"thread_id": _g_tid}})
+                            _g_status = _g_final.get("status", "UNKNOWN")
+                            _g_action = _g_final.get("order_intent", {}).get("action", "HOLD") if _g_status == "EXECUTED" else "HOLD"
+                            _msg = f"⚡ [GRAPH DECISION] Cycle {cycle_count}: {_g_action} {current_symbol} {_stf} ({_sname}) -> {_g_status}"
+                            logging.getLogger("main").info(_msg)
+                            if display and hasattr(display, "update_execution_log"):
+                                display.update_execution_log([_msg])
+                            try:
+                                from operations.event_bridge import emit as _deck_emit
+                                _deck_emit("CYCLE_COMPLETE", {
+                                    "symbol": current_symbol, "strategy": _sname,
+                                    "timeframe": _stf,
+                                    "duration_ms": int((time.time() - _ct0) * 1000),
+                                }, correlation_id=f"{current_symbol}-{_stf}")
+                            except Exception:
+                                pass
+                            return
+
                         _entry = orch.execute_cycle
                         if _v2_enabled and hasattr(orch, "execute_cycle_v2"):
                             _entry = orch.execute_cycle_v2

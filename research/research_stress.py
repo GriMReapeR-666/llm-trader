@@ -5,6 +5,7 @@ import random
 import math
 from statistics import median
 from typing import Any, Dict, Iterable, List
+import numpy as np
 
 try:
     from research.research_validation import labelled_dataset
@@ -96,3 +97,57 @@ def stress_report(path: str = "trading_state.db", *, minimum_samples: int = 100,
     report.update({"status": "READY_FOR_REVIEW", "scenarios": scenarios,
                    "reason": "Stress output is descriptive; it cannot promote a strategy or alter live risk."})
     return report
+
+
+def stress_remove_best_trades(
+    r_values: List[float],
+    *,
+    drop_pct: float = 0.05,
+    minimum_trades: int = 20,
+) -> Dict[str, Any]:
+    """Break-it stress test: remove the best N% of trades and test if edge survives."""
+    if not isinstance(r_values, list) or len(r_values) < minimum_trades:
+        return {
+            "status": "INSUFFICIENT_DATA",
+            "reason": f"Sample size {len(r_values) if isinstance(r_values, list) else 0} below minimum {minimum_trades}",
+            "execution_authority": False,
+        }
+    try:
+        clean = [float(x) for x in r_values if math.isfinite(float(x))]
+    except (TypeError, ValueError):
+        return {"status": "INVALID_INPUT", "reason": "Non-numeric values", "execution_authority": False}
+
+    if len(clean) < minimum_trades:
+        return {"status": "INSUFFICIENT_DATA", "reason": "Not enough finite trades", "execution_authority": False}
+
+    sorted_trades = sorted(clean, reverse=True)
+    k_drop = max(1, int(math.ceil(len(sorted_trades) * drop_pct)))
+    dropped = sorted_trades[:k_drop]
+    remaining = sorted_trades[k_drop:]
+
+    pre_exp = float(np.mean(clean))
+    post_exp = float(np.mean(remaining)) if remaining else 0.0
+    wins = [r for r in remaining if r > 0]
+    losses = [r for r in remaining if r < 0]
+    win_rate = len(wins) / len(remaining) if remaining else 0.0
+    gross_win = sum(wins)
+    gross_loss = abs(sum(losses))
+    profit_factor = (gross_win / gross_loss) if gross_loss > 0 else (99.0 if gross_win > 0 else 0.0)
+
+    mc_res = monte_carlo(remaining, paths=1000) if remaining else {}
+
+    return {
+        "status": "READY_FOR_REVIEW",
+        "original_trade_count": len(clean),
+        "trades_dropped": k_drop,
+        "dropped_values": dropped,
+        "remaining_trade_count": len(remaining),
+        "pre_trim_expectancy_r": round(pre_exp, 4),
+        "post_trim_expectancy_r": round(post_exp, 4),
+        "post_trim_win_rate": round(win_rate, 4),
+        "post_trim_profit_factor": round(profit_factor, 4),
+        "is_robust_to_trim": post_exp > 0.0 and profit_factor > 1.0,
+        "monte_carlo_trimmed": mc_res,
+        "execution_authority": False,
+    }
+
