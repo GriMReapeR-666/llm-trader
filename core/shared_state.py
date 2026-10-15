@@ -36,6 +36,8 @@ class UIState:
     # Technical Indicators & Multi-Timeframe
     technical_indicators: Dict[str, Any] = field(default_factory=dict)
     mtf_data: Dict[str, Any] = field(default_factory=dict)
+    smc_structure: Dict[str, Any] = field(default_factory=dict)
+    macro_intelligence: Dict[str, Any] = field(default_factory=dict)
     
     # Brain / RL
     rl_metrics: Dict[str, List[Any]] = field(default_factory=lambda: {"episodes": [], "rewards": [], "epsilon": []})

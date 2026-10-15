@@ -107,6 +107,8 @@ env/
 
 # System & logs
 *.tmp
+*.pid
+*.patch
 approval_decisions.jsonl*
 *.log
 *.log.*

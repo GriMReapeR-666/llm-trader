@@ -4907,9 +4907,13 @@ class LLMOrchestrator:
                     eq_val = (toon.get("account") or {}).get("equity") or getattr(self.risk, "equity", None)
                     if eq_val and isinstance(eq_val, (int, float)) and eq_val > 0:
                         self.metrics_service.update_equity(float(eq_val))
-                    audit["institutional_metrics"] = self.metrics_service.get_metrics_summary()
-                except Exception as _ms_exc:
-                    logging.getLogger("LLMOrchestrator").debug("Metrics service cycle sync skipped: %s", _ms_exc)
+                except Exception:
+                    pass
+            try:
+                from core.temporal_planning_engine import evaluate_temporal_context
+                audit["temporal_context"] = evaluate_temporal_context(datetime.now(timezone.utc))
+            except Exception:
+                pass
 
             toon["quant_audit"] = audit
             self.operations.agent_event(
@@ -5731,6 +5735,43 @@ class LLMOrchestrator:
             logging.getLogger("LLMOrchestrator").warning(
                 "Paper fill evidence not journaled for ticket %s: %s", ticket, exc)
 
+        # Wire closed paper positions to the slow-lane reflection graph
+        if str(deal.get("status", "")).upper() == "CLOSED":
+            try:
+                open_p = float(deal.get("price_open", 0.0) or 0.0)
+                risk_amount = 0.0
+                if hasattr(self.store, "trade_risk"):
+                    try:
+                        risk_amount = float(self.store.trade_risk(ticket) or 0.0)
+                    except Exception:
+                        risk_amount = 0.0
+                if risk_amount <= 0:
+                    risk_amount = max(1.0, abs(open_p - filled_price) * filled_volume)
+                r_mult = venue_pnl / risk_amount if risk_amount > 0 else 0.0
+                outcome_label = "WIN_TARGET" if venue_pnl > 0 else ("LOSS_STOP" if venue_pnl < 0 else "BREAKEVEN")
+
+                if hasattr(self, "velocity") and hasattr(self.velocity, "submit_slow") and hasattr(self, "_run_reflection_graph"):
+                    c_iso = datetime.fromtimestamp(close_time, tz=timezone.utc).isoformat() if close_time else utcnow_iso()
+                    o_iso = datetime.fromtimestamp(max(0.0, close_time - 60.0), tz=timezone.utc).isoformat() if close_time else utcnow_iso()
+                    self.velocity.submit_slow(
+                        f"reflection_{ticket}",
+                        self._run_reflection_graph,
+                        ticket=ticket,
+                        symbol=str(deal.get("symbol", "")),
+                        strategy="paper_execution",
+                        open_time=o_iso,
+                        close_time=c_iso,
+                        entry_price=open_p,
+                        close_price=filled_price,
+                        realized_pnl=venue_pnl,
+                        realized_r_multiple=r_mult,
+                        outcome_label=outcome_label,
+                    )
+            except Exception as _p_ref_exc:
+                logging.getLogger("LLMOrchestrator").debug(
+                    "Paper reflection dispatch skipped for #%s: %s", ticket, _p_ref_exc
+                )
+
     def reconcile_daily_broker_history(self, day_start: Optional[datetime] = None) -> Dict[str, Any]:
         """Persist a bot-owned venue-deal-versus-journal daily comparison.
 
@@ -6375,6 +6416,12 @@ class LLMOrchestrator:
                     self.harness_ctx = h_ctx
                 except Exception:
                     pass
+
+            if hasattr(self.quant_workflow_engine, "evaluate_and_select_best_workflow"):
+                res_ensemble = self.quant_workflow_engine.evaluate_and_select_best_workflow(
+                    ctx=h_ctx, symbol=symbol, market_snapshot=snapshot
+                )
+                return res_ensemble
 
             res = self.quant_workflow_engine.execute_workflow(
                 selected_wf, ctx=h_ctx, symbol=symbol, market_snapshot=snapshot
@@ -7477,11 +7524,24 @@ class LLMOrchestrator:
                                             "execution_authority": False,
                                         },
                                         run_id=self.run_id, correlation_id="weekly_research")
+        macro_funnel_report: Dict[str, Any] = {"status": "SKIPPED", "execution_authority": False}
+        try:
+            from core.macro_conviction_funnel import MacroConvictionEngine
+            cand_scores = (payload or {}).get("candidate_scores") or {}
+            corrs = (payload or {}).get("correlations") or {}
+            if cand_scores:
+                macro_funnel_report = MacroConvictionEngine().run_weekly_selection_funnel(cand_scores, corrs)
+            else:
+                macro_funnel_report = {"status": "AWAITING_CANDIDATE_SCORES", "execution_authority": False}
+        except Exception as mf_exc:
+            macro_funnel_report = {"status": "ERROR", "error": str(mf_exc)[:400], "execution_authority": False}
+
         return {
             "scenario_documents": scenarios,
             "weekly_memory": weekly_memory,
             "research_sprint": sprint,
             "cpcv_report": cpcv_report,
+            "macro_funnel_report": macro_funnel_report,
             "execution_authority": False,
         }
 
@@ -7930,7 +7990,8 @@ class LLMOrchestrator:
         self._cycle_local.strategy = strategy
         # Cycle Separator for CLI
         if not display_instance:
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            from datetime import datetime as _ec_dt
+            timestamp = _ec_dt.now().strftime("%H:%M:%S")
             print_bordered(None, f"🚀 CYCLE {cycle_num}/{total_cycles} START", f"Symbol: {symbol} | TF: {timeframe} | Time: {timestamp}", style="bold white")
 
         log = logging.getLogger("LLMOrchestrator")
@@ -8269,6 +8330,21 @@ class LLMOrchestrator:
                 "nfp_bias": _news_ctx.get("nfp_prediction", {}).get("directional_bias", "N/A") if _news_ctx.get("nfp_prediction") else "N/A",
                 "cpi_bias": _news_ctx.get("cpi_prediction", {}).get("directional_bias", "N/A") if _news_ctx.get("cpi_prediction") else "N/A",
             }, cycle_num, symbol)
+            try:
+                from core.shared_state import state as _ui_state
+                _macro_payload = {
+                    "phase": _news_result.phase,
+                    "esi": _news_ctx.get("esi"),
+                    "nfp_prediction": _news_ctx.get("nfp_prediction"),
+                    "cpi_prediction": _news_ctx.get("cpi_prediction"),
+                    "macro_routed_verdicts": toon.get("macro_routed_verdicts", []),
+                }
+                _ui_state.macro_intelligence = _macro_payload
+                from ui.web_dashboard_adapter import dashboard as _dash
+                if _dash is not None and hasattr(_dash, "update_macro_intelligence"):
+                    _dash.update_macro_intelligence(_macro_payload)
+            except Exception:
+                pass
         except Exception as _news_exc:
             log.warning("NewsTradingGate check failed (fail-closed to HOLD): %s", _news_exc)
             try:
@@ -8376,6 +8452,31 @@ class LLMOrchestrator:
                 _curr_price = _c[-1] if _c else 0.0
                 _in_premium = is_premium(_curr_price, _range_low, _range_high)
 
+                # 3-Candle Fair Value Gap (FVG) Detection with Kondapally degree score
+                _fvg_dict = {"total_fvgs": 0, "signals": []}
+                try:
+                    from research.alpha_miner.fvg_detector import FVGDetector
+                    import pandas as _pd
+                    _df_bars = _pd.DataFrame({
+                        "open": _o,
+                        "high": _h,
+                        "low": _l,
+                        "close": _c,
+                        "volume": [float(b.get("tick_volume") or b.get("volume") or 100) for b in _ohlc_bars if isinstance(b, dict)],
+                    })
+                    _fvg_res = FVGDetector().detect(_df_bars)
+                    _fvg_dict = _fvg_res.to_dict()
+                except Exception as _fvg_err:
+                    log.debug("FVG detection skipped: %s", _fvg_err)
+
+                # Microstructure Dealing Range Zones
+                _range_zones = {}
+                try:
+                    from core.microstructure_impact_engine import classify_dealing_range_zones
+                    _range_zones = classify_dealing_range_zones(_curr_price, _range_low, _range_high)
+                except Exception as _rz_err:
+                    log.debug("Dealing range zones skipped: %s", _rz_err)
+
                 toon["smc_structure"] = {
                     "events": [e.__dict__ for e in _smc_events[-5:]],
                     "last_event": _smc_events[-1].__dict__ if _smc_events else None,
@@ -8384,7 +8485,18 @@ class LLMOrchestrator:
                     "liquidity_pools": _pools,
                     "in_premium": _in_premium,
                     "range_position": range_position(_curr_price, _range_low, _range_high),
+                    "range_zones": _range_zones,
+                    "fvg_analysis": _fvg_dict,
                 }
+                # Publish to shared state and UI dashboard
+                try:
+                    from core.shared_state import state as _ui_st
+                    _ui_st.smc_structure = toon["smc_structure"]
+                    from ui.web_dashboard_adapter import dashboard as _dash
+                    if _dash is not None and hasattr(_dash, "update_smc"):
+                        _dash.update_smc(toon["smc_structure"])
+                except Exception:
+                    pass
         except Exception as _smc_err:
             log.debug("SMC structure calculation skipped: %s", _smc_err)
 
