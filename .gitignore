@@ -109,6 +109,7 @@ env/
 *.tmp
 *.pid
 *.patch
+tmp-smoke/
 approval_decisions.jsonl*
 *.log
 *.log.*
