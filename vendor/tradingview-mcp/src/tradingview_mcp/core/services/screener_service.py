@@ -1,0 +1,1280 @@
+"""
+Screener Service — low-level data-fetching helpers for TradingView analysis.
+
+All functions call TradingView APIs and return normalised Row / MultiRow lists.
+They are intentionally free of MCP concerns so they can be unit-tested directly.
+
+Batched scanners (``fetch_trending_analysis``) raise
+:class:`~tradingview_mcp.core.errors.BatchExecutionError` when every upstream
+batch fails. The MCP tool wrapper layer converts that to a structured error
+envelope so callers can distinguish "no matches today" from "upstream cliff".
+"""
+from __future__ import annotations
+
+import os
+import sys
+import time as _time
+from typing import Any, List, Optional
+
+from tradingview_mcp.core.errors import (
+    BatchExecutionError,
+    ErrorCode,
+    PartialDataError,
+    ScreenerServiceError,
+    is_error,
+    make_error,
+)
+from tradingview_mcp.core.types import IndicatorMap, Row
+from tradingview_mcp.core.services.coinlist import exchanges_listing_symbol, load_symbols
+from tradingview_mcp.core.services.indicators import compute_metrics
+from tradingview_mcp.core.utils.validators import (
+    EXCHANGE_SCREENER,
+    get_market_type,
+    get_tv_exchange_prefix,
+)
+
+# Resilience layer (does not require tradingview_ta; safe to import unconditionally).
+from tradingview_mcp.core.services.screener_provider import _scan_with_retry, humanize_upstream_error
+
+try:
+    # Patched: route through resilience layer (retry + 60s TTL cache).
+    import tradingview_ta  # noqa: F401  presence check
+    from tradingview_mcp.core.services.screener_provider import (
+        resilient_get_multiple_analysis as get_multiple_analysis,
+    )
+    _TA_AVAILABLE = True
+except ImportError:
+    _TA_AVAILABLE = False
+
+try:
+    from tradingview_screener import Query
+    _SCREENER_AVAILABLE = True
+except ImportError:
+    _SCREENER_AVAILABLE = False
+
+
+# ── Batch fast-fail budget ────────────────────────────────────────────────────
+# Critical: without these guards, a batched scanner that loops over 6-8 batches
+# during an upstream cliff sleeps the failure cooldown (15s default) between
+# every single batch — producing a 90-150s "hang" before BatchExecutionError
+# finally surfaces. The fix is two layered bails:
+#
+#   TRADINGVIEW_MCP_BATCH_MAX_CONSECUTIVE_FAILS (default 2)
+#       After N consecutive batch failures, stop iterating remaining batches
+#       — upstream is clearly down, further attempts just waste wall-clock.
+#
+#   TRADINGVIEW_MCP_BATCH_BUDGET_S (default 30)
+#       Total wall-clock budget for the whole batched scan. When the budget
+#       elapses we stop iterating, returning either the partial result or
+#       (if zero batches succeeded) raising BatchExecutionError.
+#
+# Both surface the same BatchExecutionError shape so the existing MCP tool
+# wrapper at the boundary translates them to the structured error envelope
+# without code changes.
+
+
+def _batch_max_consecutive_fails() -> int:
+    try:
+        return max(1, int(os.environ.get('TRADINGVIEW_MCP_BATCH_MAX_CONSECUTIVE_FAILS', '2')))
+    except Exception:
+        return 2
+
+
+def _batch_budget_s() -> float:
+    try:
+        v = float(os.environ.get('TRADINGVIEW_MCP_BATCH_BUDGET_S', '30'))
+        return max(1.0, v)
+    except Exception:
+        return 30.0
+
+
+def _fill_skipped_tfs(
+    tf_results: dict, all_timeframes: list, reason: str
+) -> None:
+    """Mark every timeframe not yet in ``tf_results`` as skipped.
+
+    Used by the multi-timeframe loop after fast-fail trips so the response
+    explicitly distinguishes "we tried and got an error" from "we never
+    asked because we bailed early".
+    """
+    for tf in all_timeframes:
+        if tf not in tf_results:
+            tf_results[tf] = {"error": f"skipped: {reason}"}
+
+
+# ── Bollinger / trending fetchers ──────────────────────────────────────────────
+
+def fetch_bollinger_analysis(
+    exchange: str,
+    timeframe: str = "4h",
+    limit: int = 50,
+    bbw_filter: float = None,
+) -> List[Row]:
+    """
+    Fetch analysis using tradingview_ta with Bollinger Band squeeze logic.
+
+    Args:
+        exchange:   Exchange identifier (e.g. KUCOIN, BINANCE, EGX).
+        timeframe:  TradingView interval string (5m, 15m, 1h, 4h, 1D, 1W, 1M).
+        limit:      Maximum rows to return.
+        bbw_filter: Exclude rows where BBW >= this value (squeeze detector).
+
+    Returns:
+        List of Row dicts sorted by changePercent descending.
+    """
+    if not _TA_AVAILABLE:
+        raise ScreenerServiceError(
+            ErrorCode.DEPENDENCY_MISSING,
+            "tradingview_ta is missing; run `uv sync`.",
+            retryable=False,
+        )
+
+    symbols = load_symbols(exchange)
+    if not symbols:
+        raise ScreenerServiceError(
+            ErrorCode.NO_DATA,
+            f"No symbols found for exchange: {exchange}",
+            exchange=exchange, retryable=False,
+        )
+
+    # Scan the FULL symbol list in batches. The old `symbols[: limit * 2]`
+    # truncation meant only the alphabetical head of the exchange was ever
+    # screened — on EGX (292 names, sorted) mid-alphabet symbols could never
+    # appear in squeeze results regardless of their setups.
+    screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+    analysis: dict = {}
+    batch_errors = 0
+    batch_size = 200
+    for i in range(0, len(symbols), batch_size):
+        batch = symbols[i : i + batch_size]
+        try:
+            analysis.update(
+                get_multiple_analysis(screener=screener, interval=timeframe, symbols=batch)
+            )
+        except Exception:
+            batch_errors += 1
+    if not analysis:
+        raise ScreenerServiceError(
+            ErrorCode.UPSTREAM_ERROR,
+            "Analysis failed for every batch — upstream storm; retry shortly.",
+            retryable=True,
+        )
+
+    rows: List[Row] = []
+    for key, value in analysis.items():
+        try:
+            if value is None:
+                continue
+            indicators = value.indicators
+            metrics = compute_metrics(indicators)
+            if not metrics or metrics.get("bbw") is None:
+                continue
+            if bbw_filter is not None and (metrics["bbw"] >= bbw_filter or metrics["bbw"] <= 0):
+                continue
+            if not (indicators.get("EMA50") and indicators.get("RSI")):
+                continue
+
+            rows.append(
+                Row(
+                    symbol=key,
+                    changePercent=metrics["change"],
+                    indicators=IndicatorMap(
+                        open=metrics.get("open"),
+                        close=metrics.get("price"),
+                        SMA20=indicators.get("SMA20"),
+                        BB_upper=indicators.get("BB.upper"),
+                        BB_lower=indicators.get("BB.lower"),
+                        EMA50=indicators.get("EMA50"),
+                        RSI=indicators.get("RSI"),
+                        volume=indicators.get("volume"),
+                    ),
+                )
+            )
+        except (TypeError, ZeroDivisionError, KeyError):
+            continue
+
+    rows.sort(key=lambda x: x["changePercent"], reverse=True)
+    return rows[:limit]
+
+
+def fetch_trending_analysis(
+    exchange: str,
+    timeframe: str = "5m",
+    filter_type: str = "",
+    rating_filter: int = None,
+    limit: int = 50,
+    sort: str = "desc",
+) -> List[Row]:
+    """
+    Fetch trending coins across all available symbols in batches of 200.
+
+    Args:
+        exchange:      Exchange identifier.
+        timeframe:     TradingView interval string.
+        filter_type:   Optional filter mode ('rating').
+        rating_filter: BB rating value to match when filter_type == 'rating'.
+        limit:         Maximum rows to return.
+        sort:          'desc' → biggest gainers first; 'asc' → biggest losers
+                       first. Sorting happens BEFORE the limit truncation —
+                       'asc' returns the market's actual losers, not the
+                       bottom of a gainers-truncated list.
+
+    Returns:
+        List of Row dicts sorted by changePercent in the requested order.
+    """
+    if not _TA_AVAILABLE:
+        raise ScreenerServiceError(
+            ErrorCode.DEPENDENCY_MISSING,
+            "tradingview_ta is missing; run `uv sync`.",
+            retryable=False,
+        )
+
+    symbols = load_symbols(exchange)
+    if not symbols:
+        raise ScreenerServiceError(
+            ErrorCode.NO_DATA,
+            f"No symbols found for exchange: {exchange}",
+            exchange=exchange, retryable=False,
+        )
+
+    screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+    batch_size = 200
+    all_coins: List[Row] = []
+
+    batches_attempted = 0
+    batches_failed = 0
+    consecutive_failures = 0
+    first_error: Optional[str] = None
+
+    max_consec = _batch_max_consecutive_fails()
+    budget_s = _batch_budget_s()
+    started_at = _time.time()
+    aborted_reason: Optional[str] = None
+
+    total_batches = (len(symbols) + batch_size - 1) // batch_size
+
+    for i in range(0, len(symbols), batch_size):
+        # Wall-clock guard: stop iterating once we've burned the budget.
+        # This is the difference between "tool returned in 30s with a
+        # partial / error envelope" and "tool hung for 2 minutes".
+        elapsed = _time.time() - started_at
+        if elapsed >= budget_s:
+            aborted_reason = f"wall-clock budget ({budget_s:.0f}s) exhausted"
+            try:
+                print(
+                    f"[tradingview_mcp] fetch_trending_analysis aborted: "
+                    f"{aborted_reason} after {batches_attempted}/{total_batches} batches",
+                    file=sys.stderr,
+                )
+            except Exception:
+                pass
+            break
+
+        batch = symbols[i : i + batch_size]
+        batches_attempted += 1
+        try:
+            analysis = get_multiple_analysis(screener=screener, interval=timeframe, symbols=batch)
+            consecutive_failures = 0  # Reset on any success.
+        except Exception as exc:
+            batches_failed += 1
+            consecutive_failures += 1
+            if first_error is None:
+                first_error = repr(exc)
+            try:
+                print(
+                    f"[tradingview_mcp] fetch_trending_analysis batch "
+                    f"{i // batch_size + 1} failed: {exc!r}",
+                    file=sys.stderr,
+                )
+            except Exception:
+                pass
+
+            # Fast-fail: N consecutive failures means upstream is cliffing —
+            # iterating remaining batches just multiplies the cooldown sleeps.
+            if consecutive_failures >= max_consec:
+                aborted_reason = (
+                    f"{consecutive_failures} consecutive batch failures "
+                    f"(upstream cliff)"
+                )
+                try:
+                    print(
+                        f"[tradingview_mcp] fetch_trending_analysis aborted: "
+                        f"{aborted_reason} at batch "
+                        f"{batches_attempted}/{total_batches}",
+                        file=sys.stderr,
+                    )
+                except Exception:
+                    pass
+                break
+            continue
+
+        for key, value in analysis.items():
+            try:
+                if value is None:
+                    continue
+                indicators = value.indicators
+                metrics = compute_metrics(indicators)
+                if not metrics or metrics.get("bbw") is None:
+                    continue
+                if filter_type == "rating" and rating_filter is not None:
+                    if metrics["rating"] != rating_filter:
+                        continue
+
+                all_coins.append(
+                    Row(
+                        symbol=key,
+                        changePercent=metrics["change"],
+                        indicators=IndicatorMap(
+                            open=metrics.get("open"),
+                            close=metrics.get("price"),
+                            SMA20=indicators.get("SMA20"),
+                            BB_upper=indicators.get("BB.upper"),
+                            BB_lower=indicators.get("BB.lower"),
+                            EMA50=indicators.get("EMA50"),
+                            RSI=indicators.get("RSI"),
+                            volume=indicators.get("volume"),
+                        ),
+                    )
+                )
+            except (TypeError, ZeroDivisionError, KeyError):
+                continue
+
+    # Sentinel: every batch failed means the upstream is unavailable.
+    # Raise so the tool wrapper returns a typed error envelope instead of
+    # an indistinguishable empty list.
+    if batches_attempted > 0 and batches_failed == batches_attempted:
+        raise BatchExecutionError(
+            batches_attempted=batches_attempted,
+            batches_failed=batches_failed,
+            first_error=first_error or "unknown",
+        )
+
+    all_coins.sort(key=lambda x: x["changePercent"], reverse=(sort != "asc"))
+
+    # Aborted mid-scan with some rows: surface partiality instead of returning
+    # a plain list indistinguishable from a complete scan (the abort reason
+    # used to go only to stderr). The tool boundary turns this into a
+    # PARTIAL_DATA envelope that still carries the rows.
+    if aborted_reason is not None:
+        raise PartialDataError(
+            rows=all_coins[:limit],
+            batches_attempted=batches_attempted,
+            total_batches=total_batches,
+            aborted_reason=aborted_reason,
+        )
+
+    return all_coins[:limit]
+
+
+
+# ── Candle pattern analysis ────────────────────────────────────────────────────
+
+def calculate_candle_pattern_score(
+    indicators: dict,
+    pattern_length: int,
+    min_increase: float,
+) -> dict:
+    """
+    Score a candle pattern based on body ratio, momentum, volume, and RSI.
+
+    Args:
+        indicators:     Raw indicators dict from tradingview_ta.
+        pattern_length: Number of consecutive periods being analysed.
+        min_increase:   Minimum price change percentage threshold.
+
+    Returns:
+        Dict with 'detected' bool, 'score' int, 'details' list, and computed fields.
+    """
+    try:
+        open_price = indicators.get("open", 0)
+        close_price = indicators.get("close", 0)
+        high_price = indicators.get("high", 0)
+        low_price = indicators.get("low", 0)
+        volume = indicators.get("volume", 0)
+        rsi = indicators.get("RSI", 50)
+
+        if not all([open_price, close_price, high_price, low_price]):
+            return {"detected": False, "score": 0}
+
+        candle_body = abs(close_price - open_price)
+        candle_range = high_price - low_price
+        body_ratio = candle_body / candle_range if candle_range > 0 else 0
+        price_change = ((close_price - open_price) / open_price) * 100
+
+        score = 0
+        details: list[str] = []
+
+        if body_ratio > 0.7:
+            score += 2
+            details.append("Strong candle body")
+        elif body_ratio > 0.5:
+            score += 1
+            details.append("Moderate candle body")
+
+        if abs(price_change) >= min_increase:
+            score += 2
+            details.append(f"Strong momentum ({price_change:.1f}%)")
+        elif abs(price_change) >= min_increase / 2:
+            score += 1
+            details.append(f"Moderate momentum ({price_change:.1f}%)")
+
+        if volume > 5000:
+            score += 1
+            details.append("Good volume")
+
+        if (price_change > 0 and 50 < rsi < 80) or (price_change < 0 and 20 < rsi < 50):
+            score += 1
+            details.append("RSI momentum aligned")
+
+        ema50 = indicators.get("EMA50", close_price)
+        if (price_change > 0 and close_price > ema50) or (price_change < 0 and close_price < ema50):
+            score += 1
+            details.append("Trend alignment")
+
+        return {
+            "detected": score >= 3,
+            "score": score,
+            "details": details,
+            "price": round(close_price, 6),
+            "total_change": round(price_change, 3),
+            "body_ratio": round(body_ratio, 3),
+            "volume": volume,
+        }
+    except Exception as exc:
+        return {"detected": False, "score": 0, "error": str(exc)}
+
+
+def fetch_multi_timeframe_patterns(
+    exchange: str,
+    symbols: List[str],
+    base_tf: str,
+    length: int,
+    min_increase: float,
+) -> List[dict]:
+    """
+    Fetch multi-timeframe pattern data using tradingview-screener.
+
+    Args:
+        exchange:     Exchange identifier.
+        symbols:      Symbol list to query.
+        base_tf:      Base timeframe string (e.g. '15m').
+        length:       Pattern length for scoring.
+        min_increase: Minimum percentage increase for pattern detection.
+
+    Returns:
+        List of pattern result dicts sorted by pattern_score descending.
+    """
+    if not _SCREENER_AVAILABLE:
+        return []
+    try:
+        tf_map = {"5m": "5", "15m": "15", "1h": "60", "4h": "240", "1D": "1D"}
+        tv_interval = tf_map.get(base_tf, "15")
+
+        cols = [
+            f"open|{tv_interval}",
+            f"close|{tv_interval}",
+            f"high|{tv_interval}",
+            f"low|{tv_interval}",
+            f"volume|{tv_interval}",
+            "RSI",
+        ]
+
+        # Query the CALLER'S symbols. The old whole-exchange scan with
+        # .limit(len(symbols)) returned the first N arbitrary rows of the
+        # market — while the cache key below was keyed on the ignored symbol
+        # list, so different symbol lists collided onto the same wrong rows.
+        prefix = get_tv_exchange_prefix(exchange)
+        full_symbols = [s if ":" in s else f"{prefix}:{s}" for s in symbols]
+        q = Query().select(*cols).set_tickers(*full_symbols)
+
+        # Route through resilience layer (retry + stale-while-error).
+        cp_cache_key = (
+            "screener_candle_pattern_v1",
+            exchange.upper(),
+            tv_interval,
+            tuple(sorted(symbols)),
+        )
+        _total, df = _scan_with_retry(q, cache_key=cp_cache_key)
+        if df is None or df.empty:
+            return []
+
+        results = []
+        for _, row in df.iterrows():
+            symbol = row.get("ticker", "")
+            try:
+                ind = {
+                    "open": row.get(f"open|{tv_interval}"),
+                    "close": row.get(f"close|{tv_interval}"),
+                    "high": row.get(f"high|{tv_interval}"),
+                    "low": row.get(f"low|{tv_interval}"),
+                    "volume": row.get(f"volume|{tv_interval}", 0),
+                    "RSI": row.get("RSI", 50),
+                }
+                if not all([ind["open"], ind["close"], ind["high"], ind["low"]]):
+                    continue
+
+                pattern_score = calculate_candle_pattern_score(ind, length, min_increase)
+                if pattern_score["detected"]:
+                    results.append(
+                        {
+                            "symbol": symbol,
+                            "pattern_score": pattern_score["score"],
+                            "price": pattern_score["price"],
+                            "change": pattern_score["total_change"],
+                            "body_ratio": pattern_score["body_ratio"],
+                            "volume": ind["volume"],
+                            "rsi": round(ind["RSI"], 2),
+                            "details": pattern_score["details"],
+                        }
+                    )
+            except Exception:
+                continue
+
+        return sorted(results, key=lambda x: x["pattern_score"], reverse=True)
+    except Exception:
+        return []
+
+
+# ── Coin analysis (single asset) ───────────────────────────────────────────────
+
+# Preference order for auto-venue fallback. Telemetry: one paying customer's
+# hourly automation asked for HYPEUSDT@binance 100+ times a week; the
+# SYMBOL_NOT_FOUND envelope named the right venues but the automation never
+# read it. When the requested venue doesn't list a ticker that another venue
+# does, failing a deterministic request helps nobody — analyze on a listing
+# venue and SAY SO in the response (requested_exchange/resolved_exchange).
+# KUCOIN/MEXC first: their screener rows have been the most complete for the
+# long-tail tickers this fallback exists for.
+_FALLBACK_VENUE_PREFERENCE = ("KUCOIN", "MEXC", "GATEIO", "BYBIT", "OKX", "HUOBI")
+
+# Where a stock ticker requested on a crypto venue (often just the KUCOIN
+# default) lands. Before the European and Canadian lists existed every such
+# fallback was a US venue; this keeps it that way.
+_STOCK_FALLBACK_FROM_CRYPTO = ("NASDAQ", "NYSE", "AMEX")
+
+
+def pick_fallback_exchange(symbol: str, requested_exchange: str) -> Optional[str]:
+    """Best alternative venue that actually lists `symbol`, or None.
+
+    Tickers collide across markets (MC is Moelis on NYSE and LVMH on Euronext
+    Paris), so a venue in the requested venue's own market wins first: a
+    missed NASDAQ request falls back to NYSE, not to whichever European list
+    sorts first. A request made on a crypto venue prefers the US stock venues.
+    Otherwise the crypto preference order, then alphabetical.
+    """
+    listed = [e.upper() for e in exchanges_listing_symbol(symbol)]
+    req = (requested_exchange or "").upper()
+    candidates = [e for e in listed if e != req]
+    if not candidates:
+        return None
+    market = get_market_type(req)
+    candidates = [e for e in candidates if get_market_type(e) == market] or candidates
+    preference = _FALLBACK_VENUE_PREFERENCE
+    if market == "crypto":
+        preference += _STOCK_FALLBACK_FROM_CRYPTO
+    for pref in preference:
+        if pref in candidates:
+            return pref
+    return candidates[0]
+
+
+# ── TradingView symbol-search enrichment for not-found errors ────────────────
+# The chart site and the scanner are DIFFERENT backends: charts render funds,
+# certificates, and delisted symbols that the scanner (which powers every
+# analysis tool here) does not serve at all. E.g. EGX:KASABF is a fund
+# certificate — its chart URL works, but no scanner/TA call can ever return
+# data for it. When the local coinlists have no suggestion, one best-effort
+# symbol-search lookup tells the caller WHAT the symbol actually is instead
+# of leaving a bare "not found" that reads like a typo.
+
+_SYMBOL_SEARCH_URL = "https://symbol-search.tradingview.com/symbol_search/v3/"
+_SYMBOL_SEARCH_TIMEOUT_S = 6
+# Instrument types the scanner backend serves per market. Anything else
+# (fund, bond, warrant, right, index, dr …) is chart-only.
+_SCANNER_SERVED_TYPES = {"stock", "crypto", "spot", "futures", "forex", "cfd", "swap"}
+# Successful lookups only — a transient network failure must not be cached.
+_symbol_search_cache: dict[tuple, Optional[dict]] = {}
+
+
+def _parse_symbol_search(rows: list, bare: str, exchange: str) -> Optional[dict]:
+    """Pick the exact-ticker match (preferring the requested exchange)."""
+    exact = [
+        r for r in rows
+        if isinstance(r, dict) and str(r.get("symbol", "")).upper() == bare
+    ]
+    if not exact:
+        return None
+    ex = (exchange or "").strip().upper()
+    row = next((r for r in exact if str(r.get("exchange", "")).upper() == ex), exact[0])
+    return {
+        "symbol": bare,
+        "exchange": str(row.get("exchange", ""))[:20],
+        "type": str(row.get("type", ""))[:30],
+        "description": str(row.get("description", ""))[:120],
+    }
+
+
+def lookup_tradingview_instrument(symbol: str, exchange: str = "") -> Optional[dict]:
+    """Best-effort TradingView symbol-search lookup. None on any failure —
+    this only ever ENRICHES an error message and must never break one."""
+    import json as _json
+    import urllib.parse as _uparse
+    import urllib.request as _urequest
+
+    bare = (symbol or "").split(":")[-1].strip().upper()
+    if not bare:
+        return None
+    key = (bare, (exchange or "").strip().upper())
+    if key in _symbol_search_cache:
+        return _symbol_search_cache[key]
+
+    url = f"{_SYMBOL_SEARCH_URL}?{_uparse.urlencode({'text': bare, 'lang': 'en'})}"
+    req = _urequest.Request(url, headers={
+        # The endpoint 403s bare python UAs; browser-shaped headers required.
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Origin": "https://www.tradingview.com",
+        "Referer": "https://www.tradingview.com/",
+    })
+    try:
+        with _urequest.urlopen(req, timeout=_SYMBOL_SEARCH_TIMEOUT_S) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        rows = data.get("symbols") or []
+    except Exception:
+        return None  # not cached — transient failures may recover
+
+    info = _parse_symbol_search(rows, bare, exchange)
+    if len(_symbol_search_cache) < 256:
+        _symbol_search_cache[key] = info
+    return info
+
+
+def symbol_not_found_error(symbol: str, exchange: str, **context: Any) -> dict:
+    """SYMBOL_NOT_FOUND envelope with actionable, locally-sourced suggestions.
+
+    Telemetry showed agents retrying the exact same not-found request dozens
+    of times (e.g. HYPEUSDT on BINANCE) because the old bare-string error gave
+    no retryability signal and no alternative. This envelope says explicitly:
+    not retryable here, but *these* exchanges list the ticker (from the bundled
+    coinlists — zero network cost). Only when the local lists have nothing
+    does ONE best-effort symbol-search call fire, to distinguish "typo" from
+    "real instrument the scanner backend doesn't serve" (fund certificates,
+    bonds, delisted names — chart-only on TradingView).
+    """
+    listed_on = exchanges_listing_symbol(symbol)
+    message = f"No data found for {symbol} on {exchange}."
+    extra: dict[str, Any] = {}
+    if listed_on:
+        message += (
+            " Retrying on this exchange will fail again; the symbol is listed on: "
+            + ", ".join(listed_on)
+            + ". Retry with one of those as `exchange`."
+        )
+    else:
+        info = lookup_tradingview_instrument(symbol, exchange)
+        if info:
+            extra["instrument_type"] = info["type"]
+            extra["instrument_description"] = info["description"]
+            extra["instrument_exchange"] = info["exchange"]
+            if info["type"] and info["type"].lower() not in _SCANNER_SERVED_TYPES:
+                message += (
+                    f" {symbol} DOES exist on TradingView — as a {info['type']} "
+                    f"({info['description']!r} on {info['exchange']}) — but the "
+                    f"screener/analysis backend this server uses only serves "
+                    f"tradable stocks and crypto, not {info['type']}s. Its chart "
+                    f"page works because charts use a different backend. No tool "
+                    f"here can analyze it; do not retry."
+                )
+            elif info["exchange"] and info["exchange"].upper() != (exchange or "").upper():
+                message += (
+                    f" TradingView lists {symbol} as a {info['type'] or 'symbol'} on "
+                    f"{info['exchange']} — retry with exchange=\"{info['exchange']}\"."
+                )
+            else:
+                message += (
+                    " The symbol exists on TradingView but the scanner returned no "
+                    "data for it (possibly suspended from trading)."
+                )
+        else:
+            message += (
+                " No local listing found on any supported exchange — verify the ticker"
+                " spelling; retrying the same request will return the same error."
+            )
+    return make_error(
+        ErrorCode.SYMBOL_NOT_FOUND, message,
+        retryable=False, symbol=symbol, exchange=exchange, listed_on=listed_on,
+        **extra, **context,
+    )
+
+
+def analyze_coin(
+    symbol: str,
+    exchange: str,
+    timeframe: str,
+    _allow_venue_fallback: bool = True,
+) -> dict:
+    """
+    Full technical analysis for a single coin/stock.
+
+    Args:
+        symbol:    Validated symbol string (with exchange prefix).
+        exchange:  Validated exchange identifier.
+        timeframe: Validated TradingView interval string.
+
+    Returns:
+        Dict containing price data, all extended indicators, market sentiment,
+        and (for stocks) stock score + trade setup.
+    """
+    from tradingview_mcp.core.services.indicators import (
+        extract_extended_indicators,
+        analyze_timeframe_context,
+        compute_stock_score,
+        compute_trade_setup,
+        compute_trade_quality,
+    )
+    from tradingview_mcp.core.utils.validators import is_stock_exchange, normalize_tradingview_symbol, resolve_screener_for_symbol
+
+    if not _TA_AVAILABLE:
+        return {"error": "tradingview_ta is missing; run `uv sync`."}
+
+    full_symbol = normalize_tradingview_symbol(symbol, exchange)
+    # Screener follows the RESOLVED symbol's venue (e.g. XAUUSD→TVC:GOLD→"cfd"),
+    # not the caller's exchange guess — see resolve_screener_for_symbol().
+    screener = resolve_screener_for_symbol(full_symbol, exchange)
+
+    try:
+        analysis = get_multiple_analysis(screener=screener, interval=timeframe, symbols=[full_symbol])
+
+        if full_symbol not in analysis or analysis[full_symbol] is None:
+            if _allow_venue_fallback:
+                alt = pick_fallback_exchange(symbol, exchange)
+                if alt:
+                    result = analyze_coin(symbol, alt, timeframe, _allow_venue_fallback=False)
+                    if not is_error(result):
+                        result["requested_exchange"] = exchange
+                        result["resolved_exchange"] = alt
+                        result["resolution_note"] = (
+                            f"{symbol} is not listed on {exchange}; analysis was run on "
+                            f"{alt}, which lists it. Pass exchange=\"{alt}\" to silence this note."
+                        )
+                        return result
+            return symbol_not_found_error(symbol, exchange, timeframe=timeframe)
+
+        data = analysis[full_symbol]
+        # Shallow-copy: the analysis object may come from the provider's
+        # shared TTL cache, and writing ATR into the cached dict races with
+        # other threads reading the same entry.
+        indicators = dict(data.indicators)
+        # tradingview_ta omits the ATR column from its analysis payload, leaving
+        # downstream consumers (stop-loss sizing, trade quality, volatility
+        # scoring) with a None they can't act on. Pull it from the screener
+        # endpoint as a best-effort augmentation.
+        if indicators.get("ATR") is None:
+            from tradingview_mcp.core.services.screener_provider import fetch_atr_for_ticker
+            atr_value = fetch_atr_for_ticker(full_symbol, screener, timeframe)
+            if atr_value is not None:
+                indicators["ATR"] = atr_value
+        metrics = compute_metrics(indicators)
+
+        if not metrics:
+            return {"error": f"Could not compute metrics for {symbol}", "symbol": symbol, "exchange": exchange, "timeframe": timeframe}
+
+        volume = indicators.get("volume", 0)
+        high = indicators.get("high", 0)
+        low = indicators.get("low", 0)
+        open_price = indicators.get("open", 0)
+        close_price = indicators.get("close", 0)
+
+        extended = extract_extended_indicators(indicators)
+        tf_context = analyze_timeframe_context(indicators, timeframe)
+
+        trade_data: dict = {}
+        if is_stock_exchange(exchange):
+            score_result = compute_stock_score(indicators)
+            if score_result:
+                trade_data["stock_score"] = score_result["score"]
+                trade_data["grade"] = score_result["grade"]
+                trade_data["trend_state"] = score_result["trend_state"]
+                setup = compute_trade_setup(indicators)
+                if setup:
+                    trade_data["trade_setup"] = {
+                        "setup_types": setup["setup_types"],
+                        "entry_points": setup["entry_points"],
+                        "stop_loss": setup["stop_loss"],
+                        "stop_distance_pct": setup["stop_distance_pct"],
+                        "targets": setup["targets"],
+                        "risk_reward": setup["risk_reward"],
+                        "scenarios": setup.get("scenarios", {}),
+                        "primary_scenario": setup.get("primary_scenario"),
+                        "supports": setup["supports"],
+                        "resistances": setup["resistances"],
+                    }
+                    quality = compute_trade_quality(indicators, setup)
+                    if quality:
+                        trade_data["trade_quality_score"] = quality["trade_quality_score"]
+                        trade_data["trade_quality"] = quality["quality"]
+                        trade_data["trade_notes"] = quality["notes"]
+
+        return {
+            "symbol": full_symbol,
+            "exchange": exchange,
+            "timeframe": timeframe,
+            "timestamp": "real-time",
+            "price_data": {
+                "current_price": metrics["price"],
+                "open": round(open_price, 6) if open_price else None,
+                "high": round(high, 6) if high else None,
+                "low": round(low, 6) if low else None,
+                "close": round(close_price, 6) if close_price else None,
+                "change_percent": metrics["change"],
+                "volume": volume,
+            },
+            "timeframe_context": tf_context,
+            "rsi": extended["rsi"],
+            "macd": extended["macd"],
+            "sma": extended["sma"],
+            "ema": extended["ema"],
+            "bollinger_bands": extended["bollinger_bands"],
+            "atr": extended["atr"],
+            "volume_analysis": extended["volume"],
+            "obv": extended["obv"],
+            "support_resistance": extended["support_resistance"],
+            "stochastic": extended["stochastic"],
+            "adx": extended["adx"],
+            "market_structure": extended["market_structure"],
+            **({"vwap": extended["vwap"]} if "vwap" in extended else {}),
+            "market_sentiment": {
+                "overall_rating": metrics["rating"],
+                "buy_sell_signal": metrics["signal"],
+                # bbw=None means "unknown", not "calm market".
+                "volatility": (
+                    "Unknown" if metrics["bbw"] is None
+                    else "High" if metrics["bbw"] > 0.05
+                    else "Medium" if metrics["bbw"] > 0.02
+                    else "Low"
+                ),
+                "momentum": "Bullish" if metrics["change"] > 0 else "Bearish",
+            },
+            **trade_data,
+        }
+    except Exception as exc:
+        # Transient upstream outages (TradingView's 30-90s empty-body cliffs)
+        # dominate this path — signal machine-readable retryability so agents
+        # wait-and-retry instead of hammering or giving up.
+        return make_error(
+            ErrorCode.UPSTREAM_ERROR,
+            f"Analysis failed: {humanize_upstream_error(exc)}",
+            retryable=True, retry_after_s=60,
+            symbol=symbol, exchange=exchange, timeframe=timeframe,
+        )
+
+
+# ── Consecutive candle pattern scan ────────────────────────────────────────────
+
+def scan_consecutive_candles(
+    exchange: str,
+    timeframe: str,
+    pattern_type: str,
+    candle_count: int,
+    min_growth: float,
+    limit: int,
+) -> dict:
+    """
+    Scan for coins with consecutive growing/shrinking candle patterns.
+
+    Args:
+        exchange:     Validated exchange identifier.
+        timeframe:    Validated TradingView interval.
+        pattern_type: 'bullish' or 'bearish'.
+        candle_count: Number of consecutive candles (2-5).
+        min_growth:   Minimum growth percentage per candle.
+        limit:        Maximum results.
+
+    Returns:
+        Dict with pattern_type, total_found, and data list.
+    """
+    if not _TA_AVAILABLE:
+        return {"error": "tradingview_ta is missing; run `uv sync`."}
+
+    symbols = load_symbols(exchange)
+    if not symbols:
+        return {"error": f"No symbols found for exchange: {exchange}", "exchange": exchange, "timeframe": timeframe}
+
+    # Full-universe batched scan (the old `symbols[: min(limit*3, 200)]`
+    # truncation silently limited the screen to the alphabetical head).
+    screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+    analysis: dict = {}
+    batch_size = 200
+    for i in range(0, len(symbols), batch_size):
+        batch = symbols[i : i + batch_size]
+        try:
+            analysis.update(
+                get_multiple_analysis(screener=screener, interval=timeframe, symbols=batch)
+            )
+        except Exception:
+            continue
+    if not analysis:
+        return make_error(
+            ErrorCode.UPSTREAM_ERROR,
+            "Pattern analysis failed for every batch — upstream storm; retry shortly.",
+            retryable=True, retry_after_s=60,
+            exchange=exchange, timeframe=timeframe,
+        )
+
+    pattern_coins: list[dict] = []
+
+    for symbol, data in analysis.items():
+        if data is None:
+            continue
+        try:
+            indicators = data.indicators
+            open_price = indicators.get("open")
+            close_price = indicators.get("close")
+            high_price = indicators.get("high")
+            low_price = indicators.get("low")
+            volume = indicators.get("volume", 0)
+
+            if not all([open_price, close_price, high_price, low_price]):
+                continue
+
+            current_change = ((close_price - open_price) / open_price) * 100
+            candle_body = abs(close_price - open_price)
+            candle_range = high_price - low_price
+            body_to_range_ratio = candle_body / candle_range if candle_range > 0 else 0
+
+            # TradingView returns explicit nulls; .get defaults don't fire.
+            rsi = indicators.get("RSI")
+            rsi = 50.0 if rsi is None else rsi
+            sma20 = indicators.get("SMA20") or close_price
+            ema50 = indicators.get("EMA50") or close_price
+
+            price_above_sma = close_price > sma20
+            price_above_ema = close_price > ema50
+
+            # ALL conditions are mandatory. The old 3-of-5 vote let a FLAT bar
+            # pass (body + SMA + RSI + volume = 4/5 with zero price change),
+            # so the scanner fired on any mildly green day and polluted the
+            # candidates composite with hollow hits. `volume > 1000` shares is
+            # a crypto-era placeholder kept only as a dead-ticker floor.
+            if pattern_type == "bullish":
+                conditions = [
+                    current_change > min_growth,
+                    body_to_range_ratio > 0.6,
+                    price_above_sma,
+                    45 < rsi < 80,
+                    volume > 1000,
+                ]
+            elif pattern_type == "bearish":
+                conditions = [
+                    current_change < -min_growth,
+                    body_to_range_ratio > 0.6,
+                    not price_above_sma,
+                    20 < rsi < 55,
+                    volume > 1000,
+                ]
+            else:
+                continue
+
+            pattern_strength = sum(conditions)
+            if not all(conditions):
+                continue
+
+            metrics = compute_metrics(indicators)
+            pattern_coins.append({
+                "symbol": symbol,
+                "price": round(close_price, 6),
+                "current_change": round(current_change, 3),
+                "candle_body_ratio": round(body_to_range_ratio, 3),
+                "pattern_strength": pattern_strength,
+                "volume": volume,
+                "bollinger_rating": metrics.get("rating", 0) if metrics else 0,
+                "rsi": round(rsi, 2),
+                "price_levels": {
+                    "open": round(open_price, 6),
+                    "high": round(high_price, 6),
+                    "low": round(low_price, 6),
+                    "close": round(close_price, 6),
+                },
+                "momentum_signals": {
+                    "above_sma20": price_above_sma,
+                    "above_ema50": price_above_ema,
+                    "strong_volume": volume > 5000,
+                },
+            })
+        except Exception:
+            continue
+
+    if pattern_type == "bullish":
+        pattern_coins.sort(key=lambda x: (x["pattern_strength"], x["current_change"]), reverse=True)
+    else:
+        pattern_coins.sort(key=lambda x: (x["pattern_strength"], -x["current_change"]), reverse=True)
+
+    return {
+        "exchange": exchange,
+        "timeframe": timeframe,
+        "pattern_type": pattern_type,
+        "candle_count": candle_count,
+        "min_growth": min_growth,
+        # Honesty: this scan inspects ONE completed bar per symbol. The
+        # multi-bar "consecutive" check is applied by callers with candle
+        # history (the EGX app verifies candle_count rising closes on Yahoo
+        # daily data before counting a hit).
+        "basis": "single-bar snapshot; consecutive-candle verification is the caller's",
+        "total_found": len(pattern_coins),
+        "data": pattern_coins[:limit],
+    }
+
+
+# ── Advanced candle pattern (single-TF fallback) ──────────────────────────────
+
+def scan_advanced_candle_patterns_single_tf(
+    exchange: str,
+    symbols: list[str],
+    base_timeframe: str,
+    pattern_length: int,
+    min_size_increase: float,
+    limit: int,
+) -> dict:
+    """
+    Single-timeframe fallback for advanced candle pattern analysis.
+
+    Used when tradingview-screener is unavailable and we fall back to tradingview_ta.
+    """
+    if not _TA_AVAILABLE:
+        return {"error": "tradingview_ta is missing; run `uv sync`."}
+
+    screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+    analysis = get_multiple_analysis(screener=screener, interval=base_timeframe, symbols=symbols)
+    pattern_results: list[dict] = []
+
+    for symbol, data in analysis.items():
+        if data is None:
+            continue
+        try:
+            indicators = data.indicators
+            pattern_score = calculate_candle_pattern_score(indicators, pattern_length, min_size_increase)
+            if pattern_score["detected"]:
+                metrics = compute_metrics(indicators)
+                pattern_results.append({
+                    "symbol": symbol,
+                    "pattern_score": pattern_score["score"],
+                    "pattern_details": pattern_score["details"],
+                    "current_price": pattern_score["price"],
+                    "total_change": pattern_score["total_change"],
+                    "volume": indicators.get("volume", 0),
+                    "bollinger_rating": metrics.get("rating", 0) if metrics else 0,
+                    "technical_strength": {
+                        "rsi": round(indicators.get("RSI", 50), 2),
+                        "momentum": "Strong" if abs(pattern_score["total_change"]) > min_size_increase else "Moderate",
+                        "volume_trend": "High" if indicators.get("volume", 0) > 10000 else "Low",
+                    },
+                })
+        except Exception:
+            continue
+
+    pattern_results.sort(key=lambda x: (x["pattern_score"], abs(x["total_change"])), reverse=True)
+    return {
+        "exchange": exchange,
+        "base_timeframe": base_timeframe,
+        "pattern_length": pattern_length,
+        "min_size_increase": min_size_increase,
+        "method": "enhanced-single-timeframe",
+        "total_found": len(pattern_results),
+        "data": pattern_results[:limit],
+    }
+
+
+# ── Multi-timeframe alignment analysis ─────────────────────────────────────────
+
+def run_multi_timeframe_analysis(
+    symbol: str,
+    exchange: str,
+) -> dict:
+    """
+    Multi-timeframe alignment analysis (Weekly → Daily → 4H → 1H → 15m).
+
+    Runs analysis across 5 timeframes and computes a directional consensus.
+
+    Args:
+        symbol:   Full symbol string with exchange prefix (e.g. 'KUCOIN:BTCUSDT').
+        exchange: Validated exchange identifier.
+
+    Returns:
+        Multi-timeframe analysis dict with per-TF breakdown, alignment status,
+        and trading recommendation.
+    """
+    from tradingview_mcp.core.services.indicators import (
+        extract_extended_indicators,
+        analyze_timeframe_context,
+    )
+
+    if not _TA_AVAILABLE:
+        return {"error": "tradingview_ta is missing; run `uv sync`."}
+
+    # Screener follows the RESOLVED symbol's venue (e.g. XAUUSD→TVC:GOLD→"cfd",
+    # EURUSD→FX_IDC→"forex"), not the caller's exchange guess. Without this,
+    # symbol aliasing redirected gold/FX to TVC: but the screener stayed on the
+    # caller's "crypto" default, so every timeframe returned "No data". This is
+    # the same fix analyze_coin already uses (see resolve_screener_for_symbol).
+    from tradingview_mcp.core.utils.validators import resolve_screener_for_symbol
+    screener = resolve_screener_for_symbol(symbol, exchange)
+    timeframes = ["1W", "1D", "4h", "1h", "15m"]
+    tf_labels = {
+        "1W": "Weekly (Trend Bias)",
+        "1D": "Daily (Swing Setup)",
+        "4h": "4-Hour (Refinement)",
+        "1h": "1-Hour (Entry Timing)",
+        "15m": "15-Min (Execution)",
+    }
+
+    tf_results: dict = {}
+    # (timeframe, bias) pairs recorded together at the success site. Keeping
+    # them paired matters: a bare score list zipped against the full
+    # `timeframes` later misattributes every score after a failed timeframe
+    # (1W errors → 1D's score reported under the "1W" key, and so on).
+    alignment_scores: list[tuple[str, int]] = []
+
+    # Fast-fail guards: 5 timeframes × (~5s retries + 15s cooldown) ≈ 100s
+    # when upstream cliffs. Bail after N consecutive failures, or when the
+    # wall-clock budget is gone, so the tool returns in bounded time with
+    # whatever timeframes did succeed (or an error envelope on zero success).
+    max_consec = _batch_max_consecutive_fails()
+    budget_s = _batch_budget_s()
+    started_at = _time.time()
+    consecutive_failures = 0
+    aborted_remaining: list[str] = []
+
+    for tf in timeframes:
+        # Wall-clock guard.
+        if (_time.time() - started_at) >= budget_s:
+            aborted_remaining = [t for t in timeframes if t not in tf_results]
+            try:
+                print(
+                    f"[tradingview_mcp] run_multi_timeframe_analysis aborted: "
+                    f"wall-clock budget ({budget_s:.0f}s) exhausted; "
+                    f"skipped: {aborted_remaining}",
+                    file=sys.stderr,
+                )
+            except Exception:
+                pass
+            for skip_tf in aborted_remaining:
+                tf_results[skip_tf] = {"error": "skipped: wall-clock budget exhausted"}
+            break
+
+        try:
+            analysis = get_multiple_analysis(screener=screener, interval=tf, symbols=[symbol])
+            if symbol not in analysis or analysis[symbol] is None:
+                # Upstream responded but has no data for this tf (illiquid or
+                # newly-listed symbol). This is NOT an upstream cliff, so it
+                # must not count toward the consecutive-failure bail — a real
+                # response proves upstream is up, so reset the counter.
+                tf_results[tf] = {"error": f"No data for {tf}"}
+                consecutive_failures = 0
+                continue
+            consecutive_failures = 0  # Reset on real success.
+
+            data = analysis[symbol]
+            # Copy before mutating — the dict may be shared via the provider's
+            # TTL cache (see analyze_coin).
+            indicators = dict(data.indicators)
+            # Backfill ATR per-timeframe — the ATR column on the scanner is
+            # resolution-suffixed, so we cannot share the response across the
+            # 5 timeframes. One POST per timeframe is acceptable (5 total)
+            # because run_multi_timeframe_analysis is a single-symbol path.
+            if indicators.get("ATR") is None:
+                from tradingview_mcp.core.services.screener_provider import fetch_atr_for_ticker
+                atr_value = fetch_atr_for_ticker(symbol, screener, tf)
+                if atr_value is not None:
+                    indicators["ATR"] = atr_value
+            metrics = compute_metrics(indicators)
+            extended = extract_extended_indicators(indicators)
+            tf_context = analyze_timeframe_context(indicators, tf)
+
+            bias_num = 1 if tf_context["bias"] == "Bullish" else -1 if tf_context["bias"] == "Bearish" else 0
+            alignment_scores.append((tf, bias_num))
+
+            tf_results[tf] = {
+                "label": tf_labels.get(tf, tf),
+                "bias": tf_context["bias"],
+                "bias_reasons": tf_context["bias_reasons"],
+                "key_indicators": tf_context["key_indicators_for_timeframe"],
+                "advice": tf_context["advice"],
+                "price": metrics.get("price") if metrics else None,
+                "change_pct": metrics.get("change") if metrics else None,
+                "rsi": extended["rsi"],
+                "macd_crossover": extended["macd"]["crossover"],
+                "ema_trend": {
+                    "ema20": extended["ema"].get("ema20"),
+                    "ema50": extended["ema"].get("ema50"),
+                    "ema200": extended["ema"].get("ema200"),
+                },
+                "volume_signal": extended["volume"]["signal"],
+                "market_structure": extended["market_structure"]["trend"],
+                "trend_strength": extended["market_structure"]["trend_strength"],
+                "momentum_aligned": extended["market_structure"]["momentum_aligned"],
+            }
+        except Exception as exc:
+            tf_results[tf] = {"error": str(exc)}
+            consecutive_failures += 1
+            if consecutive_failures >= max_consec:
+                try:
+                    print(
+                        f"[tradingview_mcp] run_multi_timeframe_analysis aborted: "
+                        f"{consecutive_failures} consecutive timeframe failures "
+                        f"(upstream cliff)",
+                        file=sys.stderr,
+                    )
+                except Exception:
+                    pass
+                _fill_skipped_tfs(tf_results, timeframes, "upstream cliff")
+                break
+
+    total_score = sum(s for _, s in alignment_scores)
+    all_bullish = all(s > 0 for _, s in alignment_scores) if alignment_scores else False
+    all_bearish = all(s < 0 for _, s in alignment_scores) if alignment_scores else False
+
+    if all_bullish:
+        alignment, confidence, action = "FULLY ALIGNED BULLISH", "Very High", "STRONG BUY - All timeframes bullish. Look for pullback entry on 1H/15m."
+    elif all_bearish:
+        alignment, confidence, action = "FULLY ALIGNED BEARISH", "Very High", "STRONG SELL - All timeframes bearish. Avoid longs."
+    elif total_score >= 3:
+        alignment, confidence, action = "MOSTLY BULLISH", "High", "BUY - Majority of timeframes bullish. Enter on 4H/1H pullback to support."
+    elif total_score <= -3:
+        alignment, confidence, action = "MOSTLY BEARISH", "High", "SELL - Majority of timeframes bearish. Avoid catching the falling knife."
+    elif total_score > 0:
+        alignment, confidence, action = "LEAN BULLISH", "Medium", "CAUTIOUS BUY - Some bullish signals but not fully aligned. Wait for better setup."
+    elif total_score < 0:
+        alignment, confidence, action = "LEAN BEARISH", "Medium", "CAUTIOUS SELL - Some bearish signals. Reduce position or wait."
+    else:
+        alignment, confidence, action = "MIXED/RANGING", "Low", "HOLD/NO TRADE - Timeframes conflict. Wait for alignment."
+
+    higher_tf_bias = alignment_scores[0][1] if alignment_scores else 0
+    divergent_tfs = [
+        tf
+        for tf, score in alignment_scores
+        if score != 0 and score != higher_tf_bias and higher_tf_bias != 0
+    ]
+
+    return {
+        "symbol": symbol,
+        "exchange": exchange,
+        "analysis_type": "Multi-Timeframe Alignment",
+        "timeframes": tf_results,
+        "alignment": {
+            "status": alignment,
+            "confidence": confidence,
+            "net_score": total_score,
+            "scores_by_tf": dict(alignment_scores),
+            "divergent_timeframes": divergent_tfs,
+        },
+        "recommendation": {
+            "action": action,
+            "entry_timeframe": "1H or 4H pullback" if total_score > 0 else "Wait for alignment",
+            "rules": [
+                "Weekly sets BIAS (direction only, not entries)",
+                "Daily finds SETUP (swing level, confluence)",
+                "4H refines entry zone",
+                "1H/15m triggers entry with tight stop",
+                "Never trade against Weekly + Daily combined direction",
+            ],
+        },
+    }

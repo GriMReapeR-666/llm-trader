@@ -488,6 +488,16 @@ Multi-provider LLM routing with load balancing, failover, and rate limiting.
 | NVIDIA NIM | Llama, DeepSeek | `NVIDIA_KEY_1`, `NVIDIA_KEY_2` |
 | TokenRouter | OpenAI-compatible | `TOKENROUTER_API_KEY` |
 | RoutesMe | OpenAI-compatible | `ROUTESME_API_KEY` |
+| OmniRouter | Self-hosted gateway; `auto` = built-in bridges w/ its own failover | `OMNIROUTER_KEY` |
+
+**OmniRouter tiering.** OmniRouter is a *separate cheap hub*, not part of the
+high-reasoning chain. NVIDIA NIM / TokenRouter / RoutesMe / OpenRouter remain
+authoritative for trade decisions; OmniRouter is for simple, high-volume work
+(small subagents, summarisation, extraction) and is deliberately excluded from
+the `*_LLM_FALLBACK` lists — it is a local process that may simply be stopped,
+and a trade agent must never silently drop onto it. Opt in per agent via
+`SIMPLE_LLM_PROVIDER`/`register_agent(...)`. Model `auto` lets the gateway pick
+and fail over across its built-in bridges (Qwen / GLM / DeepSeek / Gemini).
 
 **Key classes:**
 | Class | Purpose |
@@ -948,6 +958,10 @@ Self-contained HTML dashboard with plotly.js. Auto-generates after each trading 
 | `NVIDIA_KEY_1`, `NVIDIA_KEY_2` | NVIDIA NIM keys |
 | `TOKENROUTER_API_KEY` | TokenRouter key |
 | `ROUTESME_API_KEY` | RoutesMe key |
+| `OMNIROUTER_KEY` | OmniRouter gateway key (`sk-…` from its dashboard) |
+| `OMNIROUTER_API_KEY` | Alias for `OMNIROUTER_KEY` |
+| `OMNIROUTER_BASE_URL` | Gateway base URL (default `http://localhost:8080/v1`) |
+| `OMNIROUTER_RPM` | OmniRouter rate limit (default 60) |
 
 **Per-Agent Routing:**
 | Variable | Purpose |

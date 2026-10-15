@@ -10,7 +10,7 @@ cd "$ROOT"
 export DELIBERATIVE_GRAPH_SHADOW=1
 export PYTHONUTF8=1
 PY="$ROOT/.venv/bin/python"
-# The deck spawns `python -m metatrader5_mcp.main`; make that the venv's python.
+# The deck spawns `python -m kronos_mcp.main  # the repo's MT5 FastMCP entrypoint (kronos_mcp + compat/mt5_bridge)`; make that the venv's python.
 export PATH="$ROOT/.venv/bin:$PATH"
 BUN="$(command -v bun || echo "$HOME/.bun/bin/bun")"
 
@@ -48,7 +48,7 @@ if [ "$(uname)" = "Darwin" ] && [ "${MT5_BRIDGE_AUTOSTART:-1}" = "1" ]; then
   scripts/mac/mt5_wine.sh ensure || echo " [!] MT5 bridge not running - market data will fail closed (see docs/MACOS.md)"
 fi
 
-# -- Boot mode: fast boot skips the ~25-min Laya news triage ----------------
+# -- Boot mode: fast boot skips the ~25-min Laya python -m kronos_mcp.main  # the repo's MT5 FastMCP entrypoint (kronos_mcp + compat/mt5_bridge)s triage ----------------
 TRIAGE_MODE=auto
 [ "${DECK_TRIAGE_MODE:-}" = "off" ] && TRIAGE_MODE=off
 [ "${DECK_TRIAGE_MODE:-}" = "auto" ] && TRIAGE_MODE=auto_no_prompt

@@ -1,0 +1,80 @@
+[project]
+name = "tradingview-mcp-server"
+version = "0.9.0"
+description = "Advanced AI Trading Intelligence Framework — MCP server with walk-forward backtesting, trade logs, equity curves, 1h timeframe, sentiment, Yahoo Finance, and 30+ technical analysis tools"
+readme = "README.md"
+requires-python = ">=3.10,<3.14"
+authors = [
+  { name = "Atila Ahmettaner" }
+]
+urls = { Repository = "https://github.com/atilaahmettaner/tradingview-mcp" }
+keywords = ["mcp", "tradingview", "crypto", "technical analysis", "screener", "backtesting", "walk-forward", "sentiment", "yahoo-finance", "trading", "agents", "algorithmic-trading", "equity-curve"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+  "feedparser>=6.0.12",
+  "httpx>=0.27",
+  # Lower bound is 1.14.0, not 1.12.0: server.py uses `from __future__ import
+  # annotations`, so every annotation reaches FastMCP as a string. Tool.from_function
+  # in <=1.13.x calls issubclass(param.annotation, Context) on that string and dies
+  # with "TypeError: issubclass() arg 1 must be a class" at import time — every tool
+  # registration fails, so the server never starts.
+  # Upper bound excludes 2.x: it removed the mcp.server.fastmcp module our server
+  # imports, so an open range breaks every fresh install (and any Docker rebuild —
+  # `uv pip install --system .` ignores uv.lock). Moving to the 2.x SDK
+  # (FastMCP -> MCPServer) is a deliberate migration, not a drive-by resolve.
+  "mcp[cli]>=1.14.0,<2",
+  # Declared directly, not just inherited via tradingview-screener: server.py
+  # imports pandas at module top (the issue #91 preload). If the screener pin
+  # ever changes or drops pandas, an undeclared transitive dep would break
+  # every install at import time — the exact failure mode the two pins above
+  # exist to prevent.
+  "pandas>=2",
+  "requests>=2.32",
+  # Pinned to ==3.0.0 on purpose. 3.2.0 makes a bare Query() default to a
+  # *stock* preset filter that silently returns 0 rows for crypto/futures
+  # scans, which would break coin/screener/futures tools. The Docker build uses
+  # `uv pip install --system .` (ignores uv.lock), so an open range would let a
+  # rebuild drift to 3.2.0 and break paid traffic. See futures_service._futures_query.
+  "tradingview-screener==3.0.0",
+  "tradingview-ta>=3.3.0",
+]
+
+[project.scripts]
+# Entry point now points to packaged module
+tradingview-mcp = "tradingview_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+tradingview_mcp = ["coinlist/*.txt"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=0.24",
+]
+package = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# Default runs stay hermetic — the real-network stress suite only runs when
+# explicitly selected: `pytest -m stress tests/stress`.
+addopts = '-m "not stress"'
+# Opt-in markers — only run when explicitly requested via -m so CI default
+# stays hermetic. The 'stress' suite hits real TradingView upstream and
+# asserts wall-clock bounds; ``pytest -m stress`` to run.
+markers = [
+    "stress: real-network stress tests (require live upstream; not in CI)",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

@@ -1,0 +1,10 @@
+{
+  "max_risk_per_trade_pct": 1.0,
+  "max_daily_loss_pct": 3.0,
+  "max_total_drawdown_pct": 10.0,
+  "max_open_positions": 3,
+  "max_total_lots": 5.0,
+  "max_spread_points": 40,
+  "allowed_symbols": ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD"],
+  "require_sl": true
+}
