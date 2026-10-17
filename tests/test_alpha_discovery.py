@@ -185,6 +185,31 @@ class TestSealedSandbox:
         result = evaluator.evaluate_candidate(candidate, train, test)
         assert result.status == "REJECTED"
 
+    def test_negative_ic_rejected(self):
+        from core.alpha_discovery import SealedSandboxEvaluator, AlphaCandidate
+        evaluator = SealedSandboxEvaluator(min_ic_ir=0.15, min_ic_mean=0.02)
+        n = 300
+        t = np.linspace(0, 50, n)
+        close = 100.0 + np.sin(t) * 10.0
+        df = pd.DataFrame({
+            "open": close,
+            "high": close + 1,
+            "low": close - 1,
+            "close": close,
+            "volume": np.ones(n) * 1000,
+        })
+        train = df.iloc[:200]
+        test = df.iloc[200:]
+        candidate = AlphaCandidate(
+            expression="0 - delta(close, 1)",
+            name="neg_alpha",
+            category="momentum",
+        )
+        result = evaluator.evaluate_candidate(candidate, train, test)
+        # Must be rejected because IC mean and IC_IR are negative
+        assert result.status == "REJECTED"
+        assert "too low" in result.rejection_reason
+
 
 # ===========================================================================
 # 4. Experience Memory
@@ -374,17 +399,22 @@ class TestRouterGenerationPath:
                 return lr.LLMRouter.deterministic_hold_fallback("alpha_discovery", [])
 
         import sys
-        old = sys.modules.get("llm_router")
-        sys.modules["llm_router"] = type(sys)("llm_router")
-        sys.modules["llm_router"].get_router = lambda: _FakeRouter()
+        old = sys.modules.get("data.llm_router")
+        fake = type(sys)("data.llm_router")
+        fake.get_router = lambda: _FakeRouter()
+        sys.modules["data.llm_router"] = fake
         try:
             with pytest.raises(_RouterLLMError):
                 _router_llm_generate("prompt")
         finally:
+            # _router_llm_generate does `from data.llm_router import get_router`,
+            # so the fake MUST be keyed on the dotted name. Patching the bare
+            # "llm_router" key silently no-ops once the real module is cached,
+            # which made this test order-dependent.
             if old is not None:
-                sys.modules["llm_router"] = old
+                sys.modules["data.llm_router"] = old
             else:
-                del sys.modules["llm_router"]
+                del sys.modules["data.llm_router"]
 
     def test_adapter_rejects_error_string(self):
         """Router 'Error: ...' return values must raise, not parse as alphas."""
@@ -398,17 +428,19 @@ class TestRouterGenerationPath:
             def generate(self, agent, messages, **kw):
                 return "Error: openrouter failed: 503"
 
-        old = sys.modules.get("llm_router")
-        sys.modules["llm_router"] = type(sys)("llm_router")
-        sys.modules["llm_router"].get_router = lambda: _FakeRouter()
+        old = sys.modules.get("data.llm_router")
+        fake = type(sys)("data.llm_router")
+        fake.get_router = lambda: _FakeRouter()
+        sys.modules["data.llm_router"] = fake
         try:
             with pytest.raises(_RouterLLMError):
                 _router_llm_generate("prompt")
         finally:
+            # Keyed on the dotted name - see test_router_hold_payload_raises.
             if old is not None:
-                sys.modules["llm_router"] = old
+                sys.modules["data.llm_router"] = old
             else:
-                del sys.modules["llm_router"]
+                del sys.modules["data.llm_router"]
 
     def test_adapter_end_to_end_with_real_router(self, monkeypatch):
         """Full chain through the REAL LLMRouter (fake provider, no HTTP):

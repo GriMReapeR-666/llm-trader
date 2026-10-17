@@ -28,18 +28,42 @@ trader_supervisor_phase{phase="STOPPED"} 0
 # HELP trader_healthy Overall supervisor health.
 # TYPE trader_healthy gauge
 trader_healthy 1
+# HELP trader_principal_age_seconds Seconds since last principal beat.
+# TYPE trader_principal_age_seconds gauge
+trader_principal_age_seconds{principal="EventAgent"} 3
+# HELP trader_principal_age_seconds Seconds since last principal beat.
+# TYPE trader_principal_age_seconds gauge
+trader_principal_age_seconds{principal="MacroAnalyst"} 0.1
+# HELP trader_principal_age_seconds Seconds since last principal beat.
+# TYPE trader_principal_age_seconds gauge
+trader_principal_age_seconds{principal="MarketModel"} 0.1
+# HELP trader_principal_age_seconds Seconds since last principal beat.
+# TYPE trader_principal_age_seconds gauge
+trader_principal_age_seconds{principal="PortfolioAgent"} 3
+# HELP trader_principal_age_seconds Seconds since last principal beat.
+# TYPE trader_principal_age_seconds gauge
+trader_principal_age_seconds{principal="QuantitativeCoach"} 0.2
+# HELP trader_principal_age_seconds Seconds since last principal beat.
+# TYPE trader_principal_age_seconds gauge
+trader_principal_age_seconds{principal="RiskAgent"} 3
+# HELP trader_principal_age_seconds Seconds since last principal beat.
+# TYPE trader_principal_age_seconds gauge
+trader_principal_age_seconds{principal="RiskController"} 0
+# HELP trader_principal_age_seconds Seconds since last principal beat.
+# TYPE trader_principal_age_seconds gauge
+trader_principal_age_seconds{principal="TechnicalNet"} 0.2
 # HELP trader_autonomy_level Current autonomy level (1 = active).
 # TYPE trader_autonomy_level gauge
 trader_autonomy_level{level="L0_SHADOW"} 0
 # HELP trader_autonomy_level Current autonomy level (1 = active).
 # TYPE trader_autonomy_level gauge
-trader_autonomy_level{level="L1_PAPER"} 0
+trader_autonomy_level{level="L1_PAPER"} 1
 # HELP trader_autonomy_level Current autonomy level (1 = active).
 # TYPE trader_autonomy_level gauge
 trader_autonomy_level{level="L2_MICRO"} 0
 # HELP trader_autonomy_level Current autonomy level (1 = active).
 # TYPE trader_autonomy_level gauge
-trader_autonomy_level{level="L3_FULL"} 1
+trader_autonomy_level{level="L3_FULL"} 0
 # HELP trader_halted Kill switch engaged.
 # TYPE trader_halted gauge
 trader_halted 0
@@ -48,13 +72,13 @@ trader_halted 0
 trader_paused 0
 # HELP trader_events_emitted_total Events emitted through the bridge.
 # TYPE trader_events_emitted_total gauge
-trader_events_emitted_total 0
+trader_events_emitted_total 313
 # HELP trader_events_dropped_total Dropped pre-init emissions.
 # TYPE trader_events_dropped_total gauge
-trader_events_dropped_total 1
+trader_events_dropped_total 0
 # HELP trader_strategies_registered Strategies known to the factory.
 # TYPE trader_strategies_registered gauge
 trader_strategies_registered 103
 # HELP trader_approvals_pending Governance approvals awaiting operator.
 # TYPE trader_approvals_pending gauge
-trader_approvals_pending 26
+trader_approvals_pending 0

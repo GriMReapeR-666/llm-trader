@@ -786,6 +786,7 @@ Generate 1-3 improvement proposals.
         baseline: Optional[BaselineSnapshot] = None,
         llm_analyze_fn: Optional[Callable[[str], str]] = None,
         simulate_proposed_metrics: Optional[Callable[[Dict[str, Any]], Dict[str, float]]] = None,
+        store: Any = None,
     ) -> List[ImprovementProposal]:
         """Execute one self-improvement cycle.
 
@@ -793,6 +794,7 @@ Generate 1-3 improvement proposals.
             baseline: Current performance snapshot (captured if None).
             llm_analyze_fn: LLM function for analysis.
             simulate_proposed_metrics: Function to simulate metrics for proposed changes.
+            store: Optional TradingStore to automatically bind walk-forward trade replay simulator.
 
         Returns:
             List of evaluated proposals (APPLIED / VALIDATED / REJECTED /
@@ -800,6 +802,12 @@ Generate 1-3 improvement proposals.
             with an honest reason — never a fabricated 0% rejection.
         """
         self.state.cycle_count += 1
+
+        if simulate_proposed_metrics is None and store is not None:
+            try:
+                simulate_proposed_metrics = create_replay_simulator(store)
+            except Exception as _sim_exc:
+                logger.debug("Replay simulator creation failed: %s", _sim_exc)
 
         # Step 1: BASELINE
         if baseline is None:

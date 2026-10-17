@@ -32,6 +32,11 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 try:
+    from core.alpha_causality import find_lookahead_violations
+except ImportError:
+    from alpha_causality import find_lookahead_violations
+
+try:
     from core.state_persistence import StoreBackedState
 except ImportError:
     from core.state_persistence import StoreBackedState
@@ -142,11 +147,14 @@ class SafeAlphaEvaluator:
             logger.debug("Expression too complex: depth=%d", self._compute_complexity(expression))
             return None
 
-        # Causality guard: rank() is a full-sample percentile normalizer — on
-        # single-symbol data it uses future information (look-ahead bias) and
-        # would inflate in-sample IC. Reject it explicitly.
-        if re.search(r"\brank\s*\(", expression):
-            logger.debug("Expression rejected: non-causal primitive 'rank' (look-ahead)")
+        # Causality guard: full-sample normalizers (rank/zscore/normalize) and
+        # negative shifts read future bars on single-symbol data, inflating
+        # in-sample IC. Rules live in `core.alpha_causality` and are shared with
+        # the GA miner (`research/alpha_miner/alpha_judge.py`) so the two stacks
+        # cannot enforce opposite policies again.
+        violations = find_lookahead_violations(expression)
+        if violations:
+            logger.debug("Expression rejected: non-causal primitive(s) %s", violations)
             return None
 
         # Build safe namespace
@@ -373,6 +381,17 @@ class SealedSandboxEvaluator:
         candidate.ic_std = float(np.std(ic_values))
         candidate.ic_ir = candidate.ic_mean / max(candidate.ic_std, 1e-6)
 
+        # Apply thresholds (fail closed: require strictly positive IC and IC_IR)
+        if candidate.ic_mean < self.min_ic_mean:
+            candidate.status = "REJECTED"
+            candidate.rejection_reason = f"IC mean too low: {candidate.ic_mean:.4f} < {self.min_ic_mean}"
+            return candidate
+
+        if candidate.ic_ir < self.min_ic_ir:
+            candidate.status = "REJECTED"
+            candidate.rejection_reason = f"IC_IR too low: {candidate.ic_ir:.4f} < {self.min_ic_ir}"
+            return candidate
+
         # Out-of-sample validation on test set
         test_alpha = self.evaluator.evaluate(candidate.expression, test_df)
         if test_alpha is not None and "close" in test_df.columns:
@@ -404,17 +423,6 @@ class SealedSandboxEvaluator:
         if alpha_series.notna().sum() > 1:
             changes = alpha_series.diff().abs()
             candidate.turnover = float(changes.mean())
-
-        # Apply thresholds
-        if abs(candidate.ic_ir) < self.min_ic_ir:
-            candidate.status = "REJECTED"
-            candidate.rejection_reason = f"IC_IR too low: {candidate.ic_ir:.4f} < {self.min_ic_ir}"
-            return candidate
-
-        if abs(candidate.ic_mean) < self.min_ic_mean:
-            candidate.status = "REJECTED"
-            candidate.rejection_reason = f"IC mean too low: {candidate.ic_mean:.4f}"
-            return candidate
 
         candidate.status = "VALIDATED"
         candidate.discovered_at = time.time()

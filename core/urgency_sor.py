@@ -104,6 +104,69 @@ class UrgencySmartOrderRouter:
             "is_taker": u >= self.high_urgency_threshold,
         }
 
+    def route_external_alert(
+        self,
+        symbol: str,
+        side: str,
+        volume: float,
+        price: float,
+        urgency_score: float,
+        best_bid: float,
+        best_ask: float,
+        source: str = "tradingview",
+        bid_depth: float = 100.0,
+        ask_depth: float = 100.0,
+    ) -> Dict[str, Any]:
+        """External-alert routing branch (TradingView et al).
+
+        External webhook alerts are never allowed to originate aggressive
+        execution: at HIGH urgency they route as a standard limit at the
+        entry price (no IOC taker), and at MEDIUM/LOW they are surfaced as
+        advisory-only proposals (no order routed). Deterministic vetoes
+        downstream still apply; this branch just guarantees the alert can
+        never cross the spread under its own urgency.
+        """
+        src = str(source or "").strip().lower()
+        if src != "tradingview":
+            # Non-TV sources keep deterministic routing semantics.
+            return self.route_execution_order(
+                symbol=symbol, side=side, volume=volume, price=price,
+                urgency_score=urgency_score, best_bid=best_bid,
+                best_ask=best_ask, bid_depth=bid_depth, ask_depth=ask_depth)
+
+        side_norm = str(side).upper()
+        u = float(urgency_score)
+        tot_depth = bid_depth + ask_depth
+        p_micro = (bid_depth * best_ask + ask_depth * best_bid) / tot_depth if tot_depth > 0 else (best_bid + best_ask) / 2.0
+
+        if u >= self.high_urgency_threshold:
+            routed = {
+                "symbol": symbol,
+                "side": side_norm,
+                "volume": float(volume),
+                "urgency_score": round(u, 4),
+                "order_type": "LIMIT_STANDARD",
+                "target_price": float(price),
+                "micro_price": round(float(p_micro), 5),
+                "execution_strategy": "EXTERNAL_ALERT_STANDARD_LIMIT",
+                "is_taker": False,
+                "source": src,
+            }
+        else:
+            routed = {
+                "symbol": symbol,
+                "side": side_norm,
+                "volume": 0.0,
+                "urgency_score": round(u, 4),
+                "order_type": None,
+                "target_price": float(price),
+                "micro_price": round(float(p_micro), 5),
+                "execution_strategy": "EXTERNAL_ALERT_ADVISORY_ONLY",
+                "is_taker": False,
+                "source": src,
+            }
+        return routed
+
 
 from core.ewc_forgetting_prevention import ElasticWeightConsolidationRegularizer
 

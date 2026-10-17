@@ -30,10 +30,10 @@ say "venv: $ROOT/.venv ($(.venv/bin/python --version))"
 # 2) Dependencies (MetaTrader5 is skipped on macOS by its platform marker) ------
 "${PIP[@]}" -r requirements.txt pytest
 say "python dependencies installed"
-# The deck's MT5 panel runs the metatrader5-mcp server; its MetaTrader5 dependency
+# The deck's MT5 panel runs the repo MT5 FastMCP server (kronos_mcp + compat/mt5_bridge);
 # is Windows-only, so install it without deps (the bridge shim stands in).
 "${PIP[@]}" fastmcp "mcp>=0.9.0" "pydantic>=2.5.0"
-"${PIP[@]}" --no-deps metatrader5-mcp
+"${PIP[@]}" --no-deps kronos-mcp  # repo package that provides the MT5 FastMCP entrypoint
 if [ "${1:-}" = "--full" ]; then
   "${PIP[@]}" -r requirements-optional.txt
   say "optional dependencies installed"

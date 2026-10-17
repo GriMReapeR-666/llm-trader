@@ -51,11 +51,32 @@ BASE_DIR = _root_dir  # Alias for backward compatibility with RL training pipeli
 if _root_dir not in sys.path:
     sys.path.insert(0, _root_dir)
 
+# Single import root (C1): bare and package-qualified imports of the same
+# file resolve to ONE module object (one kill-switch latch, one set of
+# singletons).  Installed before the first repo import below.
+try:
+    from _import_root import install as _install_import_root
+    _install_import_root()
+except ImportError:
+    # sitecustomize may not have run (python -S, an embedded interpreter);
+    # the canonical import still installs the finder and re-registers itself
+    # under the bare name, so both spellings share one module object.
+    try:
+        from core._import_root import install as _install_import_root
+        _install_import_root()
+    except Exception as _ir_exc:  # pragma: no cover - bootstrap must never die here
+        import warnings as _warnings
+        _warnings.warn(f"single-import-root install failed: {_ir_exc}")
+except Exception as _ir_exc:  # pragma: no cover - bootstrap must never die here
+    import warnings as _warnings
+    _warnings.warn(f"single-import-root install failed: {_ir_exc}")
+
 import time
 import json
 import logging
 import math
 import hashlib
+import threading
 from dataclasses import dataclass, replace
 from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime, timedelta, timezone # Added timezone for UTC support
@@ -1493,7 +1514,7 @@ def _drain_operator_controls(orch: Any) -> None:
 
 def main() -> None:
     """Main entry point for the MT5 LLM Trader"""
-    global mt5
+    global mt5, pd, np
     
     # Initialize configuration and logging
     cfg = Config.from_sources()
@@ -1770,6 +1791,8 @@ def main() -> None:
                         help="Mount named plugin profile (paper/live/research/backtest). Auto-maps from --paper/--live flags if not set.")
     ap_llm.add_argument("--list-profiles", action="store_true", help="List available plugin profiles and exit")
     ap_llm.add_argument("--bounded-autonomy", action="store_true", help="Enable Bounded-Autonomy LLM Agent Pipeline (NZE 2026: R ∘ V_LLM ∘ S)")
+    ap_llm.add_argument("--execution-engine", choices=["orchestrator", "graph"], default="orchestrator",
+                        help="Primary decision engine: 'orchestrator' (legacy multi-strategy) or 'graph' (modular LangGraph Deliberative Engine)")
 
     # ── Demo Trading Orchestrator (live training pipeline) ───────────────────
     ap_demo = sub.add_parser("demo-run", help="Autonomous demo trading with live training pipeline")
@@ -2948,15 +2971,50 @@ def main() -> None:
                 end_dt = min(now, start_dt + timedelta(days=1))
 
             if args.paper:
-                from operations.daily_reconciliation import adapt_paper_deals, compare_day
-                closed_rows = store.closed_trade_rows_between(start_dt.isoformat(), end_dt.isoformat())
-                paper_deals = adapt_paper_deals(closed_rows)
-                report = compare_day(store, paper_deals, start_dt, end_dt, require_timestamps=False)
+                # Paper mode has no independent broker side, so there is
+                # nothing honest to reconcile.  The PaperBroker's closed history
+                # is in-memory on the trader process (core/order_execution.py:
+                # self.history, trimmed to 1000) and is unreachable from this
+                # CLI; the only durable thing here is the journal itself.
+                # Feeding journal rows back in as "broker" deals compares the
+                # journal against itself: it can never disagree, so it can
+                # never be evidence.  And because journal rows carry `pnl`
+                # while the deal adapter reads `profit`, every non-zero-P&L
+                # trade was additionally reported as a spurious mismatch
+                # (live: refused_discrepant=5) plus a durable ATTENTION work
+                # item per trade, overwriting any real report for the period.
+                # compare_day already refuses to mint evidence from these
+                # (refused_journal_derived), so nothing reached the gates --
+                # but it still wrote false alarms.  Refuse outright.
+                #
+                # The genuine paper evidence path is the in-process one:
+                # operations/learning_loop._resolve_broker_deals reads
+                # context.paper_broker.history (real PaperBroker closes) and
+                # runs compare_day over it.  That is separate from this CLI.
+                report = {
+                    "status": "NO_INDEPENDENT_BROKER_SOURCE",
+                    "period_start": start_dt.isoformat(),
+                    "period_end": end_dt.isoformat(),
+                    "reason": (
+                        "paper mode supplies no broker-side evidence: the journal "
+                        "cannot be reconciled against itself, and the PaperBroker's "
+                        "closed history lives in the trader process, not the journal. "
+                        "No reconciliation was run and no evidence was written."
+                    ),
+                    "execution_evidence_written": 0,
+                    "execution_authority": False,
+                    "hint": ("run without --paper against MetaTrader5 deal history; "
+                             "paper closes are reconciled in-process by "
+                             "operations/learning_loop.run_daily_review"),
+                }
             else:
-                mt5_inst = _get_mt5()
-                if mt5_inst is None:
-                    raise RuntimeError("MetaTrader5 module unavailable for live reconciliation; specify --paper to run against paper ledger")
-                deals = mt5_inst.history_deals_get(start_dt, end_dt)
+                # Genuine broker side.  (This used to call an undefined
+                # `_get_mt5()`, so the only live path always raised NameError.)
+                if mt5 is None:
+                    raise RuntimeError(
+                        "MetaTrader5 module unavailable for live reconciliation; "
+                        "there is no independent broker side without it")
+                deals = mt5.history_deals_get(start_dt, end_dt)
                 if deals is None:
                     raise RuntimeError("MT5 deal history unavailable for reconciliation")
                 from operations.daily_reconciliation import compare_day
@@ -3237,7 +3295,6 @@ def main() -> None:
             return
 
     if args.cmd == "research-sim":
-        import numpy as np
         if args.action == "simulate-ar1":
             from research.synthetic_path_simulator import fit_ar1_model, generate_synthetic_paths, optimize_strategy_ensemble, default_mean_reversion_strategy
             np.random.seed(42)
@@ -3942,7 +3999,10 @@ def execute_skill(**kwargs):
 
     # LLM Trading Orchestrator
     if args.cmd == "llm-trade":
-        # Single-instance engine lock (CC-F9, PR 3.4):
+# Single-instance engine lock (CC-F9, PR 3.4), kept from origin/main.
+        # An OS-level mutex on engine.lock, independent of the PID lease below,
+        # so a stale pid file can never be the only thing standing between two
+        # engines.
         from core.file_lock import FileLock
         _lock_path = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.lock")
         global _engine_file_lock
@@ -3953,16 +4013,54 @@ def execute_skill(**kwargs):
             sys.exit(3)
         _engine_file_lock.write_pid(os.getpid())
 
-        # Single-instance lifecycle: publish PID so the API/deck can display it.
+        # Single-instance lifecycle: publish PID so the API/deck can guard
+        # against double-spawn and offer a real stop. Best-effort only.
+        # Lease-backed: the writer stamps {pid, created_at, stamped_at} and a
+        # daemon heartbeat re-stamps it, so a crash left behind a PID file is
+        # detected by any observer (operations/live_state_probe.py) instead of
+        # lying for hours - and a pid Windows later recycles cannot pass for us.
         _pid_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.pid")
         try:
+            from operations.live_state_probe import (claim_pid_lease, read_pid_lease,
+                                                     start_pid_lease_heartbeat, sweep_live_state)
+
+            # Single-instance guard as a LEASE: a live holder wins, a dead or
+            # stale one is taken over. Refusing here is what stops two engines
+            # thrashing the journal DB and racing the broker.
+            _claim = claim_pid_lease(_pid_path)
+            if not _claim["acquired"]:
+                print(f"[lifecycle] REFUSING TO START: another engine (pid {_claim.get('pid')}) "
+                      f"already holds engine.pid ({_claim.get('reason')}). "
+                      f"Stop it first (delete engine.pid or use the API stop command).")
+                sys.exit(2)
+
+            # Recover any stale boot/liveness state from a previous crash:
+            # expired schedule claims, ghost agent_runs, supervisor lying
+            # about RUNNING. Every finding is logged as a WARNING (P0-1).
+            # NOTE: no `orch` here - it is constructed ~380 lines further down,
+            # so referencing it raised NameError and skipped the sweep entirely.
+            try:
+                _sweep = sweep_live_state(getattr(args, "journal_path", None) or "trading_state.db",
+                                          _pid_path)
+                if _sweep["released_claims"] or _sweep["recovered_runs"] or (_sweep["supervisor"] or {}).get("recovered"):
+                    print(f"[lifecycle] live-state sweep: {_sweep['released_claims']} stale claim(s) "
+                          f"released, {_sweep['recovered_runs']} ghost run(s) recovered, "
+                          f"supervisor recovered={bool((_sweep['supervisor'] or {}).get('recovered'))}")
+            except Exception as _sweep_exc:
+                logging.getLogger("main").warning("live-state sweep skipped: %s", _sweep_exc)
+
             import atexit as _atexit
-            with open(_pid_path, "w", encoding="utf-8") as _pf:
-                _pf.write(str(os.getpid()))
+
+            # Re-stamp the lease while we live. Without this the file is a
+            # stale artifact again after PID_LEASE_MAX_AGE_S and every observer
+            # (watchdog, GUI, operator) would call a healthy engine dead.
+            start_pid_lease_heartbeat(_pid_path)
 
             def _cleanup_pid():
                 try:
-                    os.remove(_pid_path)
+                    # Ownership-checked: never delete a lease a successor took.
+                    if read_pid_lease(_pid_path).get("pid") == os.getpid():
+                        os.remove(_pid_path)
                 except OSError:
                     pass
                 try:
@@ -3974,6 +4072,11 @@ def execute_skill(**kwargs):
             _atexit.register(_cleanup_pid)
         except OSError as _pid_exc:
             print(f"[lifecycle] engine.pid write failed (non-fatal): {_pid_exc}")
+        except SystemExit:
+            raise
+        except Exception as _pid_lifecycle_exc:
+            # pid lease / sweep are boot-enhancements, never trading blockers.
+            logging.getLogger("main").warning("pid lifecycle init failed (non-fatal): %s", _pid_lifecycle_exc)
 
         # --debug: re-configure logging with trading-critical modules at DEBUG
         if getattr(args, 'debug', False):
@@ -4114,7 +4217,8 @@ def execute_skill(**kwargs):
                         "Error: No LLM providers have API keys configured "
                         "(every decision would be a deterministic HOLD).\n"
                         "Set at least one provider key in .env "
-                        "(OPENROUTER_API_KEY, CEREBRAS_API_KEY, NVIDIA_API_KEY, ROUTESME_KEY)."
+                        "(OPENROUTER_API_KEY, CEREBRAS_API_KEY, NVIDIA_API_KEY, ROUTESME_KEY, "
+                        "OMNIROUTER_KEY)."
                     )
                     sys.exit(1)
             except Exception as e:
@@ -4760,6 +4864,27 @@ def execute_skill(**kwargs):
                             "Autonomous pipeline tick FAILED: %s", _pipe_exc
                         )
 
+                # --- Autonomous recursive self-improvement tick (every 25 loops) ---
+                if cycle_count % 25 == 0:
+                    try:
+                        from core.self_improvement_loop import RecursiveSelfImprovementEngine
+                        _rsi_store = getattr(orch, "store", None)
+                        _rsi_engine = RecursiveSelfImprovementEngine(state_file="artifacts/self_improvement_state.json")
+                        _rsi_res = _rsi_engine.run_improvement_cycle(store=_rsi_store)
+                        if _rsi_res:
+                            _proposals = _rsi_res if isinstance(_rsi_res, list) else [_rsi_res]
+                            for _p in _proposals:
+                                _st = getattr(_p, "status", "") if not isinstance(_p, dict) else _p.get("status", "")
+                                _imp = getattr(_p, "improvement_pct", 0.0) if not isinstance(_p, dict) else _p.get("improvement_pct", 0.0)
+                                _cat = getattr(_p, "category", "") if not isinstance(_p, dict) else _p.get("category", "")
+                                if _st in ("APPLIED", "VALIDATED"):
+                                    logging.getLogger("main").info(
+                                        "Recursive self-improvement cycle %d -> %s (+%.2f%%) | %s",
+                                        cycle_count, _st, _imp, _cat
+                                    )
+                    except Exception as _rsi_exc:
+                        logging.getLogger("main").debug("Recursive self-improvement tick skipped: %s", _rsi_exc)
+
                 # Auto-Select Symbol
                 current_symbol = args.symbol
                 skip_analysis = False
@@ -4870,6 +4995,24 @@ def execute_skill(**kwargs):
 
                     if opportunities:
                         best = opportunities[0]
+                        
+                        _last_sym = getattr(scanner, "_last_scanner_symbol", None)
+                        if _last_sym and best["symbol"] == _last_sym:
+                            has_pos = False
+                            if hasattr(orch, "trade_manager") and hasattr(orch.trade_manager, "_get_positions"):
+                                try:
+                                    has_pos = bool(orch.trade_manager._get_positions(symbol=_last_sym))
+                                except Exception:
+                                    pass
+                            
+                            if not has_pos:
+                                for opp in opportunities[1:3]:
+                                    if opp["symbol"] != _last_sym:
+                                        best = opp
+                                        break
+                                        
+                        scanner._last_scanner_symbol = best["symbol"]
+                        
                         current_symbol = best["symbol"]
                         score = best["score"]
                         msg = f" Selected {current_symbol} (Score: {score})"
@@ -4971,11 +5114,51 @@ def execute_skill(**kwargs):
                     _delib_app = harness_ctx.get("deliberative_graph")
                     logging.getLogger("main").info(
                         "Deliberative Graph shadow mode enabled.")
+                if _delib_app is None and getattr(args, "execution_engine", "orchestrator") == "graph":
+                    try:
+                        from intelligence.deliberative_graph import build_deliberative_graph
+                        _delib_app = build_deliberative_graph(
+                            db_path=getattr(args, "journal_path", None) or "trading_state.db",
+                            router=getattr(orch, "router", None),
+                            broker=getattr(orch, "client", None) or getattr(orch, "paper_broker", None),
+                        )
+                        logging.getLogger("main").info("Primary Deliberative Graph execution engine initialized.")
+                    except Exception as _dg_exc:
+                        logging.getLogger("main").warning("Deliberative Graph init failed: %s", _dg_exc)
 
                 # Run strategy cycles — parallel when multiple strategies active
                 def _run_one_strategy(_sname, _stf):
                     _ct0 = time.time()
                     try:
+                        if getattr(args, "execution_engine", "orchestrator") == "graph" and _delib_app is not None:
+                            from intelligence.graph_state import create_initial_trading_cycle_state as _mk_graph_state
+                            from core.shared_state import ui_state as _ui_state
+                            _ui_state.reset_graph_pipeline(symbol=current_symbol, timeframe=_stf)
+                            _g_init = _mk_graph_state(
+                                symbol=current_symbol,
+                                timeframe=_stf,
+                                strategy=_sname,
+                                paper_mode=args.paper,
+                            )
+                            _g_tid = f"exec_{current_symbol}_{_stf}_{cycle_count}"
+                            _g_final = _delib_app.invoke(_g_init, config={"configurable": {"thread_id": _g_tid}})
+                            _g_status = _g_final.get("status", "UNKNOWN")
+                            _g_action = _g_final.get("order_intent", {}).get("action", "HOLD") if _g_status == "EXECUTED" else "HOLD"
+                            _msg = f"⚡ [GRAPH DECISION] Cycle {cycle_count}: {_g_action} {current_symbol} {_stf} ({_sname}) -> {_g_status}"
+                            logging.getLogger("main").info(_msg)
+                            if display and hasattr(display, "update_execution_log"):
+                                display.update_execution_log([_msg])
+                            try:
+                                from operations.event_bridge import emit as _deck_emit
+                                _deck_emit("CYCLE_COMPLETE", {
+                                    "symbol": current_symbol, "strategy": _sname,
+                                    "timeframe": _stf,
+                                    "duration_ms": int((time.time() - _ct0) * 1000),
+                                }, correlation_id=f"{current_symbol}-{_stf}")
+                            except Exception:
+                                pass
+                            return
+
                         _entry = orch.execute_cycle
                         if _v2_enabled and hasattr(orch, "execute_cycle_v2"):
                             _entry = orch.execute_cycle_v2
@@ -5268,7 +5451,7 @@ def execute_skill(**kwargs):
                             display.update_execution_log(
                                 [f"⚠ Circuit: {t.get('key')} ({t.get('severity')})" for t in _trips[:3]])
                 except Exception as _cb_exc:
-                    logging.getLogger("main").debug("Circuit breaker evaluation skipped: %s", _cb_exc)
+                    logging.getLogger("main").warning("Circuit breaker evaluation error: %s", _cb_exc)
 
                 # --- G8: Autonomous Recovery — risk reduction on consecutive failures ---
                 _consecutive_failures = 0

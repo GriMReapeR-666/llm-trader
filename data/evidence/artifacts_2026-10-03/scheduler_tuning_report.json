@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-10-03T09:00:21.980074+00:00",
+  "generated_at": "2026-10-05T01:43:05.895755+00:00",
   "journal": "trading_state.db",
-  "live_session": true,
+  "live_session": false,
   "live_session_evidence": {
     "open_run": true,
-    "recent_activity": true,
+    "recent_activity": false,
     "last_run_started": "2026-10-03T08:58:16.762674+00:00",
     "last_run_finished": "2026-10-03T08:49:08.638666+00:00"
   },

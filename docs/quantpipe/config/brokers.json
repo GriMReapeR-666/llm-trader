@@ -1,0 +1,38 @@
+{
+  "ecn_raw": {
+    "spread_points": 2, "commission_per_lot": 7.0, "slippage_points": 1,
+    "leverage": 500, "min_lot": 0.01, "lot_step": 0.01, "max_lot": 100,
+    "stops_level_points": 0, "swap_per_lot_day": -4.0, "stop_out_level": 20,
+    "symbols": {
+      "USDJPY": {"point": 0.001, "digits": 3, "usd_base": true},
+      "XAUUSD": {"point": 0.01, "digits": 2, "contract_size": 100, "spread_points": 18}
+    }
+  },
+  "standard_mm": {
+    "spread_points": 15, "commission_per_lot": 0.0, "slippage_points": 3,
+    "leverage": 100, "min_lot": 0.01, "lot_step": 0.01, "max_lot": 50,
+    "stops_level_points": 10, "swap_per_lot_day": -6.0, "stop_out_level": 50,
+    "symbols": {
+      "USDJPY": {"point": 0.001, "digits": 3, "usd_base": true, "spread_points": 18},
+      "XAUUSD": {"point": 0.01, "digits": 2, "contract_size": 100, "spread_points": 35}
+    }
+  },
+  "us_retail_lowlev": {
+    "spread_points": 12, "commission_per_lot": 5.0, "slippage_points": 2,
+    "leverage": 50, "min_lot": 0.1, "lot_step": 0.1, "max_lot": 20,
+    "stops_level_points": 20, "swap_per_lot_day": -8.0, "stop_out_level": 100,
+    "symbols": {
+      "USDJPY": {"point": 0.001, "digits": 3, "usd_base": true},
+      "XAUUSD": {"point": 0.01, "digits": 2, "contract_size": 100, "spread_points": 40}
+    }
+  },
+  "prop_firm_challenge": {
+    "spread_points": 8, "commission_per_lot": 6.0, "slippage_points": 2,
+    "leverage": 100, "min_lot": 0.01, "lot_step": 0.01, "max_lot": 30,
+    "stops_level_points": 0, "swap_per_lot_day": -5.0, "stop_out_level": 50,
+    "symbols": {
+      "USDJPY": {"point": 0.001, "digits": 3, "usd_base": true},
+      "XAUUSD": {"point": 0.01, "digits": 2, "contract_size": 100, "spread_points": 25}
+    }
+  }
+}

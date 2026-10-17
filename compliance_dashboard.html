@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Compliance Dashboard</title>
+<style>
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #0d1117; color: #c9d1d9; padding: 20px; }
+    h1 { color: #58a6ff; margin-bottom: 5px; }
+    h2 { color: #58a6ff; margin: 15px 0 8px; font-size: 1.1em; }
+    .subtitle { color: #8b949e; font-size: 0.9em; margin-bottom: 15px; }
+    .cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+            padding: 15px 20px; min-width: 140px; text-align: center; }
+    .card .num { font-size: 1.8em; font-weight: bold; color: #58a6ff; }
+    .card .label { font-size: 0.8em; color: #8b949e; margin-top: 4px; }
+    .section { background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+               padding: 15px 20px; margin-bottom: 15px; }
+    .ok { color: #28a745; font-weight: bold; }
+    .warn { color: #ffc107; font-weight: bold; }
+    .crit { color: #dc3545; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+    th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #21262d; }
+    th { color: #8b949e; font-weight: 600; position: sticky; top: 0; background: #161b22; }
+    tr:hover { background: #1c2128; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px;
+             font-size: 0.75em; font-weight: 600; }
+    .badge-crit { background: #dc354522; color: #dc3545; border: 1px solid #dc354544; }
+    .badge-warn { background: #ffc10722; color: #ffc107; border: 1px solid #ffc10744; }
+    .badge-info { background: #17a2b822; color: #17a2b8; border: 1px solid #17a2b844; }
+    .badge-ok { background: #28a74522; color: #28a745; border: 1px solid #28a74544; }
+    .truncate { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .muted { color: #8b949e; }
+    
+</style>
+</head>
+<body>
+<h1>▣ Compliance Dashboard</h1>
+<p class='subtitle'>Generated: 2026-10-10 08:00:29 UTC | Period: 24h</p>
+
+<div class='cards'>
+<div class='card'><div class='num'>↻ 0</div><div class='label'>Total Events</div></div>
+<div class='card'><div class='num'>▣ ✔</div><div class='label'>Chain Valid</div></div>
+<div class='card'><div class='num'>⚠ 0</div><div class='label'>Alerts</div></div>
+<div class='card'><div class='num'>≡ 0</div><div class='label'>S.Q Tasks</div></div>
+<div class='card'><div class='num'>✔ OK</div><div class='label'>Schedule Starvation</div></div>
+<div class='card'><div class='num'>≡ unknown</div><div class='label'>AlphaDiscovery</div></div>
+</div>
+
+<div class='section'>
+<h2>▣ Hash Chain Integrity</h2>
+<p>Status: <span class='ok'>VALID</span></p>
+<p>Entries verified: 0</p>
+<p>Duration: 0.0ms</p>
+</div>
+
+
+
+<div class='section'>
+<h2>✉ Operator Alert Outbox</h2>
+<table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Status</td><td><span class='badge badge-ok'>OK</span></td></tr>
+<tr><td>PENDING</td><td>0</td></tr>
+<tr><td>CLAIMED</td><td>0</td></tr>
+<tr><td>SENT</td><td>28</td></tr>
+<tr><td>EXPIRED</td><td>57</td></tr>
+<tr><td>Oldest pending</td><td>—</td></tr>
+<tr><td>Report captured at</td><td>2026-10-03T08:58:44.199663+00:00</td></tr>
+</table>
+</div>
+
+<div class='section'>
+<h2>◷ Schedule Starvation</h2>
+<p>Status: <span class='badge badge-ok'>OK</span> <span class='muted'>| window 24h | 0 scheduled dispatches</span></p>
+<table>
+</table>
+<p class='ok'>No starvation telemetry in the last 24h (0 scheduled dispatches).</p>
+</div>
+
+<div class='section'>
+<h2>✉ LLM Providers</h2>
+<table>
+<tr><th>Provider</th><th>Status</th><th>Keys</th><th>Circuit</th></tr>
+<tr><td>openrouter</td><td class='ok'>INITIALIZED</td><td>1</td><td>closed</td></tr>
+<tr><td>tokenrouter</td><td class='ok'>INITIALIZED</td><td>1</td><td>closed</td></tr>
+<tr><td>cerebras</td><td class='ok'>INITIALIZED</td><td>1</td><td>closed</td></tr>
+<tr><td>nvidia_nim</td><td class='ok'>INITIALIZED</td><td>2</td><td>closed</td></tr>
+</table>
+<p>AlphaDiscovery generation: <span class='badge badge-warn'>unknown</span> <span class='warn'></span> <span class='muted'>| no cycle recorded | source: unavailable</span></p>
+</div>
+
+
+
+<div class='section'>
+<h2>≡ S.Q Priority Queue Status</h2>
+<table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>pending</td><td>0</td></tr>
+<tr><td>running</td><td>0</td></tr>
+<tr><td>completed</td><td>0</td></tr>
+<tr><td>failed</td><td>0</td></tr>
+</table>
+</div>
+
+<div class='section'><h2>≡ Recent Audit Events</h2><p>No events recorded in this period.</p></div>
+
+</body>
+</html>

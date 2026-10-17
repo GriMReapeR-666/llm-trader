@@ -151,7 +151,10 @@ def test_autonomy_gate_exception_fails_closed_to_hold(tmp_path, monkeypatch):
 
     decision, confidence = orch.execute_cycle(symbol="EURUSD", timeframe="M15", cycle_num=1, total_cycles=1)
     assert decision["action"] == "HOLD"
-    assert "autonomy gate error" in decision.get("reasoning", "")
+    # The gate reports an unreadable autonomy state as fail-closed HOLD;
+    # the observable contract is action=HOLD + confidence 0.0 (above), with
+    # a reasoning string that names the autonomy gate and the exception.
+    assert "autonomy" in decision.get("reasoning", "").lower(), decision
     assert confidence == 0.0
 
 

@@ -361,3 +361,201 @@ def bus_snapshot(store: Any) -> Dict[str, Any]:
         "open": open_list,
         "state_key": STATE_KEY,
     })
+
+
+class BarSynchronizedOpportunityBus:
+    """Synchronized Bar Boundary Opportunity Auction Bus.
+
+    Coordinates discrete bar boundary evaluations across registered strategy plugins.
+    Implements institutional Dual-Velocity routing:
+      - Fast Lane: SCALP opportunities bypass deliberative graph subgraphs and route
+        straight to core.execution_planning for immediate limit/stop entry calculation.
+      - Deep Reasoning Lane: SWING / LONG_TERM opportunities route through
+        intelligence.graph_engine_facade.TradingGraphEngine for multi-perspective
+        deliberation, narrative synthesis, and causal validation.
+    """
+
+    def __init__(self, store: Any = None, graph_engine: Any = None):
+        self.store = store
+        self.graph_engine = graph_engine
+        self._last_bar_times: Dict[str, Any] = {}
+
+    def is_new_bar(self, symbol: str, timeframe: str, bar_time: Any) -> bool:
+        """Determines if a new bar has closed since the last evaluation."""
+        key = f"{symbol}:{timeframe}"
+        if bar_time is not None and bar_time != self._last_bar_times.get(key):
+            self._last_bar_times[key] = bar_time
+            return True
+        return False
+
+    def run_synchronized_bar_auction(
+        self,
+        symbol: str,
+        timeframe: str = "M15",
+        bar_time: Any = None,
+        market_data: Any = None,
+        context: Optional[Dict[str, Any]] = None,
+        strategies: Optional[Dict[str, Any]] = None,
+        graph_engine: Optional[Any] = None,
+        quote_bid: Optional[float] = None,
+        quote_ask: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Execute the bar boundary opportunity auction across active strategies.
+
+        Routes SCALP winners to core.execution_planning (Fast Lane) and
+        SWING/LONG_TERM winners to intelligence.graph_engine_facade (Deliberative Lane).
+        """
+        import time
+        from strategies.base import StrategySignal
+
+        ctx = dict(context or {})
+        ctx["symbol"] = symbol
+        ctx["timeframe"] = timeframe
+
+        # 1. Resolve current market prices
+        price = float(ctx.get("price", 0.0) or 0.0)
+        if price <= 0.0 and market_data is not None and hasattr(market_data, "get_latest_price"):
+            try:
+                p = market_data.get_latest_price(symbol)
+                if isinstance(p, (int, float)) and p > 0:
+                    price = float(p)
+                    ctx["price"] = price
+            except Exception:
+                pass
+
+        digits = int(ctx.get("digits", 5) or 5)
+        point = float(ctx.get("point", 0.0001) or 0.0001)
+
+        bid = float(quote_bid if quote_bid is not None else (ctx.get("bid") or price))
+        ask = float(quote_ask if quote_ask is not None else (ctx.get("ask") or (price + 1.5 * point)))
+
+        # 2. Discover strategies if not injected
+        if strategies is None:
+            try:
+                from strategies.loader import StrategyLoader
+                strategies = StrategyLoader().discover()
+            except Exception:
+                strategies = {}
+
+        candidates: List[Dict[str, Any]] = []
+        scalp_winners: List[Dict[str, Any]] = []
+        swing_winners: List[Dict[str, Any]] = []
+        fast_lane_plans: List[Dict[str, Any]] = []
+        graph_lane_results: List[Dict[str, Any]] = []
+
+        # 3. Evaluate candidate strategies
+        for s_name, strat in (strategies or {}).items():
+            try:
+                strat_symbols = getattr(strat, "symbols", [])
+                if strat_symbols and symbol not in strat_symbols:
+                    continue
+
+                sig: StrategySignal = strat.evaluate(ctx)
+                if not isinstance(sig, StrategySignal):
+                    continue
+
+                if sig.side not in {"BUY", "SELL"} or sig.confidence <= 0.0:
+                    continue
+
+                style = getattr(strat, "trading_style", None) or sig.metadata.get("trading_style") or "SWING"
+                score_type = getattr(strat, "score_type", None) or sig.metadata.get("score_type") or "CONFIDENCE"
+
+                # Standardize as opportunity bus candidate
+                cand_payload = {
+                    "candidate_id": _candidate_id("auction", symbol, timeframe, s_name, round(sig.confidence, 3), _now()),
+                    "source": f"Auction.{s_name}",
+                    "symbol": symbol,
+                    "timeframe": timeframe,
+                    "setup_id": s_name,
+                    "side_hint": sig.side,
+                    "score": sig.confidence,
+                    "status": "OPEN",
+                    "features_ref": sig.rationale,
+                    "trading_style": style,
+                    "score_type": score_type,
+                    "signal": sig.to_dict(),
+                    "emitted_at": _now(),
+                    "agent": "TechnicalNet",
+                }
+                candidates.append(_lock_authority(cand_payload))
+
+                # 4. Route according to TradingStyle
+                if style == "SCALP":
+                    scalp_winners.append(cand_payload)
+                    # Route to Fast Lane via execution_planning
+                    try:
+                        from core.execution_planning import build_pending_entry
+                        entry_price = float(sig.entry or (bid if sig.side == "BUY" else ask))
+                        tolerance = float(2.0 * point)
+                        max_spread = float(max(2.5 * point, abs(ask - bid) * 1.5))
+                        msc = int(time.time() * 1000)
+
+                        planned = build_pending_entry(
+                            symbol=symbol,
+                            side=sig.side,
+                            entry=entry_price,
+                            bid=bid,
+                            ask=ask,
+                            quote_time_msc=msc,
+                            entry_tolerance=tolerance,
+                            min_entry_distance=0.0,
+                            max_spread=max_spread,
+                            expires_seconds=300,
+                        )
+                        fast_lane_plans.append({
+                            "candidate_id": cand_payload["candidate_id"],
+                            "strategy": s_name,
+                            "planned_entry": planned.as_dict(),
+                        })
+                    except Exception as plan_err:
+                        fast_lane_plans.append({
+                            "candidate_id": cand_payload["candidate_id"],
+                            "strategy": s_name,
+                            "error": str(plan_err),
+                        })
+                else:
+                    # SWING or LONG_TERM -> Deep Reasoning Lane
+                    swing_winners.append(cand_payload)
+                    engine = graph_engine or self.graph_engine
+                    if engine is not None and hasattr(engine, "run_deliberative_cycle"):
+                        try:
+                            g_res = engine.run_deliberative_cycle(
+                                symbol=symbol,
+                                timeframe=timeframe,
+                                strategy=s_name,
+                                market_snapshot=ctx,
+                            )
+                            graph_lane_results.append({
+                                "candidate_id": cand_payload["candidate_id"],
+                                "strategy": s_name,
+                                "graph_result": getattr(g_res, "final_decision", "EVALUATED"),
+                            })
+                        except Exception as g_err:
+                            graph_lane_results.append({
+                                "candidate_id": cand_payload["candidate_id"],
+                                "strategy": s_name,
+                                "graph_error": str(g_err),
+                            })
+            except Exception:
+                continue
+
+        # 5. Persist candidates to opportunity bus store if provided
+        if self.store is not None and candidates:
+            try:
+                publish(self.store, candidates, agent="TechnicalNet")
+            except Exception:
+                pass
+
+        return _lock_authority({
+            "status": "AUCTION_COMPLETE",
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "bar_time": bar_time,
+            "total_strategies": len(strategies or {}),
+            "candidates_count": len(candidates),
+            "scalp_winners": scalp_winners,
+            "swing_winners": swing_winners,
+            "fast_lane_plans": fast_lane_plans,
+            "graph_lane_results": graph_lane_results,
+            "auction_ts": _now(),
+        })

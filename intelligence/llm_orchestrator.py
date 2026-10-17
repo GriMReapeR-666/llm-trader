@@ -175,7 +175,11 @@ from intelligence.cost_estimator import assess_costs
 from intelligence.feature_schema import validate_snapshot as validate_feature_schema
 from research.model_registry import list_models, register as register_model, review as review_model, drift_report as model_drift_report
 from research.research_stress import stress_report
-from research.contextual_bandit import bandit_report
+# NOTE: research.contextual_bandit.bandit_report is intentionally NOT imported here.
+# It is an offline, operator-invoked research artifact (`journal bandit-status`)
+# that returns promotion_safe=False by construction; wiring it into the live
+# pulse would imply an influence on trading that it must never have. See
+# docs/BANDIT_AND_LEARNING_CHAIN_FINDING.md.
 from intelligence.semantic_memory import search as semantic_memory_search
 from operations.health_alerts import evaluate as evaluate_health_alerts
 from operations.alert_outbox import enqueue as enqueue_alerts, claim as claim_alerts, acknowledge as acknowledge_alert, recover_expired as recover_alerts, status as alert_outbox_status, outbox_health as alert_outbox_health
@@ -229,6 +233,11 @@ try:
     from core.news_execution_engine import NewsExecutionEngine
 except ImportError:
     NewsExecutionEngine = None
+
+try:
+    from core.macro_playbook_router import route_event as _route_macro_event
+except ImportError:
+    _route_macro_event = None
 
 try:
     from core.llm_decision_logger import LLMDecisionLogger
@@ -517,6 +526,62 @@ SIGNAL_SYSTEM_PROMPT_TEMPLATE = (
     "  NOTE: conditional_scenarios are journaled suggestions only. Never assume they execute.\n"
     "}\n"
 )
+
+
+def _rl_state_vector(state: Dict[str, Any], obs_dim: int) -> Optional[List[float]]:
+    """Flatten the mixed-type RL state dict into a fixed-width numeric vector.
+
+    ``_build_rl_state`` returns a deliberately heterogeneous dict (floats,
+    bools and categorical strings such as macro_event_state / session). A
+    policy head needs a fixed numeric width, so this maps the categorical
+    fields onto small integer codes and encodes a missing value as NaN-free
+    neutral 0.0 rather than inventing a plausible-looking measurement.
+
+    Returns None when there is not enough real evidence to describe the state,
+    so the caller declines to advise instead of guessing.
+    """
+    if not state:
+        return None
+
+    def num(key: str, default: Optional[float] = None) -> Optional[float]:
+        value = state.get(key, default)
+        if isinstance(value, bool):
+            return 1.0 if value else 0.0
+        if isinstance(value, (int, float)):
+            return float(value) if math.isfinite(float(value)) else default
+        return default
+
+    # At minimum the market has to have produced a usable price context.
+    if num("rsi_14") is None and num("atr_normalized") is None:
+        return None
+
+    event_state = str(state.get("macro_event_state", "UNKNOWN")).upper()
+    event_code = {
+        "CLEAR": 0.0, "UNKNOWN": 0.0, "IMMINENT": 1.0,
+        "ACTIVE": 2.0, "POST": 0.5,
+    }.get(event_state, 0.0)
+    vol_regime = {"low": 0.0, "medium": 1.0, "high": 2.0}.get(
+        str(state.get("volatility_regime", "medium")).lower(), 1.0)
+
+    values: List[float] = [
+        num("rsi_14", 50.0) / 100.0,
+        num("macd_histogram", 0.0),
+        num("ma_alignment", 0.0),
+        num("atr_normalized", 0.0),
+        num("confluence_score", 0.0),
+        num("near_sr", 0.0),
+        num("nearest_sr_distance", 1.0) or 1.0,
+        num("news_sentiment", 0.0),
+        num("news_count", 0.0),
+        event_code,
+        vol_regime,
+        num("trend_strength", 0.0),
+        num("htf_trend", 0.0),
+        num("strategy_weight", 1.0),
+    ]
+    if len(values) < obs_dim:
+        values.extend([0.0] * (obs_dim - len(values)))
+    return [float(v) for v in values[:obs_dim]]
 
 
 class LLMOrchestrator:
@@ -809,13 +874,20 @@ class LLMOrchestrator:
 
         # Paper Broker
         try:
-            self.paper_broker = PaperBroker()
+            # The journal_callback is what makes a paper close evidence-bearing:
+            # without it a fill survives only in a volatile in-memory list and the
+            # broker-reconciled gates stay shut with nothing in the journal saying why.
+            self.paper_broker = PaperBroker(journal_callback=self._journal_paper_fill)
             if getattr(self.data_provider, "trade_manager", None) is not None:
                 self.data_provider.trade_manager.attach_paper_broker(self.paper_broker)
             if hasattr(self.risk, "set_active_positions_provider"):
                 self.risk.set_active_positions_provider(lambda: len(getattr(self.paper_broker, "positions", {})))
             if hasattr(self.risk, "set_portfolio_heat_provider"):
                 self.risk.set_portfolio_heat_provider(self._calc_paper_portfolio_heat)
+            if hasattr(self.risk, "set_equity_provider"):
+                # Paper has no MT5 terminal, so RiskManager.current_equity()
+                # would otherwise freeze on the seed balance for the whole run.
+                self.risk.set_equity_provider(self._calc_paper_equity)
         except NameError:
              self.paper_broker = None
 
@@ -876,6 +948,59 @@ class LLMOrchestrator:
             trade_manager.attach_safety(store=self.store, arbiter=_arbiter)
         except Exception as exc:
             logger.error("Failed to attach safety arbiter to TradeManager: %s; trades will lack safety validation!", exc)
+
+    def _calc_paper_equity(self) -> Optional[float]:
+        """The paper venue's real equity: realised P&L plus open floating P&L.
+
+        Without this, a paper session has no authenticated MT5 terminal, so every
+        ``RiskManager`` equity read fell back to ``risk.balance`` - a seed value
+        that ``data/market_data_provider.update_account`` only ever rewrites with
+        itself when the terminal is absent. Sizing therefore never compounded as
+        the simulated account won or lost.
+
+        Mirrors the paper portfolio heat calculation below: measure the venue's
+        own book rather than trusting a cached seed.
+        """
+        broker = getattr(self, "paper_broker", None)
+        if broker is None:
+            return None
+
+        realised = getattr(broker, "realised_pnl", None)
+        if realised is None:
+            # Older PaperBroker builds keep the running total elsewhere; fall
+            # back to its closed-trade ledger rather than reporting a wrong 0.0.
+            history = getattr(broker, "history", None) or []
+            try:
+                realised = sum(float(d.get("profit") or 0.0) for d in history)
+            except (TypeError, ValueError, AttributeError):
+                realised = 0.0
+        try:
+            realised = float(realised)
+        except (TypeError, ValueError):
+            realised = 0.0
+
+        floating = 0.0
+        try:
+            for pos in (getattr(broker, "positions", None) or {}).values():
+                floating += float(
+                    (pos.get("profit") or 0.0)
+                    if "profit" in pos
+                    else ((float(pos.get("price_current") or 0.0)
+                           - float(pos.get("price_open") or 0.0))
+                          * float(pos.get("volume") or 0.0))
+                )
+        except (TypeError, ValueError, AttributeError):
+            floating = 0.0
+
+        try:
+            base = float(self.risk.current_equity())
+        except Exception:
+            base = float(getattr(self.risk, "balance", 0.0) or 0.0)
+        if base <= 0:
+            return None
+
+        equity = base + realised + floating
+        return equity if equity > 0 else None
 
     def _calc_paper_portfolio_heat(self) -> Optional[float]:
         """Measured open paper portfolio heat in R units.
@@ -2415,6 +2540,74 @@ class LLMOrchestrator:
             logging.getLogger("LLMOrchestrator").warning(f"Failed to build RL state: {e}")
             return {}
 
+    def _ppo_advice(
+        self,
+        toon: Dict[str, Any],
+        artifact_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Query the trained PPO position-management policy for an advisory.
+
+        This is the read side of the PPO loop. Training wrote
+        artifacts/ppo_position_mgmt.json on every interval, but nothing ever
+        loaded it back, so each run restarted from a fresh policy and the
+        artifact was a write-only sink.
+
+        Safety properties, all deliberate:
+          - ADVISORY ONLY. The result is a suggestion merged into the toon
+            context; it never sets execution parameters and never bypasses the
+            deterministic validator or the order gateway.
+          - Uses greedy_action(), not act(). act() samples from the policy
+            distribution, which is right for collecting rollouts but wrong for
+            a live suggestion - the same state must always map to the same
+            action or the advice becomes noise.
+          - Fails closed. A missing, corrupt, or dimension-mismatched artifact
+            returns an empty dict so the caller simply has no PPO input.
+        """
+        if not getattr(self, "enable_rl", False):
+            return {}
+        try:
+            # Same default as PPOTrainer.save_artifact's callers in mt5_trader.
+            path = artifact_path or os.path.join("artifacts", "ppo_position_mgmt.json")
+            if not path or not os.path.exists(path):
+                return {}
+
+            from research.ppo_trainer import OBS_DIM_KRONOS, PPOTrainer
+
+            trainer = getattr(self, "_ppo_trainer", None)
+            if trainer is None:
+                # Match the backend the artifact was trained with, otherwise
+                # load_artifact correctly refuses the mismatch.
+                backend = "numpy"
+                try:
+                    with open(path, "r", encoding="utf-8") as fh:
+                        backend = json.load(fh).get("backend", "numpy")
+                except Exception:
+                    backend = "numpy"
+                trainer = PPOTrainer(
+                    obs_dim=OBS_DIM_KRONOS,
+                    use_torch=(backend == "torch"),
+                )
+                self._ppo_trainer = trainer
+            trainer.load_artifact(path)
+
+            state = self._build_rl_state(toon)
+            if not state:
+                return {}
+            vector = _rl_state_vector(state, trainer.obs_dim)
+            if vector is None:
+                return {}
+            index = trainer.greedy_action(vector)
+            return {
+                "action": trainer.action_name(index),
+                "action_index": int(index),
+                "backend": trainer.backend,
+                "advisory_only": True,
+                "execution_authority": False,
+            }
+        except Exception as exc:
+            logging.getLogger("LLMOrchestrator").debug("PPO advice unavailable: %s", exc)
+            return {}
+
     def _live_order_token(self):
         """Short-lived ORDER_WRITE token for one broker entry (PH2-N1).
 
@@ -3950,6 +4143,55 @@ class LLMOrchestrator:
         summary["status"] = "CAPTURED" if summary["recorded"] else "NO_PROXIES"
         return summary
 
+    def _record_trade_reflection(
+        self,
+        ticket: int,
+        symbol: str,
+        setup_name: str,
+        r_multiple: float,
+        pnl: float,
+        excursion: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Feed a closed trade into the active-knowledge episodic memory.
+
+        This is the ONLY path that writes MFE/MAE and the realized R-multiple
+        into `scenario_documents` / `verified_memories`, which is what the
+        retrieval-augmented case matcher later reads. It was previously never
+        called from the close path, so excursions computed by record_close()
+        were journalled but never reached the memory layer.
+
+        Best-effort by design: a failure here must never break trade closure.
+        Missing marks are coerced to 0.0 rather than passed as None, because
+        ingest_trade_reflection formats them with %.2f.
+        """
+        try:
+            from intelligence.active_knowledge_agent import ACTIVE_KNOWLEDGE_AGENT
+
+            exc = excursion or {}
+            mfe_r = exc.get("mfe_r")
+            mae_r = exc.get("mae_r")
+            # None means "never observed" (no qualifying marks). Recording a
+            # hard 0.0 would assert the trade never moved favourably, which is
+            # a different and much stronger claim than "we did not watch".
+            mfe_val = float(mfe_r) if mfe_r is not None else 0.0
+            mae_val = float(mae_r) if mae_r is not None else 0.0
+            setup = str(setup_name or "unclassified")
+            ACTIVE_KNOWLEDGE_AGENT.ingest_trade_reflection(
+                ticket=int(ticket),
+                symbol=str(symbol or ""),
+                setup_name=setup,
+                close_price=float(pnl or 0.0),
+                r_multiple=float(r_multiple or 0.0),
+                pnl=float(pnl or 0.0),
+                exit_reason=str(exc.get("exit_reason") or "closed"),
+                mae_r=mae_val,
+                mfe_r=mfe_val,
+            )
+        except Exception as exc:
+            logging.getLogger("LLMOrchestrator").debug(
+                "Trade reflection ingest failed for #%s: %s", ticket, exc
+            )
+
     def _apply_causal_trade_feedback(self, ticket: int, pnl: float, risk_amount: float, label: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Close the trade→causal-edge learning loop via revise_edge + auto-validate."""
         feedbacks: List[Dict[str, Any]] = []
@@ -4665,9 +4907,13 @@ class LLMOrchestrator:
                     eq_val = (toon.get("account") or {}).get("equity") or getattr(self.risk, "equity", None)
                     if eq_val and isinstance(eq_val, (int, float)) and eq_val > 0:
                         self.metrics_service.update_equity(float(eq_val))
-                    audit["institutional_metrics"] = self.metrics_service.get_metrics_summary()
-                except Exception as _ms_exc:
-                    logging.getLogger("LLMOrchestrator").debug("Metrics service cycle sync skipped: %s", _ms_exc)
+                except Exception:
+                    pass
+            try:
+                from core.temporal_planning_engine import evaluate_temporal_context
+                audit["temporal_context"] = evaluate_temporal_context(datetime.now(timezone.utc))
+            except Exception:
+                pass
 
             toon["quant_audit"] = audit
             self.operations.agent_event(
@@ -5250,12 +5496,16 @@ class LLMOrchestrator:
                         exit_price = float(last_deal.get("price_close", 0.0))
                         close_time = datetime.fromtimestamp(float(last_deal.get("close_time", time.time())), tz=timezone.utc)
                     else:
-                        gross_pnl = 0.0
-                        swap = 0.0
-                        commission = 0.0
-                        total_pnl = 0.0
-                        exit_price = float(trade.get("open_price", 0.0))
-                        close_time = datetime.now(timezone.utc)
+                        # The venue dropped the position without recording a fill.
+                        # Do not fabricate a flat 0.0-P&L outcome: a journal close is
+                        # the input to every reconciled gate, so an invented zero
+                        # would read as a real break-even trade. Keep it open and let
+                        # reconciliation report the missing broker record instead.
+                        logging.getLogger("LLMOrchestrator").warning(
+                            "Paper position #%s vanished with no venue fill record; leaving it open for reconciliation.",
+                            ticket,
+                        )
+                        continue
                 else:
                     # Retrieve history to find PnL (Lookback 7 days to be safe)
                     from_date = datetime.now() - timedelta(days=7)
@@ -5315,6 +5565,27 @@ class LLMOrchestrator:
                     label = self.trade_memory.label_closed_trade(ticket, total_pnl, risk_amount, "MT5 history reconciliation")
                     self.trade_memory.resolve_retrieval_outcome(ticket, label["label"])
                     self._apply_causal_trade_feedback(ticket, total_pnl, risk_amount, label)
+                    # Feed excursions + realized R into episodic memory. Without
+                    # this the MFE/MAE that record_close() just computed never
+                    # reaches scenario_documents/verified_memories.
+                    try:
+                        _exc = self.store.excursions(int(ticket))
+                        _exc["exit_reason"] = "MT5 history reconciliation"
+                    except Exception as _exc_err:
+                        _exc = {}
+                        logging.getLogger("LLMOrchestrator").debug(
+                            "excursions() unavailable for #%s: %s", ticket, _exc_err)
+                    _payload = self.store.trade_payload(int(ticket)) if hasattr(self.store, "trade_payload") else {}
+                    # symbol lives in the trades row, not the payload JSON; the
+                    # loop above already resolved `trade` for this ticket.
+                    self._record_trade_reflection(
+                        ticket=int(ticket),
+                        symbol=str(trade.get("symbol", "")),
+                        setup_name=str(_payload.get("setup_id") or trade.get("strategy", "") or "unclassified"),
+                        r_multiple=float(label.get("r_multiple", 0.0) or 0.0),
+                        pnl=float(total_pnl),
+                        excursion=_exc,
+                    )
                     self.trade_memory.save_narrative({"ticket": ticket, "label": label["label"]}, f"Trade {ticket}: {label['label']} at {label['r_multiple']:.2f}R. {label['rationale']}")
                     self.trade_memory.rebuild_scenarios()
                     # Distill lesson from this trade outcome
@@ -5407,8 +5678,102 @@ class LLMOrchestrator:
                     logging.getLogger("LLMOrchestrator").warning(
                         f"⚠️ Trade #{ticket} is absent from positions but no MT5 history is available; keeping it unresolved.")
 
+    def _journal_paper_fill(self, deal: Dict[str, Any]) -> None:
+        """Persist the paper venue's own fill as broker execution evidence.
+
+        In paper mode ``PaperBroker`` *is* the venue: it is the only component that
+        saw the fill price, volume and realized P&L.  Without this bridge that close
+        exists solely in a volatile in-memory list, so every broker-reconciled gate
+        (``labelled_dataset`` -> CPCV/WFA) stays shut with nothing in the journal
+        explaining why.  ``broker_execution_reports`` is the one table
+        ``research_validation.broker_reconciled_tickets`` accepts as independent
+        proof, so the venue record belongs there.
+
+        The row is venue-attested, not journal-derived: nothing on the ``trades``
+        table is read, and ``deal_ticket``/``order_ticket`` stay NULL because the
+        paper venue issues no deal identifiers and inventing one would itself be
+        fabrication.  Reconciliation must still agree with the journal on ticket and
+        net P&L before a close becomes research evidence.
+        """
+        if self.store is None or not isinstance(deal, dict):
+            return
+        try:
+            ticket = int(deal["ticket"])
+            filled_volume = float(deal["volume"])
+            filled_price = float(deal["price_close"])
+            venue_pnl = float(deal.get("profit", 0.0))
+            close_time = float(deal.get("close_time", 0.0) or 0.0)
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            logging.getLogger("LLMOrchestrator").warning(
+                "Paper fill evidence rejected: malformed venue record (%s)", exc)
+            return
+        if ticket <= 0 or filled_volume <= 0 or filled_price <= 0:
+            return
+        try:
+            self.store.record_execution_report(
+                event_type="PAPER_FILL",
+                intent_key=f"paper_fill:{ticket}:{close_time:.6f}",
+                position_ticket=ticket,
+                filled_price=filled_price,
+                filled_volume=filled_volume,
+                retcode=10009,
+                payload={
+                    "manager": "PaperBroker",
+                    "venue": "paper_broker",
+                    "broker_net_pnl": venue_pnl,
+                    "side": str(deal.get("side", "")),
+                    "symbol": str(deal.get("symbol", "")),
+                    "price_open": float(deal.get("price_open", 0.0) or 0.0),
+                    "status": str(deal.get("status", "")),
+                    "close_time": close_time,
+                    "note": "paper venue fill, independent of the journal trades table",
+                },
+            )
+        except Exception as exc:
+            # A simulated fill must never be lost because the journal is
+            # unavailable -- but losing its evidence must not be silent either.
+            logging.getLogger("LLMOrchestrator").warning(
+                "Paper fill evidence not journaled for ticket %s: %s", ticket, exc)
+
+        # Wire closed paper positions to the slow-lane reflection graph
+        if str(deal.get("status", "")).upper() == "CLOSED":
+            try:
+                open_p = float(deal.get("price_open", 0.0) or 0.0)
+                risk_amount = 0.0
+                if hasattr(self.store, "trade_risk"):
+                    try:
+                        risk_amount = float(self.store.trade_risk(ticket) or 0.0)
+                    except Exception:
+                        risk_amount = 0.0
+                if risk_amount <= 0:
+                    risk_amount = max(1.0, abs(open_p - filled_price) * filled_volume)
+                r_mult = venue_pnl / risk_amount if risk_amount > 0 else 0.0
+                outcome_label = "WIN_TARGET" if venue_pnl > 0 else ("LOSS_STOP" if venue_pnl < 0 else "BREAKEVEN")
+
+                if hasattr(self, "velocity") and hasattr(self.velocity, "submit_slow") and hasattr(self, "_run_reflection_graph"):
+                    c_iso = datetime.fromtimestamp(close_time, tz=timezone.utc).isoformat() if close_time else utcnow_iso()
+                    o_iso = datetime.fromtimestamp(max(0.0, close_time - 60.0), tz=timezone.utc).isoformat() if close_time else utcnow_iso()
+                    self.velocity.submit_slow(
+                        f"reflection_{ticket}",
+                        self._run_reflection_graph,
+                        ticket=ticket,
+                        symbol=str(deal.get("symbol", "")),
+                        strategy="paper_execution",
+                        open_time=o_iso,
+                        close_time=c_iso,
+                        entry_price=open_p,
+                        close_price=filled_price,
+                        realized_pnl=venue_pnl,
+                        realized_r_multiple=r_mult,
+                        outcome_label=outcome_label,
+                    )
+            except Exception as _p_ref_exc:
+                logging.getLogger("LLMOrchestrator").debug(
+                    "Paper reflection dispatch skipped for #%s: %s", ticket, _p_ref_exc
+                )
+
     def reconcile_daily_broker_history(self, day_start: Optional[datetime] = None) -> Dict[str, Any]:
-        """Persist a bot-owned MT5 deal-versus-journal daily comparison.
+        """Persist a bot-owned venue-deal-versus-journal daily comparison.
 
         It reports, rather than hides, missing tickets and P&L differences.
         Manual/unowned broker activity is deliberately kept outside the bot
@@ -5418,16 +5783,21 @@ class LLMOrchestrator:
         start = (day_start or now.replace(hour=0, minute=0, second=0, microsecond=0)).astimezone(timezone.utc)
         end = min(now, start + timedelta(days=1))
 
-        is_paper = getattr(self, "paper_broker", None) is not None or mt5 is None
-        if is_paper and getattr(self, "paper_broker", None) is not None:
-            from operations.daily_reconciliation import adapt_paper_deals
-            deals = adapt_paper_deals(self.paper_broker.history)
-            require_timestamps = False
-        elif mt5 is not None:
+        # The paper venue is constructed in *every* mode, so its mere presence says
+        # nothing about which side is authoritative -- preferring it would silently
+        # reconcile a live terminal against an empty simulated ledger.  An
+        # authenticated MT5 login does: paper sessions have no client (see
+        # ``__init__``), and only a real terminal makes broker history an outside
+        # record rather than this process's own simulation.
+        if mt5 is not None and getattr(self, "client", None) is not None:
             deals = mt5.history_deals_get(start, end)
             if deals is None:
                 raise RuntimeError("MT5 deal history unavailable for daily reconciliation")
             require_timestamps = True
+        elif getattr(self, "paper_broker", None) is not None:
+            from operations.daily_reconciliation import adapt_paper_deals
+            deals = adapt_paper_deals(self.paper_broker.history)
+            require_timestamps = False
         else:
             raise RuntimeError("Neither authenticated MT5 terminal nor PaperBroker available for daily reconciliation")
 
@@ -6047,6 +6417,12 @@ class LLMOrchestrator:
                 except Exception:
                     pass
 
+            if hasattr(self.quant_workflow_engine, "evaluate_and_select_best_workflow"):
+                res_ensemble = self.quant_workflow_engine.evaluate_and_select_best_workflow(
+                    ctx=h_ctx, symbol=symbol, market_snapshot=snapshot
+                )
+                return res_ensemble
+
             res = self.quant_workflow_engine.execute_workflow(
                 selected_wf, ctx=h_ctx, symbol=symbol, market_snapshot=snapshot
             )
@@ -6185,6 +6561,15 @@ class LLMOrchestrator:
                 self._SCHEDULE_HANDLER_BUDGETS.get(
                     schedule_name, self._SCHEDULE_DEFAULT_HANDLER_BUDGET),
             )
+            try:
+                self.operations.heartbeat(self.run_id, {"schedule": schedule_name, "stage": "dispatch"})
+            except Exception:
+                pass
+            try:
+                from operations.supervisor import get_supervisor as _get_sup
+                _get_sup().heartbeat()
+            except Exception:
+                pass
             # --- multi-agent executor registry: principal-owned handlers first ---
             try:
                 from operations.executors import try_handle as _executors_try
@@ -6462,8 +6847,7 @@ class LLMOrchestrator:
             elif schedule_name == "position_reconcile":
                 try:
                     self.reconcile_pending_orders(paper_mode)
-                    if not paper_mode:
-                        self.reconcile_open_positions()
+                    self.reconcile_open_positions()
                     review_escalation = self.operations.escalate_execution_reviews()
                     self.operations.agent_event(
                         "RiskController", "review_execution_exceptions", "reconciliation_report",
@@ -7063,18 +7447,23 @@ class LLMOrchestrator:
                                         "daily_narrative_generated", summary, run_id=self.run_id,
                                         correlation_id="daily_review")
         daily_reconciliation = None
-        if not paper_mode:
-            try:
-                daily_reconciliation = self.reconcile_daily_broker_history()
-                if hasattr(self, "operations") and self.operations:
-                    self.operations.agent_event("QuantitativeCoach", "review_session", "research_report",
-                                                "daily_broker_reconciliation", daily_reconciliation, run_id=self.run_id,
-                                                correlation_id="daily_review",
-                                                severity="INFO" if daily_reconciliation.get("status") == "CLEAN" else "WARNING")
-            except Exception as exc:
-                if hasattr(self, "operations") and self.operations:
-                    self.operations.event("reconciler", "daily_broker_reconciliation_failed", {"error": str(exc)},
-                                          run_id=self.run_id, correlation_id="daily_review", severity="ERROR")
+        try:
+            # Runs in paper mode as well.  In paper the broker side is the
+            # PaperBroker's own fill ledger -- a record written by the venue, not a
+            # replay of the journal rows being checked -- so this stays a real
+            # two-sided comparison and can legitimately mint reconciled evidence.
+            # (``mt5_trader.py --paper`` is the tautological variant: it adapts the
+            # journal's own rows into deals, and daily_reconciliation refuses those.)
+            daily_reconciliation = self.reconcile_daily_broker_history()
+            if hasattr(self, "operations") and self.operations:
+                self.operations.agent_event("QuantitativeCoach", "review_session", "research_report",
+                                            "daily_broker_reconciliation", daily_reconciliation, run_id=self.run_id,
+                                            correlation_id="daily_review",
+                                            severity="INFO" if daily_reconciliation.get("status") == "CLEAN" else "WARNING")
+        except Exception as exc:
+            if hasattr(self, "operations") and self.operations:
+                self.operations.event("reconciler", "daily_broker_reconciliation_failed", {"error": str(exc)},
+                                      run_id=self.run_id, correlation_id="daily_review", severity="ERROR")
         return {"summary": summary, "daily_reconciliation": daily_reconciliation, "execution_authority": False}
 
     def _execute_weekly_research(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -7135,11 +7524,24 @@ class LLMOrchestrator:
                                             "execution_authority": False,
                                         },
                                         run_id=self.run_id, correlation_id="weekly_research")
+        macro_funnel_report: Dict[str, Any] = {"status": "SKIPPED", "execution_authority": False}
+        try:
+            from core.macro_conviction_funnel import MacroConvictionEngine
+            cand_scores = (payload or {}).get("candidate_scores") or {}
+            corrs = (payload or {}).get("correlations") or {}
+            if cand_scores:
+                macro_funnel_report = MacroConvictionEngine().run_weekly_selection_funnel(cand_scores, corrs)
+            else:
+                macro_funnel_report = {"status": "AWAITING_CANDIDATE_SCORES", "execution_authority": False}
+        except Exception as mf_exc:
+            macro_funnel_report = {"status": "ERROR", "error": str(mf_exc)[:400], "execution_authority": False}
+
         return {
             "scenario_documents": scenarios,
             "weekly_memory": weekly_memory,
             "research_sprint": sprint,
             "cpcv_report": cpcv_report,
+            "macro_funnel_report": macro_funnel_report,
             "execution_authority": False,
         }
 
@@ -7208,6 +7610,15 @@ class LLMOrchestrator:
         symbol = str(symbol or "").strip().upper()
         self._poll_velocity_results()
         self.reconcile_pending_orders(paper_mode)
+        # Live-only in this prefix, deliberately. ``core/harness/pipeline_v2.py``
+        # declares the maintenance stages and ``tests/test_pipeline_v2.py::
+        # test_maintenance_stages_match_legacy_prefix_order`` pins this exact call
+        # sequence as golden equivalence between the legacy prefix and the
+        # declared stages ("reconcile.open is live-only"). Running it here in
+        # paper mode desynchronised the two halves. It is also not needed for
+        # paper evidence: ``PaperBroker.close_position`` invokes
+        # ``journal_callback`` (``_journal_paper_fill``) directly, independent of
+        # this reconciliation pass.
         if not paper_mode:
             self.reconcile_open_positions()
         memory_key = f"memory:{datetime.now(timezone.utc).strftime('%Y%m%d%H')}"
@@ -7351,8 +7762,19 @@ class LLMOrchestrator:
         # Reconciliation Step (Sync pending orders/closed positions) before
         # any new proposal is allowed to consume risk.
         self.reconcile_pending_orders(paper_mode)
+        # Live-only in this prefix, deliberately. ``core/harness/pipeline_v2.py``
+        # declares the maintenance stages and ``tests/test_pipeline_v2.py::
+        # test_maintenance_stages_match_legacy_prefix_order`` pins this exact call
+        # sequence as golden equivalence between this legacy prefix and the
+        # declared stages ("reconcile.open is live-only"). Running it here in paper
+        # mode desynchronised the two halves of that equivalence.
+        #
+        # It is also not what makes paper fills evidence-bearing:
+        # ``PaperBroker.close_position`` invokes ``journal_callback``
+        # (``_journal_paper_fill``) directly, so broker evidence is written
+        # regardless of this reconciliation pass.
         if not paper_mode:
-             self.reconcile_open_positions()
+            self.reconcile_open_positions()
         # Memory distillation is deliberately outside the decision/permission
         # path and uses the same configured provider under a separate budget.
         # Dispatch it to the bounded slow lane so a provider timeout cannot
@@ -7481,49 +7903,125 @@ class LLMOrchestrator:
                 pass
             log.info("ABLATION no_macro: stripped %s from decision context", removed)
 
+    def _autonomy_gate(self, symbol: str, strategy: str, paper_mode: bool = True):
+        """Drain and apply operator controls, then evaluate trading_allowed.
+
+        Returns None when the cycle may proceed, or a ``(decision, latency)``
+        HOLD tuple when it must not.  Every failure path fails CLOSED: if the
+        gate cannot be evaluated — imports, queue, telemetry, control
+        application — the cycle becomes a HOLD instead of trading around the
+        gate (C4: the old implementation swallowed gate errors at debug level
+        and traded anyway).
+        """
+        log = logging.getLogger("LLMOrchestrator")
+        try:
+            from operations.event_bridge import emit as _emit
+            from operations.autonomy import get_autonomy as _get_autonomy, apply_operator_control
+            from data.kill_switch_latch import get_kill_switch_latch as _get_latch
+
+            _autonomy = _get_autonomy()
+            _drained = _autonomy.drain_controls()
+        except Exception as exc:
+            log.error("Autonomy gate unavailable — fail-closed HOLD: %s", exc, exc_info=True)
+            return ({"action": "HOLD",
+                     "reasoning": f"autonomy gate unavailable (fail-closed): {exc}"}, 0.0)
+
+        _tm = getattr(getattr(self, "data_provider", None), "trade_manager", None)
+        for _ctl in _drained:
+            _action = _ctl.get("action")
+            try:
+                _outcome = apply_operator_control(
+                    _ctl,
+                    store=self.store,
+                    autonomy=_autonomy,
+                    risk=getattr(self, "risk", None),
+                    trade_manager=_tm,
+                    operations=getattr(self, "operations", None),
+                    paper_broker=getattr(self, "paper_broker", None) if paper_mode else None,
+                    latch=_get_latch(),
+                )
+            except Exception as exc:
+                log.error("Operator control %s failed to apply: %s", _action, exc, exc_info=True)
+                try:
+                    _emit("CONTROL_FAILED", {"action": _action,
+                                              "actor": _ctl.get("actor"),
+                                              "source": _ctl.get("source"),
+                                              "error": str(exc)})
+                except Exception:
+                    pass
+                return ({"action": "HOLD",
+                         "reasoning": f"control {_action} failed to apply (fail-closed): {exc}"}, 0.0)
+
+            _status = str(_outcome.get("status") or "failed")
+            _event = ("CONTROL_EXECUTED" if _status in ("applied", "partial")
+                      else "CONTROL_PENDING" if _status == "queued"
+                      else "CONTROL_FAILED")
+            try:
+                _emit(_event, {"action": _action,
+                               "actor": _ctl.get("actor"),
+                               "source": _ctl.get("source"),
+                               "status": _status,
+                               "detail": _outcome})
+            except Exception:
+                pass
+            if _status == "failed":
+                log.error("Operator control %s FAILED: %s", _action, _outcome)
+                return ({"action": "HOLD",
+                         "reasoning": f"control {_action} failed: {_outcome.get('errors')}"}, 0.0)
+            log.warning("Operator control %s %s: %s", _action, _status.upper(), _outcome)
+
+        try:
+            _allowed, _why = _autonomy.trading_allowed()
+        except Exception as exc:
+            log.error("Autonomy state unreadable — fail-closed HOLD: %s", exc, exc_info=True)
+            return ({"action": "HOLD",
+                     "reasoning": f"autonomy state unreadable (fail-closed): {exc}"}, 0.0)
+        if not _allowed:
+            try:
+                _emit("CYCLE_SKIPPED_AUTONOMY", {"symbol": symbol, "strategy": strategy, "reason": _why})
+            except Exception:
+                pass
+            return ({"action": "HOLD", "reasoning": f"autonomy gate: {_why}"}, 0.0)
+        return None
+
     def execute_cycle(self, symbol: str, timeframe: str, cycle_num: int, total_cycles: int, paper_mode: bool = True, display_instance=None, strategy: str = "scalp"):
         # Claim this thread's per-strategy state before anything reads
         # self.memory or self._last_llm_trace.
         self._cycle_local.strategy = strategy
         # Cycle Separator for CLI
         if not display_instance:
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            from datetime import datetime as _ec_dt
+            timestamp = _ec_dt.now().strftime("%H:%M:%S")
             print_bordered(None, f"🚀 CYCLE {cycle_num}/{total_cycles} START", f"Symbol: {symbol} | TF: {timeframe} | Time: {timestamp}", style="bold white")
 
         log = logging.getLogger("LLMOrchestrator")
         log.info(f"DEBUG: execute_cycle called with display_instance={display_instance}")
         start_time = time.time()
 
-        # --- autonomy gate (fails closed) ---
-        from operations.autonomy import get_autonomy as _get_autonomy
-        try:
-            _autonomy = _get_autonomy()
-            if hasattr(self, "store") and self.store is not None:
-                if getattr(_autonomy, "store", None) is None:
-                    _autonomy.attach_store(self.store)
-            _allowed, _why = _autonomy.trading_allowed()
-        except Exception as exc:
-            logging.getLogger("LLMOrchestrator").warning("Autonomy gate failed closed to HOLD: %s", exc)
-            return {"action": "HOLD", "reasoning": f"autonomy gate error: {exc}"}, 0.0
-
-        if not _allowed:
-            from operations.event_bridge import emit as _emit
-            try:
-                _emit("CYCLE_SKIPPED_AUTONOMY", {"symbol": symbol, "strategy": strategy, "reason": _why})
-            except Exception:
-                pass
-            return {"action": "HOLD", "reasoning": f"autonomy gate: {_why}"}, 0.0
-
-        # --- lifecycle telemetry (supervisor kernel) ---
+        # --- fail-soft cycle telemetry (never gates the cycle) ---
         try:
             from operations.event_bridge import emit as _emit
             from operations.supervisor import get_supervisor as _get_supervisor
 
-            _supervisor = _get_supervisor()
-            _supervisor.heartbeat()
+            _get_supervisor().heartbeat()
 
             # Ψ Guardian heartbeat: signal Γ is alive so Ψ doesn't trip on timeout
             self._guardian_progress("cycle_start")
+        except Exception as exc:
+            logging.getLogger("LLMOrchestrator").debug("Cycle telemetry failed: %s", exc)
+
+# --- autonomy gate (C4: fail CLOSED) ---
+        # Resolved to the _autonomy_gate() helper rather than origin/main's inline
+        # copy: the helper is a strict superset - it drains the control queue and
+        # applies operator controls (flatten / kill-switch) before evaluating
+        # trading_allowed, and fails closed on every path. Keeping the inline
+        # version too would double-gate the cycle and skip the control drain.
+        _gate_result = self._autonomy_gate(symbol, strategy, paper_mode=paper_mode)
+        if _gate_result is not None:
+            return _gate_result
+
+        try:
+            from operations.event_bridge import emit as _emit
 
             try:
                 from operations.metrics_exporter import write_metrics
@@ -7679,10 +8177,10 @@ class LLMOrchestrator:
             except Exception as _corr_exc:
                 log.debug("NewsRegimeCorrelation init skipped: %s", _corr_exc)
             _news_gate = NewsTradingGate(correlation_engine=_corr_engine)
-            _news_events = toon.get("news", [])
+            _news_events = list(toon.get("news", []) or [])
             if not _news_events and self.data_provider.api_manager:
                 try:
-                    _news_events = self.data_provider.api_manager.get_calendar() or []
+                    _news_events = list(self.data_provider.api_manager.get_calendar() or [])
                 except Exception:
                     _news_events = []
             if "no_news" in self.ablation_modes:
@@ -7700,7 +8198,8 @@ class LLMOrchestrator:
                     {"symbol": symbol, "strategy": strategy},
                     run_id=self.run_id)
             else:
-                _news_result = _news_gate.evaluate(symbol=symbol, now=datetime.now(timezone.utc), events=_news_events)
+                from datetime import datetime as _ng_dt, timezone as _ng_tz
+                _news_result = _news_gate.evaluate(symbol=symbol, now=_ng_dt.now(_ng_tz.utc), events=_news_events)
             if not _news_result.allowed:
                 self._bus_emit("ω", "NEWS_GATE", "blocked", {
                     "phase": _news_result.phase,
@@ -7738,22 +8237,27 @@ class LLMOrchestrator:
                     _live_fetcher = self._live_indicator_fetcher
                 except Exception as _fetcher_exc:
                     log.debug("LiveIndicatorFetcher init skipped: %s", _fetcher_exc)
+                    import traceback as _ftb
+                    for _ln in _ftb.format_exception(_fetcher_exc):
+                        log.debug("LiveIndicatorFetcher init traceback: %s", _ln.rstrip())
             # Store news context in toon for LLM prompt (with live indicators)
             _news_ctx = get_news_trading_context(
                 symbol=symbol, events=_news_events,
                 live_indicator_fetcher=_live_fetcher,
             )
             toon["news_trading_context"] = _news_ctx
-            toon["news_gate"] = {"phase": _news_result.phase, "allowed": True}
+            toon["news_gate"] = {"phase": _news_result.phase, "allowed": _news_result.allowed, "ablated": False}
+            log.debug("news_gate set: phase=%s allowed=%s events=%d", _news_result.phase, _news_result.allowed, len(_news_events))
             # ── News Execution Engine (Blind Spot #10) ───────────────────────
             try:
                 if not hasattr(self, '_news_exec_engine') and NewsExecutionEngine is not None:
                     self._news_exec_engine = NewsExecutionEngine()
-                if hasattr(self, '_news_exec_engine') and _news_events:
-                    for _evt in _news_events:
+                for _evt in (_news_events or []):
                         _evt_actual = _evt.get("actual") or _evt.get("value")
                         _evt_consensus = _evt.get("forecast") or _evt.get("consensus")
-                        if _evt_actual is not None and _evt_consensus is not None:
+                        if (hasattr(self, '_news_exec_engine')
+                                and _evt_actual is not None
+                                and _evt_consensus is not None):
                             try:
                                 _news_plan = self._news_exec_engine.create_execution_plan(
                                     event_name=_evt.get("title", _evt.get("event", "")),
@@ -7765,13 +8269,51 @@ class LLMOrchestrator:
                                         "current_prices": {symbol: float(toon.get("context", {}).get("midpoint", 0))},
                                         "macro_regime": toon.get("regime", {}).get("regime_id", "EXPANSION"),
                                     },
-                                    account_balance=float(self.store.get_account_info().get("balance", 100000)),
+                                    account_balance=float(getattr(self.risk, "balance", 100000.0) or 100000.0),
                                 )
                                 toon["news_execution_plan"] = _news_plan.to_dict()
                                 if _news_plan.blackout_active:
                                     log.info("NEWS EXEC BLACKOUT: %s — %s", symbol, _news_plan.reasoning[:200])
                             except Exception as _nexe:
                                 log.debug("News execution plan skipped: %s", _nexe)
+                        # Wire macro_playbook_router verdicts into downstream context (observational only)
+                        try:
+                            if _route_macro_event is not None:
+                                _ev_title = _evt.get("title") or _evt.get("event") or _evt.get("name") or ""
+                                _ev_time = _evt.get("datetime") or _evt.get("time") or _evt.get("date")
+                                minutes_since = None
+                                if _ev_time:
+                                    try:
+                                        if isinstance(_ev_time, datetime):
+                                            _et = _ev_time.astimezone(timezone.utc)
+                                        else:
+                                            _et = datetime.fromisoformat(str(_ev_time).replace("Z", "+00:00"))
+                                        minutes_since = max(0.0, (datetime.now(timezone.utc) - _et).total_seconds() / 60.0)
+                                    except Exception:
+                                        minutes_since = None
+                                _mreg = None
+                                try:
+                                    _mreg = toon.get("regime", {}).get("regime_id") or toon.get("intermarket_regime", {}).get("regime_id")
+                                except Exception:
+                                    _mreg = None
+                                _routed = _route_macro_event(
+                                    event_title=_ev_title or "",
+                                    minutes_since_event=minutes_since,
+                                    phase_name=_news_result.phase if "_news_result" in locals() else None,
+                                    actual=float(_evt_actual) if _evt_actual is not None else None,
+                                    consensus=float(_evt_consensus) if _evt_consensus is not None else None,
+                                    historical_std=None,
+                                    disaggregated_components=None,
+                                    macro_regime=str(_mreg) if _mreg else "EXPANSION",
+                                    cot_speculative_percentile=None,
+                                )
+                                toon.setdefault("macro_routed_verdicts", []).append({
+                                    "event_title": _ev_title,
+                                    "verdict": _routed,
+                                    "execution_authority": False,
+                                })
+                        except Exception as _rte:
+                            log.debug("macro_playbook_router.route_event skipped: %s", _rte)
             except Exception as _ne_exc:
                 log.debug("NewsExecutionEngine init skipped: %s", _ne_exc)
             # Store NFP/CPI predictions for position sizing and LLM prompt
@@ -7788,6 +8330,21 @@ class LLMOrchestrator:
                 "nfp_bias": _news_ctx.get("nfp_prediction", {}).get("directional_bias", "N/A") if _news_ctx.get("nfp_prediction") else "N/A",
                 "cpi_bias": _news_ctx.get("cpi_prediction", {}).get("directional_bias", "N/A") if _news_ctx.get("cpi_prediction") else "N/A",
             }, cycle_num, symbol)
+            try:
+                from core.shared_state import state as _ui_state
+                _macro_payload = {
+                    "phase": _news_result.phase,
+                    "esi": _news_ctx.get("esi"),
+                    "nfp_prediction": _news_ctx.get("nfp_prediction"),
+                    "cpi_prediction": _news_ctx.get("cpi_prediction"),
+                    "macro_routed_verdicts": toon.get("macro_routed_verdicts", []),
+                }
+                _ui_state.macro_intelligence = _macro_payload
+                from ui.web_dashboard_adapter import dashboard as _dash
+                if _dash is not None and hasattr(_dash, "update_macro_intelligence"):
+                    _dash.update_macro_intelligence(_macro_payload)
+            except Exception:
+                pass
         except Exception as _news_exc:
             log.warning("NewsTradingGate check failed (fail-closed to HOLD): %s", _news_exc)
             try:
@@ -7895,6 +8452,31 @@ class LLMOrchestrator:
                 _curr_price = _c[-1] if _c else 0.0
                 _in_premium = is_premium(_curr_price, _range_low, _range_high)
 
+                # 3-Candle Fair Value Gap (FVG) Detection with Kondapally degree score
+                _fvg_dict = {"total_fvgs": 0, "signals": []}
+                try:
+                    from research.alpha_miner.fvg_detector import FVGDetector
+                    import pandas as _pd
+                    _df_bars = _pd.DataFrame({
+                        "open": _o,
+                        "high": _h,
+                        "low": _l,
+                        "close": _c,
+                        "volume": [float(b.get("tick_volume") or b.get("volume") or 100) for b in _ohlc_bars if isinstance(b, dict)],
+                    })
+                    _fvg_res = FVGDetector().detect(_df_bars)
+                    _fvg_dict = _fvg_res.to_dict()
+                except Exception as _fvg_err:
+                    log.debug("FVG detection skipped: %s", _fvg_err)
+
+                # Microstructure Dealing Range Zones
+                _range_zones = {}
+                try:
+                    from core.microstructure_impact_engine import classify_dealing_range_zones
+                    _range_zones = classify_dealing_range_zones(_curr_price, _range_low, _range_high)
+                except Exception as _rz_err:
+                    log.debug("Dealing range zones skipped: %s", _rz_err)
+
                 toon["smc_structure"] = {
                     "events": [e.__dict__ for e in _smc_events[-5:]],
                     "last_event": _smc_events[-1].__dict__ if _smc_events else None,
@@ -7903,7 +8485,18 @@ class LLMOrchestrator:
                     "liquidity_pools": _pools,
                     "in_premium": _in_premium,
                     "range_position": range_position(_curr_price, _range_low, _range_high),
+                    "range_zones": _range_zones,
+                    "fvg_analysis": _fvg_dict,
                 }
+                # Publish to shared state and UI dashboard
+                try:
+                    from core.shared_state import state as _ui_st
+                    _ui_st.smc_structure = toon["smc_structure"]
+                    from ui.web_dashboard_adapter import dashboard as _dash
+                    if _dash is not None and hasattr(_dash, "update_smc"):
+                        _dash.update_smc(toon["smc_structure"])
+                except Exception:
+                    pass
         except Exception as _smc_err:
             log.debug("SMC structure calculation skipped: %s", _smc_err)
 
@@ -8717,10 +9310,11 @@ class LLMOrchestrator:
             # A provider outage means there is NO model judgement at all. Letting
             # the RL suggestion stand in for it would open new risk with nothing in
             # the loop, which is exactly what deterministic_hold_fallback forbids.
-            # The safety HOLD must stay absolute.
             provider_outage = bool(decision.get("deterministic_fallback"))
-
             if provider_outage:
+                logger.warning(
+                    "Deterministic safety HOLD: LLM providers are down; no new risk may be taken"
+                )
                 logger.warning(
                     "RL bridge suppressed: LLM providers are down and the decision "
                     "is a deterministic safety HOLD; no new risk may be taken")

@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 import math
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -24,6 +24,51 @@ class PlannedEntry:
     quote_time_msc: int
     max_spread: float
     entry_tolerance: float
+
+    def as_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class RotationAction:
+    """Represents an atomic portfolio sleeve rotation: close decayed position first, then enter new."""
+    decayed_ticket: int
+    decayed_symbol: str
+    decayed_side: str
+    decayed_volume: float
+    decayed_magic: int
+    new_symbol: str
+    new_side: str
+    new_volume: float
+    new_entry: float
+    new_sl: float
+    new_tp: float
+    magic: int
+    reason: str = "portfolio_sleeve_rotation"
+    planned_entry: Optional[PlannedEntry] = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class TwoLegPlannedEntry:
+    """Represents a planned atomic two-leg pair execution with hedge ratio."""
+    leg1_symbol: str
+    leg1_side: str
+    leg1_volume: float
+    leg1_entry: float
+    leg1_sl: float
+    leg1_tp: float
+    leg2_symbol: str
+    leg2_side: str
+    leg2_volume: float
+    leg2_entry: float
+    leg2_sl: float
+    leg2_tp: float
+    hedge_ratio: float
+    magic: int
+    reason: str = "two_leg_pair"
 
     def as_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -159,3 +204,110 @@ def validate_quote(*, tick: Any, info: Any, max_tick_age_ms: int, max_spread: fl
     if quote["spread"] > numeric_max_spread:
         return False, "spread widened after validation", quote
     return True, "quote valid", quote
+
+
+def build_rotation_action(
+    *,
+    decayed_ticket: int,
+    decayed_symbol: str,
+    decayed_side: str,
+    decayed_volume: float,
+    decayed_magic: int,
+    new_symbol: str,
+    new_side: str,
+    new_volume: float,
+    new_entry: float,
+    new_sl: float,
+    new_tp: float,
+    magic: int,
+    reason: str = "portfolio_sleeve_rotation",
+    planned_entry: Optional[PlannedEntry] = None,
+) -> RotationAction:
+    """Validate and construct an atomic sleeve rotation plan."""
+    if int(decayed_ticket) <= 0:
+        raise ValueError("decayed_ticket must be a positive integer")
+    if not str(decayed_symbol).strip():
+        raise ValueError("decayed_symbol is required")
+    if str(decayed_side).upper() not in {"BUY", "SELL"}:
+        raise ValueError("decayed_side must be BUY or SELL")
+    if float(decayed_volume) <= 0:
+        raise ValueError("decayed_volume must be positive")
+    if not str(new_symbol).strip():
+        raise ValueError("new_symbol is required")
+    if str(new_side).upper() not in {"BUY", "SELL"}:
+        raise ValueError("new_side must be BUY or SELL")
+    if float(new_volume) <= 0:
+        raise ValueError("new_volume must be positive")
+
+    return RotationAction(
+        decayed_ticket=int(decayed_ticket),
+        decayed_symbol=str(decayed_symbol).strip().upper(),
+        decayed_side=str(decayed_side).upper(),
+        decayed_volume=float(decayed_volume),
+        decayed_magic=int(decayed_magic),
+        new_symbol=str(new_symbol).strip().upper(),
+        new_side=str(new_side).upper(),
+        new_volume=float(new_volume),
+        new_entry=float(new_entry),
+        new_sl=float(new_sl),
+        new_tp=float(new_tp),
+        magic=int(magic),
+        reason=str(reason).strip(),
+        planned_entry=planned_entry,
+    )
+
+
+def build_two_leg_pair_entry(
+    *,
+    leg1_symbol: str,
+    leg1_side: str,
+    leg1_volume: float,
+    leg1_entry: float,
+    leg1_sl: float,
+    leg1_tp: float,
+    leg2_symbol: str,
+    hedge_ratio: float,
+    leg2_entry: float,
+    leg2_sl: float,
+    leg2_tp: float,
+    magic: int,
+    reason: str = "two_leg_pair",
+) -> TwoLegPlannedEntry:
+    """Validate and construct an atomic two-leg pair plan with hedge ratio."""
+    l1_sym = str(leg1_symbol).strip().upper()
+    l2_sym = str(leg2_symbol).strip().upper()
+    if not l1_sym or not l2_sym:
+        raise ValueError("Both leg1_symbol and leg2_symbol are required")
+    l1_side = str(leg1_side).upper()
+    if l1_side not in {"BUY", "SELL"}:
+        raise ValueError("leg1_side must be BUY or SELL")
+
+    # If hedge ratio > 0, leg 2 takes the opposite side (e.g. Long Y + Short X)
+    hr = float(hedge_ratio)
+    if hr >= 0:
+        l2_side = "SELL" if l1_side == "BUY" else "BUY"
+    else:
+        l2_side = l1_side
+
+    l1_vol = float(leg1_volume)
+    if l1_vol <= 0:
+        raise ValueError("leg1_volume must be positive")
+    l2_vol = round(max(0.01, l1_vol * abs(hr)), 2)
+
+    return TwoLegPlannedEntry(
+        leg1_symbol=l1_sym,
+        leg1_side=l1_side,
+        leg1_volume=l1_vol,
+        leg1_entry=float(leg1_entry),
+        leg1_sl=float(leg1_sl),
+        leg1_tp=float(leg1_tp),
+        leg2_symbol=l2_sym,
+        leg2_side=l2_side,
+        leg2_volume=l2_vol,
+        leg2_entry=float(leg2_entry),
+        leg2_sl=float(leg2_sl),
+        leg2_tp=float(leg2_tp),
+        hedge_ratio=hr,
+        magic=int(magic),
+        reason=str(reason).strip(),
+    )

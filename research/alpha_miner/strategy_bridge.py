@@ -17,6 +17,8 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from core.file_utils import heal_strategy_registry_marker
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,8 +32,8 @@ class AlphaStrategy:
     strategy_id: str
     name: str
     expression: str
-    ic_mean: float
-    ic_ir: float
+    ic_mean: Optional[float]
+    ic_ir: Optional[float]
     ic_quality: str
     shap_values: Dict[int, float]
     created_at: float
@@ -39,13 +41,20 @@ class AlphaStrategy:
     metrics: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Convert to dictionary.
+
+        `ic_ir` is Optional because the pipeline passes `ic_ir=None` when the
+        stability estimate could not be computed. Rounding an Optional crashed
+        the whole registry write (`round(None, 4)` -> TypeError), which
+        `_save_alpha_strategies` swallowed into a `logger.warning`, silently
+        freezing `strategy_registry.json` at its pre-fix contents.
+        """
         return {
             "id": self.strategy_id,
             "name": self.name,
             "expression": self.expression,
-            "ic_mean": round(self.ic_mean, 6),
-            "ic_ir": round(self.ic_ir, 4),
+            "ic_mean": round(self.ic_mean, 6) if self.ic_mean is not None else None,
+            "ic_ir": round(self.ic_ir, 4) if self.ic_ir is not None else None,
             "ic_quality": self.ic_quality,
             "stage": self.stage,
             "created_at": self.created_at,
@@ -342,12 +351,22 @@ class AlphaStrategyBridge:
                     "source": "alpha_mining",
                 })
             
-            # Save
+            # Save.  This rewrites the whole registry (it drops every
+            # alpha_mining row first), so it MUST refresh the CRITICAL #10
+            # invalidation marker's counts — otherwise the count silently goes
+            # stale here and tests/test_evidence_artifacts.py fails on a file
+            # this method wrote.
+            heal_strategy_registry_marker(data)
             with open(self.registry_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         
-        except Exception as e:
-            logger.warning(f"Failed to save alpha strategies: {e}")
+        except Exception:
+            # Never let a persistence fault kill the mining run, but do not let
+            # it hide either: a swallowed write here is how strategy_registry.json
+            # stayed frozen at its pre-fix contents while every call site
+            # reported success. exc_info keeps the traceback greppable.
+            logger.warning("Failed to save alpha strategies to %s",
+                           self.registry_file, exc_info=True)
     
     def get_diversity_score(self) -> float:
         """Calculate diversity score across alpha strategies."""

@@ -134,10 +134,15 @@ def _first_tick_at_or_after(stream: List[Tuple[datetime, float]], when: datetime
 def _iter_distinct_fred_releases(operations: AgentOperations) -> Iterable[Dict[str, Any]]:
     """Yield one deduplicated FRED release per (series, date, value, previous)."""
     with operations._con() as con:
+        from intelligence.observation_provenance import QUARANTINED_VERDICTS
+        marks = ",".join("?" * len(QUARANTINED_VERDICTS))
         rows = con.execute(
-            """SELECT DISTINCT series, observed_at, value, previous, surprise, entity
-               FROM macro_observations WHERE surprise IS NOT NULL
-               ORDER BY observed_at ASC, series ASC"""
+            f"""SELECT DISTINCT series, observed_at, value, previous, surprise, entity
+               FROM macro_observations
+               WHERE surprise IS NOT NULL
+                 AND data_provenance NOT IN ({marks})
+               ORDER BY observed_at ASC, series ASC""",
+            QUARANTINED_VERDICTS,
         ).fetchall()
     for row in rows:
         yield {

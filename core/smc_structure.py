@@ -81,7 +81,9 @@ def detect_structure(highs: List[float], lows: List[float], closes: List[float],
     trend = 0  # +1 bull, -1 bear, 0 unknown
     for i in range(1, len(closes)):
         fired: Optional[SwingEvent] = None
-        for s in [s for s in shi if s < i - 1]:
+        for s in shi:
+            if s >= i - 1:
+                break
             lvl = highs[s]
             pair = _closes_beyond(closes, lvl, +1, i)
             if pair and (not events or i > events[-1].index):
@@ -90,7 +92,9 @@ def detect_structure(highs: List[float], lows: List[float], closes: List[float],
                 trend = +1
                 break
         if fired is None:
-            for s in [s for s in slo if s < i - 1]:
+            for s in slo:
+                if s >= i - 1:
+                    break
                 lvl = lows[s]
                 pair = _closes_beyond(closes, lvl, -1, i)
                 if pair and (not events or i > events[-1].index):
@@ -112,9 +116,29 @@ def find_order_blocks(opens: List[float], highs: List[float], lows: List[float],
     back to rolling mean range). Mitigated when a later close crosses the OB.
     """
     n = len(closes)
+    if n == 0:
+        return []
     if atr is None:
-        atr = [(sum(highs[max(0, i - 13):i + 1]) - sum(lows[max(0, i - 13):i + 1]))
-               / max(1, min(14, i + 1)) for i in range(n)]
+        # O(N) rolling window sum instead of O(N * 14) list slicing
+        ranges = [highs[i] - lows[i] for i in range(n)]
+        running = 0.0
+        atr = []
+        for i, r in enumerate(ranges):
+            running += r
+            if i >= 14:
+                running -= ranges[i - 14]
+            atr.append(running / max(1, min(14, i + 1)))
+
+    # Precompute suffix mins & maxs in O(N) to evaluate mitigation in O(1) per block
+    suffix_min = [0.0] * n
+    suffix_max = [0.0] * n
+    suffix_min[-1] = closes[-1]
+    suffix_max[-1] = closes[-1]
+    for k in range(n - 2, -1, -1):
+        c = closes[k]
+        suffix_min[k] = c if c < suffix_min[k + 1] else suffix_min[k + 1]
+        suffix_max[k] = c if c > suffix_max[k + 1] else suffix_max[k + 1]
+
     blocks: List[OrderBlock] = []
     for i in range(1, n):
         body = abs(closes[i] - opens[i])
@@ -125,8 +149,10 @@ def find_order_blocks(opens: List[float], highs: List[float], lows: List[float],
         if (bull and closes[j] < opens[j]) or (not bull and closes[j] > opens[j]):
             top, bottom = max(opens[j], closes[j]), min(opens[j], closes[j])
             direction = "bullish" if bull else "bearish"
-            mitigated = any((closes[k] < bottom if bull else closes[k] > top)
-                            for k in range(i + 1, n))
+            if i + 1 < n:
+                mitigated = (suffix_min[i + 1] < bottom) if bull else (suffix_max[i + 1] > top)
+            else:
+                mitigated = False
             blocks.append(OrderBlock(index=j, top=top, bottom=bottom,
                                      direction=direction, mitigated=mitigated))
     return blocks

@@ -22,6 +22,9 @@ STATE_FILE = os.path.join(os.path.dirname(os.path.dirname(
 
 BLACKOUT_BEFORE_MIN = 90
 BLACKOUT_AFTER_MIN = 30
+#: Impact spellings that open a blackout window (already lowercased). "red" is
+#: the ForexFactory colour code for high impact.
+_HIGH_IMPACT = frozenset({"high", "3", "red"})
 
 
 class EventWindowManager:
@@ -55,8 +58,16 @@ class EventWindowManager:
     def triage(self, events: List[Dict[str, Any]], now: Optional[float] = None) -> Dict[str, Any]:
         """Classify events into blackout windows.
 
-        Deterministic rule: impact in {high, 3} opens a window
-        [start - 90m, start + 30m]. Anything else is recorded but never gates.
+        Deterministic rule: impact in {high, 3, red} opens a blackout window
+        [start - 90m, start + 30m]. Anything else is ignored (unchanged
+        contract). Impact spellings normalize so the modern FF feed shape
+        ("High"/"HIGH") and the older "HIGH" both gate.
+
+        Timestamp precedence is datetime_utc -> time -> ts -> date because only
+        the first is guaranteed to be a full instant. ``time`` is a bare clock
+        on the legacy feed ("18:00") which does not parse at all, and ``date``
+        can be a bare date, which parses as midnight *local* time - on this host
+        that silently moved blackout windows by 5.5 hours.
         """
         now = now or time.time()
         added = 0
@@ -64,8 +75,16 @@ class EventWindowManager:
             known_keys = {w.get("key") for w in self._windows}
             for ev in events or []:
                 impact = str(ev.get("impact", "")).lower()
-                start = self._parse_ts(ev.get("time") or ev.get("ts"))
-                if impact not in ("high", "3") or start is None:
+                start = self._parse_ts(ev.get("datetime_utc") or ev.get("time")
+                                       or ev.get("ts") or ev.get("date"))
+                # Only HIGH opens a blackout window. MEDIUM/HOLIDAY rows are
+                # dropped on purpose: their absence from the calendar is what
+                # makes this the tier-1 gate.
+                if impact not in _HIGH_IMPACT or start is None:
+                    continue
+                # Past-elapsed events (older than the +30m blackout tail) can no
+                # longer gate anything and would only pollute window state.
+                if start <= (now - BLACKOUT_AFTER_MIN * 60):
                     continue
                 key = f"{ev.get('symbol', '*')}:{ev.get('title', '')[:40]}:{int(start)}"
                 if key in known_keys:
@@ -73,6 +92,8 @@ class EventWindowManager:
                 self._windows.append({
                     "key": key,
                     "title": str(ev.get("title", ""))[:80],
+                    "currency": str(ev.get("currency", ""))[:8],
+                    "impact": str(ev.get("impact", ""))[:12],
                     "symbol": "*",  # high-impact events gate the whole book
                     "start": start,
                     "blackout_from": start - BLACKOUT_BEFORE_MIN * 60,
@@ -86,6 +107,11 @@ class EventWindowManager:
         return {"added": added, "active_windows": len(self.active(now))}
 
     def _expire_locked(self, now: float) -> None:
+        # blackout_to == start + BLACKOUT_AFTER_MIN, so this keeps every window
+        # from the last 24h and drops the rest: bounded growth, and a window
+        # can never come back once expired. Do NOT widen this with an
+        # `or start > cutoff` clause - a window dict missing blackout_to would
+        # then survive expiry and raise KeyError in active(), which indexes it.
         cutoff = now - 24 * 3600
         self._windows = [w for w in self._windows if w.get("blackout_to", 0) > cutoff]
 

@@ -34,13 +34,28 @@ DEFAULT_REPORT_JSON = ROOT / "artifacts" / "scheduler_tuning_report.json"
 KEEP_ARCHIVES = 60
 
 
+def _running_under_pytest() -> bool:
+    """True when this process is a pytest run.
+
+    ``sys.argv[0]`` is NOT a usable signal on its own: ``python -m pytest``
+    sets it to ``.../pytest/__main__.py`` and an xdist worker sets it to
+    ``-c``, so neither name contains "pytest" and the test-inert contract
+    below silently stopped holding.  The env vars pytest exports are set for
+    the whole session (PYTEST_CURRENT_TEST also during each phase), so they
+    are the primary signal and argv stays only as a fallback.
+    """
+    if os.environ.get("PYTEST_VERSION"):
+        return True
+    return "pytest" in Path(sys.argv[0]).name
+
+
 def run_and_archive(db_path: str = "trading_state.db",
                     artifacts_dir: str | Path | None = None,
                     timeout_s: int = 120) -> Path | None:
     """Run the report once and archive its JSON; returns the archive path."""
     if os.getenv("LLM_TRADER_POST_SESSION_REPORT") == "0":
         return None
-    if "pytest" in Path(sys.argv[0]).name and \
+    if _running_under_pytest() and \
             os.getenv("LLM_TRADER_POST_SESSION_REPORT") != "1":
         return None
     artifacts = Path(artifacts_dir) if artifacts_dir else DEFAULT_REPORT_JSON.parent

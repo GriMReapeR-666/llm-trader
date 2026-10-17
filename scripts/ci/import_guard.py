@@ -24,14 +24,24 @@ def duplicated_modules():
     os.chdir(ROOT)
     import mt5_trader  # noqa: F401  (module import only; main() is not called)
     import ui.gui_api  # noqa: F401
-    by_file = collections.defaultdict(list)
+    # Count distinct module OBJECTS per file, not names: canonicalisation
+    # (core/_import_root) deliberately binds one module object under two
+    # names (bare + package-qualified) — that aliasing is the fix for C1,
+    # not a violation of it.  Two names -> one object is fine; two objects
+    # for one file is the split-singleton bug this guard exists to catch.
+    by_file = collections.defaultdict(dict)  # path -> {id(module): [names]}
     for name, module in list(sys.modules.items()):
         if name in ("__main__", "__mp_main__"):
             continue
         path = getattr(module, "__file__", None)
         if path and os.path.abspath(path).startswith(ROOT + os.sep) and "site-packages" not in path and f"{os.sep}.venv{os.sep}" not in path:
-            by_file[os.path.relpath(os.path.abspath(path), ROOT)].append(name)
-    return {f: sorted(n) for f, n in by_file.items() if len(n) > 1}
+            key = os.path.relpath(os.path.abspath(path), ROOT)
+            by_file[key].setdefault(id(module), []).append(name)
+    return {
+        f: [sorted(names) for names in objects.values()]
+        for f, objects in by_file.items()
+        if len(objects) > 1
+    }
 
 
 def main(argv=None):

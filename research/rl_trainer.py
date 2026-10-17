@@ -8,6 +8,7 @@ import os
 import json
 import random
 import logging
+import tempfile
 from typing import Dict, Any, List, Tuple
 from datetime import datetime
 from collections import defaultdict
@@ -346,11 +347,32 @@ class RLTrainer:
                 "saved_at": datetime.now().isoformat()
             }
             
-            with open(path, 'w') as f:
-                json.dump(data, f, indent=2)
-            
+            # Write atomically. A plain open(path,'w') truncates in place, so a
+            # crash or full disk mid-dump left a torn JSON file and the entire
+            # learned Q-table was unrecoverable - the next boot started from
+            # zero with no fallback. Temp file + os.replace() means the reader
+            # (this process at __init__, or the next boot) only ever sees a
+            # complete document.
+            directory = os.path.dirname(os.path.abspath(path))
+            os.makedirs(directory, exist_ok=True)
+            fd, tmp_path = tempfile.mkstemp(
+                dir=directory, prefix=".rl_model-", suffix=".tmp")
+            try:
+                with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_path, path)
+            except Exception:
+                # Never leave a stray temp file behind on failure.
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
+
             self.log.info(f"RL model saved to {path} ({len(self.q_table)} states)")
-            
+
         except Exception as e:
             self.log.error(f"Failed to save RL model: {e}")
     

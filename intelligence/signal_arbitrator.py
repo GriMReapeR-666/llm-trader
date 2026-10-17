@@ -23,6 +23,7 @@ SOURCE_WEIGHTS: Dict[str, float] = {
     "TechnicalNet": 0.70,       # Rule-based RSI/ADX — reliable but rigid
     "MarketModel.LLM": 0.85,   # LLM-routed — highest prior when available
     "Laya": 0.80,              # System 1 non-autoregressive — fast, calibrated
+    "THX01": 0.88,             # THX-01 calibrated decision model — mathematically honest probs
     "UniversalDecision": 0.75,  # Philosophical cross-domain — risk-aware
     "Debate": 0.90,            # Multi-agent adversarial — highest conviction
     "OpportunityBus": 0.65,    # Macro edge candidates — lower prior
@@ -276,6 +277,18 @@ def _extract_signals_from_state(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     # 4. OpportunityBus candidates (from macro edges)
     # These are stored in the store, not directly in state. We skip here
     # and rely on the graph nodes to inject them into raw_hypotheses.
+
+    # 5. THX-01 calibrated decision model (in-process, ~10 ms)
+    try:
+        from intelligence.thx01_advisor import advise_market  # lazy import
+        context_text = str(state.get("cycle_brief") or state.get("market_context") or "")
+        features = state.get("feature_snapshot") or state.get("features") or {}
+        thx01_signal = advise_market(context_text=context_text, features=features)
+        if thx01_signal and thx01_signal.get("direction") in ("BUY", "SELL"):
+            signals.append(thx01_signal)
+    except Exception as _thx_exc:
+        import logging as _log
+        _log.getLogger("signal_arbitrator").debug("THX01 signal skipped: %s", _thx_exc)
 
     return signals
 

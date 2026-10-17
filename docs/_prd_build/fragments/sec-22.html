@@ -16,7 +16,7 @@ read-model of the journal rather than a second source of truth.</p>
 <tr><td><code>/api/control/start</code>, <code>/api/control/{action}</code></td><td>POST</td><td>Control plane: start, pause, resume, flatten, killswitch (writes <code>control_plane.jsonl</code>)</td></tr>
 <tr><td><code>/api/internal/update</code></td><td>POST</td><td>Inbound state mirror from the trading process</td></tr>
 <tr><td><code>/api/config/models</code>, <code>/api/config/accounts</code>, <code>/api/config/accounts/secure</code>, <code>/api/config/accounts/test-login</code>, <code>/api/config/accounts/secure-login</code></td><td>GET/POST</td><td>Provider and account configuration; secure entry keeps passwords out of logs/state</td></tr>
-<tr><td><code>/api/brain/*</code> (metrics, cycle-brief, profitability, observability, memory, regime, causal-edges, macro-observations, economic-coverage, realtime-news)</td><td>GET</td><td><span class="file">intelligence/brain_observability.py</span> and the memory/causal stores</td></tr>
+<tr><td><code>/api/brain/*</code> (metrics, cycle-brief, profitability, observability, memory, regime, causal-edges, macro-observations, economic-coverage, realtime-MT5_MCP_ARGS=-m kronos_mcp.main  # repo MT5 entrypoint; env var still read by tui_opentui/src/transport/mcp.tss)</td><td>GET</td><td><span class="file">intelligence/brain_observability.py</span> and the memory/causal stores</td></tr>
 <tr><td><code>/api/graph/status</code></td><td>GET</td><td>Knowledge-graph/agent-graph status</td></tr>
 <tr><td><code>/api/market</code>, <code>/api/economic-events</code>, <code>/api/mtf-trends</code>, <code>/api/scanner</code></td><td>GET</td><td>Quotes, calendar, multi-timeframe trends, scanner results (fails closed with <code>ENGINE_OFFLINE</code> when the cache is empty)</td></tr>
 <tr><td><code>/api/tasks</code>, <code>/api/agents</code>, <code>/api/workflows</code></td><td>GET</td><td>Reads the <code>agent_runs</code>/<code>agent_tasks</code> tables (§19) rather than inventing rows</td></tr>
@@ -39,7 +39,7 @@ API-side expression of the same doctrine as the trading loop.
 (<span class="file">mt5_trader.py</span> ~1263). Two transport modes are supported via <code>TRANSPORT</code>:</p>
 <ul>
 <li><code>TRANSPORT=mcp</code> — the deck spawns the MT5 MCP server
-(<code>MT5_MCP_COMMAND=python</code>, <code>MT5_MCP_ARGS=-m metatrader5_mcp.main</code>, configured in
+(<code>MT5_MCP_COMMAND=python</code>, <code>MT5_MCP_ARGS=-m kronos_mcp.main  # repo MT5 entrypoint; env var still read by tui_opentui/src/transport/mcp.ts</code>, configured in
 <span class="file">.env</span>/<span class="file">.env.example</span> and <code>opencode.json</code>).</li>
 <li><code>TRANSPORT=live</code> — talks to the API server, optionally auto-starting the MCP sidecar via
 <code>MT5_MCP_AUTOSTART=1</code>.</li>

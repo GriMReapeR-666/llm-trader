@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Multi-LLM Router - Unified interface for multiple LLM providers and agents
-Supports: OpenRouter, Cerebras, NVIDIA NIM
+Supports: OpenRouter, Cerebras, NVIDIA NIM, TokenRouter, RoutesMe, OmniRouter
 Features: Load balancing, failover, per-agent routing, rate limiting
 """
 
@@ -402,6 +402,63 @@ class RoutesMeProvider(BaseLLMProvider):
         return self._retry_with_backoff(request)
 
 
+class OmniRouterProvider(BaseLLMProvider):
+    """Self-hosted OmniRouter gateway (github.com/Godde3s/omnirouter).
+
+    One OpenAI-compatible endpoint in front of the gateway's built-in bridges
+    (Qwen / GLM / DeepSeek / Gemini / OpenCode Zen). ``model="auto"`` hands
+    routing and failover to the gateway itself, which is what makes this a
+    good fit for cheap, high-volume work (subagents, summaries, extraction)
+    rather than the high-reasoning trading chain.
+
+    Deliberately kept out of the trader/analyst/risk fallback lists: the
+    gateway may be offline (it is a local process) and those agents must never
+    silently drop onto it. Point an agent or subagent at it explicitly.
+    """
+    provider_name = "omnirouter"
+    supports_seed = False  # free web bridges behind "auto" ignore seed
+
+    def __init__(self, api_keys: List[str], **kwargs):
+        rpm = kwargs.pop("rpm", 60)
+        super().__init__(api_keys, rpm=rpm, **kwargs)
+        self.clients = []
+        base_url = os.getenv("OMNIROUTER_BASE_URL", "http://localhost:8080/v1")
+        if OPENAI_AVAILABLE:
+            for key in self.api_keys:
+                self.clients.append(OpenAI(
+                    base_url=base_url,
+                    api_key=key,
+                    timeout=self.timeout,
+                    max_retries=0,
+                ))
+
+    def generate(self, messages: list, model: str, **kwargs) -> str:
+        if not self.clients:
+            return "Error: OmniRouter client not initialized. Check OMNIROUTER_KEY."
+
+        client = self.clients[self.current_key_index % len(self.clients)]
+        self.current_key_index += 1
+        # An empty model means "let the gateway choose" — its own failover
+        # chain across the built-in bridges.
+        target_model = model or "auto"
+
+        def request():
+            call_kwargs = dict(
+                model=target_model,
+                messages=messages,
+                temperature=kwargs.get("temperature", 0),
+                max_tokens=kwargs.get("max_tokens", 2500),
+            )
+            if kwargs.get("tools"):
+                call_kwargs["tools"] = kwargs["tools"]
+                if kwargs.get("tool_choice"):
+                    call_kwargs["tool_choice"] = kwargs["tool_choice"]
+            completion = client.chat.completions.create(**call_kwargs)
+            return self._extract_message(completion, self.provider_name)
+
+        return self._retry_with_backoff(request)
+
+
 class CerebrasProvider(BaseLLMProvider):
     provider_name = "cerebras"
 
@@ -526,6 +583,13 @@ class LLMRouter:
                     "rpm": int(os.getenv("NVIDIA_RPM", "60")),
                     "enabled": bool(os.getenv("NVIDIA_KEY_1") or os.getenv("NVIDIA_API_KEY")),
                 },
+                # Self-hosted gateway for simple/small-subagent work only.
+                # Opt-in per agent; never a silent fallback for the reasoning chain.
+                "omnirouter": {
+                    "api_keys": self._get_env_keys("OMNIROUTER_KEY"),
+                    "rpm": int(os.getenv("OMNIROUTER_RPM", "60")),
+                    "enabled": bool(os.getenv("OMNIROUTER_KEY") or os.getenv("OMNIROUTER_API_KEY")),
+                },
             },
             "agents": {
                 "trader": {
@@ -577,6 +641,12 @@ class LLMRouter:
                 if val:
                     keys.append(val)
                     break
+        if not keys and prefix in {"OMNIROUTER_KEY", "OMNIROUTER_API_KEY"}:
+            for alt_env in ("OMNIROUTER_KEY", "OMNIROUTER_API_KEY"):
+                val = os.getenv(alt_env)
+                if val:
+                    keys.append(val)
+                    break
         if not keys and prefix in {"OPENROUTER_API_KEY", "TOKENROUTER_KEY", "TOKENROUTER_API_KEY"}:
             for alt_env in ("TOKENROUTER_KEY", "TOKENROUTER_API_KEY", "OPENROUTER_API_KEY"):
                 val = os.getenv(alt_env)
@@ -592,6 +662,7 @@ class LLMRouter:
             "routesme": RoutesMeProvider,
             "cerebras": CerebrasProvider,
             "nvidia_nim": NvidiaNIMProvider,
+            "omnirouter": OmniRouterProvider,
         }
         for name, cfg in self.config.get("providers", {}).items():
             if cfg.get("enabled") and cfg.get("api_keys"):
@@ -652,6 +723,13 @@ class LLMRouter:
                 models.extend([
                     {"id": "meta/llama-3.2-11b-vision-instruct", "name": "Llama 3.2 11B Vision Instruct", "provider": "NVIDIA NIM"},
                     {"id": "openai/gpt-oss-20b", "name": "GPT-OSS 20B", "provider": "NVIDIA NIM"},
+                ])
+            elif p == "omnirouter":
+                models.extend([
+                    {"id": "auto", "name": "Auto (gateway failover across built-in bridges)", "provider": "OmniRouter"},
+                    {"id": "qwen/qwen3.8-max", "name": "Qwen3.8 Max (built-in bridge)", "provider": "OmniRouter"},
+                    {"id": "glm/glm-5.3-flash", "name": "GLM 5.3 Flash (built-in bridge)", "provider": "OmniRouter"},
+                    {"id": "gemini/gemini-3.6-flash", "name": "Gemini 3.6 Flash (built-in bridge)", "provider": "OmniRouter"},
                 ])
         return models
 

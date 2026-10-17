@@ -136,6 +136,7 @@ def test_restart_keeps_daily_breach_when_local_and_utc_dates_agree(monkeypatch, 
     assert _restart_after_daily_breach(monkeypatch, tmp_path, UTC_NOON) is False
 
 
-@pytest.mark.xfail(strict=True, reason="P1-H1: local-vs-UTC date mismatch resets the daily limit on restart")
 def test_restart_keeps_daily_breach_across_the_utc_local_date_gap(monkeypatch, tmp_path):
+    """P1-H1 fixed: the daily breaker is anchored on the broker trading day,
+    so a restart across the UTC/local midnight gap no longer resets it."""
     assert _restart_after_daily_breach(monkeypatch, tmp_path, UTC_EVENING) is False

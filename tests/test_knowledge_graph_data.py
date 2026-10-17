@@ -192,8 +192,8 @@ def test_7_stage_trade_lifecycle():
             assert nid in node_ids, f"Stage {idx} active node '{nid}' not found in nodes"
 
 
-@pytest.mark.xfail(strict=True, reason="ROADMAP Phase 10: graph data cites compliance_dashboard.html, which is not in the repo")
 def test_file_paths_are_grounded_in_repository():
+    """ROADMAP Phase 10 item resolved: every cited path now exists in the repo."""
     """Every node must cite a file that really exists, or be flagged ungrounded."""
     data = load_payload()
     ungrounded = []

@@ -158,5 +158,5 @@ class ExnessProvider:
                     if isinstance(data, list) and data:
                         return data
             except Exception as exc:
-                logger.debug("Exness provider failed: %s", exc)
+                log.debug("Exness provider failed: %s", exc)
         return None

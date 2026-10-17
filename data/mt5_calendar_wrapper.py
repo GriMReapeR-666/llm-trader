@@ -253,6 +253,28 @@ class ThreadSafeLock:
         self._lock.release()
 
 # ---------- MT5 Calendar Wrapper ----------
+def find_mt5_dll() -> Optional[str]:
+    """First existing candidate path for the MQL5 calendar DLL, or None.
+
+    Single source of truth shared by MT5CalendarWrapper._find_mt5_dll and
+    the calendar integration tests' skip conditions, so the candidate path
+    lists cannot drift apart. An exe-only modern MT5 install ships no
+    terminal64.dll: None means "calendar unavailable on this host", not
+    "MT5 not installed".
+    """
+    # getpass.getuser() reads the environment; os.getlogin() raises without
+    # a controlling terminal (services, background launches, CI).
+    candidates = [
+        "C:\\Program Files\\MetaTrader 5\\terminal64.dll",
+        "C:\\Program Files (x86)\\MetaTrader 5\\terminal64.dll",
+        "C:\\Users\\{}\\AppData\\Roaming\\MetaQuotes\\Terminal\\terminal64.dll".format(getpass.getuser()),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
+
+
 class MT5CalendarWrapper:
     """
     Python wrapper for MQL5 economic calendar functions.
@@ -283,24 +305,14 @@ class MT5CalendarWrapper:
         logger.info(f"MT5 Calendar Wrapper initialized with DLL: {self.dll_path}")
     
     def _find_mt5_dll(self) -> str:
-        """Attempt to find MT5 terminal DLL automatically"""
-        # Common MT5 installation paths
-        possible_paths = [
-            "C:\\Program Files\\MetaTrader 5\\terminal64.dll",
-            "C:\\Program Files (x86)\\MetaTrader 5\\terminal64.dll",
-            # getpass.getuser() reads the environment; os.getlogin() raises
-            # without a controlling terminal (services, background launches, CI).
-            "C:\\Users\\{}\\AppData\\Roaming\\MetaQuotes\\Terminal\\terminal64.dll".format(getpass.getuser()),
-        ]
-        
-        for path in possible_paths:
-            if os.path.exists(path):
-                return path
-        
+        """Attempt to find MT5 terminal DLL automatically (see find_mt5_dll)."""
+        found = find_mt5_dll()
+        if found:
+            return found
         raise MT5CalendarConnectionError(
             "Could not find MT5 terminal DLL. Please specify dll_path parameter."
         )
-    
+
     def initialize(self) -> bool:
         """
         Initialize connection to MT5 terminal DLL.

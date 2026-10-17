@@ -10,6 +10,16 @@ Core Principles:
 - Models real-time US Net Liquidity (WALCL - TGA - RRP).
 - Computes high-frequency physical nowcasts (Grid Load MW, Satellite NDVI, AIS Chokepoints, Scraped CPI).
 - Strictly non-custodial: execution_authority is ALWAYS False.
+
+P0-5 residual debt (ponytail): the placeholder values are still EMITTED,
+now labelled SYNTHETIC_PLACEHOLDER in ``source_quality`` rather than dropped.
+Ceiling: a consumer that ignores the label map still reads a constant as a
+number (data/alternative_data_provider.py journals these with status="LIVE").
+Upgrade path: null out the pure-constant fields and drop the LAUNCHER
+entries in this file; that needs the four consumer files
+(core/trading_tools.py, data/alternative_data_provider.py,
+intelligence/macrofundamental_pipeline.py, data/market_data_provider.py)
+updated in the same change, so it is deliberately not done unilaterally here.
 """
 from __future__ import annotations
 
@@ -23,6 +33,13 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 log = logging.getLogger("ZeroLagMacroProvider")
+
+# P0-5 provenance vocabulary. Every value this module emits carries one of
+# these labels in ``source_quality`` so no downstream consumer (LLM prompt,
+# nowcast journal, macro diagnostics) can read a hardcoded constant as an
+# observation.
+LIVE = "LIVE"
+SYNTHETIC = "SYNTHETIC_PLACEHOLDER"
 
 
 @dataclass
@@ -81,6 +98,14 @@ class UniversalMacroRatios:
     
     execution_authority: bool = False
     
+    # P0-5: per-field LIVE / SYNTHETIC_PLACEHOLDER labels. Shipped inside
+    # to_dict() (not behind a side-channel getter) because every consumer that
+    # feeds an LLM prompt goes through to_dict(): core/trading_tools.py
+    # query_zero_lag_macro, intelligence/macrofundamental_pipeline.py, and the
+    # on-disk cache. A label only the provider could produce would be read by
+    # nobody.
+    source_quality: Dict[str, str] = field(default_factory=dict)
+
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
         d["execution_authority"] = False
@@ -102,6 +127,9 @@ class ZeroLagMacroSnapshot:
     synthetic_spreads: SyntheticCommoditySpreads
     data_latency_status: str               # 'ZERO_LAG (0-24h Physical Proxies)'
     execution_authority: bool = False
+    
+    # P0-5: see UniversalMacroRatios.source_quality.
+    source_quality: Dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -112,9 +140,44 @@ class ZeroLagMacroSnapshot:
 class ZeroLagMacroProvider:
     """Fetches, calculates, and synthesizes zero-lag physical proxies and commodity spreads."""
 
+    # Audit P0-5: fields whose value is a hardcoded constant, or a live quote
+    # combined with a hardcoded anchor. A live upstream quote can never make
+    # these honest, so they are stamped last and always win (see
+    # ``_annotations``).
+    _ALWAYS_SYNTHETIC = frozenset({
+        "cyclicals_defensives_ratio",      # constant 128.0/72.0 XLI/XLU proxy
+        "brent_dubai_spread_usd",          # Dubai leg is a hardcoded 80.20 anchor
+        "gasoil_crack_bbl_usd",            # diesel anchor 104.70 - brent
+        "spark_spread_mwh",                # power anchor 45.00 - 7.0 * natgas
+        "clean_dark_spread_mwh",           # power/coal/carbon 45.00/120/68 anchors
+        "steel_mill_spread_ton",           # HRC/iron ore/coking coal 720/108/220
+        "aluminum_smelter_margin_ton",     # Al/alumina/power 2450/480/45 anchors
+        "hy_ig_credit_ratio",              # constant 342.0 / 105.0 OAS
+        "net_liquidity_usd_billions",      # WALCL/TGA baselines (RRP may refine)
+        "move_vix_ratio",                  # MOVE numerator is a hardcoded 108.0
+        "ethanol_blend_margin_gal",        # ethanol price is a hardcoded 1.65
+    })
+
+    # Audit P0-5: hardcoded snapshot proxies (see get_snapshot).
+    _SNAPSHOT_PLACEHOLDERS = {
+        "daily_cpi_mom_nowcast": SYNTHETIC,
+        "daily_cpi_yoy_nowcast": SYNTHETIC,
+        "industrial_grid_load_index": SYNTHETIC,
+        "maritime_chokepoint_index": SYNTHETIC,
+        "satellite_crop_health_score": SYNTHETIC,
+        "labor_hiring_velocity": SYNTHETIC,
+    }
+
     def __init__(self, cache_file: str = "artifacts/zero_lag_macro_cache.json") -> None:
         self.cache_file = cache_file
         self._yahoo_provider = None
+        # symbol -> True when the cached value came from the live provider.
+        # Written by _fetch_quote_safe at the moment the value is cached, so
+        # provenance and value cannot drift apart.
+        self._quote_live: Dict[str, bool] = {}
+        # Provenance for the most recent compute pass; rebuilt (never merged)
+        # so a prior cycle's LIVE labels cannot leak into a degraded one.
+        self._last_quality: Dict[str, str] = {}
 
     def _get_yahoo(self):
         if self._yahoo_provider is None:
@@ -148,16 +211,88 @@ class ZeroLagMacroProvider:
         if cached is not None and now - cached[0] < self._QUOTE_TTL_S:
             return cached[1]
         value = fallback
+        is_live = False
         yp = self._get_yahoo()
         if yp is not None:
             try:
                 quote = yp.get_quote_data(symbol)
                 if quote and quote.get("price", 0) > 0:
                     value = float(quote["price"])
+                    is_live = True
             except Exception as e:
                 log.debug("Quote fetch failed for %s: %s", symbol, e)
         cache[symbol] = (now, value)
+        # Provenance is stamped HERE, where "did the provider answer?" is
+        # still known. Comparing the price against the fallback constant is
+        # unsound (a live quote can legitimately equal the anchor).
+        self._quote_live[symbol] = is_live
         return value
+
+    def _quote_is_live(self, symbol: str) -> bool:
+        """True when the cached value for *symbol* came from the live provider.
+
+        Fail-closed: any symbol never fetched in this process reads
+        SYNTHETIC. Reads only the flag written by _fetch_quote_safe, so it
+        never issues a second network call and cannot disagree with the value.
+        """
+        return self._quote_live.get(symbol) is True
+
+    # P0-5: ratio/spread field -> the upstream quote symbols it is derived
+    # from. A field is LIVE only when EVERY input symbol was live, so a
+    # partially-failed cycle degrades the field rather than upgrading it.
+    # (Mapped field-first, not symbol-first, so no field's label can be
+    # decided by dict ordering when several symbols feed it.)
+    _RATIO_QUOTE_SYMBOLS = {
+        "copper_gold_ratio": ("HG=F", "GC=F"),
+        "copper_oil_ratio": ("HG=F", "CL=F"),
+        "lumber_gold_ratio": ("LBS=F", "GC=F"),
+        "crack_spread_321_bbl": ("CL=F", "RB=F", "HO=F"),
+        "brent_wti_spread_usd": ("BZ=F", "CL=F"),
+        "natgas_crude_parity_ratio": ("CL=F", "NG=F"),
+        "haber_bosch_ammonia_cost_ton": ("NG=F",),
+        "corn_soy_price_ratio": ("ZC=F", "ZS=F"),
+        "corn_soy_regime": ("ZC=F", "ZS=F"),
+        "soybean_crush_spread_bu": ("ZM=F", "ZL=F", "ZS=F"),
+        "cattle_crush_feedlot_margin_cwt": ("LE=F", "GF=F", "ZC=F"),
+        "hog_corn_ratio": ("HE=F", "ZC=F"),
+        "wheat_corn_spread_bu": ("ZW=F", "ZC=F"),
+        "gold_silver_ratio": ("GC=F", "SI=F"),
+        "platinum_gold_ratio": ("PL=F", "GC=F"),
+    }
+
+    def _stamp_provenance(self) -> Dict[str, str]:
+        """Rebuild the provenance map from scratch for this compute pass.
+
+        Rebuild (never merge into a previous pass) so a LIVE stamp from an
+        earlier cycle cannot survive into a later, fully-degraded one.
+        """
+        self._last_quality = {
+            field: (LIVE if all(self._quote_is_live(s) for s in symbols)
+                    else SYNTHETIC)
+            for field, symbols in self._RATIO_QUOTE_SYMBOLS.items()
+        }
+        return self._last_quality
+
+    def _annotations(self, ratio_quality: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+        """Complete source-quality map: constants are applied LAST so they
+        override any quote-derived label. The first-pass ordering let a live
+        NG=F quote upgrade spark_spread_mwh (whose 45.00 power anchor is a
+        constant) to LIVE; that is the exact laundering P0-5 is about.
+        """
+        quality: Dict[str, str] = dict(ratio_quality or self._last_quality or {})
+        quality.update({name: SYNTHETIC for name in self._ALWAYS_SYNTHETIC})
+        quality.update(self._SNAPSHOT_PLACEHOLDERS)
+        return quality
+
+    def source_quality_annotations(self) -> Dict[str, str]:
+        """P0-5 honesty labels for the most recent compute pass.
+
+        Fail-closed before the first pass: every constant field is labelled
+        and no quote-derived field is claimed LIVE. Also shipped inside
+        ``ZeroLagMacroSnapshot.to_dict()`` / ``UniversalMacroRatios.to_dict()``
+        so prompt builders cannot bypass it.
+        """
+        return self._annotations()
 
     def compute_synthetic_commodity_spreads(self) -> SyntheticCommoditySpreads:
         """
@@ -301,7 +436,7 @@ class ZeroLagMacroProvider:
         # 6. Financial Liquidity & Credit Stress
         hy_ig_credit_ratio = 342.0 / 105.0  # HY OAS / IG OAS
         net_liq, liq_bias = self.compute_net_liquidity()
-        
+
         return UniversalMacroRatios(
             timestamp_utc=now_utc,
             copper_gold_ratio=round(copper_gold_ratio, 3),
@@ -332,6 +467,7 @@ class ZeroLagMacroProvider:
             net_liquidity_usd_billions=net_liq,
             net_liquidity_bias=liq_bias,
             execution_authority=False,
+            source_quality=self._annotations(self._stamp_provenance()),
         )
 
     def compute_net_liquidity(self) -> Tuple[float, str]:
@@ -407,6 +543,11 @@ class ZeroLagMacroProvider:
             synthetic_spreads=spreads,
             data_latency_status="ZERO_LAG (0-24h Physical Proxies)",
             execution_authority=False,
+            # get_snapshot() does NOT call compute_universal_macro_ratios(),
+            # so the provenance map is rebuilt from this pass's own quote
+            # fetches. setdefault-merging into a previous pass's map (as the
+            # first pass did) let LIVE labels survive a fully-degraded cycle.
+            source_quality=self._annotations(self._stamp_provenance()),
         )
 
         # Cache snapshot to disk for offline resilience
@@ -436,6 +577,15 @@ class ZeroLagMacroProvider:
         snap = self.get_snapshot()
         return {
             "timestamp_utc": snap.timestamp_utc,
+            # P0-5: this bundle is almost entirely hardcoded constants, not
+            # only the six snapshot proxies copied in below. The map says so
+            # explicitly rather than letting "free_nowcasting_stack_status":
+            # "ONLINE" imply observed feeds.
+            "source_quality": snap.source_quality,
+            # Only the fields listed in source_quality carry a label; every
+            # other value in this bundle is a literal in get_ten_pillars_bundle
+            # and is NOT an observation.
+            "pillar_inputs_are_hardcoded_constants": True,
             "1_inflation_cpi_pce": {
                 "fred_tips_5y_breakeven": 2.28,
                 "fred_tips_10y_breakeven": 2.34,

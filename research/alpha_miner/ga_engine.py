@@ -187,8 +187,11 @@ class GAEngine:
             ic_results = self._evaluate_population(population, ohlcv, forward_returns)
             all_ic_results.update(ic_results)
             
-            # Get fitness scores
-            fitness_scores = [ic_results.get(expr.to_string(), ICResult(0, 0, 0, 0, pd.Series(), 0, "weak")).ic_mean 
+            # Get fitness scores as |IC|: sign is tradeable (invert the
+            # position), so selection must reward magnitude, not direction.
+            # Using signed ic_mean here silently discarded the best alphas --
+            # the exact bug the other selection sites already fixed.
+            fitness_scores = [abs(ic_results.get(expr.to_string(), ICResult(0, 0, 0, 0, pd.Series(), 0, "weak")).ic_mean)
                             for expr in population]
             
             # Record generation stats
@@ -198,7 +201,7 @@ class GAEngine:
                 "avg_ic": np.mean(fitness_scores) if fitness_scores else 0.0,
                 "max_ic": max(fitness_scores) if fitness_scores else 0.0,
                 "n_significant": len([ic for ic in fitness_scores if abs(ic) >= 0.02]),
-                "diversity": compute_population_diversity(population),
+                "n_unique": len({e.to_string() for e in population}),
                 "time": time.time() - gen_start,
             }
             evolution_history.append(gen_stats)
@@ -207,7 +210,7 @@ class GAEngine:
                 logger.info(f"  Avg IC: {gen_stats['avg_ic']:.4f}, "
                           f"Max IC: {gen_stats['max_ic']:.4f}, "
                           f"Significant: {gen_stats['n_significant']}, "
-                          f"Diversity: {gen_stats['diversity']:.2f}")
+                          f"Unique: {gen_stats['n_unique']}")
             
             # PCA projection and grid selection (for diversity)
             if gen < self.config.generations - 1:  # Skip on last generation
@@ -239,7 +242,14 @@ class GAEngine:
                 population = self.operators.evolve_generation(
                     population, fitness_scores, self.config.elite_size
                 )
-                
+
+                # Re-inject the quality-diversity pool. Without this the pool
+                # was written every generation and never read: tournament
+                # selection alone collapses to a handful of clones (observed
+                # 120 slots -> 9 unique), so the grid's diversity pressure had
+                # no effect on what actually evolved.
+                self._reinject_diversity_pool(population)
+
                 # Increase depth every few generations
                 if (gen + 1) % self.config.depth_increment == 0:
                     current_depth = self.config.initial_depth + (gen + 1) // self.config.depth_increment
@@ -293,13 +303,56 @@ class GAEngine:
             config=self.config,
         )
     
+    def _reinject_diversity_pool(self, population: List[AlphaExpression]) -> List[AlphaExpression]:
+        """Overwrite a slice of `population` with diverse pool members.
+
+        Fills from the end (elites live at the front) so the fittest frontier
+        is preserved while under-represented behaviours get a breeding slot.
+        """
+        pool = self.pool_manager.get_expressions()
+        if not pool:
+            return population
+
+        present = {e.to_string() for e in population}
+        missing = [e for e in pool if e.to_string() not in present]
+        if not missing:
+            return population
+
+        # Re-inject up to half the population, biased to diversity over count.
+        budget = max(1, len(population) // 2)
+        n = min(len(missing), budget, len(population))
+        if n <= 0:
+            return population
+
+        for i, expr in enumerate(missing[:n]):
+            idx = len(population) - 1 - i
+            if idx < 0:
+                break
+            population[idx] = expr
+        return population
+
     def _evaluate_population(self, population: List[AlphaExpression],
                             ohlcv: pd.DataFrame,
                             forward_returns: pd.Series) -> Dict[str, ICResult]:
-        """Evaluate IC for all expressions in population."""
+        """Evaluate IC for all expressions in population.
+
+        A crashed evaluation is scored as a hard failure (ic_quality
+        ``"failed"``), NEVER as fitness 0.0: a real flat alpha means "no
+        signal", a crash means "not measured", and conflating the two hid
+        broken expressions inside the zero-fitness mass where selection
+        could not distinguish them.
+        """
         ic_results = {}
+        self._last_eval_failures = 0
 
         for expr in population:
+            try:
+                key = expr.to_string()
+            except Exception:
+                # Cannot even render the expression: unkeyable, count it and
+                # move on rather than silently dropping the failure.
+                self._last_eval_failures += 1
+                continue
             try:
                 result = self.evaluator.evaluate_expression(
                     expr, ohlcv, forward_returns,
@@ -316,11 +369,70 @@ class GAEngine:
                         n_observations=result.n_observations,
                         ic_quality="weak",
                     )
-                ic_results[expr.to_string()] = result
+                ic_results[key] = result
+            except Exception:
+                self._last_eval_failures += 1
+                ic_results[key] = ICResult(
+                    ic_mean=0.0,
+                    ic_std=0.0,
+                    ic_ir=0.0,
+                    ic_positive_pct=0.0,
+                    ic_series=pd.Series(dtype=float),
+                    n_observations=0,
+                    ic_quality="failed",
+                )
+
+        return ic_results
+
+    def _inject_pool_diversity(self, population: List[AlphaExpression],
+                               fitness_scores: List[float]) -> List[AlphaExpression]:
+        """Reinsert QD-pool survivors the clone loop would otherwise lose.
+
+        Tournament selection draws from a population that is already mostly
+        clones, so grid-selected behavioral outliers die out between
+        generations. This replaces the worst-scoring duplicate slots with
+        pool survivors (best-|IC| first), keeping population size fixed.
+        No-op when the pool is empty (e.g. PCA failed every generation).
+        """
+        pool = self.pool_manager.get_expressions()
+        if not pool:
+            return population
+
+        seen = set()
+        for expr in population:
+            try:
+                seen.add(expr.to_string())
             except Exception:
                 continue
 
-        return ic_results
+        # Worst-|IC| slots first: they contribute the least either way.
+        order = sorted(range(len(population)),
+                       key=lambda i: abs(fitness_scores[i]))
+
+        fresh: List[AlphaExpression] = []
+        for cand in pool:
+            try:
+                key = cand.to_string()
+            except Exception:
+                continue
+            if key in seen:
+                continue
+            seen.add(key)
+            try:
+                fresh.append(cand.copy())
+            except Exception:
+                fresh.append(cand)
+
+        if not fresh:
+            return population
+
+        # Cap the injection so one bad PCA run cannot flush the population:
+        # at most 20% of slots, and never more than the pool earned.
+        n_replace = min(len(fresh), max(1, len(population) // 5))
+        out = list(population)
+        for slot, cand in zip(order[:n_replace], fresh[:n_replace]):
+            out[slot] = cand
+        return out
     
     def _project_and_grid(self, expressions: List[AlphaExpression],
                          ohlcv: pd.DataFrame,

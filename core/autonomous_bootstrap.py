@@ -113,15 +113,83 @@ def record_prepare_rows(details: Dict[str, Any], step_elapsed: Dict[str, float],
         _sheet.record_step(_sname, _sel, _status, "; ".join(_note_parts))
 
 
-def _boot_stage(stage: str, fn: Callable[[], Any], budget_s: float) -> Any:
+def _stage_budget(default_s: float) -> float:
+    """Resolve a PREPARE stage budget in seconds from the environment.
+
+    ``BOOT_STAGE_BUDGET_S`` is the operator override.  It is read defensively
+    because the previous inline form,
+    ``float(os.getenv("BOOT_STAGE_BUDGET_S", "45"))``, returns the
+    *empty string* when the variable is set-but-blank rather than falling back
+    to the default, so ``BOOT_STAGE_BUDGET_S=`` raised ``ValueError`` at every
+    call site and crashed boot before any stage ran.  A blank, malformed or
+    non-positive override now warns and falls back to the caller's default
+    instead of taking the process down.
+    """
+    raw = os.environ.get("BOOT_STAGE_BUDGET_S", "").strip()
+    if not raw:
+        return float(default_s)
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning("Ignoring invalid BOOT_STAGE_BUDGET_S=%r; using %.0fs",
+                       raw, default_s)
+        return float(default_s)
+    if value <= 0:
+        logger.warning("Ignoring non-positive BOOT_STAGE_BUDGET_S=%r; using %.0fs",
+                       raw, default_s)
+        return float(default_s)
+    return value
+
+
+#: Per-stage PREPARE budgets (seconds) for the stages that fan out to network
+#: providers.  The shared 45s default suits the local stages, but two of these
+#: do real network I/O and were measured with no headroom left:
+#:
+#: Per-stage PREPARE budgets (seconds) for the stages that fan out to network
+#: providers.  The shared 90s default suits the two network-bound stages here,
+#: but the earlier 45s default was measured with no headroom left:
+#:
+#:   bootstrap_macro_seed          39.2s cold (2026-10-16 10:59:19.410 ->
+#:                                  10:59:58.596), 0.1s once the alternative
+#:                                  nowcast cache is warm
+#:   bootstrap_global_macro_bridge 39.9s (boot datasheet)
+#:
+#: At ~87% budget utilisation on a network-dependent fetch, ordinary variance
+#: tipped the seed over its deadline and the causal graph silently failed to
+#: seed on most boots -- the stage fails open, so boot continued and nothing
+#: reported it beyond one degraded marker.  That is the same silent-failure
+#: shape as the rest of this class: the work is legitimate and completes; the
+#: deadline was simply too tight to let it.  90s still bounds a genuine hang
+#: while leaving room for the fetch to finish.
+_BOOT_STAGE_NETWORK_BUDGETS: Dict[str, float] = {
+    "bootstrap_macro_seed": 90.0,
+    "bootstrap_global_macro_bridge": 90.0,
+}
+
+
+def _boot_stage(
+    stage: str,
+    fn: Callable[[], Any],
+    budget_s: float,
+    *,
+    emit_event: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+) -> Any:
     """Run a PREPARE fetch stage under a deadline; fail open on timeout.
 
     A provider that hangs (e.g. requests with no effective timeout inside a
     third-party client) is abandoned at ``budget_s`` seconds and the stage
     returns a degraded marker instead of silently eating minutes of boot.
     Threads are not killed (impossible in Python) — the budget bounds waiting.
+
+    ``BOOT_STAGE_BUDGET_S`` is an operator override and still wins: when it is
+    unset the network-bound stages take their measured default from
+    ``_BOOT_STAGE_NETWORK_BUDGETS`` instead of the shared 45s.
     """
-    outcome = run_stage_with_deadline(stage, fn, budgets={stage: budget_s})
+    if not os.environ.get("BOOT_STAGE_BUDGET_S", "").strip():
+        budget_s = _BOOT_STAGE_NETWORK_BUDGETS.get(stage, budget_s)
+    outcome = run_stage_with_deadline(
+        stage, fn, budgets={stage: budget_s}, emit_event=emit_event,
+    )
     if outcome["ok"]:
         return outcome["result"]
     if outcome["timed_out"]:
@@ -157,15 +225,23 @@ def _has_measured_evidence(strategy: Dict[str, Any]) -> bool:
 
 
 def _load_strategy_registry() -> List[Dict[str, Any]]:
-    """Load strategies from strategy_registry.json."""
+    """Load strategies from strategy_registry.json.
+
+    The file's ``_EVIDENCE_INVALID`` marker is authoritative on this read. It
+    exists to say the promoted metrics are unbacked, so while it is present no
+    row may enter the runtime as FULL/EVALUATION — that stage is the whole claim
+    being disputed. Rows come back as copies at CANDIDATE, which drops them out
+    of ``active_strategies`` here without touching the file on disk.
+    """
     registry_path = os.path.join(os.path.dirname(__file__), "..", "strategy_registry.json")
     registry_path = str(Path(registry_path).resolve())
     if not os.path.exists(registry_path):
         return []
     try:
+        from operations.strategy_factory import unvalidated_view
         with open(registry_path, "r") as f:
             data = json.load(f)
-        return data.get("strategies", [])
+        return unvalidated_view(data)
     except Exception as exc:
         logger.warning("Failed to load strategy registry: %s", exc)
         return []
@@ -301,6 +377,10 @@ def _phase_validate(
     # --- 1d. Backtest all active strategies ---
     logger.info("[Bootstrap/VALIDATE] 1d. Backtest active strategies")
     strategies = _load_strategy_registry()
+    # Empty is the expected result while the registry carries
+    # _EVIDENCE_INVALID: the loader has already demoted every row, because
+    # backtesting a strategy off metrics the file itself calls unbacked would
+    # launder the claim through a fresh run.
     active_strategies = [
         s for s in strategies
         if s.get("stage") in ("FULL", "EVALUATION")
@@ -516,6 +596,19 @@ def _phase_prepare(
 
     step_elapsed: Dict[str, float] = {}
 
+    emit_event = getattr(orchestrator, "_emit_boot_event", None)
+    if emit_event is None and store is not None:
+        try:
+            from operations.agent_operations import AgentOperations
+            _ops = AgentOperations(store)
+            def emit_event(ev_type: str, ev_payload: Dict[str, Any], *, severity: str = "WARNING") -> None:
+                _ops.event("bootstrap", ev_type, ev_payload, severity=severity)
+        except Exception:
+            emit_event = None
+
+    def _run_stage(stage_name: str, stage_fn: Callable[[], Any], budget: float) -> Any:
+        return _boot_stage(stage_name, stage_fn, budget, emit_event=emit_event)
+
     # --- 2a. Data source initialization ---
     logger.info("[Bootstrap/PREPARE] 2a. Data source initialization")
     _t_step = time.time()
@@ -554,9 +647,9 @@ def _phase_prepare(
                     include_alternative_nowcast=True,
                 )
 
-            macro_result = _boot_stage(
+            macro_result = _run_stage(
                 "bootstrap_macro_seed", _macro_seed,
-                float(os.getenv("BOOT_STAGE_BUDGET_S", "45")))
+                _stage_budget(90.0))
             if isinstance(macro_result, dict) and macro_result.get("status") in ("TIMEOUT", "ERROR"):
                 raise RuntimeError(macro_result.get("error", "bounded stage failed"))
             details["macro_graph"] = {
@@ -585,7 +678,15 @@ def _phase_prepare(
             llm_router = get_router()
         except Exception:
             pass
-        news_result = _safe(
+
+        # 2c. News ingestion (first pass). This is the news-feed counterpart of
+        # the macro-seed stage above: it fans out to RSS + NewsAPI/SA and can block
+        # on one slow or wedged provider. Give it the same per-feed default as the
+        # macro seed so a single slow feed cannot hold the whole PREPARE step past
+        # the budget -- the watchdog drops it at deadline and the boot continues on
+        # degraded headlines.
+        news_result = _boot_stage(
+            "bootstrap_realtime_news_ingest",
             lambda: __import__("data.realtime_news_ingest", fromlist=["run"]).run(
                 graph=macro_graph,
                 llm=llm_router,
@@ -593,8 +694,11 @@ def _phase_prepare(
                 include_rss=True,
                 extract_claims=False,  # skip heavy extraction at boot
             ),
-            "news_ingest",
+            _stage_budget(90.0),
+            emit_event=emit_event,
         )
+        if isinstance(news_result, dict) and news_result.get("status") in ("TIMEOUT", "ERROR"):
+            warnings.append(f"News: {news_result.get('error', 'bounded stage failed')}")
         details["news_ingest"] = {
             "articles": news_result.get("article_count", 0) if isinstance(news_result, dict) else 0,
             "status": news_result.get("status", "UNKNOWN") if isinstance(news_result, dict) else "ERROR",
@@ -616,8 +720,10 @@ def _phase_prepare(
             gmb = GlobalMacroBridge()
             return gmb.get_macro_snapshot("EURUSD")
 
-        snapshot = _boot_stage("bootstrap_global_macro_bridge", _gmb_snapshot,
-                               float(os.getenv("BOOT_STAGE_BUDGET_S", "45")))
+        snapshot = _run_stage("bootstrap_global_macro_bridge", _gmb_snapshot,
+                              _stage_budget(90.0))
+        if isinstance(snapshot, dict) and snapshot.get("status") in ("TIMEOUT", "ERROR"):
+            raise RuntimeError(snapshot.get("error", "bounded stage failed"))
         if isinstance(snapshot, dict) and snapshot.get("status") in ("TIMEOUT", "ERROR"):
             raise RuntimeError(snapshot.get("error", "bounded stage failed"))
         details["global_macro_bridge"] = {
@@ -645,8 +751,8 @@ def _phase_prepare(
             alt = AlternativeDataProvider()
             return alt.fetch_nowcast_snapshot(include_stubs=False)
 
-        nowcast = _boot_stage("bootstrap_alternative_data", _alt_nowcast,
-                              float(os.getenv("BOOT_STAGE_BUDGET_S", "45")))
+        nowcast = _run_stage("bootstrap_alternative_data", _alt_nowcast,
+                              _stage_budget(45.0))
         if isinstance(nowcast, dict) and nowcast.get("status") in ("TIMEOUT", "ERROR"):
             raise RuntimeError(nowcast.get("error", "bounded stage failed"))
         live_count = sum(1 for obs in (nowcast if isinstance(nowcast, list) else [])
@@ -673,8 +779,8 @@ def _phase_prepare(
             yf_prov = YahooFinanceProvider()
             return yf_prov.get_market_indices()
 
-        indices = _boot_stage("bootstrap_yahoo_finance", _yf_indices,
-                              float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
+        indices = _run_stage("bootstrap_yahoo_finance", _yf_indices,
+                              _stage_budget(30.0))
         if isinstance(indices, dict) and indices.get("status") in ("TIMEOUT", "ERROR"):
             raise RuntimeError(indices.get("error", "bounded stage failed"))
         details["yahoo_finance"] = {
@@ -698,8 +804,8 @@ def _phase_prepare(
             cot = CFTCCOTProvider()
             return cot.fetch_cot_report()
 
-        cot_report = _boot_stage("bootstrap_cftc_cot", _cot_report,
-                                 float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
+        cot_report = _run_stage("bootstrap_cftc_cot", _cot_report,
+                                 _stage_budget(30.0))
         if isinstance(cot_report, dict) and cot_report.get("status") in ("TIMEOUT", "ERROR"):
             raise RuntimeError(cot_report.get("error", "bounded stage failed"))
         details["cftc_cot"] = {
@@ -722,9 +828,9 @@ def _phase_prepare(
         def _eia_report() -> Any:
             return EIAProvider().fetch_latest_report()
 
-        eia_report = _boot_stage(
+        eia_report = _run_stage(
             "bootstrap_eia_petroleum", _eia_report,
-            float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
+            _stage_budget(30.0))
         if isinstance(eia_report, dict) and eia_report.get("status") in ("TIMEOUT", "ERROR"):
             raise RuntimeError(eia_report.get("error", "bounded stage failed"))
         details["eia_petroleum"] = {
@@ -748,8 +854,8 @@ def _phase_prepare(
             ff = ForexFactoryProvider()
             return ff.fetch_calendar()
 
-        ff_events = _boot_stage("bootstrap_forexfactory", _ff_calendar,
-                                float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
+        ff_events = _run_stage("bootstrap_forexfactory", _ff_calendar,
+                                _stage_budget(30.0))
         if isinstance(ff_events, dict) and ff_events.get("status") in ("TIMEOUT", "ERROR"):
             raise RuntimeError(ff_events.get("error", "bounded stage failed"))
         details["forexfactory"] = {
@@ -773,8 +879,8 @@ def _phase_prepare(
             exness = ExnessProvider()
             return exness.fetch_insights()
 
-        insights = _boot_stage("bootstrap_exness", _exness_insights,
-                               float(os.getenv("BOOT_STAGE_BUDGET_S", "30")))
+        insights = _run_stage("bootstrap_exness", _exness_insights,
+                               _stage_budget(30.0))
         if isinstance(insights, dict) and insights.get("status") in ("TIMEOUT", "ERROR"):
             raise RuntimeError(insights.get("error", "bounded stage failed"))
         details["exness"] = {

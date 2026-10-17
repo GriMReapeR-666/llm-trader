@@ -17,6 +17,7 @@ from core.harness.kernel import TradingContext
 from core.harness.session_fork import SessionForkEngine, Hypothesis, BranchResult
 from core.harness.event_stream import EventStream, HarnessEvent
 from core.trading_safety import TradeProposal
+from intelligence.opportunity_bus import BarSynchronizedOpportunityBus
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,10 @@ class HarnessAgentLoop:
         self.root_ctx = root_ctx
         self.event_stream = event_stream or EventStream()
         self.fork_engine = SessionForkEngine()
+        self.opportunity_bus = BarSynchronizedOpportunityBus(
+            store=self.root_ctx.get("store", None),
+            graph_engine=self.root_ctx.get("graph_engine", None),
+        )
 
     def run_cycle(self, symbol: str = "EURUSD", timeframe: str = "M15") -> CycleExecutionSummary:
         """Execute a complete, isolated decision cycle with automatic cleanup."""
@@ -124,6 +129,72 @@ class HarnessAgentLoop:
                 }
 
             self.event_stream.emit("CYCLE_STARTED", {"cycle_id": cycle_id, "snapshot": snapshot})
+
+            # 2.5 Synchronized Bar Boundary Auction & Dual Velocity Routing
+            auction_res = self.opportunity_bus.run_synchronized_bar_auction(
+                symbol=symbol,
+                timeframe=timeframe,
+                bar_time=snapshot.get("timestamp"),
+                market_data=market_data,
+                context=snapshot,
+                graph_engine=self.root_ctx.get("graph_engine", None),
+            )
+            self.event_stream.emit("BAR_AUCTION_EXECUTED", {
+                "cycle_id": cycle_id,
+                "symbol": symbol,
+                "scalp_winners": len(auction_res.get("scalp_winners", [])),
+                "swing_winners": len(auction_res.get("swing_winners", [])),
+                "fast_lane_plans": len(auction_res.get("fast_lane_plans", [])),
+            })
+
+            # Fast Lane Execution: If a SCALP winner was planned, execute immediately
+            fast_plans = auction_res.get("fast_lane_plans", [])
+            valid_fast_plans = [p for p in fast_plans if "planned_entry" in p]
+            if valid_fast_plans and broker is not None and market_env.get("market_open", False):
+                fast_plan = valid_fast_plans[0]
+                plan_details = fast_plan["planned_entry"]
+                side = plan_details.get("side", "BUY")
+                entry_p = float(plan_details.get("entry", price_from_feed))
+                vol = 0.01
+
+                ticket = None
+                if hasattr(broker, "execute_order"):
+                    ticket = broker.execute_order(
+                        symbol=symbol,
+                        action=side,
+                        volume=vol,
+                        price=entry_p,
+                        sl=round(entry_p - 1.5 * float(atr_value), 5) if side == "BUY" else round(entry_p + 1.5 * float(atr_value), 5),
+                        tp=round(entry_p + 1.5 * float(atr_value), 5) if side == "BUY" else round(entry_p - 1.5 * float(atr_value), 5),
+                    )
+                elif hasattr(broker, "open_order"):
+                    ticket = broker.open_order(
+                        symbol=symbol,
+                        action=side,
+                        volume=vol,
+                        price=entry_p,
+                        sl=round(entry_p - 1.5 * float(atr_value), 5) if side == "BUY" else round(entry_p + 1.5 * float(atr_value), 5),
+                        tp=round(entry_p + 1.5 * float(atr_value), 5) if side == "BUY" else round(entry_p - 1.5 * float(atr_value), 5),
+                    )
+
+                if ticket:
+                    duration_ms = (time.time() - cycle_start) * 1000.0
+                    self.event_stream.emit("ORDER_ROUTED_FAST_LANE", {
+                        "cycle_id": cycle_id,
+                        "symbol": symbol,
+                        "strategy": fast_plan.get("strategy"),
+                        "ticket": ticket,
+                    })
+                    return CycleExecutionSummary(
+                        cycle_id=cycle_id,
+                        symbol=symbol,
+                        decision="EXECUTE",
+                        winning_hypothesis=f"FAST_LANE_{fast_plan.get('strategy')}",
+                        proposal=plan_details,
+                        validation_status="FAST_LANE_APPROVED",
+                        execution_ticket=ticket,
+                        duration_ms=round(duration_ms, 2),
+                    )
 
             # 3. Form speculative hypotheses
             hypotheses = [

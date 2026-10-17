@@ -252,7 +252,12 @@ class GridSelector:
 # ---------------------------------------------------------------------------
 
 class ParentPoolManager:
-    """Manage the parent pool for next generation."""
+    """Manage the parent pool for next generation.
+
+    Keyed by expression string, NOT by population index: the population is
+    rebuilt every generation, so a positional index from gen N points at a
+    different expression (or out of range) in gen N+1.
+    """
     
     def __init__(self, pool_size: int = 150):
         """Initialize pool manager.
@@ -261,8 +266,8 @@ class ParentPoolManager:
             pool_size: Maximum pool size
         """
         self.pool_size = pool_size
-        self.pool: Dict[int, Any] = {}  # idx -> expression
-        self.fitness: Dict[int, float] = {}
+        self.pool: Dict[str, Any] = {}  # expr_string -> expression
+        self.fitness: Dict[str, float] = {}  # expr_string -> |IC|
     
     def update(self, selected_indices: List[int],
                expressions: List[Any],
@@ -274,34 +279,55 @@ class ParentPoolManager:
             expressions: List of all expressions
             ic_results: IC results for selected expressions
         """
-        # Add new selections
+        # Key by expression string (stable across generations); a positional
+        # index from gen N is meaningless in gen N+1. Store a copy so later
+        # in-place mutation of the live population can never alias the pool.
         for idx in selected_indices:
             if idx < len(expressions):
-                self.pool[idx] = expressions[idx]
+                expr = expressions[idx]
+                try:
+                    key = expr.to_string()
+                except Exception:
+                    continue
+                try:
+                    stored = expr.copy()
+                except Exception:
+                    stored = expr
+                self.pool[key] = stored
                 if idx in ic_results:
-                    self.fitness[idx] = abs(ic_results[idx].ic_mean)
+                    try:
+                        self.fitness[key] = abs(ic_results[idx].ic_mean)
+                    except Exception:
+                        self.fitness[key] = 0.0
+                else:
+                    self.fitness.setdefault(key, 0.0)
         
         # Trim to pool size if needed
         if len(self.pool) > self.pool_size:
             # Sort by fitness
-            sorted_indices = sorted(self.pool.keys(), 
-                                   key=lambda i: self.fitness.get(i, 0),
-                                   reverse=True)
-            
-            # Keep top pool_size
-            to_remove = sorted_indices[self.pool_size:]
-            for idx in to_remove:
-                del self.pool[idx]
-                if idx in self.fitness:
-                    del self.fitness[idx]
-    
+            ranked = sorted(self.pool.keys(),
+                            key=lambda k: self.fitness.get(k, 0.0),
+                            reverse=True)
+
+            # Keep top pool_size by |IC|
+            for key in ranked[self.pool_size:]:
+                del self.pool[key]
+                if key in self.fitness:
+                    del self.fitness[key]
+
     def get_expressions(self) -> List[Any]:
-        """Get all expressions in the pool."""
-        return list(self.pool.values())
-    
+        """Get all expressions in the pool, best-|IC| first."""
+        ranked = sorted(self.pool.keys(),
+                        key=lambda k: self.fitness.get(k, 0.0),
+                        reverse=True)
+        return [self.pool[k] for k in ranked]
+
     def get_fitness_scores(self) -> List[float]:
-        """Get fitness scores for all expressions in pool."""
-        return [self.fitness.get(idx, 0.0) for idx in self.pool.keys()]
+        """Get fitness scores for all expressions in pool (aligned with get_expressions)."""
+        ranked = sorted(self.pool.keys(),
+                        key=lambda k: self.fitness.get(k, 0.0),
+                        reverse=True)
+        return [self.fitness.get(k, 0.0) for k in ranked]
     
     def clear(self):
         """Clear the pool."""

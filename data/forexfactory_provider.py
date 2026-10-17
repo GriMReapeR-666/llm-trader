@@ -8,15 +8,57 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 import requests
 
 log = logging.getLogger("ForexFactoryProvider")
 
 FF_CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 CACHE_FILE = "artifacts/forexfactory_calendar_cache.json"
+
+#: "8:30am" / "1:05 PM" -> 24h. The legacy FF feed shipped 12-hour clocks, and
+#: the older ``f"{date}T{time}:00Z"`` concatenation silently produced an
+#: unparseable string for every one of those rows.
+_CLOCK_12H = re.compile(r"^(\d{1,2}):(\d{2})\s*([ap])\.?m\.?$", re.IGNORECASE)
+
+
+def parse_utc(raw: Any) -> Optional[datetime]:
+    """Parse a calendar timestamp into an aware UTC datetime, or None.
+
+    Handles every shape this provider sees: full ISO with offset
+    (``2026-10-04T05:15:00-04:00``), a legacy ``Z`` suffix, and a bare date.
+    Naive input is read as UTC — the feeds publish UTC — so a missing offset can
+    never be silently reinterpreted in the machine's local timezone. Anything
+    else returns None rather than a guess.
+    """
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def clock_to_24h(text: str) -> str:
+    """Normalize a legacy FF 12-hour clock ("8:30am") to 24h; others pass through.
+
+    The legacy feed shipped 12-hour clocks, and the old ``f"{date}T{time}:00Z"``
+    concatenation turned every one of those rows into an unparseable string.
+    """
+    match = _CLOCK_12H.match(text.strip())
+    if not match:
+        return text.strip()
+    hour = int(match.group(1)) % 12
+    if match.group(3).lower() == "p":
+        hour += 12
+    return f"{hour:02d}:{match.group(2)}"
 
 
 @dataclass
@@ -93,6 +135,10 @@ class ForexFactoryProvider:
         self.cache_path = cache_path
         self.last_source = "unknown"
         self.timeout = timeout
+        #: Rows in the last fetch_calendar() whose timestamp could not be
+        #: parsed. Reported, never silently swallowed - the audit's P0-4 class
+        #: of failure is a calendar that degrades quietly into "no events".
+        self.unparsed_rows = 0
 
     def fetch_calendar(
         self,
@@ -106,6 +152,29 @@ class ForexFactoryProvider:
         impact_order = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "HOLIDAY": 0, "NON_ECONOMIC": 0}
         min_rank = impact_order.get(str(min_impact or "").upper(), 0)
 
+        # Normalize timestamp for BOTH feed shapes (audit P0-4): the current
+        # FF feed puts a full ISO offset timestamp in "date" (e.g.
+        # 2026-10-04T05:15:00-04:00) and has NO separate "time" field, so
+        # datetime_utc used to be None for every row, _is_upcoming()
+        # returned True-for-unparseable, and the get_events staleness guard
+        # then raised "no upcoming events" - the calendar went refuse-closed
+        # and macro_events rows lost event_time.
+        def _norm_datetime_utc(item: Dict[str, Any]) -> Optional[str]:
+            """Field named datetime_utc must actually BE utc.
+
+            The modern shape already carries a full offset; handing that string
+            through unchanged makes every consumer that compares it as UTC
+            (macro_events.event_time, the get_events sort) wrong by the offset,
+            and mixed-offset rows sort by string, not by instant.
+            """
+            date_str = str(item.get("date") or "").strip()
+            time_str = str(item.get("time") or "").strip()
+            raw = date_str if "T" in date_str else (
+                f"{date_str}T{clock_to_24h(time_str)}" if date_str and time_str else date_str)
+            when = parse_utc(raw)
+            return when.isoformat() if when else None
+
+        self.unparsed_rows = 0
         for item in raw_events:
             title = str(item.get("title") or "").strip()
             curr = str(item.get("country") or item.get("currency") or "USD").upper()
@@ -130,6 +199,15 @@ class ForexFactoryProvider:
 
             date_str = str(item.get("date") or "")
             time_str = str(item.get("time") or "")
+            when_utc = _norm_datetime_utc(item)
+            if when_utc is None:
+                # Fail closed on the row, but never silently: an unreadable
+                # timestamp is the exact defect class this provider was fixed
+                # for, so it is counted and logged instead of vanishing.
+                self.unparsed_rows += 1
+                log.warning("forexfactory row has no parseable timestamp "
+                            "(date=%r time=%r); row cannot gate a blackout "
+                            "window and is excluded", date_str, time_str)
 
             ev = ForexFactoryEvent(
                 title=title,
@@ -141,26 +219,35 @@ class ForexFactoryProvider:
                 forecast=str(item.get("forecast") or ""),
                 previous=str(item.get("previous") or ""),
                 actual=item.get("actual"),
-                datetime_utc=f"{date_str}T{time_str}Z" if date_str and time_str else None,
+                datetime_utc=when_utc,
             )
             normalized.append(ev)
 
+        if self.unparsed_rows:
+            log.error("%d/%d forexfactory rows carry no usable timestamp; the "
+                      "calendar is partly blind and blackout windows cannot be "
+                      "keyed off those events", self.unparsed_rows, len(raw_events))
         return normalized
 
     @staticmethod
-    def _is_upcoming(event: Any) -> bool:
-        """True when the event has not already elapsed (UTC)."""
-        import datetime as _dt
+    def _event_instant(event: Any) -> Optional[datetime]:
+        """Aware UTC instant for a row, or None when it carries no usable time."""
         raw = getattr(event, "datetime_utc", None) or getattr(event, "date", None)
-        if not raw:
-            return True                      # unparseable: let the gate decide
-        try:
-            when = _dt.datetime.fromisoformat(str(raw))
-        except ValueError:
-            return True
-        if when.tzinfo is None:
-            when = when.replace(tzinfo=_dt.timezone.utc)
-        return when >= _dt.datetime.now(_dt.timezone.utc)
+        return parse_utc(raw)
+
+    @classmethod
+    def _is_upcoming(cls, event: Any) -> bool:
+        """True when the event has not already elapsed (UTC).
+
+        Fails CLOSED: a row with no readable timestamp at all is not reported as
+        upcoming. Fail-open here is what let the audit's P0-4 state through -
+        unparseable rows were all "upcoming", so the staleness guard tripped on
+        them and the whole calendar was refused instead of half-used. A row with
+        no time but a real date falls back to that date at 00:00Z, which is the
+        honest reading of an all-day event.
+        """
+        when = cls._event_instant(event)
+        return bool(when and when >= datetime.now(timezone.utc))
 
     # Impact strings -> the numeric importance the event gate filters on.
     _IMPACT_RANK = {"HIGH": 3, "MEDIUM": 2, "LOW": 1,
@@ -214,6 +301,20 @@ class ForexFactoryProvider:
                 "(limit=%s min_importance=%s currencies=%s); refusing to report "
                 "a ready-but-empty calendar" % (limit, min_importance, sorted(wanted))
             )
+        # Every qualifying row unreadable is not "a calendar with no upcoming
+        # events" - it is a calendar we cannot read at all, and reporting it as
+        # ready would reopen exactly the blackout gate this provider exists to
+        # close. Counted, not guessed around.
+        readable = [ev for ev in rows if self._event_instant(ev) is not None]
+        if not readable:
+            raise RuntimeError(
+                "forexfactory returned %d qualifying rows but none carries a "
+                "parseable timestamp; refusing to gate trading on an unreadable "
+                "calendar" % len(rows))
+        if len(readable) < len(rows):
+            log.warning("%d/%d qualifying forexfactory rows have no usable "
+                        "timestamp and cannot gate a blackout window",
+                        len(rows) - len(readable), len(rows))
         # The weekly feed repeats rows (e.g. the same ECB speech twice), which
         # would otherwise consume the caller's limit with duplicates.
         seen = set()
@@ -230,22 +331,43 @@ class ForexFactoryProvider:
 
         # The gate wants UPCOMING events. Sorting ascending and truncating would
         # hand back past events first, so a limit of 5 could return five already-
-        # elapsed events and hide the ones that matter.
-        rows.sort(key=lambda e: (str(getattr(e, "datetime_utc", "") or
-                                   getattr(e, "date", "") or "")))
+        # elapsed events and hide the ones that matter. Sort by parsed instant,
+        # not by string: mixed offsets do not order lexicographically.
+        far = datetime.max.replace(tzinfo=timezone.utc)
+        rows.sort(key=lambda e: self._event_instant(e) or far)
         if not limit:
             return rows
         upcoming = [e for e in rows if self._is_upcoming(e)]
-        return (upcoming or rows)[:int(limit)]
+        # Fall back to the READABLE rows only. Falling back to ``rows`` here
+        # would hand back exactly the unparseable rows the fail-closed
+        # _is_upcoming() just rejected.
+        return (upcoming or readable)[:int(limit)]
 
     def get_upcoming_high_impact_events(
         self,
         window_minutes: int = 180,
         currency: Optional[str] = None,
     ) -> List[ForexFactoryEvent]:
-        """Return high impact events occurring near current time."""
+        """Return high impact events due within ``window_minutes`` of now.
+
+        This used to return every high-impact row in the feed regardless of
+        time and ignore ``window_minutes`` entirely, so the caller
+        (market_data_provider._has_upcoming_high_impact_event) treated a week
+        of elapsed events as an imminent blackout.
+        """
         events = self.fetch_calendar(currency=currency, min_impact="HIGH")
-        return [e for e in events if e.impact == "HIGH"]
+        high = [e for e in events if e.impact == "HIGH"]
+        timed = [e for e in high if self._event_instant(e) is not None]
+        if high and not timed:
+            # Fail closed by refusing: an empty list here reads as "no event
+            # nearby" and would open the blackout gate.
+            raise RuntimeError(
+                "no high-impact forexfactory row carries a parseable timestamp; "
+                "refusing to report a clear calendar")
+        now = datetime.now(timezone.utc)
+        horizon = now + timedelta(minutes=max(0, int(window_minutes or 0)))
+        return sorted((e for e in timed if now <= self._event_instant(e) <= horizon),
+                      key=lambda e: self._event_instant(e))
 
     def _fetch_raw_calendar(self) -> List[Dict[str, Any]]:
         """Fetch raw JSON payload with fallback caching."""
@@ -286,5 +408,5 @@ class ForexFactoryProvider:
                     if isinstance(data, list) and data:
                         return data
             except Exception as exc:
-                logger.debug("JSON operation failed: %s", exc)
+                log.debug("JSON operation failed: %s", exc)
         return None

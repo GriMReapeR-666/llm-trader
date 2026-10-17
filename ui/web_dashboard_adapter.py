@@ -270,6 +270,16 @@ class WebDashboardAdapter:
         for msg in logs:
             self.log(msg, "EXEC")
 
+    def update_smc(self, smc_data: dict):
+        if not smc_data: return
+        self.state.smc_structure = smc_data
+        self._push("smc", smc_data)
+
+    def update_macro_intelligence(self, macro_data: dict):
+        if not macro_data: return
+        self.state.macro_intelligence = macro_data
+        self._push("macro_intelligence", macro_data)
+
     def run_app(self):
         pass
 

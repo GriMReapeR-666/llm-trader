@@ -1483,18 +1483,28 @@ class MarketDataProvider:
         # with an empty object.
         if not acc_info and self.paper_account_evidence:
             _bal = float(getattr(self.risk, "balance", 0.0) or 0.0)
-            _eq = float(getattr(self.risk, "equity", _bal) or _bal)
+            # RiskManager has no ``equity`` attribute (only equity_floor_fraction),
+            # so the old getattr(self.risk, "equity", _bal) always fell back to
+            # the balance and paper evidence reported balance as equity - open
+            # floating P&L never surfaced here. current_equity() is the real
+            # accessor: MT5, else the injected paper venue, else the snapshot.
+            try:
+                _eq = float(self.risk.current_equity())
+            except Exception:
+                _eq = _bal
+            if not (_eq > 0.0):
+                _eq = _bal
             if _bal > 0.0 or _eq > 0.0:
                 acc_info = {
                     "server": "PAPER_SIMULATED", "currency": "USD", "leverage": 100,
                     "balance": _bal, "equity": _eq, "margin": 0.0,
                     "margin_free": _eq, "margin_level": 0.0,
-                    "mode": "PAPER_SIMULATED", "source": "risk_manager_seed",
+                    "mode": "PAPER_SIMULATED", "source": "risk_manager_equity",
                     "simulated": True,
                 }
-        
+
         balance = float(acc_info.get("balance", self.risk.balance) or self.risk.balance)
-        equity = float(acc_info.get("equity", self.risk.balance) or self.risk.balance)
+        equity = float(acc_info.get("equity") or balance)
         self.risk.update_account(balance, equity)
 
         now_ts = time.time()

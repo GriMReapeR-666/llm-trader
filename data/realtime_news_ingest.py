@@ -24,12 +24,12 @@ except ImportError:
 try:
     from data.news_triage import TriageGate, project_article, summarize_cycle_evidence
 except ImportError:
-    from data.news_triage import TriageGate, project_article, summarize_cycle_evidence
+    from news_triage import TriageGate, project_article, summarize_cycle_evidence
 
 try:
     from data.kill_switch_latch import get_kill_switch_latch
 except ImportError:
-    from data.kill_switch_latch import get_kill_switch_latch
+    from kill_switch_latch import get_kill_switch_latch
 
 
 DEFAULT_RSS_FEEDS: List[Dict[str, str]] = [

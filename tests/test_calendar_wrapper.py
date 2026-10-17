@@ -23,7 +23,8 @@ from data.mt5_calendar_wrapper import (
     CalendarEventSector, CalendarEventFrequency, CalendarEventTimeMode,
     CalendarEventUnit, CalendarEventMultiplier,
     MT5CalendarError, MT5CalendarConnectionError, MT5CalendarDataError,
-    LONG_MIN, MICRO_MULTIPLIER
+    LONG_MIN, MICRO_MULTIPLIER,
+    find_mt5_dll,
 )
 
 from data.mt5_calendar_enhanced import (
@@ -520,8 +521,9 @@ class TestEnhancedMT5CalendarWrapper(unittest.TestCase):
 class TestCalendarWrapperIntegration(unittest.TestCase):
     """Integration tests for calendar wrapper (requires MT5)"""
     
-    @unittest.skipIf(not os.path.exists("C:\\Program Files\\MetaTrader 5\\terminal64.dll"), 
-                     "MT5 not installed")
+    @pytest.mark.integration
+    @unittest.skipIf(find_mt5_dll() is None,
+                     "MT5 terminal64.dll (MQL5 calendar exports) not present")
     def test_real_mt5_connection(self):
         """Test real MT5 connection (only if MT5 is installed)"""
         try:

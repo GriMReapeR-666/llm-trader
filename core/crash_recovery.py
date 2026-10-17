@@ -23,6 +23,7 @@ References:
 """
 from __future__ import annotations
 
+import _thread
 import atexit
 import json
 import logging
@@ -87,25 +88,6 @@ class RecoveryResult:
 
 
 # ============================================================================
-# Signal and Shutdown Flags (CC-F4)
-# ============================================================================
-_shutdown_event = threading.Event()
-_sigint_count = 0
-
-
-def shutdown_requested() -> bool:
-    """True if a shutdown signal (SIGTERM or SIGINT) has been received."""
-    return _shutdown_event.is_set()
-
-
-def reset_shutdown_request() -> None:
-    """Reset shutdown state (used in testing)."""
-    global _sigint_count
-    _shutdown_event.clear()
-    _sigint_count = 0
-
-
-# ============================================================================
 # Crash Recovery Manager
 # ============================================================================
 class CrashRecoveryManager:
@@ -128,7 +110,7 @@ class CrashRecoveryManager:
         self.guardian_stale_threshold = guardian_heartbeat_stale_seconds
         self._shutdown_snapshot_enabled = False
         self._shutdown_in_progress = False
-        self._shutdown_event = _shutdown_event
+        self._shutdown_event = threading.Event()
         self._current_cycle: int = 0
         self._current_checkpoint_id: Optional[int] = None
         self._last_snapshot_time: float = 0.0
@@ -137,35 +119,77 @@ class CrashRecoveryManager:
         self._register_shutdown_hooks()
 
     def _register_shutdown_hooks(self) -> None:
-        """Register atexit and flag-only signal handlers for graceful shutdown (CC-F4)."""
+        """Register atexit and signal handlers for graceful shutdown.
+
+        Signal handlers ONLY set a flag (K4).  Running shutdown() inline from
+        a signal handler deadlocks whenever the signal lands while the main
+        thread already holds GraphStatePersistence._lock (stack captured in
+        AUDIT_2026-10-04_DEEP 06 F4), and swallowing the signal left the
+        engine running after SIGTERM.  A dedicated watcher thread performs
+        the real shutdown when it observes the flag.
+        """
         atexit.register(self._atexit_shutdown)
 
-        # Flag-only SIGTERM handler (CC-F4): never acquires locks or writes DB in handler
+        self._signal_requested: Optional[int] = None
+        self._original_signal_handlers: Dict[int, Any] = {}
+
         if hasattr(signal, "SIGTERM"):
-            def _sigterm_handler(signum, frame):
-                # Pure flag: no logging here — the logging lock may be held
-                # by the interrupted code (Low cleanup item).
-                _shutdown_event.set()
+            self._original_signal_handlers[signal.SIGTERM] = signal.getsignal(signal.SIGTERM)
+            signal.signal(signal.SIGTERM, self._signal_flag_handler)
 
-            try:
-                signal.signal(signal.SIGTERM, _sigterm_handler)
-            except (ValueError, OSError):
-                pass
-
-        # Flag-only SIGINT handler (CC-F4): sets event; second SIGINT raises KeyboardInterrupt
         if hasattr(signal, "SIGINT"):
-            def _sigint_handler(signum, frame):
-                # Pure flag: no logging here (see SIGTERM note above).
-                global _sigint_count
-                _sigint_count += 1
-                _shutdown_event.set()
-                if _sigint_count >= 2:
-                    raise KeyboardInterrupt
+            self._original_signal_handlers[signal.SIGINT] = signal.getsignal(signal.SIGINT)
+            signal.signal(signal.SIGINT, self._signal_flag_handler)
 
+        watcher = threading.Thread(
+            target=self._signal_watcher,
+            name="shutdown-signal-watcher",
+            daemon=True,
+        )
+        self._signal_watcher_thread = watcher
+        watcher.start()
+
+    def _signal_flag_handler(self, signum, frame) -> None:
+        """Signal handler body: set a flag and return. Nothing else (K4).
+
+        No locks, no logging, no I/O — a plain attribute write is the only
+        operation that cannot deadlock against the interrupted thread.
+        """
+        self._signal_requested = signum
+
+    def _signal_watcher(self) -> None:
+        """Perform the flag-driven shutdown outside signal context."""
+        try:
+            while self._signal_requested is None and not self._shutdown_event.is_set():
+                time.sleep(0.1)
+            if self._signal_requested is None:
+                return
+            signum = self._signal_requested
+            logger.warning("signal %s received — flag set; performing graceful shutdown", signum)
             try:
-                signal.signal(signal.SIGINT, _sigint_handler)
-            except (ValueError, OSError):
-                pass
+                self.shutdown()
+            except Exception as exc:
+                logger.error("signal-driven shutdown failed: %s", exc)
+            self._after_signal_shutdown(signum)
+        except Exception as exc:  # the watcher must never die silently
+            logger.error("shutdown signal watcher failed: %s", exc)
+
+    def _after_signal_shutdown(self, signum: int) -> None:
+        """End the process after the graceful shutdown has completed.
+
+        The old handler returned after saving its snapshot, which left the
+        engine running — SIGTERM was effectively swallowed.  Re-interrupting
+        the main thread lets the main loop unwind through its normal
+        KeyboardInterrupt path (which runs the full cleanup `finally`), and
+        any handler we replaced gets a chance to run first.
+        """
+        original = self._original_signal_handlers.get(signum)
+        if callable(original):
+            try:
+                original(signum, None)
+            except BaseException as exc:  # noqa: BLE001 - chained handlers may raise
+                logger.debug("original signal handler for %s ended with %r", signum, exc)
+        _thread.interrupt_main()
 
     def check_on_startup(self) -> RecoveryResult:
         """Check system state on startup and recommend recovery action.
@@ -394,3 +418,24 @@ def complete_checkpoint(checkpoint_id: Optional[int] = None) -> bool:
     """Convenience: complete the current cycle checkpoint."""
     recovery = get_recovery()
     return recovery.complete_cycle_checkpoint(checkpoint_id)
+
+
+def shutdown_requested() -> bool:
+    """Convenience: True once a graceful shutdown has been requested.
+
+    Signal handlers only set the event; they never do cleanup inline, so a
+    long-running loop can poll this flag without risking a deadlock inside
+    the handler itself.
+    """
+    return get_recovery()._shutdown_event.is_set()
+
+
+def reset_shutdown_request() -> None:
+    """Clear the shutdown flag (test/loop-restart use).
+
+    This does NOT undo a completed shutdown snapshot — it only re-arms the
+    event so a fresh loop can run within the same process.
+    """
+    mgr = get_recovery()
+    mgr._shutdown_event.clear()
+    mgr._shutdown_in_progress = False

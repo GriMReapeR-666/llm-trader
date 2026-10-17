@@ -15,9 +15,10 @@ from __future__ import annotations
 import logging
 import math
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Deque, Union
 
 logger = logging.getLogger("PositionManager")
 
@@ -85,7 +86,7 @@ class ManagedPosition:
     partial_exits_done: int = 0         # How many partial close levels hit
     trailing_active: bool = False
     last_trail_update: float = 0.0
-    management_log: List[Dict[str, Any]] = field(default_factory=list)
+    management_log: Union[Deque[Dict[str, Any]], List[Dict[str, Any]]] = field(default_factory=lambda: deque(maxlen=200))
 
 
 @dataclass
@@ -112,7 +113,7 @@ class PositionManager:
     def __init__(self, config: Optional[PositionManagerConfig] = None):
         self.config = config or PositionManagerConfig()
         self.positions: Dict[int, ManagedPosition] = {}
-        self._action_log: List[ManagementAction] = []
+        self._action_log: Deque[ManagementAction] = deque(maxlen=2000)
 
     # --- Position registration ---
 
@@ -310,7 +311,7 @@ class PositionManager:
                     # Use management log prices as proxy for price series
                     price_history = [pos.entry_price]
                     if pos.management_log:
-                        for entry in pos.management_log[-20:]:
+                        for entry in list(pos.management_log)[-20:]:
                             if "new_sl" in entry:
                                 price_history.append(entry["new_sl"])
                     price_history.append(current_price)

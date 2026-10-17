@@ -126,7 +126,10 @@ class AlphaExpression:
             return child_values[0].rolling(window, min_periods=1).mean()
         elif op == "ts_std":
             return child_values[0].rolling(window, min_periods=2).std()
-        elif op == "ts_rank":
+        elif op in ("ts_rank", "cs_rank"):
+            # `cs_rank` shares this branch on purpose: on single-symbol data
+            # there is no cross-section to rank over, so a causal "cross
+            # sectional" percentile rank IS a rolling percentile rank.
             return child_values[0].rolling(window, min_periods=1).apply(
                 lambda x: pd.Series(x).rank(pct=True).iloc[-1], raw=False
             )
@@ -141,16 +144,32 @@ class AlphaExpression:
         elif op == "ts_returns":
             return child_values[0].pct_change(window)
         
-        # Cross-sectional operators (single asset: normalize/rank entire series)
-        elif op == "cs_rank":
-            return child_values[0].rank(pct=True)
+        # Rolling-window normalizers.
+        #
+        # ponytail: these were FULL-SAMPLE (`rank(pct=True)`, `.mean()`,
+        # `.std()`, `.abs().sum()` over the entire series). On single-symbol
+        # data a full-sample normalizer consumes the future: appending bars
+        # changed the value at bar t, so the GA banked IC that no live bar
+        # could ever reproduce. `core/alpha_discovery.py` had already banned bare
+        # `rank(` as a "non-causal primitive"; these were the same leak wearing
+        # a different name, and the judge could not see it because it only
+        # matched `shift(-n)`. The rule now lives in `core/alpha_causality`.
+        #
+        # Rolling windows read bars [t-window, t] only, so the value at bar t is
+        # invariant to future appends. Expanding windows were rejected: IC is a
+        # pooled Spearman over the whole series, and a growing denominator
+        # squeezes late bars into a tie blob at zero.
+        #
+        # upgrade path: once a genuine multi-symbol panel exists, branch to a
+        # groupby(date) axis instead of a time axis and restore true
+        # cross-sectional semantics.
         elif op == "cs_scale":
-            denom = child_values[0].abs().sum()
-            return child_values[0] / (denom + 1e-10) if denom > 0 else child_values[0] * 0.0
+            denom = child_values[0].abs().rolling(window, min_periods=1).sum()
+            return child_values[0] / denom.where(denom > 1e-10, other=1.0)
         elif op == "cs_normalize":
-            mean = child_values[0].mean()
-            std = child_values[0].std()
-            return (child_values[0] - mean) / (std + 1e-10)
+            mean = child_values[0].rolling(window, min_periods=1).mean()
+            std = child_values[0].rolling(window, min_periods=2).std()
+            return (child_values[0] - mean) / std.where(std > 1e-10, other=1.0)
         
         else:
             raise ValueError(f"Unknown operator: {op}")
@@ -166,11 +185,11 @@ class AlphaExpression:
         child_strs = [child.to_string() for child in self.children]
         
         if self.operator in ["ts_mean", "ts_std", "ts_rank", "ts_min", "ts_max", 
-                             "ts_delay", "ts_delta", "ts_returns"]:
+                             "ts_delay", "ts_delta", "ts_returns",
+                             "cs_rank", "cs_scale", "cs_normalize"]:
             return f"{self.operator}({child_strs[0]}, {self.window})"
         
-        if self.operator in ["abs", "sign", "log", "negate", "square", "sqrt",
-                             "cs_rank", "cs_scale", "cs_normalize"]:
+        if self.operator in ["abs", "sign", "log", "negate", "square", "sqrt"]:
             return f"{self.operator}({child_strs[0]})"
         
         if self.operator in ["add", "subtract", "multiply", "divide"]:
@@ -334,7 +353,7 @@ def create_random_expression(max_depth: int = 2,
     else:  # cs_unary
         op = random.choice(CS_UNARY)
         child = create_random_expression(max_depth, current_depth + 1)
-        return create_unary(op, child)
+        return create_unary(op, child, window=random.choice(WINDOWS))
 
 
 # ---------------------------------------------------------------------------

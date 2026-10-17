@@ -63,10 +63,15 @@ VERIFIED_OPERATORS: Dict[str, Dict[str, Any]] = {
     "ts_delta": {"arity": 1, "params": ["period"], "description": "Momentum"},
     "ts_returns": {"arity": 1, "params": ["period"], "description": "Percentage change"},
     
-    # Cross-sectional operators
-    "cs_rank": {"arity": 1, "params": [], "description": "Cross-sectional rank"},
-    "cs_scale": {"arity": 1, "params": [], "description": "Cross-sectional scaling"},
-    "cs_normalize": {"arity": 1, "params": [], "description": "Cross-sectional normalization"},
+    # Rolling normalizers. Historically these were FULL-SAMPLE (whole-series)
+    # normalizers, which read future bars on single-symbol data. They now take a
+    # window and read bars [t-window, t] only. `cs_rank` is now equivalent to
+    # `ts_rank`; with one symbol there is no cross-section to rank over.
+    # ponytail: descriptions are fed to an LLM as the operator contract, so they
+    # must not claim semantics the evaluator does not implement.
+    "cs_rank": {"arity": 1, "params": ["window"], "description": "Rolling percentile rank (causal)"},
+    "cs_scale": {"arity": 1, "params": ["window"], "description": "Rolling absolute-scaled (causal)"},
+    "cs_normalize": {"arity": 1, "params": ["window"], "description": "Rolling z-score (causal)"},
     
     # Arithmetic operators
     "add": {"arity": 2, "params": [], "description": "Addition"},

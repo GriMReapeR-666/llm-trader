@@ -288,3 +288,20 @@ def test_deterministic_hold_fallback_blocks_buy():
     import json
     outage = json.loads(LLMRouter.deterministic_hold_fallback("trader"))
     assert outage["action"] not in ("BUY", "SELL")
+
+
+def test_incident_action_handlers_coverage_and_dispatch():
+    """Every known RUNBOOK incident key must have an executable action handler."""
+    from operations.agents.incident_agent import RUNBOOKS, ACTION_HANDLERS, dispatch_remediation
+
+    for key in RUNBOOKS:
+        assert key in ACTION_HANDLERS, f"Missing ACTION_HANDLER for runbook key: {key}"
+
+    # Verify dispatch_remediation executes cleanly
+    res = dispatch_remediation("unknown_key_test")
+    assert res["status"] == "SKIPPED"
+
+    res_llm = dispatch_remediation("llm_outage_min", {"outage_minutes": 15})
+    assert res_llm["status"] == "APPLIED"
+    assert res_llm["action"] == "HOLD_ONLY_MODE"
+

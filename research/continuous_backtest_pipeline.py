@@ -57,6 +57,42 @@ def _broker_confirmed_tickets(db_path: str) -> set:
     return broker_reconciled_tickets(db_path)
 
 
+def _broker_reconciled_r_multiples(db_path: str) -> List[float]:
+    """Realized R-multiples that carry independent broker evidence, oldest first.
+
+    ``trades`` has **no** ``r_multiple`` column -- the R-multiple lives in
+    ``trade_labels`` (and is derived from ``pnl / risk_amount`` when the label
+    carries none).  The previous reader selected ``r_multiple`` from the
+    ``trades`` table, which always raised ``no such column: r_multiple``, was
+    swallowed by a bare ``except Exception: pass``, and therefore left
+    walk-forward reporting "fewer than 20 broker-reconciled r-multiples"
+    forever -- a broken query indistinguishable from a genuinely starved gate.
+
+    Admission goes through ``labelled_dataset``, the same reader the promotion
+    gate and the weekly-research CPCV use: a ticket counts only when
+    ``broker_execution_reports``/``order_intents`` vouch for it independently,
+    it carries a deterministic label, and it is not a quarantined synthetic
+    fixture.  The >= 20 / >= 40 floors are untouched -- only the reader became
+    correct, and an absent R-multiple is never synthesised to reach one.
+
+    Raises on a broken journal.  A reader that cannot read must surface as a
+    failed stage, never as an empty dataset that reads as "starved" forever.
+    """
+    try:
+        from research_validation import labelled_dataset
+    except ImportError:
+        from research.research_validation import labelled_dataset
+    dataset = labelled_dataset(db_path)
+    multiples = [float(row["r_multiple"]) for row in dataset.get("rows", [])
+                 if row.get("r_multiple") is not None]
+    if not multiples:
+        # "Starved" and "quarantined fixtures" are very different operator
+        # problems and used to look identical from the outside.
+        log.info("No broker-reconciled R-multiples in %s (excluded: %s)",
+                 db_path, dataset.get("excluded", {}))
+    return multiples
+
+
 def _periods_per_year(timeframe: str) -> float:
     """Annualization constant matching the bar timeframe.
 
@@ -177,9 +213,21 @@ class ContinuousBacktestPipeline:
         # Stage 1: Full Pipeline Backtest
         log.info("Stage 1: Full Pipeline Backtest")
         try:
+            from data.market_data_provider import fetch_ohlc
+            # Ensure MT5 terminal is attached so fetch_ohlc() yields real broker data.
+            # This mirrors _ensure_mt5_attached() in market_data_provider.py — without
+            # it, every call raises RuntimeError when no terminal is available in the process.
+            mt5_inst = getattr(sys.modules.get("mt5_trader", None), "mt5", None)
+            if mt5_inst is not None:
+                try:
+                    if mt5_inst.terminal_info() is None:
+                        init = getattr(mt5_inst, "initialize", None)
+                        if init is not None:
+                            init()
+                except Exception:
+                    pass
             raw_bars = None
             try:
-                from data.market_data_provider import fetch_ohlc
                 fetched = fetch_ohlc(symbol=symbol, timeframe=timeframe, count=bars)
                 if fetched is not None and not getattr(fetched, "empty", False):
                     raw_bars = fetched.to_dict("records") if hasattr(fetched, "to_dict") else list(fetched)
@@ -338,23 +386,11 @@ class ContinuousBacktestPipeline:
             try:
                 from research.bayesian_walk_forward_sandbox import BayesianWalkForwardSandbox
                 sandbox = BayesianWalkForwardSandbox()
-                returns = []
-                try:
-                    import sqlite3
-                    db_path = os.path.join(self.base_dir, "trading_state.db")
-                    tickets = _broker_confirmed_tickets(db_path)
-                    if tickets:
-                        marks = ",".join("?" for _ in tickets)
-                        con = sqlite3.connect(db_path, timeout=2)
-                        rows = con.execute(
-                            "SELECT r_multiple FROM trades WHERE closed_at IS NOT NULL "
-                            f"AND r_multiple IS NOT NULL AND ticket IN ({marks}) LIMIT 100",
-                            tuple(tickets),
-                        ).fetchall()
-                        con.close()
-                        returns = [float(r[0]) for r in rows if r[0] is not None]
-                except Exception:
-                    pass
+                # A broken reader must surface as a failed stage (see the
+                # `except` below), not as an empty dataset that is
+                # indistinguishable from a starved gate.
+                returns = _broker_reconciled_r_multiples(
+                    os.path.join(self.base_dir, "trading_state.db"))
                 if len(returns) < 20:
                     # Insufficient admissible evidence: report it instead of
                     # tuning a fabricated series. np.random.normal(0.05, 0.5, 60)
@@ -510,37 +546,14 @@ class ContinuousBacktestPipeline:
                 r_multiples = None
         if r_multiples is None:
             source = "journal_trades"
-            try:
-                import sqlite3
-                db_path = os.path.join(self.base_dir, "trading_state.db")
-                tickets = _broker_confirmed_tickets(db_path)
-                con = sqlite3.connect(db_path, timeout=2)
-                cols = {c[1] for c in con.execute("PRAGMA table_info(trades)").fetchall()}
-                if tickets and "r_multiple" in cols:
-                    marks = ",".join("?" for _ in tickets)
-                    rows = con.execute(
-                        "SELECT r_multiple FROM trades WHERE closed_at IS NOT NULL AND r_multiple IS NOT NULL "
-                        f"AND ticket IN ({marks}) ORDER BY closed_at DESC LIMIT 500",
-                        tuple(tickets),
-                    ).fetchall()
-                    r_multiples = [float(r[0]) for r in rows if r[0] is not None]
-                elif tickets and "pnl" in cols:
-                    marks = ",".join("?" for _ in tickets)
-                    rows = con.execute(
-                        "SELECT pnl, risk_amount FROM trades WHERE closed_at IS NOT NULL AND pnl IS NOT NULL "
-                        f"AND ticket IN ({marks}) ORDER BY closed_at DESC LIMIT 500",
-                        tuple(tickets),
-                    ).fetchall()
-                    r_multiples = [
-                        float(r[0]) / float(r[1]) if r[1] and float(r[1]) > 0 else (1.0 if float(r[0]) > 0 else -1.0)
-                        for r in rows if r[0] is not None
-                    ]
-                else:
-                    r_multiples = []
-                con.close()
-            except Exception as exc:
-                log.warning("CPCV journal fallback unavailable: %s", exc)
-                r_multiples = []
+            # Same reader as walk-forward: the trades table has no
+            # `r_multiple` column, so the old select against it raised on
+            # every run and was downgraded to "no evidence" by the except
+            # below.  The pnl/risk fallback it used to reach for also
+            # *invented* +-1.0R whenever risk_amount was unusable; a real
+            # R-multiple is now read or it is absent.
+            r_multiples = _broker_reconciled_r_multiples(
+                os.path.join(self.base_dir, "trading_state.db"))
 
         if not r_multiples or len(r_multiples) < 40:
             _samples = len(r_multiples or [])
