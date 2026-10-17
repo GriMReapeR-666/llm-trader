@@ -150,7 +150,7 @@ class TestAlphaDecayMonitor:
 # ---------------------------------------------------------------------------
 
 class TestDecayDetection:
-    def test_degraded_alpha_triggers_warning(self):
+    def test_degraded_alpha_triggers_warning(self, temp_state_file):
         """An alpha with consistently low IC should trigger WARNING."""
         np.random.seed(42)
         n = 200
@@ -168,6 +168,7 @@ class TestDecayDetection:
             decay_threshold=0.05,
             consecutive_bars=3,
             cooldown_seconds=0,  # no cooldown for testing
+            state_file=temp_state_file,
         )
         monitor.update(df, ["alpha_dead"])
         # Need multiple updates to build consecutive low count
@@ -179,7 +180,7 @@ class TestDecayDetection:
         assert len(dead_alerts) >= 1
         assert dead_alerts[0].severity in ("WARNING", "CRITICAL")
 
-    def test_reversed_alpha_triggers_critical(self):
+    def test_reversed_alpha_triggers_critical(self, temp_state_file):
         """An alpha with negative IC should trigger CRITICAL."""
         np.random.seed(42)
         n = 200
@@ -199,6 +200,7 @@ class TestDecayDetection:
             reversal_threshold=-0.01,
             consecutive_bars=3,
             cooldown_seconds=0,
+            state_file=temp_state_file,
         )
         for _ in range(5):
             monitor.update(df, ["alpha_reversed"])

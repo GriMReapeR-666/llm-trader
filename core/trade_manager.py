@@ -15,6 +15,30 @@ except ImportError:
 
 from core.trading_safety import BOT_MAGICS, PortfolioRiskArbiter, exposure_buckets
 from core.state_persistence import StoreBackedState
+from dataclasses import dataclass
+from enum import Enum
+from typing import Dict, Any, List, Optional, Tuple, Union
+
+
+class TradingStyle(str, Enum):
+    SCALP = "SCALP"
+    SWING = "SWING"
+    LONG_TERM = "LONG_TERM"
+
+
+@dataclass
+class StyleManagementConfig:
+    trading_style: TradingStyle
+    trailing_stop_r_mult: float
+    trailing_stop_atr_mult: float
+    breakeven_r_mult: float
+    scale_out_r_mult: float
+    scale_out_two_r_mult: float
+    time_stop_seconds: int
+    use_spread_trailing: bool = False
+    spread_multiplier: float = 1.5
+    weekly_rebalance: bool = False
+
 
 RETCODE_MESSAGES = {
     10004: "REQUOTE",
@@ -56,6 +80,7 @@ class PaperPosition:
         self.profit = float(d.get("profit", 0.0) or 0.0)
         self.price_current = float(d.get("price_current", self.price_open) or self.price_open)
         self.time = d.get("time", time.time())
+        self.comment = str(d.get("comment", "") or "")
 
 
 class TradeManager(StoreBackedState):
@@ -101,8 +126,78 @@ class TradeManager(StoreBackedState):
         self.initial_risk: Dict[int, float] = {} # Entry->initial-SL distance per ticket (R basis)
         self.pyramid_entries = set() # Track tickets that have been scaled in
         self.history = [] # Track trade action history
+
+        # Style-Specific Post-Entry Management Configuration:
+        self.default_style = TradingStyle.SWING
+        self.position_styles: Dict[int, str] = {}
+        self.style_configs: Dict[str, StyleManagementConfig] = {
+            TradingStyle.SCALP.value: StyleManagementConfig(
+                trading_style=TradingStyle.SCALP,
+                trailing_stop_r_mult=0.75,
+                trailing_stop_atr_mult=1.0,
+                breakeven_r_mult=0.5,
+                scale_out_r_mult=1.0,
+                scale_out_two_r_mult=1.5,
+                time_stop_seconds=900,  # 15 minutes minute-stop
+                use_spread_trailing=True,
+                spread_multiplier=1.5,
+                weekly_rebalance=False,
+            ),
+            TradingStyle.SWING.value: StyleManagementConfig(
+                trading_style=TradingStyle.SWING,
+                trailing_stop_r_mult=1.5,
+                trailing_stop_atr_mult=2.5,
+                breakeven_r_mult=1.0,
+                scale_out_r_mult=2.0,
+                scale_out_two_r_mult=3.0,
+                time_stop_seconds=4 * 3600,  # 4 hours
+                use_spread_trailing=False,
+                spread_multiplier=0.0,
+                weekly_rebalance=False,
+            ),
+            TradingStyle.LONG_TERM.value: StyleManagementConfig(
+                trading_style=TradingStyle.LONG_TERM,
+                trailing_stop_r_mult=3.0,
+                trailing_stop_atr_mult=4.0,
+                breakeven_r_mult=2.0,
+                scale_out_r_mult=3.0,
+                scale_out_two_r_mult=5.0,
+                time_stop_seconds=7 * 86400,  # 7 days
+                use_spread_trailing=False,
+                spread_multiplier=0.0,
+                weekly_rebalance=True,
+            ),
+        }
+
         self.load_conditions()
         self.load_state()
+
+    def register_position_style(self, ticket: int, style: Union[TradingStyle, str]) -> None:
+        """Register the trading style for a specific position ticket."""
+        style_val = style.value if isinstance(style, TradingStyle) else str(style).upper()
+        if style_val not in self.style_configs:
+            style_val = TradingStyle.SWING.value
+        self.position_styles[int(ticket)] = style_val
+        self.save_state()
+
+    def get_position_style(self, pos) -> str:
+        """Infer or retrieve the trading style for a position."""
+        ticket = int(getattr(pos, "ticket", 0) or 0)
+        if ticket in self.position_styles:
+            return self.position_styles[ticket]
+        comment = str(getattr(pos, "comment", "") or "").lower()
+        if "scalp" in comment:
+            return TradingStyle.SCALP.value
+        if "long" in comment or "macro" in comment:
+            return TradingStyle.LONG_TERM.value
+        if "swing" in comment or "pair" in comment or "kalman" in comment:
+            return TradingStyle.SWING.value
+        return self.default_style.value
+
+    def get_style_config(self, pos) -> StyleManagementConfig:
+        """Get the management configuration for this position's style."""
+        style_key = self.get_position_style(pos)
+        return self.style_configs.get(style_key, self.style_configs[TradingStyle.SWING.value])
 
     def attach_safety(self, store=None, arbiter=None) -> None:
         """Bind the authoritative journal and portfolio arbiter after startup."""
@@ -409,7 +504,8 @@ class TradeManager(StoreBackedState):
             self.partial_exits_stage2 = {int(ticket) for ticket in state.get("partial_exits_stage2", [])}
             self.initial_risk = {int(k): float(v) for k, v in (state.get("initial_risk", {}) or {}).items()}
             self.pyramid_entries = {int(ticket) for ticket in state.get("pyramid_entries", [])}
-            self.log.info("Loaded durable state: %s scaled-out, %s pyramided", len(self.partial_exits), len(self.pyramid_entries))
+            self.position_styles = {int(k): str(v) for k, v in (state.get("position_styles", {}) or {}).items()}
+            self.log.info("Loaded durable state: %s scaled-out, %s pyramided, %s styled", len(self.partial_exits), len(self.pyramid_entries), len(self.position_styles))
         except Exception as e:
             self.log.warning(f"Failed to load state: {e}")
 
@@ -421,6 +517,7 @@ class TradeManager(StoreBackedState):
                 "partial_exits_stage2": sorted(int(ticket) for ticket in self.partial_exits_stage2),
                 "initial_risk": {str(int(k)): float(v) for k, v in list(self.initial_risk.items())[-500:]},
                 "pyramid_entries": sorted(int(ticket) for ticket in self.pyramid_entries),
+                "position_styles": {str(int(k)): str(v) for k, v in list(self.position_styles.items())[-500:]},
             }
             self._save_state_dict(state)
         except Exception as e:
@@ -446,11 +543,12 @@ class TradeManager(StoreBackedState):
 
     def _check_scale_out(self, pos, current_price: float, atr: float):
         """
-        Scale-out ladder: close 50% at +2R; at +3R close half of the
-        remainder (25% of the original position). ATR guard avoids scaling
-        out on tiny sub-2-ATR scalps.
+        Style-parameterized scale-out ladder:
+        - SCALP: Quick partial close (+1.0R / +1.5R) with low ATR guard
+        - SWING: Standard ladder (+2.0R / +3.0R) with 2x ATR guard
+        - LONG_TERM: Extended ladder (+3.0R / +5.0R) with 3x ATR guard
         """
-        # Calculate Profit in Points
+        cfg = self.get_style_config(pos)
         profit_points = 0
         if pos.type == mt5.ORDER_TYPE_BUY:
             profit_points = current_price - pos.price_open
@@ -465,47 +563,71 @@ class TradeManager(StoreBackedState):
         if not self.partial_tp_enabled:
             return
 
+        atr_guard = 0.5 * atr if cfg.trading_style == TradingStyle.SCALP else (
+            3.0 * atr if cfg.trading_style == TradingStyle.LONG_TERM else 2.0 * atr
+        )
+
         if pos.ticket not in self.partial_exits:
-            # Stage 1 trigger: Profit > +2R (and >= 2 ATRs to avoid noise)
-            if r_mult >= self.scale_out_r_mult and profit_points > (2.0 * atr):
-                self.log.info(f"Scale Out Triggered for #{pos.ticket}: Profit {profit_points:.5f} ({r_mult:.2f}R) -> close 50%")
+            # Stage 1 trigger
+            if r_mult >= cfg.scale_out_r_mult and profit_points >= atr_guard:
+                self.log.info(f"Scale Out Triggered for #{pos.ticket} ({cfg.trading_style.value}): Profit {profit_points:.5f} ({r_mult:.2f}R) -> close 50%")
                 self._execute_partial_close(pos, fraction=0.5)
         elif pos.ticket not in self.partial_exits_stage2:
-            # Stage 2 trigger: Profit > +3R -> close half of remainder
-            if r_mult >= self.scale_out_two_r_mult:
-                self.log.info(f"Scale-Out Stage 2 Triggered for #{pos.ticket}: {r_mult:.2f}R -> close 25% more")
+            # Stage 2 trigger
+            if r_mult >= cfg.scale_out_two_r_mult:
+                self.log.info(f"Scale-Out Stage 2 Triggered for #{pos.ticket} ({cfg.trading_style.value}): {r_mult:.2f}R -> close 25% more")
                 self._execute_partial_close(pos, fraction=0.5, stage=2)
 
     def _check_time_stop(self, pos, current_price: float, atr: float):
-        """Asymmetric Exit: If stagnant beyond time_stop_seconds, exit at fractional loss."""
+        """Asymmetric Exit: Parameterized by TradingStyle.
+        - SCALP: Tight minute-based time-stop (e.g. 15 min) for stagnant scalps
+        - SWING: Multi-hour time-stop (e.g. 4 hr) for stagnant swings
+        - LONG_TERM: Weekly rebalance check (7 days) and macro regime stop
+        """
         import time as _time_mod
         open_time = getattr(pos, "time", 0) or 0
         if open_time <= 0:
             return
-        
+
+        cfg = self.get_style_config(pos)
         elapsed = _time_mod.time() - open_time
-        if elapsed < self.time_stop_seconds:
+        if elapsed < cfg.time_stop_seconds:
             return
-            
+
         # Calculate PnL in R
         risk_dist = abs(pos.price_open - pos.sl) if pos.sl > 0 else (atr * 1.5)
         if risk_dist <= 0:
             risk_dist = max(atr, 0.0001)
-            
+
         profit_points = (current_price - pos.price_open) if pos.type == mt5.ORDER_TYPE_BUY else (pos.price_open - current_price)
         r_mult = profit_points / risk_dist
-        
-        # If trade is stagnant (failed to reach +0.50R momentum) or in mild negative territory (e.g. -0.2R)
-        if r_mult < 0.50:
+
+        # Style-specific exits:
+        if cfg.weekly_rebalance and elapsed >= 7 * 86400:
+            if r_mult < 0.20:
+                self.log.info(
+                    f"📅 Weekly Rebalance Exit for #{pos.ticket} ({cfg.trading_style.value}): Stagnant {elapsed / 86400:.1f}d ({r_mult:.2f}R)."
+                )
+                authorized, auth_reason = self._authorize_management_action(
+                    "FULL_CLOSE", pos, volume=float(getattr(pos, "volume", 0) or 0),
+                    extra={"weekly_rebalance_exit": True, "elapsed_seconds": elapsed, "r_multiple": r_mult, "style": cfg.trading_style.value},
+                )
+                if authorized:
+                    self._close_position(pos.ticket, str(pos.symbol), "WeeklyRebalanceExit")
+                return
+
+        # Stagnation check
+        momentum_threshold = 0.20 if cfg.trading_style == TradingStyle.SCALP else 0.50
+        if r_mult < momentum_threshold:
             self.log.info(
-                f"⏱️ Time Stop Triggered for #{pos.ticket}: Stagnant {elapsed / 3600:.1f}h ({r_mult:.2f}R). Exiting early to preserve capital."
+                f"⏱️ Time Stop Triggered for #{pos.ticket} ({cfg.trading_style.value}): Stagnant {elapsed:.0f}s ({r_mult:.2f}R). Exiting early."
             )
             authorized, auth_reason = self._authorize_management_action(
                 "FULL_CLOSE", pos, volume=float(getattr(pos, "volume", 0) or 0),
-                extra={"time_stop_exit": True, "elapsed_seconds": elapsed, "r_multiple": r_mult},
+                extra={"time_stop_exit": True, "elapsed_seconds": elapsed, "r_multiple": r_mult, "style": cfg.trading_style.value},
             )
             if authorized:
-                self._close_position(pos.ticket, str(pos.symbol), "TimeStopExit")
+                self._close_position(pos.ticket, str(pos.symbol), f"{cfg.trading_style.value}TimeStopExit")
             else:
                 self.log.warning(f"Time stop exit refused for #{pos.ticket}: {auth_reason}")
 
@@ -619,8 +741,11 @@ class TradeManager(StoreBackedState):
 
         # R basis captured from the initial stop (before any BE/trail move).
         risk_dist = self._initial_risk_for(pos, atr)
+        cfg = self.get_style_config(pos)
+        be_r = cfg.breakeven_r_mult
+        trail_r = cfg.trailing_stop_r_mult
 
-        # 1. Breakeven Check — move SL to entry at +1R
+        # 1. Breakeven Check — style-parameterized threshold
         symbol = getattr(pos, "symbol", "")
         if any(g in symbol.upper() for g in ("XAU", "GOLD")):
             try:
@@ -652,36 +777,57 @@ class TradeManager(StoreBackedState):
 
         if pos_type == mt5.ORDER_TYPE_BUY:
             profit_dist = current_price - open_price
-            if profit_dist > (risk_dist * self.breakeven_r_mult):
+            if profit_dist > (risk_dist * be_r):
                 # Move SL to Entry (plus small buffer)
                 new_sl = open_price + (atr * 0.1) 
                 if current_sl < new_sl: # Only move up
-                    self._record_management(ticket, "BREAKEVEN_TRIGGERED", {"old_sl": current_sl, "new_sl": new_sl, "atr": atr, "profit_dist": profit_dist})
+                    self._record_management(ticket, "BREAKEVEN_TRIGGERED", {"old_sl": current_sl, "new_sl": new_sl, "atr": atr, "profit_dist": profit_dist, "style": cfg.trading_style.value})
                     self._modify_sl(ticket, new_sl, "Breakeven")
                     
         elif pos_type == mt5.ORDER_TYPE_SELL:
             profit_dist = open_price - current_price
-            if profit_dist > (risk_dist * self.breakeven_r_mult):
+            if profit_dist > (risk_dist * be_r):
                 # Move SL to Entry (minus small buffer)
                 new_sl = open_price - (atr * 0.1)
                 if current_sl == 0 or current_sl > new_sl: # Only move down
-                    self._record_management(ticket, "BREAKEVEN_TRIGGERED", {"old_sl": current_sl, "new_sl": new_sl, "atr": atr, "profit_dist": profit_dist})
+                    self._record_management(ticket, "BREAKEVEN_TRIGGERED", {"old_sl": current_sl, "new_sl": new_sl, "atr": atr, "profit_dist": profit_dist, "style": cfg.trading_style.value})
                     self._modify_sl(ticket, new_sl, "Breakeven")
 
-        # 2. Trailing Stop — trail the remaining runner at 1.5R distance
+        # 2. Trailing Stop — style parameterized (spread-based for SCALP, ATR/R for SWING/LONG_TERM)
         if self.use_trailing_stop:
+            if cfg.use_spread_trailing:
+                # Tight spread-based trailing for SCALP
+                spread = 0.0002
+                if self.paper_broker is not None:
+                    try:
+                        tick = mt5.symbol_info_tick(symbol) if mt5 else None
+                        if tick and tick.bid and tick.ask:
+                            spread = abs(tick.ask - tick.bid)
+                    except Exception:
+                        pass
+                elif mt5 is not None:
+                    try:
+                        tick = mt5.symbol_info_tick(symbol)
+                        if tick and tick.bid and tick.ask:
+                            spread = abs(tick.ask - tick.bid)
+                    except Exception:
+                        pass
+                trail_dist = max(spread * cfg.spread_multiplier, risk_dist * trail_r)
+            else:
+                trail_dist = risk_dist * trail_r
+
             if pos_type == mt5.ORDER_TYPE_BUY:
-                proposed_sl = current_price - (risk_dist * self.trailing_stop_r_mult)
+                proposed_sl = current_price - trail_dist
                 # Only move SL up, never down
                 if proposed_sl > current_sl and proposed_sl > open_price:
-                    self._record_management(ticket, "TRAILING_STOP_TRIGGERED", {"old_sl": current_sl, "new_sl": proposed_sl, "atr": atr, "current_price": current_price})
+                    self._record_management(ticket, "TRAILING_STOP_TRIGGERED", {"old_sl": current_sl, "new_sl": proposed_sl, "atr": atr, "current_price": current_price, "style": cfg.trading_style.value})
                     self._modify_sl(ticket, proposed_sl, "Trailing")
                     
             elif pos_type == mt5.ORDER_TYPE_SELL:
-                proposed_sl = current_price + (risk_dist * self.trailing_stop_r_mult)
+                proposed_sl = current_price + trail_dist
                 # Only move SL down, never up
                 if (current_sl == 0 or proposed_sl < current_sl) and proposed_sl < open_price:
-                    self._record_management(ticket, "TRAILING_STOP_TRIGGERED", {"old_sl": current_sl, "new_sl": proposed_sl, "atr": atr, "current_price": current_price})
+                    self._record_management(ticket, "TRAILING_STOP_TRIGGERED", {"old_sl": current_sl, "new_sl": proposed_sl, "atr": atr, "current_price": current_price, "style": cfg.trading_style.value})
                     self._modify_sl(ticket, proposed_sl, "Trailing")
 
     def _check_pyramid_entry(self, pos, current_price: float, atr: float, indicators: Dict[str, Any]):

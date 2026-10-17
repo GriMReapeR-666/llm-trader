@@ -104,6 +104,15 @@ env/
 .opencode/
 .freebuff/
 .cursor/
+.agents/
+.gravitas/
+_scratch/
+_scratc/
+_split_evidence_chain.py
+verify_split.py
+final_verification.txt
+*.flag*
+
 
 # System & logs
 *.tmp

@@ -102,14 +102,42 @@ class ProvenanceReport:
         }
 
 
+#: Verdicts provable from a series NAME alone, with no row statistics.
+#: These are defects of the series definition itself, so they hold on the very
+#: first row written and can never be "not yet known".  ``_classify`` consults
+#: this map first, and ingest paths consult ``provenance_for_series`` so a new
+#: row is stamped on write instead of waiting for the next batch audit.
+SERIES_NAME_VERDICTS: Dict[str, tuple] = {
+    "realtime_fx": (
+        VERDICT_SCALE_CORRUPTED,
+        "multi-instrument / scale-corrupted series (mixes EURUSD and DX-Y.NYB at ~50 vs ~102 scale)",
+    ),
+}
+
+
+def provenance_for_series(series: str) -> str:
+    """The verdict a series NAME alone can prove; PROV_UNCLASSIFIED otherwise.
+
+    ``QUARANTINED_VERDICTS`` is a deny-list, so anything unrecognised passes it.
+    That makes ``UNCLASSIFIED`` -- literally "not checked yet" -- eligible as
+    statistical evidence, which is how scale-corrupted DXY rows kept reaching
+    the validator between batch audits (2026-10-16: 1,082 rows across 67 series
+    written after the last quarantine, including 20 corrupt ``realtime_fx`` DXY
+    observations).  Stamping at write time closes that window.
+
+    Returns ``PROV_UNCLASSIFIED`` when only the batch audit (``audit_series``)
+    can decide, which needs row counts and distinct values.
+    """
+    verdict = SERIES_NAME_VERDICTS.get(str(series or ""))
+    return verdict[0] if verdict else PROV_UNCLASSIFIED
+
+
 def _classify(*, series: str = "", rows: int, distinct_timestamps: int, distinct_values: int,
               distinct_dates: int, has_surprise: bool) -> tuple:
     """Pure decision function so the policy is testable without a database."""
-    if series == "realtime_fx":
-        return (
-            VERDICT_SCALE_CORRUPTED,
-            "multi-instrument / scale-corrupted series (mixes EURUSD and DX-Y.NYB at ~50 vs ~102 scale)",
-        )
+    named = SERIES_NAME_VERDICTS.get(series)
+    if named is not None:
+        return named
     if distinct_values < MIN_DISTINCT_VALUES:
         if distinct_values == 0:
             # Rows exist but carry no measurement at all (calendar rows awaiting
@@ -284,6 +312,12 @@ def quarantine(con: sqlite3.Connection) -> Dict[str, Any]:
             )
         except Exception as exc:  # noqa: BLE001
             log.warning("quarantine update failed for %s: %s", s.series, exc)
+    # Commit before reading the counts back. This function reads its OWN writes,
+    # so without the commit it returned a success report describing labels that
+    # were then discarded when a plain caller closed the connection: the run
+    # looked clean and changed nothing (2026-10-16, 1,082 rows left
+    # UNCLASSIFIED by a "successful" quarantine).
+    con.commit()
     for row in con.execute(
         "SELECT data_provenance, COUNT(*) n, COUNT(DISTINCT series) series_n"
         " FROM macro_observations GROUP BY data_provenance"

@@ -52,6 +52,28 @@ DEFAULT_MAX_ALPHAS = 20         # Never promote above this count
 DEFAULT_COOLDOWN_BARS = 50      # Bars before a dead alpha can be reconsidered
 DEFAULT_PROMOTION_IC_THRESHOLD = 0.02  # Minimum IC to be eligible for promotion (prevents negligible-edge alphas)
 
+# Quarantined test fixture names and patterns to prevent test fixtures from
+# polluting production state, health maps, active sets, or candidate pools.
+TEST_FIXTURE_NAMES = frozenset({
+    "alpha_dead",
+    "alpha_reversed",
+    "alpha_good",
+    "alpha_market",
+    "alpha_noise",
+    "alpha_bad",
+})
+
+
+def _is_quarantined_test_fixture(name: str) -> bool:
+    if not isinstance(name, str):
+        return True
+    lower = name.lower()
+    return (
+        lower in TEST_FIXTURE_NAMES
+        or lower.startswith(("test_", "mock_", "fixture_"))
+        or lower.endswith(("_test", "_mock", "_fixture"))
+    )
+
 
 # ── Data classes ────────────────────────────────────────────────────────────
 
@@ -139,7 +161,7 @@ class AlphaRotationEngine(StoreBackedState):
 
         # State
         self._active_set: List[str] = []
-        self._all_pool: List[str] = list(ALL_ALPHA_NAMES)
+        self._all_pool: List[str] = [a for a in ALL_ALPHA_NAMES if not _is_quarantined_test_fixture(a)]
         self._dead_timestamps: Dict[str, float] = {}  # alpha → bar# when killed
         self._rotation_history: List[RotationEvent] = []
         self._total_rotations: int = 0
@@ -175,14 +197,14 @@ class AlphaRotationEngine(StoreBackedState):
         If empty (first run or no state), returns the full default set.
         """
         if not self._active_set:
-            return list(self._default_active_set())
-        return list(self._active_set)
+            return [a for a in self._default_active_set() if not _is_quarantined_test_fixture(a)]
+        return [a for a in self._active_set if not _is_quarantined_test_fixture(a)]
 
     def get_all_pool(self) -> List[str]:
         """Return the full pool of available alphas."""
         if not self._all_pool:
-            self._all_pool = list(self._default_active_set())
-        return list(self._all_pool)
+            self._all_pool = [a for a in self._default_active_set() if not _is_quarantined_test_fixture(a)]
+        return [a for a in self._all_pool if not _is_quarantined_test_fixture(a)]
 
     def update(
         self,
@@ -217,7 +239,7 @@ class AlphaRotationEngine(StoreBackedState):
             current_bar = int(time.time())
 
         if all_alpha_names:
-            self._all_pool = list(all_alpha_names)
+            self._all_pool = [a for a in all_alpha_names if not _is_quarantined_test_fixture(a)]
 
         # Replace the discovered-candidate feed wholesale each cycle so a
         # candidate is only considered while discovery still lists it.
@@ -226,16 +248,19 @@ class AlphaRotationEngine(StoreBackedState):
         else:
             self._discovered_candidates = [
                 c for c in discovered_candidates
-                if isinstance(c, SourceCandidate) and c.name
+                if isinstance(c, SourceCandidate) and c.name and not _is_quarantined_test_fixture(c.name)
             ]
 
-        self._last_health = health
+        self._last_health = {
+            k: v for k, v in (health or {}).items()
+            if not _is_quarantined_test_fixture(k)
+        }
         self._bars_since_rotation += 1
 
         events = []
 
         # Phase 1: Identify DEAD alphas in the active set
-        active = self.get_active_set()
+        active = [a for a in self.get_active_set() if not _is_quarantined_test_fixture(a)]
 
         # Gate verdicts for discovered candidates are recorded on EVERY update
         # (announced once per unique outcome), so the discovery→rotation
@@ -259,16 +284,16 @@ class AlphaRotationEngine(StoreBackedState):
                 )
                 continue
 
-            # Check cooldown — don't remove if we just rotated
-            # Use the _last_rotation_bar to check elapsed bars, not _bars_since_rotation
-            # which resets after each rotation
-            elapsed = current_bar - self._last_rotation_bar if self._last_rotation_bar >= 0 else 999
-            if elapsed < self.cooldown_bars:
-                log.debug(
-                    "Skipping rotation for %s (cooldown: %d bars since last, need %d)",
-                    alpha, elapsed, self.cooldown_bars,
-                )
-                continue
+            # Eviction is NOT gated on the rotation cooldown.  The cooldown
+            # exists to stop a recently-dead alpha being re-promoted (see
+            # _find_best_candidate, which enforces it per-candidate against
+            # _dead_timestamps); gating eviction on it as well serialised the
+            # cleanup to ONE alpha per cooldown window, so a set of dead alphas
+            # drained at ~1 per window and never caught up when the decay
+            # monitor ran infrequently.  Eight DEAD/REVERSED alphas sat in a
+            # 14-alpha active set indefinitely while the engine reported it was
+            # rotating (2026-10-16).  Removing a dead alpha is a correctness
+            # action, not churn; only its re-promotion needs a cooldown.
 
             # Find best candidate for promotion
             candidate = self._find_best_candidate(active, health, current_bar)
@@ -376,23 +401,32 @@ class AlphaRotationEngine(StoreBackedState):
             else:
                 log.info("PROMOTED %s to fill minimum set (ic=%.4f)", candidate.name, candidate.ic_mean)
 
-        self._active_set = active
+        self._active_set = [a for a in active if not _is_quarantined_test_fixture(a)]
         self._save_state()
 
         return events
 
     def get_status(self) -> Dict[str, Any]:
         """Get current rotation status."""
+        active_set = self.get_active_set()
+        all_pool = self.get_all_pool()
         return {
-            "active_set": self.get_active_set(),
-            "active_count": len(self._active_set),
-            "pool_size": len(self._all_pool),
+            "active_set": active_set,
+            "active_count": len(active_set),
+            "pool_size": len(all_pool),
             "total_rotations": self._total_rotations,
-            "dead_alphas": dict(self._dead_timestamps),
+            "dead_alphas": {
+                k: v for k, v in self._dead_timestamps.items()
+                if not _is_quarantined_test_fixture(k)
+            },
             "discovered_candidates_seen": len(self._discovered_candidates),
-            "discovery_decisions": [dict(d) for d in self._discovery_decisions[-5:]],
+            "discovery_decisions": [
+                dict(d) for d in self._discovery_decisions[-5:]
+                if not _is_quarantined_test_fixture(d.get("name", ""))
+            ],
             "pending_discovery_promotions": {
                 k: dict(v) for k, v in self._pending_discovery_promotions.items()
+                if not _is_quarantined_test_fixture(k)
             },
             "recent_events": [
                 {
@@ -402,6 +436,8 @@ class AlphaRotationEngine(StoreBackedState):
                     "bar": e.timestamp,
                 }
                 for e in self._rotation_history[-5:]
+                if not _is_quarantined_test_fixture(e.removed_alpha)
+                and not _is_quarantined_test_fixture(e.promoted_alpha)
             ],
         }
 
@@ -459,6 +495,8 @@ class AlphaRotationEngine(StoreBackedState):
         candidates = []
 
         for name in self._all_pool:
+            if _is_quarantined_test_fixture(name):
+                continue
             if name in active_set:
                 continue
 
@@ -476,11 +514,22 @@ class AlphaRotationEngine(StoreBackedState):
             ic_trend = h.get("ic_trend", 0.0)
             status = h.get("status", "UNKNOWN")
 
-            # Skip DEAD/REVERSED alphas (they were just removed)
+            # Skip DEAD/REVERSED alphas outright.
+            #
+            # This used to be a recovery carve-out: the `continue` only fired
+            # when the alpha had a kill timestamp AND was still inside
+            # cooldown*2, so an alpha that had never been killed fell straight
+            # through and was promoted on the strength of a stale positive
+            # ic_mean while its CURRENT IC was negative. That put alpha_055 into
+            # the active set with status REVERSED (ic_current=-0.0135,
+            # ic_mean=+0.0657) in the same pass that evicted eight other dead
+            # alphas (2026-10-16).
+            #
+            # Recovery needs no carve-out: the decay monitor recomputes
+            # `status` every pass, so an alpha that has genuinely recovered
+            # reads HEALTHY here and competes normally on the gates below.
             if status in ("DEAD", "REVERSED"):
-                # Check if they were promoted after being dead (possible if IC recovered)
-                if dead_bar is not None and (current_bar - dead_bar) < self.cooldown_bars * 2:
-                    continue
+                continue
 
             # Compute IC_IR from available data
             ic_ir = ic_mean / max(abs(ic_mean) * 0.5, 0.01)  # rough estimate if std unknown
@@ -645,9 +694,12 @@ class AlphaRotationEngine(StoreBackedState):
         """Persist rotation state to JSON."""
         try:
             state = {
-                "active_set": self._active_set,
-                "all_pool": self._all_pool,
-                "dead_timestamps": self._dead_timestamps,
+                "active_set": [a for a in self._active_set if not _is_quarantined_test_fixture(a)],
+                "all_pool": [a for a in self._all_pool if not _is_quarantined_test_fixture(a)],
+                "dead_timestamps": {
+                    k: v for k, v in self._dead_timestamps.items()
+                    if not _is_quarantined_test_fixture(k)
+                },
                 "total_rotations": self._total_rotations,
                 "last_rotation_bar": self._last_rotation_bar,
                 "rotation_history": [
@@ -660,10 +712,21 @@ class AlphaRotationEngine(StoreBackedState):
                         "promoted_ic": e.promoted_ic_mean,
                     }
                     for e in self._rotation_history[-50:]  # keep last 50
+                    if not _is_quarantined_test_fixture(e.removed_alpha)
+                    and not _is_quarantined_test_fixture(e.promoted_alpha)
                 ],
-                "last_health": self._last_health,
-                "discovery_decisions": self._discovery_decisions[-20:],
-                "pending_discovery_promotions": self._pending_discovery_promotions,
+                "last_health": {
+                    k: v for k, v in self._last_health.items()
+                    if not _is_quarantined_test_fixture(k)
+                },
+                "discovery_decisions": [
+                    d for d in self._discovery_decisions[-20:]
+                    if not _is_quarantined_test_fixture(d.get("name", ""))
+                ],
+                "pending_discovery_promotions": {
+                    k: v for k, v in self._pending_discovery_promotions.items()
+                    if not _is_quarantined_test_fixture(k)
+                },
                 "saved_at": time.time(),
             }
             self._save_state_dict(state)
@@ -676,12 +739,24 @@ class AlphaRotationEngine(StoreBackedState):
             state = self._load_state_dict()
             if not state:
                 return
-            self._active_set = state.get("active_set", [])
-            self._all_pool = state.get("all_pool", [])
-            self._dead_timestamps = state.get("dead_timestamps", {})
+            self._active_set = [
+                a for a in state.get("active_set", [])
+                if not _is_quarantined_test_fixture(a)
+            ]
+            self._all_pool = [
+                a for a in state.get("all_pool", [])
+                if not _is_quarantined_test_fixture(a)
+            ]
+            self._dead_timestamps = {
+                k: v for k, v in state.get("dead_timestamps", {}).items()
+                if not _is_quarantined_test_fixture(k)
+            }
             self._total_rotations = state.get("total_rotations", 0)
             self._last_rotation_bar = state.get("last_rotation_bar", -1)
-            self._last_health = state.get("last_health", {})
+            self._last_health = {
+                k: v for k, v in state.get("last_health", {}).items()
+                if not _is_quarantined_test_fixture(k)
+            }
             self._rotation_history = [
                 RotationEvent(
                     timestamp=e.get("timestamp", 0),
@@ -692,11 +767,17 @@ class AlphaRotationEngine(StoreBackedState):
                     promoted_ic_mean=e.get("promoted_ic", 0.0),
                 )
                 for e in state.get("rotation_history", [])
+                if not _is_quarantined_test_fixture(e.get("removed", ""))
+                and not _is_quarantined_test_fixture(e.get("promoted", ""))
             ]
-            self._discovery_decisions = list(state.get("discovery_decisions", []))[-20:]
-            self._pending_discovery_promotions = dict(
-                state.get("pending_discovery_promotions") or {}
-            )
+            self._discovery_decisions = [
+                d for d in state.get("discovery_decisions", [])
+                if not _is_quarantined_test_fixture(d.get("name", ""))
+            ][-20:]
+            self._pending_discovery_promotions = {
+                k: v for k, v in (state.get("pending_discovery_promotions") or {}).items()
+                if not _is_quarantined_test_fixture(k)
+            }
             for _pname, _prec in self._pending_discovery_promotions.items():
                 log.info(
                     "Resuming pending discovered-alpha materialization: %s (promoted at bar %s)",

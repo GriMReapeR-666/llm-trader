@@ -434,6 +434,22 @@ def test_run_finish_and_stale_recovery_are_durable(tmp_path):
     assert row["status"] == "STALE_RECOVERED"
 
 
+def test_run_finish_accepts_stop_flag_status(tmp_path):
+    # The live engine's graceful-stop path finalizes the durable run with
+    # status="STOP_FLAG" (mt5_trader.py stop-file branch, pinned by
+    # test_trader_stop_flag.py). finish_run must accept it as a terminal
+    # status instead of raising ValueError during shutdown.
+    ops = AgentOperations(str(tmp_path / "stop-flag.db"))
+    run = ops.start_run("trader")
+    assert ops.finish_run(run, status="STOP_FLAG")
+    with ops._con() as con:
+        row = con.execute("SELECT status FROM agent_runs WHERE run_id=?", (run,)).fetchone()
+    assert row["status"] == "STOP_FLAG"
+    # Unknown statuses still fail loudly.
+    with pytest.raises(ValueError):
+        ops.finish_run(ops.start_run("trader"), status="BOGUS")
+
+
 def test_operations_summary_recovers_abandoned_runs_before_reporting(tmp_path):
     ops = AgentOperations(str(tmp_path / "summary-recovery.db"))
     abandoned = ops.start_run("crashed")

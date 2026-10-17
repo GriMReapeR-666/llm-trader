@@ -81,6 +81,26 @@ def ensure_provenance_column(con) -> None:
     )
 
 
+def _provenance_for(series: str) -> str:
+    """Stamp a newly-written row with the verdict its series name alone proves.
+
+    Ingest used to leave ``data_provenance`` at its ``UNCLASSIFIED`` default and
+    rely on a later batch audit to label it.  Because ``QUARANTINED_VERDICTS``
+    is a deny-list, an unlabelled row was eligible as statistical evidence in
+    the meantime -- so scale-corrupted ``realtime_fx`` DXY observations kept
+    reaching the validator between audits (2026-10-16).  Deciding at write time
+    closes that window; series whose verdict needs row statistics stay
+    UNCLASSIFIED until ``observation_provenance.audit_series`` runs, which is
+    the honest state for "not yet known".
+    """
+    try:
+        from intelligence.observation_provenance import provenance_for_series
+
+        return provenance_for_series(series)
+    except Exception:  # noqa: BLE001 - labelling must never block ingestion
+        return "UNCLASSIFIED"
+
+
 def _series_to_entity() -> Dict[str, str]:
     mapping: Dict[str, str] = {}
     for binding in FREE_DATA_BINDINGS:
@@ -171,8 +191,8 @@ def ingest_fred_snapshot(
             con.execute(
                 """INSERT INTO macro_observations(
                     captured_at, entity, provider, series, observed_at, value, previous, surprise,
-                    source_id, payload, execution_authority
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,0)""",
+                    source_id, payload, execution_authority, data_provenance
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,0,?)""",
                 (
                     stamp,
                     entity[:120],
@@ -184,6 +204,7 @@ def ingest_fred_snapshot(
                     extracted.get("surprise"),
                     str(source_id or "")[:200],
                     json.dumps(payload if isinstance(payload, (dict, list)) else {"value": payload}, default=str),
+                    _provenance_for(series_key),
                 ),
             )
             inserted += 1
@@ -223,8 +244,8 @@ def ingest_calendar_events(
             con.execute(
                 """INSERT INTO macro_observations(
                     captured_at, entity, provider, series, observed_at, value, previous, surprise,
-                    source_id, payload, execution_authority
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,0)""",
+                    source_id, payload, execution_authority, data_provenance
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,0,?)""",
                 (
                     stamp,
                     entity[:120],
@@ -236,6 +257,7 @@ def ingest_calendar_events(
                     extracted.get("surprise"),
                     str(source_id or "")[:200],
                     json.dumps(event, default=str)[:8000],
+                    _provenance_for(title),
                 ),
             )
             inserted += 1
@@ -273,8 +295,9 @@ def ingest_alternative_snapshot(
             con.execute(
                 """INSERT INTO macro_observations
                    (captured_at, entity, provider, series, observed_at, value,
-                    previous, surprise, source_id, payload, execution_authority)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+                    previous, surprise, source_id, payload, execution_authority,
+                    data_provenance)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)""",
                 (
                     stamp,
                     entity,
@@ -286,6 +309,7 @@ def ingest_alternative_snapshot(
                     None,
                     source_id,
                     json.dumps(row, default=str)[:8000],
+                    _provenance_for(source_id),
                 ),
             )
             inserted += 1

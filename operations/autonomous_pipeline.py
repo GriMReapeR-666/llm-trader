@@ -4,6 +4,7 @@ Zero-authority research work that progresses 24/7, including weekends.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -94,3 +95,32 @@ def run_pipeline(
     except Exception as exc:
         logger.debug("autonomous pipeline tick failed: %s", exc)
     return result
+
+
+def sync_incubation_knowledge(
+    bundle_path: str = os.path.join("data", "incubation_knowledge_bundle.json")
+) -> Dict[str, Any]:
+    """Load research-trained causal intelligence bundle for forward incubation.
+
+    Provides live incubation strategies with empirically validated macro edges,
+    MAML regime profiles, and verified heuristics without database write hazards.
+    """
+    if not os.path.exists(bundle_path):
+        return {"status": "NOT_FOUND", "edges": 0, "heuristics": 0}
+    try:
+        with open(bundle_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {
+            "status": "LOADED",
+            "generated_at": data.get("generated_at"),
+            "edges_count": data.get("total_approved_causal_edges", 0),
+            "maml_profile": data.get("active_maml_profile"),
+            "ewc_regimes": data.get("ewc_locked_regimes", []),
+            "heuristics_count": len(data.get("top_verified_heuristics", [])),
+            "pricing_model": data.get("broker_pricing_model", "XM_ULTRA_LOW"),
+            "bundle": data,
+        }
+    except Exception as exc:
+        logger.warning("Failed to sync incubation knowledge: %s", exc)
+        return {"status": "ERROR", "error": str(exc)}
+

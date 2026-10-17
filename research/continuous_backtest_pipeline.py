@@ -213,9 +213,21 @@ class ContinuousBacktestPipeline:
         # Stage 1: Full Pipeline Backtest
         log.info("Stage 1: Full Pipeline Backtest")
         try:
+            from data.market_data_provider import fetch_ohlc
+            # Ensure MT5 terminal is attached so fetch_ohlc() yields real broker data.
+            # This mirrors _ensure_mt5_attached() in market_data_provider.py — without
+            # it, every call raises RuntimeError when no terminal is available in the process.
+            mt5_inst = getattr(sys.modules.get("mt5_trader", None), "mt5", None)
+            if mt5_inst is not None:
+                try:
+                    if mt5_inst.terminal_info() is None:
+                        init = getattr(mt5_inst, "initialize", None)
+                        if init is not None:
+                            init()
+                except Exception:
+                    pass
             raw_bars = None
             try:
-                from data.market_data_provider import fetch_ohlc
                 fetched = fetch_ohlc(symbol=symbol, timeframe=timeframe, count=bars)
                 if fetched is not None and not getattr(fetched, "empty", False):
                     raw_bars = fetched.to_dict("records") if hasattr(fetched, "to_dict") else list(fetched)

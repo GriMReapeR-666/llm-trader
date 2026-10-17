@@ -1,7 +1,7 @@
 """Technical indicators calculation engine."""
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import numpy as np
 import pandas as pd
 
@@ -50,8 +50,9 @@ def _true_range(high: pd.Series, low: pd.Series, close: pd.Series) -> pd.Series:
     return pd.Series(tr, index=high.index)
 
 
-def atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
-    return _true_range(high, low, close).ewm(alpha=1/period, adjust=False).mean()
+def atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14, tr: Optional[pd.Series] = None) -> pd.Series:
+    raw_tr = tr if tr is not None else _true_range(high, low, close)
+    return raw_tr.ewm(alpha=1/period, adjust=False).mean()
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +129,7 @@ def hma(series: pd.Series, period: int) -> pd.Series:
     return wma(diff, sqrt_n)
 
 
-def adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
+def adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14, tr: Optional[pd.Series] = None) -> pd.Series:
     """Wilder's ADX.
 
     Directional movement follows the classic selection rule: on each bar the
@@ -145,8 +146,9 @@ def adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> 
         np.where((down_move > up_move) & (down_move > 0), down_move, 0.0),
         index=high.index)
 
-    tr = _true_range(high, low, close).ewm(alpha=1/period, adjust=False).mean()
-    tr_safe = tr.replace(0, np.nan)
+    raw_tr = tr if tr is not None else _true_range(high, low, close)
+    tr_smooth = raw_tr.ewm(alpha=1/period, adjust=False).mean()
+    tr_safe = tr_smooth.replace(0, np.nan)
 
     plus_di = 100 * plus_dm.ewm(alpha=1/period, adjust=False).mean() / tr_safe
     minus_di = 100 * minus_dm.ewm(alpha=1/period, adjust=False).mean() / tr_safe
@@ -161,6 +163,15 @@ def compute_indicators(df: pd.DataFrame, requests: List[str]) -> pd.DataFrame:
     close = out["close"]
     high = out["high"]
     low = out["low"]
+
+    # Cache true range to eliminate redundant calculations across ATR/ADX requests
+    cached_tr: Optional[pd.Series] = None
+    def _get_tr() -> pd.Series:
+        nonlocal cached_tr
+        if cached_tr is None:
+            cached_tr = _true_range(high, low, close)
+        return cached_tr
+
     for req in requests:
         req = req.upper().strip()
         if req.startswith("EMA("):
@@ -186,20 +197,20 @@ def compute_indicators(df: pd.DataFrame, requests: List[str]) -> pd.DataFrame:
             out["macd_hist"] = h
             out["macd_histogram"] = h  # alias used by trading_tools consumers
         elif req == "ATR":
-            out["atr_14"] = atr(high, low, close, 14)
+            out["atr_14"] = atr(high, low, close, 14, tr=_get_tr())
         elif req.startswith("ATR("):
             p = int(req.split("(")[1].split(")")[0])
-            out[f"atr_{p}"] = atr(high, low, close, p)
+            out[f"atr_{p}"] = atr(high, low, close, p, tr=_get_tr())
         elif req == "HMA":
             out["hma_21"] = hma(close, 21)
         elif req.startswith("HMA("):
             p = int(req.split("(")[1].split(")")[0])
             out[f"hma_{p}"] = hma(close, p)
         elif req == "ADX":
-            out["adx_14"] = adx(high, low, close, 14)
+            out["adx_14"] = adx(high, low, close, 14, tr=_get_tr())
         elif req.startswith("ADX("):
             p = int(req.split("(")[1].split(")")[0])
-            out[f"adx_{p}"] = adx(high, low, close, p)
+            out[f"adx_{p}"] = adx(high, low, close, p, tr=_get_tr())
         elif req.startswith("ALPHA"):
             # Delegate to the Alpha101 alpha factor library.
             # Collect all ALPHA requests and compute in one batch.

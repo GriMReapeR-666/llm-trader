@@ -82,7 +82,12 @@ def test_second_engine_exits_code_3(tmp_path):
             text=True,
         )
         try:
-            stdout, stderr = proc.communicate(timeout=8)
+            # 120s budget: the child pays mt5_trader.py's full import cost
+            # (torch pipeline, OneDrive cold reads) BEFORE it reaches the lock
+            # check. Measured standalone on 2026-10-17: rc 3 at ~21.5s with the
+            # correct "engine.lock held by another process" message — the
+            # mechanism works; 8s was just a budget from a faster box state.
+            stdout, stderr = proc.communicate(timeout=120)
             assert proc.returncode == 3
             combined = stdout + stderr
             assert "engine.lock held by another process" in combined

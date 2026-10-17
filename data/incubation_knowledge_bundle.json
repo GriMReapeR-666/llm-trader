@@ -1,0 +1,275 @@
+{
+  "generated_at": "2026-10-17T19:43:42.426654+00:00",
+  "total_approved_causal_edges": 22,
+  "causal_edges": [
+    {
+      "edge_id": 18,
+      "source": "MONETARY_POLICY",
+      "target": "EURUSD",
+      "relation": "REAL_RATE_SPREAD_COMPRESSION",
+      "sign": "NEGATIVE",
+      "confidence": 1.0,
+      "status": "AUTO_APPROVED"
+    },
+    {
+      "edge_id": 19,
+      "source": "DISINFLATION",
+      "target": "GBPUSD",
+      "relation": "RISK_ON_EXPANSION",
+      "sign": "POSITIVE",
+      "confidence": 1.0,
+      "status": "AUTO_APPROVED"
+    },
+    {
+      "edge_id": 20,
+      "source": "GEOPOLITICAL_TENSION",
+      "target": "XAUUSD",
+      "relation": "SAFE_HAVEN_CAPITAL_PRESERVATION",
+      "sign": "POSITIVE",
+      "confidence": 1.0,
+      "status": "AUTO_APPROVED"
+    },
+    {
+      "edge_id": 21,
+      "source": "INTERBANK_CREDIT_SPREAD",
+      "target": "USDJPY",
+      "relation": "CARRY_UNWIND_REPATRIATION",
+      "sign": "NEGATIVE",
+      "confidence": 1.0,
+      "status": "AUTO_APPROVED"
+    },
+    {
+      "edge_id": 22,
+      "source": "GEOPOLITICAL_RISK",
+      "target": "XAUUSD",
+      "relation": "SAFE_HAVEN_BID",
+      "sign": "POSITIVE",
+      "confidence": 1.0,
+      "status": "AUTO_APPROVED"
+    },
+    {
+      "edge_id": 3,
+      "source": "USD",
+      "target": "EURUSD",
+      "relation": "WEAKENS",
+      "sign": "NEGATIVE",
+      "confidence": 0.99,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 4,
+      "source": "USD",
+      "target": "GBPUSD",
+      "relation": "WEAKENS",
+      "sign": "NEGATIVE",
+      "confidence": 0.99,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 5,
+      "source": "USD",
+      "target": "USDJPY",
+      "relation": "STRENGTHENS",
+      "sign": "POSITIVE",
+      "confidence": 0.99,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 6,
+      "source": "USD",
+      "target": "XAUUSD",
+      "relation": "INVERSE_PRICES",
+      "sign": "NEGATIVE",
+      "confidence": 0.99,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 9,
+      "source": "SAFE_HAVEN_DEMAND",
+      "target": "XAUUSD",
+      "relation": "BUYS_GOLD",
+      "sign": "POSITIVE",
+      "confidence": 0.95,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 1,
+      "source": "POLICY_RATE",
+      "target": "BOND_YIELD",
+      "relation": "DRIVES_YIELD",
+      "sign": "POSITIVE",
+      "confidence": 0.92,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 8,
+      "source": "GEOPOLITICAL_TENSION",
+      "target": "SAFE_HAVEN_DEMAND",
+      "relation": "TRIGGERS",
+      "sign": "POSITIVE",
+      "confidence": 0.92,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 14,
+      "source": "LIQUIDITY_SQUEEZE",
+      "target": "USDJPY",
+      "relation": "UNWINDS_CARRY",
+      "sign": "NEGATIVE",
+      "confidence": 0.92,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 15,
+      "source": "LIQUIDITY_SQUEEZE",
+      "target": "XAUUSD",
+      "relation": "COLLATERAL_DEMAND",
+      "sign": "POSITIVE",
+      "confidence": 0.91,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 7,
+      "source": "DISINFLATION",
+      "target": "POLICY_RATE",
+      "relation": "LOWERS_RATES",
+      "sign": "NEGATIVE",
+      "confidence": 0.9,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 13,
+      "source": "INTERBANK_CREDIT_SPREAD",
+      "target": "LIQUIDITY_SQUEEZE",
+      "relation": "RESTRICTS",
+      "sign": "POSITIVE",
+      "confidence": 0.9,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 2,
+      "source": "BOND_YIELD",
+      "target": "USD",
+      "relation": "STRENGTHENS",
+      "sign": "POSITIVE",
+      "confidence": 0.88,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 10,
+      "source": "SAFE_HAVEN_DEMAND",
+      "target": "USDJPY",
+      "relation": "BUYS_YEN",
+      "sign": "NEGATIVE",
+      "confidence": 0.88,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 16,
+      "source": "LIQUIDITY_SQUEEZE",
+      "target": "EURUSD",
+      "relation": "USD_FUNDING_STRESS",
+      "sign": "NEGATIVE",
+      "confidence": 0.86,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 17,
+      "source": "LIQUIDITY_SQUEEZE",
+      "target": "GBPUSD",
+      "relation": "USD_FUNDING_STRESS",
+      "sign": "NEGATIVE",
+      "confidence": 0.84,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 11,
+      "source": "SAFE_HAVEN_DEMAND",
+      "target": "EURUSD",
+      "relation": "CAPITAL_FLIGHT",
+      "sign": "NEGATIVE",
+      "confidence": 0.82,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 12,
+      "source": "SAFE_HAVEN_DEMAND",
+      "target": "GBPUSD",
+      "relation": "CAPITAL_FLIGHT",
+      "sign": "NEGATIVE",
+      "confidence": 0.8,
+      "status": "APPROVED"
+    }
+  ],
+  "active_maml_profile": "EVENT_SHOCK",
+  "ewc_locked_regimes": [
+    "DAEMON_CYCLE_SHOCK",
+    "DAEMON_CYCLE_SHOCK",
+    "DAEMON_CYCLE_SHOCK",
+    "DAEMON_CYCLE_SHOCK",
+    "DAEMON_CYCLE_SHOCK"
+  ],
+  "top_verified_heuristics": [
+    {
+      "id": 29,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #1: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
+      "id": 28,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #1: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
+      "id": 27,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #1: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
+      "id": 26,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #1: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
+      "id": 25,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #1: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
+      "id": 24,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #1: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
+      "id": 23,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #1: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
+      "id": 22,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #1: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
+      "id": 21,
+      "summary": "Causal Transmission & Policy Alignment in EQUILIBRIUM_LOW_VOL_NORMALIZATION",
+      "lesson": "Under EQUILIBRIUM_LOW_VOL_NORMALIZATION, causal propagation from EQUILIBRIUM correctly anticipated FX directionality. XM Ultra Low execution preserved 48.53 net edge. MAML profile: risk=1.2x, stop_atr=1.5x.",
+      "confidence": 0.97
+    },
+    {
+      "id": 20,
+      "summary": "Causal Transmission & Policy Alignment in LIQUIDITY_SQUEEZE_BANKING_STRESS",
+      "lesson": "Under LIQUIDITY_SQUEEZE_BANKING_STRESS, causal propagation from INTERBANK_CREDIT_SPREAD correctly anticipated FX directionality. XM Ultra Low execution preserved 0.00 net edge. MAML profile: risk=1.2x, stop_atr=1.5x.",
+      "confidence": 0.97
+    }
+  ],
+  "broker_pricing_model": "XM_ULTRA_LOW"
+}

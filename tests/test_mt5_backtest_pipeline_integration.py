@@ -88,6 +88,45 @@ def test_data_improvement(sample_bars):
     assert "garman_klass_annualized" in data_imp["volatility_profiles"]
 
 
+def test_data_improvement_empty_bar_set_fails_closed():
+    """Regression: pipeline Stage 5 previously crashed with KeyError('close')
+    when live OHLC was unavailable and an empty DataFrame reached
+    process_data_improvement. It must fail closed with structured evidence
+    instead of raising."""
+    engine = MT5BrokerBacktestEngine()
+    data_imp = engine.process_data_improvement(pd.DataFrame(), symbol="EURUSD", timeframe="H1")
+
+    assert isinstance(data_imp, dict)
+    assert data_imp["status"] == "INSUFFICIENT_DATA"
+    assert data_imp["data_quality_passed"] is False
+    assert "EMPTY_BAR_SET" in data_imp["anomalies_detected"]
+
+
+def test_data_improvement_missing_ohlc_columns_fails_closed():
+    """Regression: a frame without OHLC columns must not raise KeyError('close')."""
+    engine = MT5BrokerBacktestEngine()
+    bars = pd.DataFrame({"ts": pd.date_range("2026-01-01", periods=50, freq="15min", tz="UTC"),
+                         "bid": [1.1 + i * 1e-4 for i in range(50)]})
+    data_imp = engine.process_data_improvement(bars, symbol="XAUUSD", timeframe="H1")
+
+    assert isinstance(data_imp, dict)
+    assert data_imp["status"] == "INSUFFICIENT_DATA"
+    assert "MISSING_COLUMN_close" in data_imp["anomalies_detected"]
+    assert "MISSING_COLUMN_high" in data_imp["anomalies_detected"]
+
+
+def test_data_improvement_shape_matches_validated_output(sample_bars):
+    """The guarded short-circuit must keep the same key shape as the normal
+    return so downstream consumers never see new KeyErrors."""
+    engine = MT5BrokerBacktestEngine()
+    valid = engine.process_data_improvement(sample_bars, symbol="EURUSD", timeframe="M15")
+    empty = engine.process_data_improvement(pd.DataFrame(), symbol="EURUSD", timeframe="M15")
+
+    assert set(valid.keys()) == set(empty.keys())
+    assert set(empty["regime_distribution"].keys()) == set(valid["regime_distribution"].keys())
+    assert set(empty["volatility_profiles"].keys()) == set(valid["volatility_profiles"].keys())
+
+
 def test_strategy_improvement_and_lifecycle(sample_bars, temp_db):
     engine = MT5BrokerBacktestEngine(db_path=temp_db)
     metrics = engine.run_crossover_strategy(sample_bars, fast_period=8, slow_period=20)

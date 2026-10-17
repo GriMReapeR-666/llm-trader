@@ -32,6 +32,8 @@ class MacroGraph:
         # executor, reflection lane, or TUI hold the database briefly.
         con.execute("PRAGMA busy_timeout=10000")
         con.execute("PRAGMA synchronous=NORMAL")
+        con.execute("PRAGMA cache_size=-16000")
+        con.execute("PRAGMA temp_store=MEMORY")
         return con
 
     def _init(self) -> None:

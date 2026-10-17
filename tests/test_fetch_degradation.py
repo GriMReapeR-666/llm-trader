@@ -195,6 +195,24 @@ def test_boot_stage_timeout_fails_open_with_marker():
     assert "budget" in result["error"]
 
 
+def test_boot_stage_timeout_emits_event():
+    from core.autonomous_bootstrap import _boot_stage
+
+    def hang():
+        time.sleep(5)
+
+    emitted = []
+    def fake_emit(event_type, payload):
+        emitted.append((event_type, payload))
+
+    result = _boot_stage("bootstrap_probe", hang, 0.4, emit_event=fake_emit)
+    assert result["status"] == "TIMEOUT"
+    assert len(emitted) == 1
+    assert emitted[0][0] == "boot_fetch_stage_timeout"
+    assert emitted[0][1]["stage"] == "bootstrap_probe"
+
+
+
 def test_boot_stage_exception_contained():
     from core.autonomous_bootstrap import _boot_stage
 

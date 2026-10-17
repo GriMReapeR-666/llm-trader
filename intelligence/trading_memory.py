@@ -48,8 +48,11 @@ class TradingMemory:
         # Fail-safe under concurrent access (dual-velocity executor,
         # reflection lane, TUI): wait for locks instead of raising
         # "database is locked" mid-cycle.
-        con.execute("PRAGMA busy_timeout=10000")
-        con.execute("PRAGMA synchronous=NORMAL")
+        con.execute("PRAGMA journal_mode=WAL;")
+        con.execute("PRAGMA synchronous=NORMAL;")
+        con.execute("PRAGMA busy_timeout=5000;")
+        con.execute("PRAGMA cache_size=-16000;")
+        con.execute("PRAGMA temp_store=MEMORY;")
         return con
 
     def _init(self):

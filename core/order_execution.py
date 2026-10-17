@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -94,9 +95,17 @@ except ImportError:
     mt5 = None
 
 try:
-    from core.execution_planning import validate_emergency_exit_request
+    from core.execution_planning import (
+        RotationAction,
+        TwoLegPlannedEntry,
+        validate_emergency_exit_request,
+    )
 except ImportError:
-    from core.execution_planning import validate_emergency_exit_request
+    from core.execution_planning import (
+        RotationAction,
+        TwoLegPlannedEntry,
+        validate_emergency_exit_request,
+    )
 
 
 def _get_mt5():
@@ -104,6 +113,22 @@ def _get_mt5():
     if mt5_mod is not None and hasattr(mt5_mod, "mt5"):
         return mt5_mod.mt5
     return mt5
+
+
+def _alert_paper_fallback(reason: str, symbol: str = "", details: Optional[Dict[str, Any]] = None) -> None:
+    """Emit an immediate alert via core.alert_utils whenever execution falls back to PaperBroker."""
+    try:
+        from core.alert_utils import emit_alert
+        db_path = os.getenv("LLM_TRADER_JOURNAL_PATH", "trading_state.db")
+        payload = {
+            "reason": reason,
+            "symbol": symbol,
+            "timestamp": time.time(),
+            "details": details or {},
+        }
+        emit_alert(db_path, "PAPER_BROKER_FALLBACK", "WARNING", payload)
+    except Exception as exc:
+        log.debug("Failed to emit paper fallback alert: %s", exc)
 
 
 class PaperBroker:
@@ -117,9 +142,11 @@ class PaperBroker:
     def __init__(self, journal_callback=None):
         self.orders: Dict[int, Dict[str, Any]] = {}
         self.positions: Dict[int, Dict[str, Any]] = {}
+        self.pending_orders: Dict[int, Dict[str, Any]] = {}
         self.history: List[Dict[str, Any]] = []
-        self.next_ticket = 100000
+        self.next_ticket: int = 100000
         self._journal_callback = journal_callback
+        _alert_paper_fallback("PaperBroker instance created/active")
 
     def _ticket(self) -> int:
         t = self.next_ticket
@@ -365,6 +392,7 @@ def place_market_order(symbol: str, side: str, volume: float,
             "or emergency_market_exit for an owned position"
         )
     if paper:
+        _alert_paper_fallback("place_market_order routed to PaperBroker", symbol=symbol, details={"side": side, "volume": volume})
         # Get real tick price for paper fills (not NaN which PaperBroker rejects)
         try:
             tick = _symbol_tick(symbol)
@@ -397,6 +425,7 @@ def place_urgency_routed_order(symbol: str, side: str, volume: float,
       - MARKET (neutral): standard market order
     """
     if paper is not None:
+        _alert_paper_fallback("place_urgency_routed_order routed to PaperBroker", symbol=symbol, details={"side": side, "volume": volume})
         # Pre-execution UrgencySOR computation for paper mode
         _urgency = 0.5
         _routing = None
@@ -731,6 +760,7 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
     side = "buy" if otype.startswith("buy_") else "sell"
     validate_order_params(side, numeric_price, numeric_sl, numeric_tp)
     if paper:
+        _alert_paper_fallback("place_pending_order routed to PaperBroker", symbol=symbol, details={"otype": otype, "volume": numeric_volume})
         if validation_result is not None:
             return _paper_entry_via_gateway(
                 paper, symbol=symbol, side=side, order_type=otype, price=numeric_price, volume=numeric_volume,
@@ -1034,4 +1064,324 @@ def determine_smart_order_routing(urgency_score: float) -> Dict[str, Any]:
             "fade_quote": False,
             "rationale": "Moderate alpha urgency: adaptive routing based on book depth.",
         }
+
+
+def execute_rotation_action(
+    action: RotationAction,
+    paper: Optional[PaperBroker] = None,
+    token: Optional[Any] = None,
+    comment: str = "portfolio_rotation",
+    expires_at: Optional[datetime] = None,
+    validation_result: Optional[Any] = None,
+    setup_key: str = "",
+    risk_amount: float = 0.0,
+    intent_key: Optional[str] = None,
+    account_equity: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Execute an atomic portfolio sleeve rotation.
+
+    First closes the decayed position to free up sleeve margin/capital.
+    If the exit fails, the operation is aborted immediately without entering
+    the new position. If the exit succeeds, the new position is entered.
+    """
+    if not isinstance(action, RotationAction):
+        raise TypeError("action must be an instance of RotationAction")
+
+    # Step 1: Close decayed position first
+    try:
+        exit_result = emergency_market_exit(
+            symbol=action.decayed_symbol,
+            position_ticket=action.decayed_ticket,
+            side=action.decayed_side,
+            volume=action.decayed_volume,
+            magic=action.decayed_magic,
+            reason=f"rotation_exit:{action.reason}",
+            paper=paper,
+        )
+    except Exception as exc:
+        log.error("RotationAction failed to exit decayed position %s: %s", action.decayed_ticket, exc)
+        return {
+            "success": False,
+            "step": "exit_decayed",
+            "error": f"Failed to exit decayed position {action.decayed_ticket}: {exc}",
+            "exit_result": None,
+            "entry_result": None,
+        }
+
+    exit_retcode = int(exit_result.get("retcode", 0) or 0)
+    if exit_retcode not in {10009, 10010}:
+        return {
+            "success": False,
+            "step": "exit_decayed",
+            "error": f"Exit decayed position returned non-success retcode {exit_retcode}",
+            "exit_result": exit_result,
+            "entry_result": None,
+        }
+
+    # Step 2: Enter new position
+    try:
+        if action.planned_entry is not None:
+            try:
+                entry_exp = datetime.fromisoformat(action.planned_entry.expires_at)
+            except Exception:
+                entry_exp = expires_at or (datetime.now(timezone.utc) + timedelta(minutes=15))
+            entry_result = place_pending_order(
+                symbol=action.new_symbol,
+                otype=action.planned_entry.order_type,
+                price=action.new_entry,
+                volume=action.new_volume,
+                sl=action.new_sl,
+                tp=action.new_tp,
+                comment=f"{comment}:{action.new_symbol}",
+                paper=paper,
+                magic=action.magic,
+                expires_at=entry_exp,
+                token=token,
+                validation_result=validation_result,
+                setup_key=setup_key,
+                risk_amount=risk_amount,
+                intent_key=intent_key,
+                account_equity=account_equity,
+            )
+        elif paper is not None:
+            entry_result = paper.market_order(
+                action.new_symbol,
+                action.new_side,
+                action.new_volume,
+                action.new_entry,
+                action.new_sl,
+                action.new_tp,
+                comment=f"{comment}:{action.new_symbol}",
+                magic=action.magic,
+            )
+        else:
+            entry_exp = expires_at or (datetime.now(timezone.utc) + timedelta(minutes=15))
+            otype = "buy_limit" if action.new_side.upper() == "BUY" else "sell_limit"
+            entry_result = place_pending_order(
+                symbol=action.new_symbol,
+                otype=otype,
+                price=action.new_entry,
+                volume=action.new_volume,
+                sl=action.new_sl,
+                tp=action.new_tp,
+                comment=f"{comment}:{action.new_symbol}",
+                paper=paper,
+                magic=action.magic,
+                expires_at=entry_exp,
+                token=token,
+                validation_result=validation_result,
+                setup_key=setup_key,
+                risk_amount=risk_amount,
+                intent_key=intent_key,
+                account_equity=account_equity,
+            )
+    except Exception as exc:
+        log.error("RotationAction new entry failed: %s", exc)
+        return {
+            "success": False,
+            "step": "new_entry",
+            "error": f"Rotation entry failed: {exc}",
+            "exit_result": exit_result,
+            "entry_result": None,
+        }
+
+    return {
+        "success": True,
+        "step": "complete",
+        "exit_result": exit_result,
+        "entry_result": entry_result,
+    }
+
+
+def execute_two_leg_pair(
+    plan: TwoLegPlannedEntry,
+    paper: Optional[PaperBroker] = None,
+    token: Optional[Any] = None,
+    order_type: str = "MARKET",
+    expires_at: Optional[datetime] = None,
+    validation_result: Optional[Any] = None,
+    setup_key: str = "",
+    risk_amount: float = 0.0,
+    intent_key: Optional[str] = None,
+    account_equity: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Execute an atomic two-leg pair trade with automatic leg-1 unwind on leg-2 failure.
+
+    Executes Leg 1. If Leg 1 succeeds, executes Leg 2.
+    If Leg 2 is rejected or fails, Leg 1 is automatically unwound immediately
+    via emergency_market_exit (if filled) or cancel_pending_order (if pending).
+    """
+    if not isinstance(plan, TwoLegPlannedEntry):
+        raise TypeError("plan must be an instance of TwoLegPlannedEntry")
+
+    # Step 1: Execute Leg 1
+    leg1_result: Optional[Dict[str, Any]] = None
+    try:
+        if paper is not None and order_type.upper() == "MARKET":
+            leg1_result = paper.market_order(
+                plan.leg1_symbol,
+                plan.leg1_side,
+                plan.leg1_volume,
+                plan.leg1_entry,
+                plan.leg1_sl,
+                plan.leg1_tp,
+                comment=f"pair_L1:{plan.leg1_symbol}",
+                magic=plan.magic,
+            )
+        else:
+            exp = expires_at or (datetime.now(timezone.utc) + timedelta(minutes=15))
+            otype = order_type.lower() if order_type.lower() in {"buy_limit", "sell_limit", "buy_stop", "sell_stop"} else (
+                "buy_limit" if plan.leg1_side.upper() == "BUY" else "sell_limit"
+            )
+            leg1_result = place_pending_order(
+                symbol=plan.leg1_symbol,
+                otype=otype,
+                price=plan.leg1_entry,
+                volume=plan.leg1_volume,
+                sl=plan.leg1_sl,
+                tp=plan.leg1_tp,
+                comment=f"pair_L1:{plan.leg1_symbol}",
+                paper=paper,
+                magic=plan.magic,
+                expires_at=exp,
+                token=token,
+                validation_result=validation_result,
+                setup_key=setup_key,
+                risk_amount=risk_amount,
+                intent_key=intent_key,
+                account_equity=account_equity,
+            )
+    except Exception as exc:
+        log.error("TwoLeg execution failed at Leg 1: %s", exc)
+        return {
+            "success": False,
+            "step": "leg1_entry",
+            "error": f"Leg 1 execution failed: {exc}",
+            "leg1_result": None,
+            "leg2_result": None,
+            "unwind_result": None,
+            "unwound": False,
+        }
+
+    leg1_retcode = int(leg1_result.get("retcode", 0) or 0)
+    if leg1_retcode not in {10009, 10010}:
+        return {
+            "success": False,
+            "step": "leg1_entry",
+            "error": f"Leg 1 returned non-success retcode {leg1_retcode}",
+            "leg1_result": leg1_result,
+            "leg2_result": None,
+            "unwind_result": None,
+            "unwound": False,
+        }
+
+    leg1_ticket = leg1_result.get("order") or leg1_result.get("position")
+
+    # Step 2: Execute Leg 2
+    leg2_result: Optional[Dict[str, Any]] = None
+    leg2_failed = False
+    leg2_error = ""
+
+    try:
+        if paper is not None and order_type.upper() == "MARKET":
+            leg2_result = paper.market_order(
+                plan.leg2_symbol,
+                plan.leg2_side,
+                plan.leg2_volume,
+                plan.leg2_entry,
+                plan.leg2_sl,
+                plan.leg2_tp,
+                comment=f"pair_L2:{plan.leg2_symbol}",
+                magic=plan.magic,
+            )
+        else:
+            exp = expires_at or (datetime.now(timezone.utc) + timedelta(minutes=15))
+            otype = order_type.lower() if order_type.lower() in {"buy_limit", "sell_limit", "buy_stop", "sell_stop"} else (
+                "buy_limit" if plan.leg2_side.upper() == "BUY" else "sell_limit"
+            )
+            leg2_result = place_pending_order(
+                symbol=plan.leg2_symbol,
+                otype=otype,
+                price=plan.leg2_entry,
+                volume=plan.leg2_volume,
+                sl=plan.leg2_sl,
+                tp=plan.leg2_tp,
+                comment=f"pair_L2:{plan.leg2_symbol}",
+                paper=paper,
+                magic=plan.magic,
+                expires_at=exp,
+                token=token,
+                validation_result=validation_result,
+                setup_key=setup_key,
+                risk_amount=risk_amount,
+                intent_key=intent_key,
+                account_equity=account_equity,
+            )
+
+        leg2_retcode = int(leg2_result.get("retcode", 0) or 0)
+        if leg2_retcode not in {10009, 10010}:
+            leg2_failed = True
+            leg2_error = f"Leg 2 returned non-success retcode {leg2_retcode}: {leg2_result.get('error')}"
+    except Exception as exc:
+        leg2_failed = True
+        leg2_error = str(exc)
+
+    if not leg2_failed:
+        return {
+            "success": True,
+            "step": "complete",
+            "leg1_result": leg1_result,
+            "leg2_result": leg2_result,
+            "unwind_result": None,
+            "unwound": False,
+        }
+
+    # Step 3: Leg 2 failed -> Automatic Leg-1 unwind
+    log.warning("Leg 2 failed (%s); triggering automatic unwind of Leg 1 (ticket %s)", leg2_error, leg1_ticket)
+    unwind_result: Optional[Dict[str, Any]] = None
+    try:
+        if leg1_ticket is not None:
+            if paper is not None:
+                if int(leg1_ticket) in paper.positions:
+                    unwind_result = emergency_market_exit(
+                        symbol=plan.leg1_symbol,
+                        position_ticket=int(leg1_ticket),
+                        side=plan.leg1_side,
+                        volume=plan.leg1_volume,
+                        magic=plan.magic,
+                        reason="unwind_leg1_after_leg2_rejected",
+                        paper=paper,
+                    )
+                elif int(leg1_ticket) in paper.orders:
+                    cancelled = cancel_pending_order(int(leg1_ticket), paper=paper, magic=plan.magic)
+                    unwind_result = {"status": "CANCELLED_PENDING" if cancelled else "FAILED_CANCEL", "order": leg1_ticket}
+                else:
+                    unwind_result = {"status": "UNKNOWN_TICKET", "order": leg1_ticket}
+            else:
+                try:
+                    unwind_result = emergency_market_exit(
+                        symbol=plan.leg1_symbol,
+                        position_ticket=int(leg1_ticket),
+                        side=plan.leg1_side,
+                        volume=plan.leg1_volume,
+                        magic=plan.magic,
+                        reason="unwind_leg1_after_leg2_rejected",
+                        paper=paper,
+                    )
+                except Exception:
+                    cancelled = cancel_pending_order(int(leg1_ticket), paper=paper, magic=plan.magic)
+                    unwind_result = {"status": "CANCELLED_PENDING" if cancelled else "FAILED_UNWIND", "order": leg1_ticket}
+    except Exception as unwind_exc:
+        log.critical("Failed to unwind Leg 1 (ticket %s): %s", leg1_ticket, unwind_exc)
+        unwind_result = {"status": "UNWIND_EXCEPTION", "error": str(unwind_exc)}
+
+    return {
+        "success": False,
+        "step": "leg2_entry",
+        "error": f"Leg 2 failed ({leg2_error}); unwound Leg 1 ticket {leg1_ticket}",
+        "leg1_result": leg1_result,
+        "leg2_result": leg2_result,
+        "unwind_result": unwind_result,
+        "unwound": True,
+    }
 

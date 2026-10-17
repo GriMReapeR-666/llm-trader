@@ -19,6 +19,7 @@ from itertools import zip_longest
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+from collections import deque
 
 # Single import root (C1): bare and package-qualified imports of the same
 # file resolve to ONE module object.  Must run before the first repo import.
@@ -64,16 +65,15 @@ class _UIState:
         self.recent_fusion_results = []
         self.laya_decisions_count = 0
         self.laya_metrics = {}  # populated by trader process via /api/internal/update
-        self._logs: list = []
+        self._logs: deque = deque(maxlen=500)
 
     def add_log(self, entry: dict):
         self._logs.append(entry)
-        if len(self._logs) > 500:
-            self._logs = self._logs[-500:]
 
     @property
     def logs(self):
-        return {"entries": self._logs[-200:], "total_lines": len(self._logs)}
+        logs_list = list(self._logs)
+        return {"entries": logs_list[-200:], "total_lines": len(logs_list)}
 
 ui_state = _UIState()
 import sys as _sys

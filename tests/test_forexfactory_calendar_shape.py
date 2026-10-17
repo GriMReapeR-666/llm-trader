@@ -51,6 +51,11 @@ NOW = datetime.now(timezone.utc)
 
 def _future_iso(offset_hours: int = 3, tz_offset_hours: int = -4) -> str:
     """An instant expressed in a non-UTC offset, as the modern feed publishes."""
+    # Anchored to the module-level NOW constant: some tests assert exact
+    # instant equality between two _future_iso() calls. Window-boundary tests
+    # build their rows from a fresh per-test anchor instead (see
+    # TestUpcomingHighImpactWindow) — a collection-time anchor would let an
+    # event elapse in a multi-hour suite run.
     return (NOW + timedelta(hours=offset_hours)).astimezone(
         timezone(timedelta(hours=tz_offset_hours))).isoformat()
 
@@ -216,23 +221,32 @@ class TestUnreadableRowsAreNotSilent:
 
 
 class TestUpcomingHighImpactWindow:
+    # Fresh anchor taken at test-execution time, not the module-level NOW
+    # (frozen at collection): in a multi-hour serial suite run the test body
+    # executes long after collection, and a collection-time anchor would push
+    # the "+1h" event OUT of the 60-minute window by then.
+    LIVE_NOW = datetime.now(timezone.utc)
+
+    def _live_future(self, hours: float) -> str:
+        return (self.LIVE_NOW + timedelta(hours=hours)).isoformat()
+
     def test_window_minutes_is_honored(self):
         """It used to return the whole week regardless of time, so the caller
         (market_data_provider._has_upcoming_high_impact_event) saw an imminent
         blackout for a week."""
         prov = _FakeNoNetwork([
-            {"title": "soon", "country": "USD", "date": _future_iso(1, 0),
+            {"title": "soon", "country": "USD", "date": self._live_future(1),
              "impact": "High"},
-            {"title": "later", "country": "USD", "date": _future_iso(72, 0),
+            {"title": "later", "country": "USD", "date": self._live_future(72),
              "impact": "High"},
             {"title": "elapsed", "country": "USD",
-             "date": (NOW - timedelta(days=1)).isoformat(), "impact": "High"},
+             "date": (self.LIVE_NOW - timedelta(days=1)).isoformat(), "impact": "High"},
         ])
         assert [e.title for e in prov.get_upcoming_high_impact_events(60)] == ["soon"]
 
     def test_no_events_in_window_is_not_an_error(self):
         prov = _FakeNoNetwork([
-            {"title": "later", "country": "USD", "date": _future_iso(72, 0),
+            {"title": "later", "country": "USD", "date": self._live_future(72),
              "impact": "High"},
         ])
         assert prov.get_upcoming_high_impact_events(60) == []

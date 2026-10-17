@@ -51,8 +51,18 @@ logger = logging.getLogger("ExternalGuardian")
 #: Operator alert outbox.  Hoisted to a module constant so the test suite can
 #: repoint it (tests/conftest.py::isolate_shared_root_databases): the call site
 #: passes no path, so a hardcoded literal here wrote the SHARED root
-#: guardian_alerts.db from inside a test.  Production default is unchanged.
-GUARDIAN_ALERTS_DB = "guardian_alerts.db"
+#: guardian_alerts.db from inside a test.
+#:
+#: The default is the JOURNAL outbox, not a guardian-private database.  A
+#: guardian trip is the highest-severity page this system can raise, and the
+#: only outbox with a live drain loop is the journal's: the ``alert_dispatch``
+#: schedule (operations/agents/alert_agent.py) claims, emits OPERATOR_ALERT, and
+#: acknowledges there.  The private path had no consumer at all, so every
+#: CRITICAL guardian page accumulated undelivered forever -- 217 rows, never
+#: once read (2026-10-16).  It also has no tracked history: the literal shipped
+#: in the initial commit, so the split was never a design decision.  Matches
+#: ``alert_agent.DEFAULT_JOURNAL`` so the page and its drain loop agree.
+GUARDIAN_ALERTS_DB = "trading_state.db"
 
 
 # ============================================================================

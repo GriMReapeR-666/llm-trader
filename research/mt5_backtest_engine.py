@@ -376,7 +376,25 @@ class MT5BrokerBacktestEngine:
         sl_pips: float = 30.0,
         tp_pips: float = 60.0,
     ) -> BacktestMetrics:
-        """Run EMA crossover strategy with broker friction simulation."""
+        """Run EMA crossover strategy with broker friction simulation.
+
+        This entrypoint must be safe to call from
+        MT5BrokerBacktestEngine.run_full_autonomous_backtest even when the frame
+        that reaches it is empty or lacks OHLC columns, because that is exactly
+        the shape returned by ``fetch_market_data`` when MT5 is detached and the
+        deterministic fixture path is used. Such a frame is already reported as
+        ``INSUFFICIENT_DATA`` by ``process_data_improvement``; the fix here is to
+        keep the backtest entrypoints from raising a different error shape down
+        the stack.
+        """
+        missing_cols = [c for c in ("open", "high", "low", "close") if c not in bars_df.columns]
+        if bars_df.empty or missing_cols:
+            logger.warning(
+                "run_crossover_strategy: insufficient frame for %s/%s: bars_empty=%s missing=%s",
+                symbol, timeframe, bool(bars_df.empty), missing_cols,
+            )
+            return BacktestMetrics()
+
         close = bars_df["close"].values
         fast_ema = pd.Series(close).ewm(span=fast_period, adjust=False).mean().values
         slow_ema = pd.Series(close).ewm(span=slow_period, adjust=False).mean().values
@@ -405,7 +423,23 @@ class MT5BrokerBacktestEngine:
         tp_pips: float = 60.0,
         strategy_name: str = "strategy",
     ) -> BacktestMetrics:
-        """Execute comprehensive strategy simulation with full MT5 friction models."""
+        """Execute comprehensive strategy simulation with full MT5 friction models.
+
+        The core simulation loop is guarded against empty frames and missing OHLC
+        columns because it is reached from ``run_crossover_strategy``, which itself
+        is called from the autonomous pipeline after ``process_data_improvement``
+        may already have emitted ``INSUFFICIENT_DATA``. Failing early here keeps
+        the failure shape consistent: ``BacktestMetrics()`` rather than a stack
+        trace.
+        """
+        missing_cols = [c for c in ("open", "high", "low", "close") if c not in bars_df.columns]
+        if bars_df.empty or missing_cols:
+            logger.warning(
+                "run_strategy_backtest: insufficient frame for %s/%s: bars_empty=%s missing=%s",
+                symbol, timeframe, bool(bars_df.empty), missing_cols,
+            )
+            return BacktestMetrics()
+
         close = bars_df["close"].values
         n = len(close)
         timestamps = bars_df.index if isinstance(bars_df.index, pd.DatetimeIndex) else (
@@ -607,6 +641,44 @@ class MT5BrokerBacktestEngine:
         """
         n_bars = len(bars_df)
         reasons: List[str] = []
+
+        # 0. Fail-closed guard: an empty bar set or a frame without OHLC columns
+        #    (e.g. live OHLC unavailable upstream) must not crash the pipeline
+        #    with KeyError('close'). Report the gap as structured evidence and
+        #    refuse to fabricate any bar data.
+        missing_cols = [c for c in ("open", "high", "low", "close") if c not in bars_df.columns]
+        if n_bars == 0 or missing_cols:
+            anomalies = []
+            if n_bars == 0:
+                anomalies.append("EMPTY_BAR_SET")
+            anomalies.extend(f"MISSING_COLUMN_{c}" for c in missing_cols)
+            logger.warning(
+                "process_data_improvement: insufficient data for %s/%s: %s",
+                symbol, timeframe, ", ".join(anomalies),
+            )
+            return {
+                "status": "INSUFFICIENT_DATA",
+                "bars_inspected": n_bars,
+                "data_quality_passed": False,
+                "anomalies_detected": anomalies,
+                "zero_volume_bars": 0,
+                "return_spikes": 0,
+                "regime_distribution": {
+                    "BULL_TREND": 0,
+                    "BEAR_TREND": 0,
+                    "MEAN_REVERTING": 0,
+                    "HIGH_VOLATILITY_CHOP": 0,
+                },
+                "volatility_profiles": {
+                    "garman_klass_annualized": 0.0,
+                    "parkinson_annualized": 0.0,
+                },
+                "calibrated_friction": {
+                    "spread_pips": self.spread_pips,
+                    "slippage_pips": self.slippage_pips,
+                    "commission_per_lot": self.commission_per_lot,
+                },
+            }
 
         # 1. Temporal & Quality Integrity
         has_time = "time" in bars_df.columns or isinstance(bars_df.index, pd.DatetimeIndex)

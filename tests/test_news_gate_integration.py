@@ -208,11 +208,20 @@ def _build_orch(db_path: Path, perf_path: Path):
     orch.data_provider.api_manager = _MiniAPI()
     import data.market_data_provider as _mdp
     _orig_mt5 = _mdp._get_mt5
+    _orig_fetch_ohlc = _mdp.fetch_ohlc
+    _orig_fetch_resolver = _mdp._get_fetch_ohlc
     _mdp._get_mt5 = lambda: _MiniMT5()
     # Override the module-level fetch_ohlc so the provider's DATA path sees a
     # real DataFrame from our stub instead of trying the broker's copy_rates.
+    # fetch_data() resolves every fetch through _get_fetch_ohlc(), which prefers
+    # sys.modules["mt5_trader"].fetch_ohlc when another test has already
+    # imported that module (full-suite runs). Patch the resolver, not just the
+    # attribute, or the original (non-TIMEFRAME_M15-stubbed) path leaks in.
     _mdp.fetch_ohlc = _mini_fetch_ohlc
-    orch._news_gate_test_mt5_backend = (_mdp, _orig_mt5)
+    _mdp._get_fetch_ohlc = lambda: _mini_fetch_ohlc
+    orch._news_gate_test_mt5_backend = (
+        _mdp, _orig_mt5, _orig_fetch_ohlc, _orig_fetch_resolver,
+    )
     return orch, store
 
 
@@ -412,8 +421,18 @@ def news_cycle(tmp_path_factory):
     """Build the orchestrator once, run one released-event news cycle."""
     base = tmp_path_factory.mktemp("news_gate")
     orch, _ = _build_orch(base / "trading_state.db", base / "rewards.json")
-    decision, toon, _ = _run_one_cycle(orch)
-    return decision, toon
+    try:
+        decision, toon, _ = _run_one_cycle(orch)
+        yield decision, toon
+    finally:
+        # Restore the module-attribute patches. Without this the _MiniMT5 /
+        # mini-fetch stubs leak into every later test in the same pytest
+        # process (module-scoped patching without teardown).
+        _mdp, _orig_mt5, _orig_fetch_ohlc, _orig_fetch_resolver = (
+            orch._news_gate_test_mt5_backend)
+        _mdp._get_mt5 = _orig_mt5
+        _mdp._get_fetch_ohlc = _orig_fetch_resolver
+        _mdp.fetch_ohlc = _orig_fetch_ohlc
 
 
 @pytest.mark.integration

@@ -1,6 +1,6 @@
 import pytest
 from rl_action_bridge import BridgedExecutionParams, merge_bridge_into_decision
-from trading_safety import SCALP_MAGIC
+from core.trading_safety import SCALP_MAGIC
 
 def test_rl_bridge_never_mutates_hold_to_trade():
     """An LLM HOLD decision must NEVER be escalated to BUY or SELL by RL exploration (01a F4)."""

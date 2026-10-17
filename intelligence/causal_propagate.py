@@ -5,10 +5,11 @@ regime-filtered edges. Never grants execution authority.
 """
 from __future__ import annotations
 
+from collections import deque
 import hashlib
 import json
 import math
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Deque
 
 
 MAX_HOPS = 3
@@ -106,14 +107,14 @@ def propagate(
         adjacency.setdefault(source, []).append(edge)
 
     best: Optional[Dict[str, Any]] = None
-    # BFS-style expansion of paths: list of (node, hops, sign_product, conf_product, horizon)
-    queue: List[Tuple[str, List[Dict[str, Any]], float, float, float]] = [
+    # BFS-style expansion of paths: deque of (node, hops, sign_product, conf_product, horizon)
+    queue: Deque[Tuple[str, List[Dict[str, Any]], float, float, float]] = deque([
         (seed, [], 1.0, 1.0, 0.0) for seed in seeds
-    ]
+    ])
     seen_paths = set()
 
     while queue:
-        node, hops, sign_prod, conf_prod, horizon = queue.pop(0)
+        node, hops, sign_prod, conf_prod, horizon = queue.popleft()
         if len(hops) >= max(1, int(max_hops)):
             continue
         for edge in adjacency.get(node, []):

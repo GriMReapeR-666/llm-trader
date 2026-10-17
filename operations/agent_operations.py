@@ -286,7 +286,7 @@ class AgentOperations:
                    payload: Optional[Dict[str, Any]] = None) -> bool:
         """Close a worker run without leaving a false RUNNING record."""
         status = str(status).upper()
-        if status not in {"COMPLETED", "FAILED", "STOPPED", "STALE_RECOVERED"}:
+        if status not in {"COMPLETED", "FAILED", "STOPPED", "STOP_FLAG", "STALE_RECOVERED"}:
             raise ValueError(f"invalid run status: {status}")
         with self._con() as con:
             row = con.execute("SELECT status,payload FROM agent_runs WHERE run_id=?", (run_id,)).fetchone()
@@ -883,6 +883,23 @@ class AgentOperations:
         due point cannot drive completion math, so the row is moved to a
         known future point at recovery and exposed via schedule_state for
         operator review.
+
+        ``limit`` makes the claim a scarce resource, so the ordering is
+        starvation-aware: a row wins its slot by MISSED TURNS
+        (``overdue / interval_seconds``), not by raw due point. Ordering by
+        ``next_run_at`` ranked by absolute lateness, which inverts the cost of
+        neglect across cadences — a 30-day archive 13 days late outranked a 60s
+        monitor 3 days late — and it locked the same rows out of every wave
+        (2026-10-16): the excluded rows keep the NEWEST due point, so they stay
+        excluded, so they never advance, so they stay excluded. That silently
+        starved 6 of 26 schedules, including ``event_monitor`` (calendar
+        ingestion) and ``alert_dispatch`` (the only alert sender). Ranking by
+        missed turns gives the most-neglected schedule the scarce slot, which
+        makes the lock unreachable: a row that misses turns climbs the queue.
+
+        Unparseable due points sort LAST so corrupt rows cannot displace live
+        work; they still claim when there is room, and the recovery path above
+        rewrites them.
         """
         if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
             raise ValueError("schedule claim limit must be a positive integer")
@@ -896,8 +913,13 @@ class AgentOperations:
                 """SELECT * FROM agent_schedules
                    WHERE enabled=1 AND next_run_at<=?
                      AND (claim_expires_at IS NULL OR claim_expires_at<=?)
-                   ORDER BY next_run_at LIMIT ?""",
-                (now.isoformat(), now.isoformat(), limit)).fetchall()
+                   ORDER BY
+                     CASE WHEN julianday(next_run_at) IS NULL THEN 1 ELSE 0 END,
+                     (julianday(?) - julianday(next_run_at))
+                       / NULLIF(interval_seconds, 0) DESC,
+                     next_run_at ASC
+                   LIMIT ?""",
+                (now.isoformat(), now.isoformat(), now.isoformat(), limit)).fetchall()
             for row in rows:
                 interval = int(row["interval_seconds"])
                 try:
