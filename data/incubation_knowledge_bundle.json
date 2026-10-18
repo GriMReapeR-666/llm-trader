@@ -1,195 +1,488 @@
 {
-  "generated_at": "2026-10-18T22:38:58.360557+00:00",
-  "deterministic_seed": 42,
-  "training_days_completed": 5,
-  "total_approved_causal_edges": 16,
+  "exported_at": "2026-10-18T22:47:16.584588+00:00",
+  "source_db": "data/research_memory.db",
+  "heuristics_count": 6,
+  "heuristics": [
+    {
+      "title": "Gold Macro Yield Decoupling Rule",
+      "heuristic": "During geopolitical/inflation shocks (2020, 2022, 2024), SVAR target projection correctly identifies gold safe-haven accumulation despite US real yield spikes",
+      "confidence": 0.94
+    },
+    {
+      "title": "Multi-Year Judas Sweep Robustness Rule",
+      "heuristic": "Across 2019-2026, post-news Judas swings sweeping resting H1 EQH/EQL pools followed by M5 displacement maintain >60% win rate under XM Ultra Low spreads",
+      "confidence": 0.91
+    },
+    {
+      "title": "Gold Macro Yield Decoupling Rule",
+      "heuristic": "During geopolitical/inflation shocks (2020, 2022, 2024), SVAR target projection correctly identifies gold safe-haven accumulation despite US real yield spikes",
+      "confidence": 0.91
+    },
+    {
+      "title": "Multi-Year Judas Sweep Robustness Rule",
+      "heuristic": "Across 2019-2026, post-news Judas swings sweeping resting H1 EQH/EQL pools followed by M5 displacement maintain >70% win rate under XM Ultra Low spreads",
+      "confidence": 0.89
+    },
+    {
+      "title": "Gold Macro Yield Decoupling Rule",
+      "heuristic": "During geopolitical/inflation shocks (2020, 2022, 2024), SVAR target projection correctly identifies gold safe-haven accumulation despite US real yield spikes",
+      "confidence": 0.91
+    },
+    {
+      "title": "Multi-Year Judas Sweep Robustness Rule",
+      "heuristic": "Across 2019-2026, post-news Judas swings sweeping resting H1 EQH/EQL pools followed by M5 displacement maintain >70% win rate under XM Ultra Low spreads",
+      "confidence": 0.89
+    }
+  ],
+  "facts_count": 50,
+  "recent_facts": [
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2025_2026_MODERN_PLATEAU] BUY manipulation entry at 2842.5814 reached WIN (PnL: $19.08, R:R: 4.44)",
+      "meta": {
+        "epoch": "2025_2026_MODERN_PLATEAU",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2025_2026_MODERN_PLATEAU] BUY manipulation entry at 2774.6001 reached WIN (PnL: $8.30, R:R: 4.22)",
+      "meta": {
+        "epoch": "2025_2026_MODERN_PLATEAU",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2025_2026_MODERN_PLATEAU] BUY manipulation entry at 2704.3591 reached WIN (PnL: $8.25, R:R: 4.22)",
+      "meta": {
+        "epoch": "2025_2026_MODERN_PLATEAU",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2024_GOLD_ALL_TIME_HIGHS] SELL manipulation entry at 2019.9256 reached WIN (PnL: $1.50, R:R: 3.48)",
+      "meta": {
+        "epoch": "2024_GOLD_ALL_TIME_HIGHS",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2024_GOLD_ALL_TIME_HIGHS] SELL manipulation entry at 2022.6894 reached WIN (PnL: $1.79, R:R: 3.55)",
+      "meta": {
+        "epoch": "2024_GOLD_ALL_TIME_HIGHS",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2024_GOLD_ALL_TIME_HIGHS] SELL manipulation entry at 2033.9512 reached WIN (PnL: $-0.16, R:R: 2.65)",
+      "meta": {
+        "epoch": "2024_GOLD_ALL_TIME_HIGHS",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2023_BANKING_STRESS_DISINFLATION] SELL manipulation entry at 1884.2693 reached WIN (PnL: $0.40, R:R: 3.03)",
+      "meta": {
+        "epoch": "2023_BANKING_STRESS_DISINFLATION",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2023_BANKING_STRESS_DISINFLATION] SELL manipulation entry at 1878.0087 reached WIN (PnL: $4.62, R:R: 3.99)",
+      "meta": {
+        "epoch": "2023_BANKING_STRESS_DISINFLATION",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2023_BANKING_STRESS_DISINFLATION] SELL manipulation entry at 1878.0097 reached WIN (PnL: $1.31, R:R: 3.42)",
+      "meta": {
+        "epoch": "2023_BANKING_STRESS_DISINFLATION",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2022_AGGRESSIVE_RATE_HIKES] BUY manipulation entry at 1810.3655 reached WIN (PnL: $5.75, R:R: 4.09)",
+      "meta": {
+        "epoch": "2022_AGGRESSIVE_RATE_HIKES",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2022_AGGRESSIVE_RATE_HIKES] SELL manipulation entry at 1825.7160 reached WIN (PnL: $0.09, R:R: 2.83)",
+      "meta": {
+        "epoch": "2022_AGGRESSIVE_RATE_HIKES",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2022_AGGRESSIVE_RATE_HIKES] SELL manipulation entry at 1818.5019 reached WIN (PnL: $0.28, R:R: 2.96)",
+      "meta": {
+        "epoch": "2022_AGGRESSIVE_RATE_HIKES",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2021_POST_COVID_REFLATION] SELL manipulation entry at 1735.2442 reached WIN (PnL: $6.23, R:R: 4.12)",
+      "meta": {
+        "epoch": "2021_POST_COVID_REFLATION",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2021_POST_COVID_REFLATION] SELL manipulation entry at 1811.2685 reached WIN (PnL: $4.17, R:R: 3.95)",
+      "meta": {
+        "epoch": "2021_POST_COVID_REFLATION",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2021_POST_COVID_REFLATION] SELL manipulation entry at 1854.7739 reached WIN (PnL: $12.31, R:R: 4.34)",
+      "meta": {
+        "epoch": "2021_POST_COVID_REFLATION",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2020_COVID_SHOCK] SELL manipulation entry at 1566.8131 reached WIN (PnL: $0.69, R:R: 3.17)",
+      "meta": {
+        "epoch": "2020_COVID_SHOCK",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2020_COVID_SHOCK] BUY manipulation entry at 1554.4311 reached WIN (PnL: $-0.52, R:R: 2.28)",
+      "meta": {
+        "epoch": "2020_COVID_SHOCK",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2020_COVID_SHOCK] BUY manipulation entry at 1552.0325 reached LOSS (PnL: $-1.72, R:R: 12.22)",
+      "meta": {
+        "epoch": "2020_COVID_SHOCK",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2019_PRE_PANDEMIC] SELL manipulation entry at 1295.0000 reached LOSS (PnL: $-1.72, R:R: 4.55)",
+      "meta": {
+        "epoch": "2019_PRE_PANDEMIC",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2019_PRE_PANDEMIC] SELL manipulation entry at 1283.0612 reached WIN (PnL: $-0.16, R:R: 2.65)",
+      "meta": {
+        "epoch": "2019_PRE_PANDEMIC",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2019_PRE_PANDEMIC] SELL manipulation entry at 1291.1845 reached WIN (PnL: $2.49, R:R: 3.71)",
+      "meta": {
+        "epoch": "2019_PRE_PANDEMIC",
+        "spread": 0.15,
+        "recon_status": "ATTENTION"
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2025_2026_MODERN_PLATEAU] SELL manipulation entry at 2666.0499999999997 reached LOSS (PnL: $-24.70, R:R: 2.30)",
+      "meta": {
+        "epoch": "2025_2026_MODERN_PLATEAU",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2025_2026_MODERN_PLATEAU] SELL manipulation entry at 2645.4816666666666 reached WIN (PnL: $103.57, R:R: 2.30)",
+      "meta": {
+        "epoch": "2025_2026_MODERN_PLATEAU",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2025_2026_MODERN_PLATEAU] SELL manipulation entry at 2657.83 reached LOSS (PnL: $-31.30, R:R: 2.30)",
+      "meta": {
+        "epoch": "2025_2026_MODERN_PLATEAU",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2024_GOLD_ALL_TIME_HIGHS] SELL manipulation entry at 2033.9333333333334 reached WIN (PnL: $11.44, R:R: 2.30)",
+      "meta": {
+        "epoch": "2024_GOLD_ALL_TIME_HIGHS",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2024_GOLD_ALL_TIME_HIGHS] SELL manipulation entry at 2019.5058333333332 reached LOSS (PnL: $-67.44, R:R: 2.30)",
+      "meta": {
+        "epoch": "2024_GOLD_ALL_TIME_HIGHS",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2024_GOLD_ALL_TIME_HIGHS] SELL manipulation entry at 2054.1225 reached WIN (PnL: $84.23, R:R: 2.30)",
+      "meta": {
+        "epoch": "2024_GOLD_ALL_TIME_HIGHS",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2023_BANKING_STRESS_DISINFLATION] SELL manipulation entry at 1877.9724999999999 reached LOSS (PnL: $-12.18, R:R: 2.30)",
+      "meta": {
+        "epoch": "2023_BANKING_STRESS_DISINFLATION",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2023_BANKING_STRESS_DISINFLATION] SELL manipulation entry at 1874.6916666666666 reached LOSS (PnL: $-13.48, R:R: 2.30)",
+      "meta": {
+        "epoch": "2023_BANKING_STRESS_DISINFLATION",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2023_BANKING_STRESS_DISINFLATION] SELL manipulation entry at 1846.0825 reached WIN (PnL: $121.49, R:R: 2.30)",
+      "meta": {
+        "epoch": "2023_BANKING_STRESS_DISINFLATION",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2022_AGGRESSIVE_RATE_HIKES] SELL manipulation entry at 1791.37 reached WIN (PnL: $8.43, R:R: 2.30)",
+      "meta": {
+        "epoch": "2022_AGGRESSIVE_RATE_HIKES",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2022_AGGRESSIVE_RATE_HIKES] SELL manipulation entry at 1809.2116666666666 reached LOSS (PnL: $-20.08, R:R: 2.30)",
+      "meta": {
+        "epoch": "2022_AGGRESSIVE_RATE_HIKES",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2022_AGGRESSIVE_RATE_HIKES] SELL manipulation entry at 1818.4783333333332 reached LOSS (PnL: $-30.42, R:R: 2.30)",
+      "meta": {
+        "epoch": "2022_AGGRESSIVE_RATE_HIKES",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2021_POST_COVID_REFLATION] SELL manipulation entry at 1950.3674999999998 reached LOSS (PnL: $-35.63, R:R: 2.30)",
+      "meta": {
+        "epoch": "2021_POST_COVID_REFLATION",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2021_POST_COVID_REFLATION] SELL manipulation entry at 1946.9816666666666 reached LOSS (PnL: $-13.78, R:R: 2.30)",
+      "meta": {
+        "epoch": "2021_POST_COVID_REFLATION",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2021_POST_COVID_REFLATION] SELL manipulation entry at 1943.08 reached LOSS (PnL: $-16.40, R:R: 2.30)",
+      "meta": {
+        "epoch": "2021_POST_COVID_REFLATION",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2020_COVID_SHOCK] SELL manipulation entry at 1547.9916666666666 reached LOSS (PnL: $-34.18, R:R: 2.30)",
+      "meta": {
+        "epoch": "2020_COVID_SHOCK",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2020_COVID_SHOCK] SELL manipulation entry at 1560.2441666666666 reached LOSS (PnL: $-10.06, R:R: 2.30)",
+      "meta": {
+        "epoch": "2020_COVID_SHOCK",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2020_COVID_SHOCK] SELL manipulation entry at 1571.7466666666664 reached LOSS (PnL: $-1.28, R:R: 2.30)",
+      "meta": {
+        "epoch": "2020_COVID_SHOCK",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2019_PRE_PANDEMIC] SELL manipulation entry at 1291.6541666666667 reached LOSS (PnL: $-12.56, R:R: 2.30)",
+      "meta": {
+        "epoch": "2019_PRE_PANDEMIC",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2019_PRE_PANDEMIC] SELL manipulation entry at 1283.0433333333333 reached LOSS (PnL: $-4.17, R:R: 2.30)",
+      "meta": {
+        "epoch": "2019_PRE_PANDEMIC",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2019_PRE_PANDEMIC] SELL manipulation entry at 1291.1316666666667 reached WIN (PnL: $23.76, R:R: 2.30)",
+      "meta": {
+        "epoch": "2019_PRE_PANDEMIC",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2025_2026_MODERN_PLATEAU] SELL manipulation entry at 2666.0499999999997 reached WIN (PnL: $52.86, R:R: 2.30)",
+      "meta": {
+        "epoch": "2025_2026_MODERN_PLATEAU",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2025_2026_MODERN_PLATEAU] SELL manipulation entry at 2645.4816666666666 reached WIN (PnL: $104.57, R:R: 2.30)",
+      "meta": {
+        "epoch": "2025_2026_MODERN_PLATEAU",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2025_2026_MODERN_PLATEAU] SELL manipulation entry at 2657.83 reached WIN (PnL: $68.04, R:R: 2.30)",
+      "meta": {
+        "epoch": "2025_2026_MODERN_PLATEAU",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2024_GOLD_ALL_TIME_HIGHS] SELL manipulation entry at 2033.9333333333334 reached WIN (PnL: $56.69, R:R: 2.30)",
+      "meta": {
+        "epoch": "2024_GOLD_ALL_TIME_HIGHS",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2024_GOLD_ALL_TIME_HIGHS] SELL manipulation entry at 2019.5058333333332 reached WIN (PnL: $151.17, R:R: 2.30)",
+      "meta": {
+        "epoch": "2024_GOLD_ALL_TIME_HIGHS",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2024_GOLD_ALL_TIME_HIGHS] SELL manipulation entry at 2054.1225 reached WIN (PnL: $85.23, R:R: 2.30)",
+      "meta": {
+        "epoch": "2024_GOLD_ALL_TIME_HIGHS",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2023_BANKING_STRESS_DISINFLATION] SELL manipulation entry at 1877.9724999999999 reached WIN (PnL: $24.05, R:R: 2.30)",
+      "meta": {
+        "epoch": "2023_BANKING_STRESS_DISINFLATION",
+        "spread": 0.15
+      }
+    },
+    {
+      "symbol": "XAUUSD",
+      "fact": "[2023_BANKING_STRESS_DISINFLATION] SELL manipulation entry at 1874.6916666666666 reached WIN (PnL: $27.06, R:R: 2.30)",
+      "meta": {
+        "epoch": "2023_BANKING_STRESS_DISINFLATION",
+        "spread": 0.15
+      }
+    }
+  ],
   "causal_edges": [
     {
-      "edge_id": 6,
-      "source": "USD",
-      "target": "XAUUSD",
-      "relation": "INVERSE_PRICES",
-      "sign": "NEGATIVE",
-      "confidence": 0.971,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 9,
-      "source": "SAFE_HAVEN_DEMAND",
-      "target": "XAUUSD",
-      "relation": "BUYS_GOLD",
-      "sign": "POSITIVE",
-      "confidence": 0.95,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 15,
-      "source": "GEOPOLITICAL_TENSION",
-      "target": "XAUUSD",
-      "relation": "SAFE_HAVEN_CAPITAL_PRESERVATION",
-      "sign": "POSITIVE",
-      "confidence": 0.94,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 3,
-      "source": "USD",
-      "target": "EURUSD",
-      "relation": "WEAKENS",
-      "sign": "NEGATIVE",
-      "confidence": 0.937,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 1,
       "source": "POLICY_RATE",
       "target": "BOND_YIELD",
-      "relation": "DRIVES_YIELD",
-      "sign": "POSITIVE",
-      "confidence": 0.92,
-      "status": "APPROVED"
+      "weight": 0.95
     },
     {
-      "edge_id": 8,
-      "source": "GEOPOLITICAL_TENSION",
-      "target": "SAFE_HAVEN_DEMAND",
-      "relation": "TRIGGERS",
-      "sign": "POSITIVE",
-      "confidence": 0.92,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 12,
-      "source": "LIQUIDITY_SQUEEZE",
-      "target": "USDJPY",
-      "relation": "UNWINDS_CARRY",
-      "sign": "NEGATIVE",
-      "confidence": 0.92,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 13,
-      "source": "MONETARY_POLICY",
-      "target": "EURUSD",
-      "relation": "REAL_RATE_SPREAD_COMPRESSION",
-      "sign": "NEGATIVE",
-      "confidence": 0.92,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 5,
-      "source": "USD",
-      "target": "USDJPY",
-      "relation": "STRENGTHENS",
-      "sign": "POSITIVE",
-      "confidence": 0.918,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 16,
-      "source": "INTERBANK_CREDIT_SPREAD",
-      "target": "USDJPY",
-      "relation": "CARRY_UNWIND_REPATRIATION",
-      "sign": "NEGATIVE",
-      "confidence": 0.91,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 7,
-      "source": "DISINFLATION",
-      "target": "POLICY_RATE",
-      "relation": "LOWERS_RATES",
-      "sign": "NEGATIVE",
-      "confidence": 0.9,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 11,
-      "source": "INTERBANK_CREDIT_SPREAD",
-      "target": "LIQUIDITY_SQUEEZE",
-      "relation": "RESTRICTS",
-      "sign": "POSITIVE",
-      "confidence": 0.9,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 2,
       "source": "BOND_YIELD",
       "target": "USD",
-      "relation": "STRENGTHENS",
-      "sign": "POSITIVE",
-      "confidence": 0.88,
-      "status": "APPROVED"
+      "weight": 0.92
     },
     {
-      "edge_id": 10,
-      "source": "SAFE_HAVEN_DEMAND",
-      "target": "USDJPY",
-      "relation": "BUYS_YEN",
-      "sign": "NEGATIVE",
-      "confidence": 0.88,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 14,
-      "source": "DISINFLATION",
-      "target": "GBPUSD",
-      "relation": "RISK_ON_EXPANSION",
-      "sign": "POSITIVE",
-      "confidence": 0.88,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 4,
       "source": "USD",
-      "target": "GBPUSD",
-      "relation": "WEAKENS",
-      "sign": "NEGATIVE",
-      "confidence": 0.866,
-      "status": "APPROVED"
+      "target": "XAUUSD",
+      "weight": -0.88
+    },
+    {
+      "source": "USD",
+      "target": "EURUSD",
+      "weight": -0.9
+    },
+    {
+      "source": "GEOPOLITICAL_RISK",
+      "target": "XAUUSD",
+      "weight": 0.85
     }
-  ],
-  "active_maml_profile": "LOW_VOL_TREND",
-  "ewc_locked_regimes": [
-    "MONETARY_TIGHTENING_INFLATION_SHOCK",
-    "DISINFLATIONARY_GROWTH_EXPANSION",
-    "GEOPOLITICAL_ENERGY_SUPPLY_SHOCK",
-    "INTERBANK_LIQUIDITY_BANKING_STRESS",
-    "EQUILIBRIUM_LOW_VOL_RANGE_BOUND"
-  ],
-  "top_verified_heuristics": [
-    {
-      "id": 5,
-      "summary": "Deterministic Replay Mastery: EQUILIBRIUM_LOW_VOL_RANGE_BOUND",
-      "lesson": "In EQUILIBRIUM_LOW_VOL_RANGE_BOUND, synchronized US_INITIAL_JOBLESS_CLAIMS surprise (+0.05 sigma) propagated into EURUSD SELL bias. RL executed HOLD under XM Ultra Low costs, returning $+6.10.",
-      "confidence": 0.98
-    },
-    {
-      "id": 4,
-      "summary": "Deterministic Replay Mastery: INTERBANK_LIQUIDITY_BANKING_STRESS",
-      "lesson": "In INTERBANK_LIQUIDITY_BANKING_STRESS, synchronized FED_DISCOUNT_WINDOW_SURGE surprise (+3.40 sigma) propagated into USDJPY SELL bias. RL executed FULL_EXIT under XM Ultra Low costs, returning $+11.60.",
-      "confidence": 0.98
-    },
-    {
-      "id": 3,
-      "summary": "Deterministic Replay Mastery: GEOPOLITICAL_ENERGY_SUPPLY_SHOCK",
-      "lesson": "In GEOPOLITICAL_ENERGY_SUPPLY_SHOCK, synchronized CRUDE_OIL_SUPPLY_OUTAGE surprise (+3.10 sigma) propagated into XAUUSD BUY bias. RL executed FULL_EXIT under XM Ultra Low costs, returning $+14.20.",
-      "confidence": 0.98
-    },
-    {
-      "id": 2,
-      "summary": "Deterministic Replay Mastery: DISINFLATIONARY_GROWTH_EXPANSION",
-      "lesson": "In DISINFLATIONARY_GROWTH_EXPANSION, synchronized US_CORE_PCE_MOM surprise (-1.80 sigma) propagated into GBPUSD BUY bias. RL executed TRAIL under XM Ultra Low costs, returning $+9.20.",
-      "confidence": 0.98
-    },
-    {
-      "id": 1,
-      "summary": "Deterministic Replay Mastery: MONETARY_TIGHTENING_INFLATION_SHOCK",
-      "lesson": "In MONETARY_TIGHTENING_INFLATION_SHOCK, synchronized US_CPI_YOY surprise (+2.50 sigma) propagated into EURUSD SELL bias. RL executed FULL_EXIT under XM Ultra Low costs, returning $+11.30.",
-      "confidence": 0.98
-    }
-  ],
-  "broker_pricing_model": "XM_ULTRA_LOW",
-  "cumulative_pnl": 52.4,
-  "win_rate": 100.0
+  ]
 }
