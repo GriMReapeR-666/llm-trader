@@ -1005,7 +1005,7 @@ anyone reasoning about how much drawdown the account can absorb.
         if self.trade_plan_engine is not None:
             return self.trade_plan_engine
         try:
-            from core.trade_planner import TradePlanEngine, journal_events_provider
+            from core.trade_planner import TradePlanEngine, state_calendar_provider
         except Exception as exc:                   # never disable base sizing
             logging.getLogger("RiskManager").debug("TradePlanEngine unavailable: %s", exc)
             return None
@@ -1015,10 +1015,10 @@ anyone reasoning about how much drawdown the account can absorb.
             db_path = getattr(self.store, "path", None)
             if db_path:
                 try:
-                    provider, state = journal_events_provider(db_path)
+                    provider, state = state_calendar_provider(db_path)
                 except Exception as exc:
                     logging.getLogger("RiskManager").debug(
-                        "TradePlanEngine journal calendar unavailable: %s", exc)
+                        "TradePlanEngine state calendar unavailable: %s", exc)
         self.trade_plan_engine = TradePlanEngine(
             events_provider=provider, mode=mode, calendar_state=state)
         return self.trade_plan_engine

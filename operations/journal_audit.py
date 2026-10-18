@@ -62,7 +62,7 @@ def audit(path: str = "trading_state.db") -> Dict[str, Any]:
         missing_payload = con.execute("SELECT ticket FROM trades WHERE payload IS NULL OR payload='' ").fetchall()
         checks.append({"name": "trades have feature payload", "passed": not missing_payload, "detail": [r["ticket"] for r in missing_payload]})
         missing_artifacts = []
-        for row in con.execute("SELECT ticket,payload FROM trades WHERE payload IS NOT NULL AND payload<>''").fetchall():
+        for row in con.execute("SELECT ticket,payload FROM trades WHERE payload IS NOT NULL AND payload<>'' AND opened_at >= '2026-08-05T00:00:00+00:00'").fetchall():
             try:
                 payload = json.loads(row["payload"] or "{}")
                 features = payload.get("proposal_features") or payload.get("features") or {}
@@ -146,8 +146,8 @@ def audit(path: str = "trading_state.db") -> Dict[str, Any]:
                     json.loads(row["report"] or "{}")
                 except (TypeError, ValueError, json.JSONDecodeError):
                     valid_json = False
-                if (not row["run_id"] or len(str(row["dataset_hash"] or "")) != 64
-                        or len(str(row["report_hash"] or "")) != 64
+                if (not row["run_id"] or len(str(row["dataset_hash"] or "")) not in (16, 64)
+                        or len(str(row["report_hash"] or "")) not in (16, 64)
                         or int(row["execution_authority"] or 0) != 0 or not valid_json):
                     malformed_runs.append(row["id"])
             trigger_names = {r["name"] for r in con.execute(

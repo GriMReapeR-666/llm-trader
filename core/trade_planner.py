@@ -43,6 +43,7 @@ import math
 import os
 import sqlite3
 import threading
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -290,6 +291,8 @@ class TradePlanEngine:
         now = now or self._now_fn()
         if now.tzinfo is None:
             now = now.replace(tzinfo=timezone.utc)
+        else:
+            now = now.astimezone(timezone.utc)
 
         parts: Dict[str, float] = {}
         reasons: List[str] = []
@@ -379,13 +382,114 @@ class TradePlanEngine:
         )
 
 
-def journal_events_provider(db_path: str) -> Tuple[Callable[[], List[Dict[str, Any]]], str]:
-    """Build an events provider over the journal's macro_events mirror.
+def state_calendar_provider(db_path: str):
+    """Build an events provider over the live ``event_monitor:*`` state rows.
 
-    Returns ``(provider, initial_state)``. The provider resolves event rows to
-    the shape NewsTradingGate expects and reports staleness so a dead feed is
-    treated as *no news evidence*, never as *evidence of no news*.
+    The ``macro_events`` mirror is frequently stale (its last refresh depends on
+    the bulk_calendar_ingest step, which times out on slow boots), but the
+    event_monitor schedule writes a fresh ``event_monitor:<SYMBOL>`` state row
+    every 60 s with the full calendar for that symbol.  This provider merges
+    every such row so :class:`NewsTradingGate` can filter by symbol relevance,
+    and reports staleness from the freshest captured_at stamp.
     """
+
+    def provider():
+        uri = f"file:{db_path}?mode=ro"
+        con = sqlite3.connect(uri, uri=True, timeout=2.0)
+        try:
+            try:
+                rows = con.execute(
+                    "select key, value from state where key like 'event_monitor:%'"
+                ).fetchall()
+            except sqlite3.OperationalError:
+                rows = []
+            mirror = con.execute(
+                "select event_time, currency, title, importance, captured_at from macro_events "
+                "where event_time is not null and event_time <> ''"
+            ).fetchall()
+        finally:
+            con.close()
+
+        events: List[Dict[str, Any]] = []
+        captured_stamps: List[datetime] = []
+        now = datetime.now(timezone.utc)
+
+        for key, value in rows:
+            try:
+                blob = json.loads(value)
+            except (TypeError, ValueError):
+                continue
+            cap = blob.get("captured_at")
+            if cap:
+                try:
+                    cap_dt = datetime.fromisoformat(str(cap).replace("Z", "+00:00"))
+                    if cap_dt.tzinfo is None:
+                        cap_dt = cap_dt.replace(tzinfo=timezone.utc)
+                    captured_stamps.append(cap_dt)
+                except ValueError:
+                    pass
+            status = str(blob.get("status", "")).upper()
+            if status not in ("AVAILABLE", "OK", ""):
+                continue
+            for ev in (blob.get("events") or []):
+                currency = ev.get("currency") or ev.get("country") or ""
+                title = ev.get("title") or ev.get("name") or ""
+                importance = ev.get("impact") or ev.get("importance") or ""
+                raw_time = ev.get("date") or ev.get("time") or ev.get("event_time") or ev.get("datetime_utc")
+                if not raw_time:
+                    continue
+                try:
+                    dt = datetime.fromisoformat(str(raw_time).replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                except ValueError:
+                    continue
+                events.append({"time": dt, "currency": currency, "title": title,
+                               "importance": importance})
+
+        # Merge the (possibly stale) mirror as a fallback for symbols that have
+        # no live state row yet; de-dup by (time, title).
+        seen = {(e["time"], e["title"]) for e in events}
+        for event_time, currency, title, importance, captured in mirror:
+            try:
+                dt = datetime.fromisoformat(str(event_time).replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+            if (dt, title) in seen:
+                continue
+            if abs((dt - now).total_seconds()) > 7 * 24 * 3600:
+                continue
+            events.append({"time": dt, "currency": currency or "", "title": title or "",
+                           "importance": importance or ""})
+            seen.add((dt, title))
+
+        if captured_stamps:
+            freshest = max(captured_stamps)
+            state = "OK" if (now - freshest).total_seconds() <= 2 * 3600 else "STALE"
+        elif mirror:
+            # Fall back to the mirror's own captured_at stamp.
+            try:
+                caps = []
+                for row in mirror:
+                    c = row[4] if len(row) > 4 else None
+                    if c:
+                        dt = datetime.fromisoformat(str(c).replace("Z", "+00:00"))
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=timezone.utc)
+                        caps.append(dt)
+                if caps and (now - max(caps)).total_seconds() <= 36 * 3600:
+                    state = "OK"
+                else:
+                    state = "STALE"
+            except (ValueError, TypeError):
+                state = "STALE"
+        else:
+            state = "UNKNOWN"
+        return events, state
+
+    return provider, "UNKNOWN"
 
     def provider() -> Tuple[List[Dict[str, Any]], str]:
         uri = f"file:{db_path}?mode=ro"
@@ -426,3 +530,43 @@ def journal_events_provider(db_path: str) -> Tuple[Callable[[], List[Dict[str, A
 
     # Fail-closed default until the first read proves the feed is alive.
     return provider, "STALE"
+
+
+# Backwards-compatible macro_events-only provider (kept for tests / legacy callers).
+def journal_events_provider(db_path: str):
+    def provider():
+        uri = 'file:' + db_path + '?mode=ro'
+        con = __import__('sqlite3').connect(uri, uri=True, timeout=2.0)
+        try:
+            rows = con.execute(
+                "select event_time, currency, title, importance, captured_at from macro_events "
+                "where event_time is not null and event_time <> ''"
+            ).fetchall()
+            captured = con.execute('select max(captured_at) from macro_events').fetchone()[0]
+        finally:
+            con.close()
+        events = []
+        now = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
+        for event_time, currency, title, importance, _captured in rows:
+            try:
+                dt = __import__('datetime').datetime.fromisoformat(str(event_time).replace('Z', '+00:00'))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=__import__('datetime').timezone.utc)
+            except ValueError:
+                continue
+            if abs((dt - now).total_seconds()) > 7 * 24 * 3600:
+                continue
+            events.append({'time': dt, 'currency': currency or '', 'title': title or '',
+                           'importance': importance or ''})
+        if captured:
+            try:
+                cap_dt = __import__('datetime').datetime.fromisoformat(str(captured).replace('Z', '+00:00'))
+                if cap_dt.tzinfo is None:
+                    cap_dt = cap_dt.replace(tzinfo=__import__('datetime').timezone.utc)
+                state = 'OK' if (now - cap_dt).total_seconds() <= 36.0 * 3600 else 'STALE'
+            except ValueError:
+                state = 'STALE'
+        else:
+            state = 'STALE'
+        return events, state
+    return provider, 'STALE'

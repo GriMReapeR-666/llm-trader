@@ -878,7 +878,7 @@ class MT5BrokerBacktestEngine:
         target_path = validate_backtest_journal_path(journal_path) if journal_path is not None else self.journal_path
         run_id = f"bt_{symbol}_{strategy_name}_{int(time.time())}"
         now_iso = datetime.now(timezone.utc).isoformat()
-        dataset_hash = hashlib.sha256(f"{symbol}_{time.time()}".encode()).hexdigest()[:16]
+        dataset_hash = hashlib.sha256(f"{symbol}_{time.time()}".encode()).hexdigest()
         report_payload = {
             "metrics": metrics.to_dict(),
             "friction_breakdown": self.last_friction_breakdown,
@@ -886,7 +886,7 @@ class MT5BrokerBacktestEngine:
             "data_improvement": data_improvement or {},
         }
         report_json = json.dumps(report_payload, default=str)
-        report_hash = hashlib.sha256(report_json.encode()).hexdigest()[:16]
+        report_hash = hashlib.sha256(report_json.encode()).hexdigest()
 
         journal_report: Dict[str, Any] = {
             "run_id": run_id,

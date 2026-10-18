@@ -4902,8 +4902,8 @@ def execute_skill(**kwargs):
                         timeframe=args.timeframe if args.timeframe != "AUTO" else "H1",
                     )
                     logging.getLogger("main").info(
-                        "⏸️ [DECISION] Cycle %d: HOLD %s | Market Holiday/Weekend; trading halted, maintenance & research routines active",
-                        cycle_count, maint_symbol or "PORTFOLIO"
+                        "⏸️ [DECISION] HOLD %s | Market Holiday/Weekend; trading halted, maintenance & research routines active",
+                        maint_symbol or "PORTFOLIO"
                     )
                     # --- Weekend / Holiday Autonomous Research Routine ---
                     # When live trading is closed, use downtime to run offline research:
@@ -4916,21 +4916,36 @@ def execute_skill(**kwargs):
                         try:
                             _r_t0 = time.time()
                             logging.getLogger("main").info(
-                                "🔬 [WEEKEND RESEARCH] Cycle %d: starting autonomous research sprint for %s (%s)...",
-                                cycle_count, _res_sym, _res_tf,
+                                "🔬 [WEEKEND RESEARCH] starting autonomous research sprint for %s (%s)...",
+                                _res_sym, _res_tf,
                             )
                             # 1. Continuous Backtest Pipeline (TCE, DSR, CPCV, WFE)
+                            # Iterate the registered per-strategy signals instead of
+                            # the "default" generic ruleset, which never fires on
+                            # the tiny evidence window and mislabels every run.
                             try:
                                 from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+                                from research.strategy_signal_registry import _REGISTRY as _STRAT_REG
                                 _pipeline = ContinuousBacktestPipeline()
-                                _bt_res = _pipeline.run_validation_cycle(
-                                    symbol=_res_sym, strategy_name="default", timeframe=_res_tf,
+                                _strat_names = sorted(_STRAT_REG.keys())
+                                for _sname in _strat_names:
+                                    try:
+                                        _bt_res = _pipeline.run_validation_cycle(
+                                            symbol=_res_sym, strategy_name=_sname, timeframe=_res_tf,
+                                        )
+                                        if _bt_res:
+                                            _status = _bt_res.get("verdict", {}).get("status", "COMPLETE")
+                                            logging.getLogger("main").debug(
+                                                "🔬 [WEEKEND RESEARCH] %s backtest: status=%s",
+                                                _sname, _status,
+                                            )
+                                    except Exception as _bt_one:
+                                        logging.getLogger("main").debug(
+                                            "Weekend backtest sprint skipped %s: %s", _sname, _bt_one)
+                                logging.getLogger("main").info(
+                                    "🔬 [WEEKEND RESEARCH] Continuous backtest sweep complete: %d strategies",
+                                    len(_strat_names),
                                 )
-                                if _bt_res:
-                                    _status = _bt_res.get("verdict", {}).get("status", "COMPLETE")
-                                    logging.getLogger("main").info(
-                                        "🔬 [WEEKEND RESEARCH] Continuous backtest complete: status=%s", _status
-                                    )
                             except Exception as _bt_err:
                                 logging.getLogger("main").debug("Weekend backtest sprint skipped: %s", _bt_err)
 
@@ -5035,7 +5050,7 @@ def execute_skill(**kwargs):
                             timeframe=args.timeframe if args.timeframe != "AUTO" else "H1",
                         )
                         logging.getLogger("main").info(
-                            "⏸️ [DECISION] Cycle %d: HOLD %s | No scanner opportunities (score below threshold); maintenance pulse active",
+                            "⏸️ [DECISION] HOLD %s | No scanner opportunities (score below threshold); maintenance pulse active",
                             cycle_count, maint_symbol or "PORTFOLIO"
                         )
                 elif str(current_symbol).upper() == "AUTO":
@@ -5047,7 +5062,7 @@ def execute_skill(**kwargs):
                         timeframe=args.timeframe if args.timeframe != "AUTO" else "H1",
                     )
                     logging.getLogger("main").info(
-                        "⏸️ [DECISION] Cycle %d: HOLD | Defensive AUTO symbol pulse", cycle_count
+                        "⏸️ [DECISION] HOLD | Defensive AUTO symbol pulse",
                     )
 
                 if skip_analysis:
@@ -5144,7 +5159,7 @@ def execute_skill(**kwargs):
                             _g_final = _delib_app.invoke(_g_init, config={"configurable": {"thread_id": _g_tid}})
                             _g_status = _g_final.get("status", "UNKNOWN")
                             _g_action = _g_final.get("order_intent", {}).get("action", "HOLD") if _g_status == "EXECUTED" else "HOLD"
-                            _msg = f"⚡ [GRAPH DECISION] Cycle {cycle_count}: {_g_action} {current_symbol} {_stf} ({_sname}) -> {_g_status}"
+                            _msg = f"⚡ [GRAPH DECISION] {_g_action} {current_symbol} {_stf} ({_sname}) -> {_g_status}"
                             logging.getLogger("main").info(_msg)
                             if display and hasattr(display, "update_execution_log"):
                                 display.update_execution_log([_msg])
@@ -5181,9 +5196,9 @@ def execute_skill(**kwargs):
                                 _entry_p = _dec.get("entry", 0.0)
                                 _sl = _dec.get("stop_loss", 0.0)
                                 _tp = _dec.get("take_profit", 0.0)
-                                _msg = f"⚡ [DECISION] Cycle {cycle_count}: {_action} {current_symbol} {_stf} ({_sname}) @ {_entry_p} (SL: {_sl}, TP: {_tp}){_conf_str} | {_reason}"
+                                _msg = f"⚡ [DECISION] {_action} {current_symbol} {_stf} ({_sname}) @ {_entry_p} (SL: {_sl}, TP: {_tp}){_conf_str} | {_reason}"
                             else:
-                                _msg = f"⏸️ [DECISION] Cycle {cycle_count}: HOLD {current_symbol} {_stf} ({_sname}){_conf_str} | {_reason}"
+                                _msg = f"⏸️ [DECISION] HOLD {current_symbol} {_stf} ({_sname}){_conf_str} | {_reason}"
                             logging.getLogger("main").info(_msg)
                             if display and hasattr(display, "update_execution_log"):
                                 display.update_execution_log([_msg])
