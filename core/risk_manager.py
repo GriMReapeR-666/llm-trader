@@ -105,6 +105,11 @@ class RiskManager(StoreBackedState):
         # When daily loss or peak DD trips, open positions must flatten — not only block entries.
         self._flatten_reason: Optional[str] = None
 
+        # Dynamic trade plan (event calendar / session / growth ladder).
+        # Lazily attached; ``off`` mode ⇒ zero behavioral and cost difference.
+        self.trade_plan_engine: Optional[Any] = None
+        self.last_trade_plan: Optional[Any] = None
+
         # Semi-Parametric Markov Chain (SPMC) strategy regime filter (Tolusic, 2026)
         try:
             from core.spmc_regime_filter import SPMCRegimeFilter
@@ -984,6 +989,84 @@ anyone reasoning about how much drawdown the account can absorb.
         drawdown = (self.peak_equity - current) / self.peak_equity if self.peak_equity > 0 else 1.0
         return drawdown < float(self.max_drawdown)
 
+    # ------------------------------------------------------------------
+    # Dynamic trade plan (context ladder: calendar, session, growth curve)
+    # ------------------------------------------------------------------
+    def attach_trade_plan_engine(self, mode: Optional[str] = None,
+                                 events_provider: Optional[Callable[[], Any]] = None,
+                                 use_journal_calendar: bool = True) -> Any:
+        """Attach (idempotently) the ``core.trade_planner.TradePlanEngine``.
+
+        Default mode comes from ``TRADE_PLANNER_MODE`` (``observe`` unless
+        overridden). When ``use_journal_calendar`` and this instance has a
+        store, the engine reads the ``macro_events`` mirror (60 s memo, no
+        network I/O) for the news-calendar component.
+        """
+        if self.trade_plan_engine is not None:
+            return self.trade_plan_engine
+        try:
+            from core.trade_planner import TradePlanEngine, journal_events_provider
+        except Exception as exc:                   # never disable base sizing
+            logging.getLogger("RiskManager").debug("TradePlanEngine unavailable: %s", exc)
+            return None
+        provider = events_provider
+        state = "UNKNOWN"
+        if provider is None and use_journal_calendar:
+            db_path = getattr(self.store, "path", None)
+            if db_path:
+                try:
+                    provider, state = journal_events_provider(db_path)
+                except Exception as exc:
+                    logging.getLogger("RiskManager").debug(
+                        "TradePlanEngine journal calendar unavailable: %s", exc)
+        self.trade_plan_engine = TradePlanEngine(
+            events_provider=provider, mode=mode, calendar_state=state)
+        return self.trade_plan_engine
+
+    def _apply_trade_plan(self, symbol: str, market: Optional[dict], equity: float,
+                          entry: float = 0.0, sl: float = 0.0) -> float:
+        """Reduction-only plan scale for one sizing decision (1.0 when inert).
+
+        Modes: ``off``/unattached → 1.0 (byte-identical legacy sizing);
+        ``observe`` → plan logged, no veto, scale still never *increases*
+        risk (growth taper capped ≤ 1); ``enforce`` → applies vetoes (0.0)
+        and the context scale. A planner fault degrades to 1.0 without
+        disabling any upstream gate.
+        """
+        engine = self.attach_trade_plan_engine()
+        if engine is None or getattr(engine, "mode", "off") == "off":
+            return 1.0
+        try:
+            plan = engine.plan(
+                symbol=symbol,
+                entry=float(entry or 0.0),
+                sl=float(sl or 0.0),
+                market=market,
+                equity=float(equity or 0.0),
+                peak_equity=float(self.peak_equity or 0.0),
+                anchor_equity=float(min(self.balance, self.initial_balance)),
+            )
+            self.last_trade_plan = plan
+            plan_desc = plan.describe()
+            if plan.decision == "VETO":
+                if engine.mode == "enforce":
+                    logging.getLogger("RiskManager").warning(
+                        "TradePlan VETO %s: %s", symbol, plan_desc)
+                    return 0.0
+                logging.getLogger("RiskManager").warning(
+                    "TradePlan would-VETO (observe) %s: %s", symbol, plan_desc)
+            elif plan.risk_scale < 0.999:
+                logging.getLogger("RiskManager").info(
+                    "TradePlan scale %.2f%s %s: %s", plan.risk_scale,
+                    "" if engine.mode == "enforce" else " (observe: not applied)",
+                    symbol, plan_desc)
+            # Observe is log-only: never resize, never veto.
+            return plan.risk_scale if engine.mode == "enforce" else 1.0
+        except Exception as exc:
+            logging.getLogger("RiskManager").debug("TradePlan skipped: %s", exc)
+            return 1.0
+
+
     def remaining_daily_risk(self, equity: float) -> float:
         if not self._finite(equity, positive=True) or not self._finite(self.daily_start_equity, positive=True):
             return 0.0
@@ -1390,8 +1473,9 @@ anyone reasoning about how much drawdown the account can absorb.
             except (TypeError, ValueError):
                 pass
 
-        # Use configured risk per trade (e.g. 0.01) * Multiplier
-        risk_amt = equity * self.risk_per_trade * size_multiplier
+        # Use configured risk per trade (e.g. 0.01) * Multiplier * trade-plan scale
+        plan_scale = self._apply_trade_plan(symbol, market, equity, entry=entry, sl=sl)
+        risk_amt = equity * self.risk_per_trade * size_multiplier * plan_scale
         # Only log if > 0 to avoid spam on rejections
         if risk_amt > 0:
              logging.getLogger("RiskManager").info(
