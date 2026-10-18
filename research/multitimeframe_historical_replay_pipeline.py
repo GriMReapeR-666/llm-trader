@@ -13,6 +13,7 @@ Core Invariants:
 6. 3-Tier Long-Term Memory: L1 Atomic Facts, L2 Scenario Docs, L3 Core Heuristics in data/research_memory.db.
 7. Graph RAG Incubation Bundle: Exports validated causal edges and heuristics for live deployment.
 8. 100% Database Isolation: Guaranteed zero writes to production trading_state.db.
+9. Big-O Performance: Vectorized sub-bar synthesis (O(N)), binary search point-in-time slicing (O(log N)).
 """
 from __future__ import annotations
 
@@ -84,7 +85,7 @@ class MultiTimeframeDataSynchronizer:
     """Manages multi-timeframe candle streams with strict chronological alignment.
     
     Supports MT5 terminal live ingestion, parquet archives, and high-fidelity
-    micro-candle synthesis when zooming into historical news and liquidity events.
+    vectorized micro-candle synthesis when zooming into historical news and liquidity events.
     """
 
     def __init__(self, seed: int = 42):
@@ -105,6 +106,10 @@ class MultiTimeframeDataSynchronizer:
             mt5_data = self._fetch_mt5_rates(symbol, start_date, end_date)
 
         if mt5_data and all(len(mt5_data.get(tf, [])) > 0 for tf in ["D1", "H4", "H1"]):
+            if "M15" not in mt5_data or len(mt5_data["M15"]) == 0:
+                mt5_data["M15"] = self._synthesize_sub_bars(mt5_data["H1"], bar_minutes=15)
+            if "M5" not in mt5_data or len(mt5_data["M5"]) == 0:
+                mt5_data["M5"] = self._synthesize_sub_bars(mt5_data["H1"], bar_minutes=5)
             self.data_cache[symbol] = mt5_data
             return mt5_data
 
@@ -144,6 +149,51 @@ class MultiTimeframeDataSynchronizer:
         except Exception:
             return None
 
+    def _synthesize_sub_bars(self, h1_df: pd.DataFrame, bar_minutes: int) -> pd.DataFrame:
+        """Synthesize geometrically consistent sub-bars from H1 data (Vectorized O(N))."""
+        if h1_df is None or len(h1_df) == 0:
+            return pd.DataFrame()
+
+        num_sub = 60 // bar_minutes
+        n_bars = len(h1_df)
+
+        times = h1_df["time"].values
+        opens = h1_df["open"].values.astype(float)
+        highs = h1_df["high"].values.astype(float)
+        lows = h1_df["low"].values.astype(float)
+        closes = h1_df["close"].values.astype(float)
+        vols = (
+            h1_df["tick_volume"].values.astype(int)
+            if "tick_volume" in h1_df
+            else np.full(n_bars, 100, dtype=int)
+        )
+
+        offsets = np.arange(num_sub) * np.timedelta64(bar_minutes, "m")
+        sub_times = times[:, None] + offsets[None, :]
+
+        fractions = np.linspace(0.0, 1.0, num_sub + 1)
+        sub_opens = opens[:, None] + (closes - opens)[:, None] * fractions[:-1][None, :]
+        sub_closes = opens[:, None] + (closes - opens)[:, None] * fractions[1:][None, :]
+
+        sub_highs = np.maximum(sub_opens, sub_closes)
+        sub_lows = np.minimum(sub_opens, sub_closes)
+
+        idx_high = num_sub // 3
+        idx_low = (2 * num_sub) // 3
+        sub_highs[:, idx_high] = np.maximum(sub_highs[:, idx_high], highs)
+        sub_lows[:, idx_low] = np.minimum(sub_lows[:, idx_low], lows)
+
+        sub_vols = np.maximum(1, vols // num_sub)[:, None] * np.ones((1, num_sub), dtype=int)
+
+        return pd.DataFrame({
+            "time": pd.to_datetime(sub_times.ravel(), utc=True),
+            "open": sub_opens.ravel(),
+            "high": sub_highs.ravel(),
+            "low": sub_lows.ravel(),
+            "close": sub_closes.ravel(),
+            "tick_volume": sub_vols.ravel(),
+        })
+
     def _generate_synthetic_mtf(
         self,
         symbol: str,
@@ -164,7 +214,6 @@ class MultiTimeframeDataSynchronizer:
 
         price = base_price
         while current <= end_date:
-            # Skip weekends (Saturday=5, Sunday=6)
             if current.weekday() in (5, 6):
                 current += timedelta(days=1)
                 continue
@@ -174,21 +223,18 @@ class MultiTimeframeDataSynchronizer:
             day_low = day_open
             day_start = current
 
-            # Generate 24 H1 bars
             for h in range(24):
                 h1_time = day_start + timedelta(hours=h)
                 h1_open = price
                 h1_high = h1_open
                 h1_low = h1_open
 
-                # 4 M15 bars per H1
                 for m15_idx in range(4):
                     m15_time = h1_time + timedelta(minutes=m15_idx * 15)
                     m15_open = price
                     m15_high = m15_open
                     m15_low = m15_open
 
-                    # 3 M5 bars per M15
                     for m5_idx in range(3):
                         m5_time = m15_time + timedelta(minutes=m5_idx * 5)
                         ret = rng.normal(0, daily_vol / math.sqrt(288))
@@ -234,7 +280,6 @@ class MultiTimeframeDataSynchronizer:
                     "tick_volume": sum(r["tick_volume"] for r in m15_rows[-4:]),
                 })
 
-                # Record H4 at hour 3, 7, 11, 15, 19, 23
                 if (h + 1) % 4 == 0:
                     h4_slice = h1_rows[-4:]
                     h4_rows.append({
@@ -271,17 +316,26 @@ class MultiTimeframeDataSynchronizer:
     def get_point_in_time_slice(
         self,
         symbol: str,
-        cutoff_time: datetime
+        cutoff_time: datetime,
+        max_tail_bars: Optional[int] = None,
     ) -> Dict[str, pd.DataFrame]:
-        """Returns point-in-time slices for all timeframes, ensuring zero lookahead."""
+        """Returns point-in-time slices for all timeframes, ensuring zero lookahead with O(log N) binary search."""
         if symbol not in self.data_cache:
             raise KeyError(f"Symbol {symbol} not loaded in synchronizer cache.")
 
         raw = self.data_cache[symbol]
         slices = {}
+        cutoff_dt64 = np.datetime64(cutoff_time)
+
         for tf, df in raw.items():
-            if "time" in df.columns:
-                slices[tf] = df[df["time"] <= cutoff_time].copy()
+            if "time" in df.columns and len(df) > 0:
+                t_arr = df["time"].values
+                idx = int(np.searchsorted(t_arr, cutoff_dt64, side="right"))
+                if max_tail_bars is not None and max_tail_bars > 0:
+                    start_idx = max(0, idx - max_tail_bars)
+                    slices[tf] = df.iloc[start_idx:idx].copy()
+                else:
+                    slices[tf] = df.iloc[:idx].copy()
             else:
                 slices[tf] = df.copy()
         return slices
@@ -306,14 +360,13 @@ class HierarchicalMTFEngine:
         self.manipulation_detector = NewsLiquidityManipulationDetector()
 
     def get_macro_context(self, current_time: datetime) -> Dict[str, Any]:
-        """Evaluates point-in-time D1/H4 macro trend, SVAR IRF target, and H1 SMC levels."""
-        slices = self.synchronizer.get_point_in_time_slice(self.symbol, current_time)
+        """Evaluates point-in-time D1/H4 macro trend, SVAR IRF target, and H1 SMC levels in O(log N)."""
+        slices = self.synchronizer.get_point_in_time_slice(self.symbol, current_time, max_tail_bars=60)
         d1_df = slices.get("D1", pd.DataFrame())
         h1_df = slices.get("H1", pd.DataFrame())
 
         curr_price = float(h1_df["close"].iloc[-1]) if len(h1_df) > 0 else (2000.0 if self.symbol == "XAUUSD" else 1.0850)
 
-        # Macro trend from D1 closes
         macro_bias = "NEUTRAL"
         if len(d1_df) >= 10:
             d1_closes = d1_df["close"].values
@@ -324,7 +377,6 @@ class HierarchicalMTFEngine:
             elif ema_fast < ema_slow * 0.998:
                 macro_bias = "BEARISH"
 
-        # SVAR fair value projection
         shock_var = "CORE_PCE" if macro_bias == "BULLISH" else "CPI_YOY"
         mag = 1.5 if macro_bias == "BULLISH" else -1.5
         irf = self.var_engine.compute_impulse_response(
@@ -339,14 +391,11 @@ class HierarchicalMTFEngine:
             max_extension_pct=0.03
         )
 
-        # H1 Order Blocks and Liquidity Pools
         h1_obs = []
         h1_pools = []
         if len(h1_df) >= 20:
             highs = h1_df["high"].values[-20:]
             lows = h1_df["low"].values[-20:]
-            closes = h1_df["close"].values[-20:]
-            # Structural swing points
             h1_pools.append({"type": "EQH", "price": float(np.max(highs))})
             h1_pools.append({"type": "EQL", "price": float(np.min(lows))})
             h1_obs.append({"type": "BULLISH_OB", "low": float(np.min(lows)), "high": float(np.min(lows) + (np.max(highs) - np.min(lows)) * 0.15)})
@@ -365,17 +414,19 @@ class HierarchicalMTFEngine:
     def should_zoom_in_to_m5(
         self,
         current_time: datetime,
-        is_news_time: bool = False
+        current_price: Optional[float] = None,
+        is_news_time: bool = False,
+        ctx: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """Determines if the state machine should zoom into high-resolution M5 simulation."""
         if is_news_time:
             return True
-        # Also zoom in if price is testing resting liquidity pool
-        ctx = self.get_macro_context(current_time)
-        curr = ctx["current_price"]
+        if ctx is None:
+            ctx = self.get_macro_context(current_time)
+        curr = current_price if current_price is not None else ctx["current_price"]
         for p in ctx["h1_liquidity_pools"]:
             dist_pct = abs(curr - p["price"]) / curr
-            if dist_pct <= 0.0015:  # Within 15 bps
+            if dist_pct <= 0.0015:
                 return True
         return False
 
@@ -419,15 +470,13 @@ class MTFExecutionSimulator:
             return None
 
         rr = reward / risk
-        if rr < 1.95:  # Tolerating rounding down to ~2.0
+        if rr < 1.95:
             return None
 
-        # XM Ultra Low Spread calculation
         base_spread = XM_ULTRA_LOW_SPREADS.get(self.symbol, 0.0001)
         spread_mult = 2.5 if is_news_event else 1.0
         applied_spread = base_spread * spread_mult
 
-        # Fill with spread friction
         fill_price = entry_price + (applied_spread if direction == "BUY" else -applied_spread)
 
         self.trade_counter += 1
@@ -471,7 +520,7 @@ class MTFExecutionSimulator:
                     outcome = "LOSS"
                     pts = current_price - pos["entry_price"]
                     pnl = pts * (100000 * pos["lot_size"] if self.symbol == "EURUSD" else 100 * pos["lot_size"])
-            else:  # SELL
+            else:
                 if current_price <= pos["target_price"]:
                     closed = True
                     outcome = "WIN"
@@ -520,13 +569,11 @@ class ContinuousLearningEngine:
         win_rate = len(wins) / len(trades) if trades else 0.5
         regime = trades[0].get("regime", "LOW_VOL_TREND") if trades else "LOW_VOL_TREND"
 
-        # Update MAML profile
         profile = self.maml_engine.profiles.get(regime, self.maml_engine.get_active_profile())
         if win_rate > 0.60:
             profile.risk_multiplier = min(1.5, profile.risk_multiplier + 0.05)
             profile.entry_confidence_threshold = max(0.35, profile.entry_confidence_threshold - 0.02)
 
-        # Consolidate EWC weights
         loss_val = 0.0
         fisher_trace = 1.0
         if trades:
@@ -557,7 +604,6 @@ class ResearchMemoryBridge:
     """Maintains 100% isolated 3-tier memory in data/research_memory.db and exports Graph RAG bundles."""
 
     def __init__(self, db_path: str = "data/research_memory.db"):
-        # Strict isolation invariant
         if "trading_state.db" in db_path:
             raise ValueError("Invariant violation: Cannot write research memory to production trading_state.db!")
         self.db_path = db_path
@@ -693,33 +739,36 @@ def run_multitimeframe_pipeline(
         h1_df = data.get("H1", pd.DataFrame())
         m5_df = data.get("M5", pd.DataFrame())
 
-        # Chronological step through H1 macro bars
         step_stride = 4 if fast_mode else 1
         for i in range(10, len(h1_df), step_stride):
             bar = h1_df.iloc[i]
             bar_time = bar["time"]
             ctx = engine.get_macro_context(bar_time)
 
-            # Check if event or liquidity sweep triggers zoom-in
             is_news = (i % 8 == 0)
-            if engine.should_zoom_in_to_m5(bar_time, is_news_time=is_news):
-                # Zoom into M5 slice corresponding to this H1 window
-                m5_sub = m5_df[(m5_df["time"] >= bar_time) & (m5_df["time"] < bar_time + timedelta(hours=1))]
+            if engine.should_zoom_in_to_m5(bar_time, current_price=float(bar["close"]), is_news_time=is_news, ctx=ctx):
+                if m5_df is not None and len(m5_df) > 0:
+                    t_cutoff = np.datetime64(bar_time)
+                    t_end_m5 = np.datetime64(bar_time + timedelta(hours=1))
+                    m5_times = m5_df["time"].values
+                    idx_start = int(np.searchsorted(m5_times, t_cutoff, side="left"))
+                    idx_end = int(np.searchsorted(m5_times, t_end_m5, side="right"))
+                    m5_sub = m5_df.iloc[idx_start:idx_end]
+                else:
+                    m5_sub = pd.DataFrame()
+
                 if len(m5_sub) >= 3:
                     m5_highs = m5_sub["high"].values
                     m5_lows = m5_sub["low"].values
                     m5_closes = m5_sub["close"].values
 
-                    # Detect Judas swing: sweep followed by reversal displacement
                     if ctx["macro_bias"] == "BULLISH" or is_news:
-                        # Judas swing swept equal lows, displacement up
                         entry = float(m5_closes[-1])
                         sl = float(np.min(m5_lows)) - (0.50 if sym == "XAUUSD" else 0.0005)
                         risk = abs(entry - sl)
-                        tp = entry + (risk * 2.2)  # Asymmetric R:R >= 2.2
+                        tp = entry + (risk * 2.2)
                         trade = sim.execute_manipulation_trade("BUY", entry, sl, tp, bar_time, is_news_event=is_news)
                         if trade:
-                            # Advance tick to target or stop
                             sim.process_price_tick(tp + 0.1, bar_time + timedelta(minutes=45))
                     else:
                         entry = float(m5_closes[-1])
@@ -737,10 +786,8 @@ def run_multitimeframe_pipeline(
         }
         all_closed_trades.extend(sim.closed_trades)
 
-    # Continuous Learning Adaptation
     epoch_res = learning_engine.adapt_epoch(f"{start_date}_to_{end_date}", all_closed_trades)
 
-    # 3-Tier Research Memory Recording
     for t in all_closed_trades[:10]:
         memory_bridge.record_l1_fact(
             t["symbol"],
@@ -756,7 +803,6 @@ def run_multitimeframe_pipeline(
 
     bundle_exported = memory_bridge.export_incubation_knowledge_bundle(knowledge_bundle_path)
 
-    # Metrics computation
     total_trades = len(all_closed_trades)
     wins = [t for t in all_closed_trades if t.get("pnl", 0) > 0]
     win_rate = len(wins) / total_trades if total_trades > 0 else 0.0
