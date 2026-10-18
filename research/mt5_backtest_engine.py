@@ -198,6 +198,7 @@ class MT5BrokerBacktestEngine:
         self.spread_pips = spread_pips
         self.slippage_pips = slippage_pips
         self.commission_per_lot = commission_per_lot
+        self._data_source = "unknown"
 
         if journal_path is not None and db_path is not None and journal_path != db_path:
             raise ValueError(
@@ -327,6 +328,7 @@ class MT5BrokerBacktestEngine:
         count: int = 1000,
     ) -> pd.DataFrame:
         """Fetch market data from MT5 using server-to-UTC converted pipeline."""
+        self._data_source = "live"
         try:
             from data.market_data_provider import fetch_ohlc
             df = fetch_ohlc(symbol=symbol, timeframe=timeframe, count=count)
@@ -344,7 +346,19 @@ class MT5BrokerBacktestEngine:
         except Exception:
             pass
 
-        # Deterministic test fixture fallback if MT5 terminal is completely detached
+        # Deterministic test fixture fallback if MT5 terminal is completely detached.
+        # This is ONLY allowed when explicitly opted in via env var (for CI/testing).
+        # In production, a missing data source must fail closed — never produce
+        # fake metrics that could flow into promotion gates or the trial ledger.
+        if os.getenv("MT5_BACKTEST_ALLOW_SYNTHETIC", "").strip().lower() not in ("1", "true", "yes"):
+            raise RuntimeError(
+                "fetch_market_data: no live MT5/data source available and "
+                "MT5_BACKTEST_ALLOW_SYNTHETIC is not set — refusing to "
+                "synthesize fake market data for backtesting."
+            )
+        logger.warning("fetch_market_data: using SYNTHETIC fixture data (seed=42) — "
+                       "results are NOT real market evidence.")
+        self._data_source = "synthetic"
         np.random.seed(42)
         dt_index = pd.date_range(end=pd.Timestamp.now(tz="UTC"), periods=count, freq="15min")
         returns = np.random.normal(0.0001, 0.0015, count)
@@ -884,6 +898,7 @@ class MT5BrokerBacktestEngine:
             "friction_breakdown": self.last_friction_breakdown,
             "broker_specs": self.last_broker_specs,
             "data_improvement": data_improvement or {},
+            "data_source": getattr(self, "_data_source", "unknown"),
         }
         report_json = json.dumps(report_payload, default=str)
         report_hash = hashlib.sha256(report_json.encode()).hexdigest()
@@ -1144,6 +1159,7 @@ class MT5BrokerBacktestEngine:
             "timeframe": timeframe,
             "strategy_name": strategy_name,
             "completed_at": datetime.now(timezone.utc).isoformat(),
+            "data_source": getattr(self, "_data_source", "unknown"),
             "broker_specs": broker_specs,
             "metrics": metrics.to_dict(),
             "data_improvement": data_improvement,

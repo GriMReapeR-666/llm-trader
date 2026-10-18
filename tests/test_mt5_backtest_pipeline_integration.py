@@ -188,6 +188,7 @@ def test_journaling_and_reflection(sample_bars, temp_db):
 
 
 def test_run_full_autonomous_backtest(temp_db):
+    os.environ["MT5_BACKTEST_ALLOW_SYNTHETIC"] = "1"
     engine = MT5BrokerBacktestEngine(db_path=temp_db)
     full_res = engine.run_full_autonomous_backtest(
         symbol="EURUSD",
