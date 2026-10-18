@@ -2003,9 +2003,16 @@ class LLMOrchestrator:
                         else:
                              response_content = str(response_content)
                     
+                    _reasoning_trace = getattr(response_content, "reasoning", None) or ""
                     response_content = response_content.strip()
                     self._last_llm_trace["response_hash"] = hashlib.sha256(response_content.encode("utf-8")).hexdigest() if response_content else ""
                     self._last_llm_trace["response_chars"] = len(response_content)
+                    if _reasoning_trace:
+                        self._last_llm_trace["reasoning_trace"] = _reasoning_trace
+                        logging.getLogger("LLMOrchestrator").info(
+                            "🧠 LLM Reasoning Trace (%d chars):\n%s",
+                            len(_reasoning_trace), _reasoning_trace
+                        )
 
                     # DEBUG: Log raw content
                     logging.getLogger("LLMOrchestrator").info(f"Raw LLM Response ({len(response_content)} chars, Attempt {attempt+1}/{max_retries}): {response_content[:100]}...")
@@ -2160,7 +2167,13 @@ class LLMOrchestrator:
                 for k, v in defaults.items():
                     if k not in decision or decision[k] is None:
                         decision[k] = v
-                        
+
+                _reasoning_trace = self._last_llm_trace.get("reasoning_trace", "")
+                if _reasoning_trace:
+                    decision["reasoning_trace"] = _reasoning_trace
+                    if decision.get("reasoning") == defaults["reasoning"] or not decision.get("reasoning"):
+                        decision["reasoning"] = _reasoning_trace
+
                 # 3. Handle specific formatting (Action uppercase)
                 decision["action"] = str(decision["action"]).upper()
                 # Deterministic provider-failure HOLD must never escalate to a trade.
@@ -6032,7 +6045,7 @@ class LLMOrchestrator:
         "position_reconcile": 10.0,
         "incident_sweep": 5.0,
         "alloc_rebalance": 10.0,
-        "causal_edge_validate": 15.0,
+        "causal_edge_validate": 78.4,  # raised from 15.0s: 18 overruns (3.2% trip of 569 dispatches); p95 over-by 37.28s / median 7.58s
         "catalog_measurement_pass": 20.0,
         "lifecycle_evaluation": 20.0,
         "session_review": 30.0,
@@ -6431,6 +6444,30 @@ class LLMOrchestrator:
             logging.getLogger("LLMOrchestrator").debug("Autonomous workflow evaluation skipped: %s", exc)
             return None
 
+    _SCHEDULE_CLOSED_INTERVAL_OVERRIDES = {
+        # Schedules whose work is bar- or feed-driven: widening them while the
+        # market is closed removes idle churn (they cannot produce admissible
+        # evidence with no bars flowing). Ranks excluded on purpose:
+        # alert_dispatch / incident_sweep (operator-critical latency) and
+        # position_reconcile / market_health (risk & observability floors).
+        "sieve_poll": 900,              # 60s -> 15 min while closed
+        "bar_synchronized_auction": 300,  # 60s -> 5 min; auctions live with bars
+    }
+
+    def _market_closed_now(self) -> bool:
+        """True when the host market is effectively closed (weekend/holiday).
+
+        Conservative: an unavailable holiday source falls back to the UTC
+        weekend rule only. Intraday FX gaps are NOT treated as closed — only
+        whole-session closures are.
+        """
+        if datetime.now(timezone.utc).weekday() >= 5:  # Sat/Sun
+            return True
+        try:
+            return bool(self.data_provider.api_manager.is_holiday())
+        except Exception:
+            return False
+
     def _process_due_schedules(self, symbol: str, paper_mode: bool) -> None:
         """Run restart-safe maintenance schedules on every pulse.
 
@@ -6463,6 +6500,10 @@ class LLMOrchestrator:
         tuning ``_SCHEDULE_HANDLER_BUDGETS``.
         """
         batch_started = time.time()
+        try:
+            market_closed = self._market_closed_now()
+        except Exception:  # noqa: BLE001 - cadence adaptation is best-effort
+            market_closed = False
         guard = self._HandlerGuard()
         # Session-skip watchdog: flag schedules that have not even been
         # DISPATCHED for far beyond their cadence (the 2026-09-26 audit found
@@ -6549,9 +6590,20 @@ class LLMOrchestrator:
             # fail-soft like the rest of the bookkeeping (a failed completion
             # leaves the lease to expire, which re-claims the row later).
             try:
-                self.operations.complete_schedule_dispatch(
-                    schedule_name, str(scheduled.get("claimed_at") or ""),
-                    "COMPLETED")
+                interval_override = None
+                if market_closed and schedule_name in self._SCHEDULE_CLOSED_INTERVAL_OVERRIDES:
+                    interval_override = self._SCHEDULE_CLOSED_INTERVAL_OVERRIDES[schedule_name]
+                if interval_override is None:
+                    # 3-argument form preferred when no override: dispatchers
+                    # and test fakes that predate the adaptive-cadence hook
+                    # only implement the base signature.
+                    self.operations.complete_schedule_dispatch(
+                        schedule_name, str(scheduled.get("claimed_at") or ""),
+                        "COMPLETED")
+                else:
+                    self.operations.complete_schedule_dispatch(
+                        schedule_name, str(scheduled.get("claimed_at") or ""),
+                        "COMPLETED", interval_override=interval_override)
             except Exception as exc:  # noqa: BLE001
                 logging.getLogger("LLMOrchestrator").debug(
                     "schedule dispatch completion failed for %s: %s",

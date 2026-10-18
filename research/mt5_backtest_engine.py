@@ -13,7 +13,7 @@ import sys
 import time
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, Sequence
+from typing import Any, Callable, Dict, List, Optional, Tuple, Sequence
 
 import numpy as np
 import pandas as pd
@@ -389,6 +389,8 @@ class MT5BrokerBacktestEngine:
         timeframe: str = "M15",
         sl_pips: float = 30.0,
         tp_pips: float = 60.0,
+        entry_signal_scores: Optional[Sequence[float]] = None,
+        entry_signal_threshold: float = 1.0,
     ) -> BacktestMetrics:
         """Run EMA crossover strategy with broker friction simulation.
 
@@ -400,6 +402,16 @@ class MT5BrokerBacktestEngine:
         ``INSUFFICIENT_DATA`` by ``process_data_improvement``; the fix here is to
         keep the backtest entrypoints from raising a different error shape down
         the stack.
+
+        External-signal mode (per-strategy registry wiring): when
+        ``entry_signal_scores`` is provided, entries come from the supplied
+        causal score array instead of the EMA cross — score >= threshold ->
+        long, score <= -threshold -> short, |score| < threshold -> entry.
+        Geometry (ATR stops), gates, sizing, and management stay shared with
+        the crossover path so cross-label comparisons remain apples-to-apples
+        on execution. A length mismatch raises — building entries from a
+        misaligned signal would silently trade a different ruleset under this
+        label's name.
         """
         missing_cols = [c for c in ("open", "high", "low", "close") if c not in bars_df.columns]
         if bars_df.empty or missing_cols:
@@ -410,10 +422,22 @@ class MT5BrokerBacktestEngine:
             return BacktestMetrics()
 
         close = bars_df["close"].values
-        fast_ema = pd.Series(close).ewm(span=fast_period, adjust=False).mean().values
-        slow_ema = pd.Series(close).ewm(span=slow_period, adjust=False).mean().values
-        entries_long = (fast_ema > slow_ema)
-        entries_short = (fast_ema < slow_ema)
+        if entry_signal_scores is not None:
+            scores = np.asarray(entry_signal_scores, dtype=np.float64)
+            if scores.shape[0] != len(close):
+                raise ValueError(
+                    "entry_signal_scores length %d != bars %d; refusing to trade "
+                    "a misaligned signal under this label" % (scores.shape[0], len(close))
+                )
+            entries_long = scores >= entry_signal_threshold
+            entries_short = scores <= -entry_signal_threshold
+            ruleset_name = f"external_signal_t{entry_signal_threshold:g}"
+        else:
+            fast_ema = pd.Series(close).ewm(span=fast_period, adjust=False).mean().values
+            slow_ema = pd.Series(close).ewm(span=slow_period, adjust=False).mean().values
+            entries_long = (fast_ema > slow_ema)
+            entries_short = (fast_ema < slow_ema)
+            ruleset_name = f"crossover_{fast_period}_{slow_period}"
 
         return self.run_strategy_backtest(
             bars_df=bars_df,
@@ -423,7 +447,7 @@ class MT5BrokerBacktestEngine:
             timeframe=timeframe,
             sl_pips=sl_pips,
             tp_pips=tp_pips,
-            strategy_name=f"crossover_{fast_period}_{slow_period}",
+            strategy_name=ruleset_name,
         )
 
     def run_strategy_backtest(
@@ -807,6 +831,10 @@ class MT5BrokerBacktestEngine:
                 sharpe=metrics.sharpe_ratio,
                 n_observations=metrics.total_trades or 50,
                 returns=metrics.r_multiples,
+                # Run-level trade count: the gate's tiny-sample floor decides
+                # on what this run actually traded, not the ledger-wide
+                # family size.
+                n_trades=metrics.total_trades,
             )
             improvement["dsr_gate"] = {
                 "passed": bool(dsr_report.passed_gate),
@@ -814,6 +842,8 @@ class MT5BrokerBacktestEngine:
                 "raw_sharpe": round(float(dsr_report.raw_sharpe), 4),
                 "expected_max_sharpe": round(float(dsr_report.expected_max_sharpe), 4),
                 "n_trials": int(dsr_report.n_trials),
+                "n_trades": int(dsr_report.n_trades),
+                "trades_floor_met": bool(dsr_report.trades_floor_met),
             }
         except Exception as exc:
             improvement["dsr_gate"]["error"] = str(exc)
@@ -1078,6 +1108,8 @@ class MT5BrokerBacktestEngine:
         sl_pips: float = 30.0,
         tp_pips: float = 60.0,
         journal_path: Optional[str] = None,
+        signal_builder: Optional[Callable[[pd.DataFrame], Any]] = None,
+        entry_signal_threshold: float = 1.0,
     ) -> Dict[str, Any]:
         """Orchestrate the complete autonomous end-to-end backtesting pipeline:
         1. Live MT5 Broker Data & Specifications Acquisition
@@ -1101,15 +1133,30 @@ class MT5BrokerBacktestEngine:
         data_improvement = self.process_data_improvement(bars_df, symbol, timeframe)
 
         # 3. Run Strategy Backtest Simulation
-        metrics = self.run_crossover_strategy(
-            bars_df=bars_df,
-            fast_period=fast_period,
-            slow_period=slow_period,
-            symbol=symbol,
-            timeframe=timeframe,
-            sl_pips=sl_pips,
-            tp_pips=tp_pips,
-        )
+        run_kwargs: Dict[str, Any] = {
+            "bars_df": bars_df,
+            "fast_period": fast_period,
+            "slow_period": slow_period,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "sl_pips": sl_pips,
+            "tp_pips": tp_pips,
+        }
+        if signal_builder is not None:
+            # Per-label external-signal mode: the builder sees exactly the bars
+            # this simulation will trade, so score/bar alignment is guaranteed
+            # by construction. A misaligned or failing builder must fail the
+            # run loudly — building generic entries and stamping this label on
+            # them is the bug the per-strategy registry exists to kill.
+            scores = np.asarray(signal_builder(bars_df), dtype=np.float64)
+            if scores.shape[0] != len(bars_df):
+                raise ValueError(
+                    "signal builder produced %d scores for %d bars"
+                    % (scores.shape[0], len(bars_df))
+                )
+            run_kwargs["entry_signal_scores"] = scores
+            run_kwargs["entry_signal_threshold"] = entry_signal_threshold
+        metrics = self.run_crossover_strategy(**run_kwargs)
 
         config_summary = {
             "symbol": symbol,

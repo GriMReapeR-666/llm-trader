@@ -60,6 +60,12 @@ lessons.jsonl
 approvals_outbox.jsonl
 .security_audit_cache.json
 data/state/
+data/candle_archive/
+data/ewc_state_*.json
+data/meta_adaptive_*.json
+data/*_report.json
+*code_versions.json
+*.parquet
 
 # ==============================================================================
 # HEAVY BINARIES, MODELS & CACHES (NEVER COMMIT)

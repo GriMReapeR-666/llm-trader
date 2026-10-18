@@ -667,12 +667,17 @@ def get_brain_realtime_news(symbol: str = ""):
 
 @app.get("/api/config/models")
 def get_models():
-    """Return list of available models (Free + Standard)"""
-    models = [
-        {"id": "gpt-oss-120b", "name": "Cerebras: GPT-OSS 120B (billing-blocked)", "provider": "Cerebras"},
-    ]
-    
-    # 1. Fetch from OpenRouter
+    """Return list of available models across all configured providers."""
+    try:
+        from data.llm_router import get_router
+        router = get_router()
+        models = router.get_available_models()
+        existing_ids = {m["id"] for m in models}
+    except Exception:
+        models = []
+        existing_ids = set()
+
+    # 1. Fetch live OpenRouter free models if key exists
     import requests
     try:
         api_key = os.getenv("OPENROUTER_API_KEY")
@@ -689,31 +694,32 @@ def get_models():
                     p_prompt = float(pricing.get('prompt', 0))
                     p_comp = float(pricing.get('completion', 0))
                     is_free = (p_prompt == 0 and p_comp == 0)
-                    
-                    # Only add Free models OR popular paid ones
-                    if is_free:
-                         models.append({
-                             "id": m['id'],
-                             "name": f"{m.get('name')} (Free)",
-                             "provider": "OpenRouter"
-                         })
+                    if is_free and m['id'] not in existing_ids:
+                        models.append({
+                            "id": m['id'],
+                            "name": f"{m.get('name')} (Free)",
+                            "provider": "OpenRouter"
+                        })
+                        existing_ids.add(m['id'])
     except Exception as e:
         print(f"Failed to fetch OpenRouter models: {e}")
-        
-    # 2. Add Standard Fallbacks if fetching failed or just to ensure they exist
+
+    # Fallbacks to guarantee presence of core models
     fallbacks = [
+        {"id": "nvidia/nemotron-3-super-120b-a12b", "name": "NVIDIA Nemotron 3 Super 120B", "provider": "NVIDIA NIM"},
+        {"id": "nvidia/nemotron-3-super-120b-a12b:free", "name": "OpenRouter: Nemotron 3 Super 120B (Free)", "provider": "OpenRouter"},
         {"id": "mistralai/mistral-nemo", "name": "OpenRouter: Mistral Nemo (Free)", "provider": "OpenRouter"},
         {"id": "meta-llama/llama-3.3-70b-instruct", "name": "OpenRouter: Llama 3.3 70B (Free)", "provider": "OpenRouter"},
         {"id": "qwen/qwen3-8b", "name": "OpenRouter: Qwen3 8B (Free)", "provider": "OpenRouter"},
-        {"id": "openai/gpt-4-turbo", "name": "GPT-4 Turbo (Paid)", "provider": "OpenRouter"}
+        {"id": "openai/gpt-4-turbo", "name": "GPT-4 Turbo (Paid)", "provider": "OpenRouter"},
+        {"id": "qwen-3.8-27b", "name": "Cerebras: Qwen 3.8 27B", "provider": "Cerebras"},
+        {"id": "gpt-oss-120b", "name": "Cerebras: GPT-OSS 120B (billing-blocked)", "provider": "Cerebras"},
     ]
-    
-    # Add fallbacks if not already present
-    existing_ids = {m['id'] for m in models}
     for fb in fallbacks:
         if fb['id'] not in existing_ids:
             models.append(fb)
-            
+            existing_ids.add(fb['id'])
+
     return models
 
 @app.post("/api/internal/update")

@@ -961,7 +961,8 @@ class AgentOperations:
         return due
 
     def complete_schedule_dispatch(self, schedule_name: str, claimed_at: str,
-                                   status: str = "COMPLETED") -> bool:
+                                   status: str = "COMPLETED",
+                                   interval_override: Optional[int] = None) -> bool:
         """Advance cadence for one dispatched schedule (or release its claim).
 
         ``status='COMPLETED'`` re-stamps ``last_run_at`` to the completion
@@ -971,6 +972,12 @@ class AgentOperations:
         the claim, so the dispatch's cadence turn survives an abandoned
         dispatch. Both are guarded by ``claimed_at`` (the claim token), so a
         completion from a superseded claim can never touch the row.
+
+        ``interval_override`` (>0 int) replaces the row's stored interval for
+        THIS advance only — the dispatcher's tool for market-state-adaptive
+        cadence (e.g. widen a polling schedule while the market is closed).
+        It never touches the row: the next dispatch returns to the stored
+        interval unless the override is passed again.
         """
         if status not in ("COMPLETED", "SKIPPED"):
             raise ValueError("schedule dispatch status must be COMPLETED or SKIPPED")
@@ -992,6 +999,8 @@ class AgentOperations:
                     (name, token))
                 return True
             interval = int(row["interval_seconds"])
+            if isinstance(interval_override, int) and interval_override > 0:
+                interval = interval_override
             try:
                 due_at = datetime.fromisoformat(str(row["next_run_at"]).replace("Z", "+00:00"))
                 if due_at.tzinfo is None:

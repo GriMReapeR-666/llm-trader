@@ -347,6 +347,48 @@ def test_schedule_claim_skipped_status_keeps_cadence_turn(tmp_path):
     assert ops.claim_due_schedules(), "released row must be immediately re-claimable"
 
 
+def test_schedule_completion_honors_interval_override(tmp_path):
+    """interval_override widens ONE advance without touching the row: the
+    market-closed widening in the dispatcher must not leak into the next
+    open-market dispatch, and must not fire for SKIPPED.
+    """
+    ops = AgentOperations(str(tmp_path / "schedule-override.db"))
+    ops.register_schedule("sieve_poll", "ResearchAgent", 60)
+    now = datetime.now(timezone.utc)
+    with ops._con() as con:
+        con.execute("UPDATE agent_schedules SET next_run_at=? WHERE schedule_name='sieve_poll'",
+                    ((now - timedelta(seconds=120)).isoformat(),))
+
+    claim = ops.claim_due_schedules()[0]
+    assert ops.complete_schedule_dispatch(
+        "sieve_poll", claim["claimed_at"], "COMPLETED", interval_override=900) is True
+    with ops._con() as con:
+        row = con.execute(
+            "SELECT interval_seconds,next_run_at,last_run_at FROM agent_schedules WHERE schedule_name='sieve_poll'"
+        ).fetchone()
+    assert row["interval_seconds"] == 60, "stored cadence must be untouched by the override"
+    advanced = (datetime.fromisoformat(row["next_run_at"])
+                - datetime.fromisoformat(row["last_run_at"])).total_seconds()
+    # next_run = due_point + 900s (advance anchors on the ORIGINAL due point,
+    # minus the ~120s already elapsed since it became due).
+    assert 650 <= advanced <= 905, "widen landed as ~one 900s step: %s" % advanced
+    assert ops.claim_due_schedules() == [], "not due again while the widened window runs out"
+
+    # Persisted override is one-shot: next completion returns to the stored 60s.
+    with ops._con() as con:
+        con.execute("UPDATE agent_schedules SET next_run_at=? WHERE schedule_name='sieve_poll'",
+                    ((datetime.now(timezone.utc) - timedelta(seconds=120)).isoformat(),))
+    claim2 = ops.claim_due_schedules()[0]
+    assert ops.complete_schedule_dispatch("sieve_poll", claim2["claimed_at"]) is True
+    with ops._con() as con:
+        row2 = con.execute(
+            "SELECT next_run_at,last_run_at FROM agent_schedules WHERE schedule_name='sieve_poll'"
+        ).fetchone()
+    advanced2 = (datetime.fromisoformat(row2["next_run_at"])
+                 - datetime.fromisoformat(row2["last_run_at"])).total_seconds()
+    assert 55 <= advanced2 <= 70, "next completion must return to the stored 60s: %s" % advanced2
+
+
 def test_schedule_claim_guards_superseded_tokens_and_expired_leases(tmp_path):
     """Completions and releases only act on the CURRENT claim token; an
     expired lease (crashed dispatch) is re-claimable with cadence intact."""

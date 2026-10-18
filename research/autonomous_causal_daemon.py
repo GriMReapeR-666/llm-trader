@@ -473,4 +473,20 @@ def run_autonomous_causal_cycle(cycle_id: int = 1) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    run_autonomous_causal_cycle(cycle_id=1)
+    cid = 1
+    if len(sys.argv) > 1:
+        try:
+            cid = int(sys.argv[1])
+        except ValueError:
+            cid = 1
+    else:
+        try:
+            t_mem = TradingMemory(db_path=os.path.join("data", "research_memory.db"))
+            with t_mem._con() as c:
+                row = c.execute("SELECT count(*) FROM verified_memories WHERE source_id LIKE 'DAEMON_CYCLE_%'").fetchone()
+                if row and row[0] is not None:
+                    cid = int(row[0]) + 1
+        except Exception:
+            cid = 1
+    run_autonomous_causal_cycle(cycle_id=cid)
+

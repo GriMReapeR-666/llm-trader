@@ -43,7 +43,7 @@ if "%~1"=="" (
         )
         echo [PREFLIGHT] Compact-context probe GREEN.
     )
-    python -u mt5_trader.py llm-trade --paper --symbol EURUSD --timeframe AUTO --model meta/llama-3.2-11b-vision-instruct --risk-per-trade 1.0 --continuous
+    python -u mt5_trader.py llm-trade --paper --symbol AUTO --timeframe AUTO --model meta/llama-3.2-11b-vision-instruct --risk-per-trade 1.0 --continuous
     goto :done
 )
 

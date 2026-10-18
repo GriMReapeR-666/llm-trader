@@ -30,6 +30,8 @@ from typing import Any, Dict, List, Optional, Tuple, Sequence
 
 import numpy as np
 import pandas as pd
+import warnings
+warnings.filterwarnings("ignore", message=".*no explicit representation of timezones.*")
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -325,7 +327,10 @@ class MultiTimeframeDataSynchronizer:
 
         raw = self.data_cache[symbol]
         slices = {}
-        cutoff_dt64 = np.datetime64(cutoff_time)
+        if hasattr(cutoff_time, "tzinfo") and cutoff_time.tzinfo is not None:
+            cutoff_dt64 = np.datetime64(pd.Timestamp(cutoff_time).tz_localize(None))
+        else:
+            cutoff_dt64 = np.datetime64(cutoff_time)
 
         for tf, df in raw.items():
             if "time" in df.columns and len(df) > 0:
@@ -498,9 +503,10 @@ class MTFExecutionSimulator:
     def process_price_tick(
         self,
         current_price: float,
-        current_time: datetime
+        current_time: datetime,
+        force_close: bool = False
     ) -> List[Dict[str, Any]]:
-        """Updates open positions and closes when SL or TP is reached."""
+        """Updates open positions and closes when SL or TP is reached (or when force_close=True)."""
         just_closed = []
         remaining = []
 
@@ -531,6 +537,12 @@ class MTFExecutionSimulator:
                     outcome = "LOSS"
                     pts = pos["entry_price"] - current_price
                     pnl = pts * (100000 * pos["lot_size"] if self.symbol == "EURUSD" else 100 * pos["lot_size"])
+
+            if not closed and force_close:
+                closed = True
+                pts = (current_price - pos["entry_price"]) if pos["direction"] == "BUY" else (pos["entry_price"] - current_price)
+                pnl = pts * (100000 * pos["lot_size"] if self.symbol == "EURUSD" else 100 * pos["lot_size"])
+                outcome = "WIN" if pnl > 0 else ("LOSS" if pnl < 0 else "BREAKEVEN")
 
             if closed:
                 pos["close_price"] = current_price

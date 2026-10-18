@@ -45,6 +45,25 @@ _NET_FAIL_COUNT = 0
 _NET_FAIL_UNTIL = 0.0
 
 
+class _DelistedNoiseFilter(logging.Filter):
+    """Demote yfinance's own 'possibly delisted' ERROR spam.
+
+    Exchange-closed/weekend futures ($CL=F, $NG=F, ...) legitimately return
+    an empty 1d history and yfinance logs its generic 'possibly delisted'
+    ERROR per symbol on every boot and maintenance sweep. The information
+    value of each line is nil (the breaker already models empties as
+    potential outages); demoting to rendertime silence keeps outages
+    readable. Network/parse failures and other messages pass through.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003
+        return "possibly delisted" not in record.getMessage()
+
+
+if YFINANCE_AVAILABLE:
+    logging.getLogger("yfinance").addFilter(_DelistedNoiseFilter())
+
+
 class YahooFinanceProvider:
     """Provides market data from Yahoo Finance"""
 
@@ -66,8 +85,18 @@ class YahooFinanceProvider:
     def _record_net_success(self) -> None:
         global _NET_FAIL_COUNT
         with _NET_FAIL_LOCK:
-            if _NET_FAIL_COUNT:
-                self.log.info("Yahoo Finance connectivity recovered")
+            if _NET_FAIL_COUNT >= self.NET_FAIL_THRESHOLD:
+                # A real breaker episode opened: an explicit recovery line is
+                # warranted (the operator was warned about the outage).
+                self.log.info("Yahoo Finance connectivity recovered after %d failures",
+                              _NET_FAIL_COUNT)
+            elif _NET_FAIL_COUNT:
+                # Transient single-symbol empties (weekend-closed futures
+                # surface as yfinance 'possibly delisted' empty frames).
+                # Logging a recovery per symbol pairs with every failure line
+                # in the shared counter — alternating noise on every boot.
+                # Keep at DEBUG; breaker semantics unchanged.
+                self.log.debug("Yahoo transient failures cleared (%d)", _NET_FAIL_COUNT)
             _NET_FAIL_COUNT = 0
             globals()["_NET_FAIL_UNTIL"] = 0.0
 

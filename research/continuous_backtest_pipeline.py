@@ -30,9 +30,10 @@ import logging
 import os
 import sys
 import time
+import numpy as np
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -373,6 +374,33 @@ class ContinuousBacktestPipeline:
 
         strategy_id = str(strategy_name)
         engine = MT5BrokerBacktestEngine()
+        # Per-strategy registry wiring (PU-0156 §8.1): a registered label runs
+        # its OWN causal entry signal through the engine's external-signal mode,
+        # so its stage-1 metrics describe that hypothesis, not the generic EMA
+        # crossover. The builder is invoked inside the engine on exactly the
+        # bars the engine will trade (score/bar alignment is guaranteed), and a
+        # failing or misaligned builder fails the stage loudly — never silently
+        # mislabeled as the generic ruleset. Unregistered labels ("default" and
+        # any non-registry name) keep the generic path, logged explicitly.
+        signal_builder: Optional[Callable[[Any], Any]] = None
+        try:
+            from research.strategy_signal_registry import build_signal, has_signal
+        except ImportError:  # pragma: no cover - flat-layout fallback
+            from strategy_signal_registry import build_signal, has_signal
+        if has_signal(strategy_id):
+            def signal_builder(bdf: Any) -> Any:
+                return build_signal(
+                    strategy_id,
+                    bdf["close"].to_numpy(dtype=np.float64),
+                    bdf["high"].to_numpy(dtype=np.float64),
+                    bdf["low"].to_numpy(dtype=np.float64),
+                )
+        elif strategy_id != "default":
+            log.warning(
+                "Backtest for '%s': no signal in strategy_signal_registry — running "
+                "the generic ruleset (metrics describe the crossover ruleset, "
+                "NOT this label).", strategy_id,
+            )
         res = engine.run_full_autonomous_backtest(
             symbol=symbol,
             strategy_name=strategy_id,
@@ -382,6 +410,8 @@ class ContinuousBacktestPipeline:
             slow_period=26,
             sl_pips=30.0,
             tp_pips=60.0,
+            signal_builder=signal_builder,
+            entry_signal_threshold=1.0,
         )
         if not isinstance(res, dict):
             res = {"status": "OK", "result": res}
@@ -432,6 +462,30 @@ class ContinuousBacktestPipeline:
         k = int(backtest_res.get("n_trials", backtest_res.get("n_trades", 0)) or 0)
         if n_obs <= 0 or k <= 0:
             return {"status": "SKIPPED", "reason": "insufficient observations", "deflated_sharpe": 0.0}
+
+        # Tiny-sample floor (run-level): a deflated Sharpe computed over a
+        # handful of executed trades has no statistical meaning — a 4-trade
+        # annualized Sharpe of ~14 cleared the compound 'deflated >= 0.95'
+        # comparison and stamped the whole validation as PASSED. The floor
+        # is decided on what THIS run actually traded (total_trades), not on
+        # the ledger-wide multiple-testing family (n_trials). FAILED — not
+        # SKIPPED — because the stage ran and measured a real breach; a
+        # skipped gate also blocks, but here the evidence is conclusive.
+        try:
+            from research.backtest_dsr_integrator import MIN_TRADES_FOR_DSR
+        except ImportError:  # pragma: no cover - flat-layout fallback
+            from backtest_dsr_integrator import MIN_TRADES_FOR_DSR
+        _run_trades = int(backtest_res.get("total_trades", backtest_res.get("n_trades", 0)) or 0)
+        if _run_trades < MIN_TRADES_FOR_DSR:
+            return {
+                "status": "FAILED",
+                "reason": "insufficient_trades",
+                "n_trades": _run_trades,
+                "min_trades_required": MIN_TRADES_FOR_DSR,
+                "sharpe": sharpe,
+                "deflated_sharpe": 0.0,
+                "passed": False,
+            }
 
         periods = _periods_per_year(timeframe)
         if periods <= 0:
@@ -768,6 +822,13 @@ class ContinuousBacktestPipeline:
         blockers = []
         warnings = []
 
+        # Accept both the bare stage-map (engine path) and the full results
+        # wrapper ({"stages": {...}}) — callers pass either. Without this,
+        # a wrapper call saw an empty stage map and always reported
+        # backtest_failed.
+        if isinstance(stages, dict) and isinstance(stages.get("stages"), dict):
+            stages = stages["stages"]
+
         bt = stages.get("backtest", {}) if isinstance(stages, dict) else {}
 
         # Synthetic fixture data (seeded random walk) is NEVER authoritative
@@ -775,39 +836,62 @@ class ContinuousBacktestPipeline:
         if bt.get("data_source") == "synthetic":
             blockers.append("synthetic_data_not_authoritative")
 
-        # Check backtest
-        if bt.get("status") != "completed":
+        # Check backtest. Case-insensitive: the engine reports "COMPLETED"
+        # and the normalized stage carries it verbatim; comparing lowercase
+        # alone dead-wired every real verdict to FAIL (blockers=
+        # ['backtest_failed']) regardless of metric quality.
+        bt_status = str(bt.get("status", "")).upper()
+        if bt_status not in ("COMPLETED", "OK"):
             blockers.append("backtest_failed")
         else:
+            # Gate the metrics the payload actually carries. A real
+            # engine stage always includes them; a legacy/minimal fixture
+            # that omits one is not evidence of a bad value — treating a
+            # missing number as a zero blocked every minimal payload
+            # (profit_factor/expectancy_r absent -> automatic FAIL).
             if bt.get("sharpe", 0) < 1.0:
                 blockers.append("sharpe_below_1")
-            if bt.get("win_rate", 0) < 0.45:
-                warnings.append("low_win_rate")
-            if bt.get("profit_factor", 0) < 1.2:
+            pf = bt.get("profit_factor", None)
+            ex = bt.get("expectancy_r", None)
+            wr = bt.get("win_rate", None)
+            if pf is not None and pf < 1.2:
                 blockers.append("profit_factor_below_1.2")
-            if bt.get("expectancy_r", 0) <= 0:
+            if ex is not None and ex <= 0:
                 blockers.append("negative_expectancy")
+            if wr is not None and wr < 0.45:
+                warnings.append("low_win_rate")
 
-        # Check DSR
+        # Check DSR. Whichever spelling the stage uses ("OK" in the
+        # pipeline, "completed" in legacy fixtures), an explicitly rejected
+        # gate (passed is False) blocks the verdict; and a gate that was
+        # never evaluated (SKIPPED: insufficient samples) or died (FAILED:
+        # stage exception) cannot bless a strategy either — every real
+        # promotion needs a gate that actually ran. Absence of a passed
+        # flag on a completed stage never fabricates a failure.
         dsr = stages.get("dsr", {}) if isinstance(stages, dict) else {}
-        if dsr.get("status") == "completed" and not dsr.get("passed", False):
+        dsr_status = str(dsr.get("status", "")).upper()
+        if dsr_status == "FAILED":
+            blockers.append("dsr_gate_failed")
+        elif dsr_status == "SKIPPED":
+            blockers.append("dsr_gate_skipped")
+        elif dsr_status in ("OK", "COMPLETED") and dsr.get("passed", None) is False:
             blockers.append("dsr_gate_failed")
 
         # Check walk-forward
         wf = stages.get("walkforward", {}) if isinstance(stages, dict) else {}
-        if wf.get("status") == "completed":
+        if str(wf.get("status", "")).upper() in ("OK", "COMPLETED"):
             if wf.get("stability_score", 0) < 0.5:
                 warnings.append("low_stability_score")
 
         # Check live comparison
         lc = stages.get("live_comparison", {}) if isinstance(stages, dict) else {}
-        if lc.get("status") == "completed" and lc.get("significant_divergence", False):
+        if str(lc.get("status", "")).upper() in ("OK", "COMPLETED") and lc.get("significant_divergence", False):
             blockers.append("live_backtest_divergence")
 
         passed = len(blockers) == 0
         return {
             "passed": passed,
-            "status": "PASS" if passed else "FAIL",
+            "status": "PASSED" if passed else "FAILED",
             "blockers": blockers,
             "warnings": warnings,
         }

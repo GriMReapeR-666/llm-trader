@@ -4432,7 +4432,11 @@ def execute_skill(**kwargs):
                     _orch_factory_exc)
                 orch = None
         if orch is None:
-            orch = LLMOrchestrator(**orch_kwargs)
+            try:
+                orch = LLMOrchestrator(**orch_kwargs)
+            except Exception as _orch_ctor_exc:
+                logging.getLogger("main").exception("LLMOrchestrator construction failed: %s", _orch_ctor_exc)
+                raise
         # H4: fail rows a dead engine left ACKNOWLEDGED. They were claimed
         # but never applied; re-running them blindly could double-apply, so
         # the operator re-issues deliberately.
@@ -4951,7 +4955,6 @@ def execute_skill(**kwargs):
 
                             # 2. Alpha Discovery on historical bars
                             try:
-                                from data.market_data_provider import fetch_ohlc
                                 _hist_df = fetch_ohlc(_res_sym, _res_tf, count=200)
                                 if _hist_df is not None and len(_hist_df) >= 40:
                                     from core.alpha_discovery import AlphaDiscoveryEngine

@@ -39,46 +39,66 @@
 </head>
 <body>
 <h1>▣ Compliance Dashboard</h1>
-<p class='subtitle'>Generated: 2026-10-10 08:00:29 UTC | Period: 24h</p>
+<p class='subtitle'>Generated: 2026-10-18 05:53:50 UTC | Period: 24h</p>
 
 <div class='cards'>
 <div class='card'><div class='num'>↻ 0</div><div class='label'>Total Events</div></div>
-<div class='card'><div class='num'>▣ ✔</div><div class='label'>Chain Valid</div></div>
+<div class='card'><div class='num'>▣ </div><div class='label'>Chain Valid</div></div>
 <div class='card'><div class='num'>⚠ 0</div><div class='label'>Alerts</div></div>
-<div class='card'><div class='num'>≡ 0</div><div class='label'>S.Q Tasks</div></div>
-<div class='card'><div class='num'>✔ OK</div><div class='label'>Schedule Starvation</div></div>
+<div class='card'><div class='num'>≡ ?</div><div class='label'>S.Q Tasks</div></div>
+<div class='card'><div class='num'>⚠ 14</div><div class='label'>Schedule Starvation</div></div>
 <div class='card'><div class='num'>≡ unknown</div><div class='label'>AlphaDiscovery</div></div>
 </div>
 
 <div class='section'>
 <h2>▣ Hash Chain Integrity</h2>
-<p>Status: <span class='ok'>VALID</span></p>
+<p>Status: <span class='crit'>BROKEN</span></p>
 <p>Entries verified: 0</p>
 <p>Duration: 0.0ms</p>
 </div>
 
 
 
-<div class='section'>
-<h2>✉ Operator Alert Outbox</h2>
-<table>
-<tr><th>Metric</th><th>Value</th></tr>
-<tr><td>Status</td><td><span class='badge badge-ok'>OK</span></td></tr>
-<tr><td>PENDING</td><td>0</td></tr>
-<tr><td>CLAIMED</td><td>0</td></tr>
-<tr><td>SENT</td><td>28</td></tr>
-<tr><td>EXPIRED</td><td>57</td></tr>
-<tr><td>Oldest pending</td><td>—</td></tr>
-<tr><td>Report captured at</td><td>2026-10-03T08:58:44.199663+00:00</td></tr>
-</table>
-</div>
+
 
 <div class='section'>
 <h2>◷ Schedule Starvation</h2>
-<p>Status: <span class='badge badge-ok'>OK</span> <span class='muted'>| window 24h | 0 scheduled dispatches</span></p>
+<p>Status: <span class='badge badge-warn'>WARN</span> <span class='muted'>| window 24h | 1058 scheduled dispatches</span></p>
 <table>
+<tr><th>Schedule</th><th>Handler overruns</th><th>Worst elapsed</th><th>Worst over-by</th><th>p50</th><th>p95</th><th>Last overrun</th></tr>
+<tr><td>causal_edge_validate</td><td>8</td><td>39.6s</td><td>24.6s</td><td>19.0s</td><td>39.6s</td><td>2026-10-17T21:28:34</td></tr>
+<tr><td>event_monitor</td><td>4</td><td>76.3s</td><td>16.3s</td><td>68.9s</td><td>76.3s</td><td>2026-10-17T21:58:24</td></tr>
+<tr><td>journal_maintenance</td><td>2</td><td>79.2s</td><td>34.2s</td><td>61.7s</td><td>79.2s</td><td>2026-10-17T20:15:51</td></tr>
 </table>
-<p class='ok'>No starvation telemetry in the last 24h (0 scheduled dispatches).</p>
+<h2>◷ Schedule Duty Cycle</h2>
+<table>
+<tr><th>Schedule</th><th>Claims</th><th>Span</th><th>Interval</th><th>Expected</th><th>Duty</th><th>Verdict</th></tr>
+<tr><td>market_health</td><td>177</td><td>7.5h</td><td>30s</td><td>899.7</td><td class='crit'>20%</td><td class='crit'>STARVED</td></tr>
+<tr><td>bar_synchronized_auction</td><td>108</td><td>7.5h</td><td>60s</td><td>449.8</td><td class='crit'>24%</td><td class='crit'>STARVED</td></tr>
+<tr><td>alert_dispatch</td><td>112</td><td>7.5h</td><td>60s</td><td>449.4</td><td class='crit'>25%</td><td class='crit'>STARVED</td></tr>
+<tr><td>event_monitor</td><td>112</td><td>7.5h</td><td>60s</td><td>449.4</td><td class='crit'>25%</td><td class='crit'>STARVED</td></tr>
+<tr><td>event_triage</td><td>112</td><td>7.5h</td><td>60s</td><td>449.4</td><td class='crit'>25%</td><td class='crit'>STARVED</td></tr>
+<tr><td>incident_sweep</td><td>112</td><td>7.5h</td><td>60s</td><td>449.4</td><td class='crit'>25%</td><td class='crit'>STARVED</td></tr>
+<tr><td>position_reconcile</td><td>112</td><td>7.5h</td><td>60s</td><td>449.4</td><td class='crit'>25%</td><td class='crit'>STARVED</td></tr>
+<tr><td>sieve_poll</td><td>112</td><td>7.5h</td><td>60s</td><td>449.4</td><td class='crit'>25%</td><td class='crit'>STARVED</td></tr>
+<tr><td>alloc_rebalance</td><td>28</td><td>7.5h</td><td>300s</td><td>89.7</td><td class='crit'>31%</td><td class='crit'>STARVED</td></tr>
+<tr><td>quant_workflow_sweep</td><td>28</td><td>7.5h</td><td>300s</td><td>89.7</td><td class='crit'>31%</td><td class='crit'>STARVED</td></tr>
+<tr><td>causal_edge_validate</td><td>11</td><td>7.5h</td><td>900s</td><td>29.9</td><td class='crit'>37%</td><td class='crit'>STARVED</td></tr>
+<tr><td>macro_event_evidence</td><td>10</td><td>2.1h</td><td>900s</td><td>8.5</td><td class='ok'>118%</td><td class='ok'>healthy</td></tr>
+<tr><td>catalog_measurement_pass</td><td>5</td><td>1.9h</td><td>1800s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>daily_review</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>economic_dynamics_seed</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>historical_regime_research</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>journal_maintenance</td><td>3</td><td>1.4h</td><td>3600s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>ledger_housekeeping</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>lifecycle_evaluation</td><td>3</td><td>1.4h</td><td>3600s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>macro_post_event_review</td><td>3</td><td>1.4h</td><td>3600s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>monthly_memory_archive</td><td>1</td><td>0h</td><td>2592000s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>outbox_archive</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>self_improvement</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>session_review</td><td>3</td><td>1.4h</td><td>3600s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+</table>
+<p class='muted'>Duty = claims vs cadence-expected over the claims' own span (scheduler tuning report computation); spans under 2h render without a ratio. All-time spans include trader-down hours, so ratios lower-bound real duty.</p>
 </div>
 
 <div class='section'>
@@ -95,16 +115,7 @@
 
 
 
-<div class='section'>
-<h2>≡ S.Q Priority Queue Status</h2>
-<table>
-<tr><th>Metric</th><th>Value</th></tr>
-<tr><td>pending</td><td>0</td></tr>
-<tr><td>running</td><td>0</td></tr>
-<tr><td>completed</td><td>0</td></tr>
-<tr><td>failed</td><td>0</td></tr>
-</table>
-</div>
+
 
 <div class='section'><h2>≡ Recent Audit Events</h2><p>No events recorded in this period.</p></div>
 

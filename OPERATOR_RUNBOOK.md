@@ -59,6 +59,10 @@ Single-shot: one spawn, then exits — a crashed boot is NOT re-spawned (no
 boot loops). History: the 10:04:10Z fire failed (`'START_TRADING.bat' is not
 recognized` — bare filename to `cmd /c`); fixed 10:27Z to spawn the absolute
 path. Verified live: 10:28:30Z spawn (2.78GB free) → `run_started` 10:29:17Z.
+Since 2026-10-18 the spawn uses `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP`,
+so a boot survives the death of the launcher session (live-proven: a harness
+restart cancelled the parent shell and the engine child died with it - lease
+went 7.8h stale).
 
 ### Watchers to have armed during/after a session
 | Watcher | Fires | Outputs |

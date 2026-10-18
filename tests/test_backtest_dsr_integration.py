@@ -163,6 +163,38 @@ class TestBacktestDSRIntegrator:
         assert isinstance(report.passed_gate, bool)
         assert report.dsr >= 0.0
 
+    def test_trade_floor_rejects_tiny_sample_regardless_of_sharpe(self):
+        """MIN_TRADES_FOR_DSR floor: a 4-trade Sharpe-14 run never passes the
+        gate — the exact incident shape from the PU-0156 campaign sweep,
+        where the deflated Sharpe hit 1.0 on the ledger-wide family size
+        while the run itself traded 4 times."""
+        from research.backtest_dsr_integrator import (
+            BacktestDSRIntegrator, MIN_TRADES_FOR_DSR,
+        )
+        assert MIN_TRADES_FOR_DSR == 30
+        integrator = BacktestDSRIntegrator()
+        report = integrator.validate_backtest(
+            strategy_id="four_trade_sharpe14",
+            sharpe=14.59,
+            n_observations=4,
+            n_trades=4,
+        )
+        assert report.passed_gate is False
+        assert report.verdict == "FAIL_INSUFFICIENT_TRADES"
+        assert report.trades_floor_met is False
+        assert report.n_trades == 4
+        assert report.min_trades_required == 30
+        # 30+ executed trades: the floor no longer decides on its own —
+        # the deflated-Sharpe arithmetic gets its turn.
+        ok = integrator.validate_backtest(
+            strategy_id="thirty_trade_baseline",
+            sharpe=1.5,
+            n_observations=200,
+            n_trades=30,
+        )
+        assert ok.trades_floor_met is True
+        assert ok.verdict != "FAIL_INSUFFICIENT_TRADES"
+
     def test_validate_with_returns_computes_sharpe(self):
         """validate_backtest_with_returns should compute Sharpe from returns."""
         from research.backtest_dsr_integrator import BacktestDSRIntegrator
