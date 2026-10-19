@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-19T02:31:07.823891+00:00",
+  "generated_at": "2026-10-19T03:30:50.123074+00:00",
   "total_approved_causal_edges": 22,
   "causal_edges": [
     {
@@ -211,6 +211,12 @@
   ],
   "top_verified_heuristics": [
     {
+      "id": 105,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #34: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
       "id": 104,
       "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
       "lesson": "Cycle #33: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
@@ -262,12 +268,6 @@
       "id": 96,
       "summary": "Deterministic Replay Mastery: MONETARY_TIGHTENING_INFLATION_SHOCK",
       "lesson": "In MONETARY_TIGHTENING_INFLATION_SHOCK, synchronized US_CPI_YOY surprise (+2.50 sigma) propagated into EURUSD SELL bias. RL executed TRAIL under XM Ultra Low costs, returning $+8.50.",
-      "confidence": 0.98
-    },
-    {
-      "id": 95,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #29: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
       "confidence": 0.98
     }
   ],
