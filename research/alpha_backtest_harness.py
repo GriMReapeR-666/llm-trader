@@ -1,9 +1,5 @@
 """Alpha Ensemble Backtest Harness — IC-Weighted vs Equal-Weight Validation.
 
-import logging
-import time
-
-logger = logging.getLogger(__name__)
 Runs both weighting schemes on the same OHLCV data and compares:
   - Sharpe ratio, Sortino ratio, Calmar ratio
   - Max drawdown, win rate, profit factor
@@ -19,6 +15,10 @@ comparison is deterministic and reproducible.  It also supports loading
 real data from CSV/JSON if available.
 """
 from __future__ import annotations
+import logging
+import time
+
+logger = logging.getLogger(__name__)
 
 import argparse
 import json
@@ -246,7 +246,7 @@ def load_mt5_bars(symbol: str, timeframe: str, n_bars: int) -> pd.DataFrame:
     if raw is None or len(raw) == 0:
         raise RuntimeError(f"MT5 returned no bars for {symbol} {timeframe}")
 
-    df = raw.reset_index()  # 'time' index → column
+    df = raw.reset_index()  # 'time' index -> column
     if "volume" not in df.columns:
         if "tick_volume" in df.columns:
             df = df.rename(columns={"tick_volume": "volume"})
@@ -259,6 +259,7 @@ def load_mt5_bars(symbol: str, timeframe: str, n_bars: int) -> pd.DataFrame:
         raise RuntimeError(
             f"MT5 bars missing OHLC columns {sorted(missing)}; got {list(df.columns)}"
         )
+
     df = df[keep]
     df["time"] = pd.to_datetime(df["time"])
     df = (

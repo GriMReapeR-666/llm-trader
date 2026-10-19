@@ -1,8 +1,5 @@
 """Secure credential store for MT5 accounts and provider keys.
 
-import logging
-
-logger = logging.getLogger(__name__)
 Hierarchy (fail-closed, never writes plaintext to accounts.json):
   1. OS keyring (preferred, if `keyring` installed)  -> service "llm-trader", key = account f"mt5:{login}:{server}"
   2. AES-GCM encrypted file `.secure_store.enc` (Fernet, key derived from machine id) fallback
@@ -14,6 +11,9 @@ All callers MUST use `store_password` / `retrieve_password` and reference via
 Never log secrets.
 """
 from __future__ import annotations
+import logging
+
+logger = logging.getLogger(__name__)
 import os
 import json
 import base64

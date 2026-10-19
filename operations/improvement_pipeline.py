@@ -16,7 +16,9 @@ class ImprovementPipeline:
         self._last_run = 0.0
         self._improvements_applied = 0
 
-    def run_cycle(self, cycle_num: int = 0) -> Dict[str, Any]:
+    def run_cycle(self, cycle_num: int = 0, cycle_count: Optional[int] = None, **kwargs: Any) -> Dict[str, Any]:
+        if cycle_count is not None and cycle_num == 0:
+            cycle_num = cycle_count
         self._cycle_count += 1
         self._last_run = time.time()
 

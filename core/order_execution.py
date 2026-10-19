@@ -831,7 +831,7 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
              "take_profit": numeric_tp, "lots": numeric_volume, "symbol": symbol},
             {},
         )
-        if _cte_eval.overall_verdict in (ConstraintVerdict.REJECT, ConstraintVerdict.HOLD):
+        if _cte_eval.overall_verdict in (ConstraintVerdict.REJECT,):
             raise RuntimeError(f"TradingConstraintEngine {_cte_eval.overall_verdict.value}: {_cte_eval.reject_reasons}")
     except RuntimeError:
         raise

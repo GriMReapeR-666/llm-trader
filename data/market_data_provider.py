@@ -1037,6 +1037,7 @@ class MarketDataProvider:
                 # latency on the market-order path.
                 _latency = 0.0
                 try:
+                    from core.order_execution import _symbol_tick
                     _lat_t0 = time.perf_counter()
                     _tick = _symbol_tick(symbol)
                     _latency = (time.perf_counter() - _lat_t0) * 1000.0

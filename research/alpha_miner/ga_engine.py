@@ -30,6 +30,51 @@ from .grid_selector import GridSelector, GridSelectionResult, ParentPoolManager
 
 logger = logging.getLogger(__name__)
 
+# ICEvaluator.evaluate_alpha builds its IC series from rolling 20-bar windows,
+# so consecutive values overlap by 19 bars. Only every _IC_SIGNIFICANCE_STRIDE-th
+# observation is an independent sample for a significance test.
+_IC_SIGNIFICANCE_STRIDE = 20
+
+
+def ic_significance(
+    ic_series,
+    n_trials: int = 1,
+    alpha: float = 0.05,
+) -> Tuple[float, float, float]:
+    """Two-sided t-test on the mean IC with Bonferroni trial deflation.
+
+    ``n_trials`` is the total number of hypotheses the mining campaign tested
+    (including this one), so a run that tried 18,000 expressions must clear
+    ``alpha / 18,000`` instead of a nominal 0.05. The rolling-IC series is
+    subsampled at the window stride so only non-overlapping windows enter the
+    test; overlapping values would silently inflate the t-statistic.
+
+    Returns ``(t_stat, p_value, p_threshold)``. Unmeasurable inputs (too few
+    independent windows, zero dispersion) return p=1.0 — fail closed.
+    """
+    from scipy import stats as sp_stats
+
+    trials = max(1, int(n_trials))
+    threshold = float(alpha) / trials
+    try:
+        values = np.asarray(pd.Series(ic_series).dropna(), dtype=float)
+    except Exception:
+        return 0.0, 1.0, threshold
+    values = values[np.isfinite(values)]
+    sample = values[::_IC_SIGNIFICANCE_STRIDE]
+    n = len(sample)
+    if n < 4:
+        return 0.0, 1.0, threshold
+    mean = float(np.mean(sample))
+    std = float(np.std(sample, ddof=1))
+    if not np.isfinite(std) or std <= 1e-12:
+        return 0.0, 1.0, threshold
+    t_stat = mean / (std / np.sqrt(n))
+    p_value = float(2.0 * sp_stats.t.sf(abs(t_stat), df=n - 1))
+    if not np.isfinite(p_value):
+        p_value = 1.0
+    return float(t_stat), p_value, threshold
+
 
 # ---------------------------------------------------------------------------
 # GA Configuration
@@ -97,7 +142,24 @@ class GAEvolutionResult:
     pca_result: Optional[PCAResult]
     selection_result: Optional[GridSelectionResult]
     config: GAConfig
-    
+    # Multiple-testing evidence: how many hypotheses were tried and which of
+    # the best frontier survived Bonferroni deflation.
+    n_trials: int = 0
+    significant_indices: List[int] = field(default_factory=list)
+    ic_pvalues: List[float] = field(default_factory=list)
+
+    @property
+    def n_significant(self) -> int:
+        return len(self.significant_indices)
+
+    @property
+    def significant_ics(self) -> List[float]:
+        return [self.best_ics[i] for i in self.significant_indices]
+
+    @property
+    def significant_expressions(self) -> List[AlphaExpression]:
+        return [self.best_expressions[i] for i in self.significant_indices]
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -105,7 +167,8 @@ class GAEvolutionResult:
             "best_ic_mean": np.mean(self.best_ics) if self.best_ics else 0.0,
             "best_ic_max": max(self.best_ics) if self.best_ics else 0.0,
             "n_total_evaluated": len(self.all_expressions),
-            "n_significant": len([ic for ic in self.best_ics if abs(ic) >= 0.02]),
+            "n_significant": self.n_significant,
+            "n_trials": self.n_trials,
             "evolution_history": self.evolution_history,
             "config": self.config.to_dict(),
         }
@@ -286,12 +349,37 @@ class GAEngine:
             pca_result = None
             selection_result = None
         
+        # Statistical significance of the best-IC frontier. The campaign tried
+        # ~population_size hypotheses per generation plus the final scoring
+        # pass, so 0.05 / n_trials is the Bonferroni bar — a fixed |IC| >= 0.02
+        # is not evidence at any sample size.
+        n_trials = max(
+            1,
+            int(self.config.population_size) * (int(self.config.generations) + 1),
+        )
+        significant_indices: List[int] = []
+        ic_pvalues: List[float] = []
+        for i, expr in enumerate(best_expressions):
+            ic_res = final_ic_results.get(expr.to_string())
+            if ic_res is None or abs(ic_res.ic_mean) < self.config.min_ic_threshold:
+                ic_pvalues.append(1.0)
+                continue
+            _, p_value, p_threshold = ic_significance(
+                ic_res.ic_series, n_trials, alpha=0.05
+            )
+            ic_pvalues.append(p_value)
+            if p_value <= p_threshold:
+                significant_indices.append(i)
+
         total_time = time.time() - start_time
         if verbose:
             logger.info(f"Evolution completed in {total_time:.1f}s")
             logger.info(f"Best IC: {max(best_ics) if best_ics else 0:.4f}")
-            logger.info(f"Significant alphas: {len([ic for ic in best_ics if abs(ic) >= 0.02])}")
-        
+            logger.info(
+                "Significant alphas after Bonferroni over %d trials: %d",
+                n_trials, len(significant_indices),
+            )
+
         return GAEvolutionResult(
             best_expressions=best_expressions,
             best_ics=best_ics,
@@ -301,6 +389,9 @@ class GAEngine:
             pca_result=pca_result,
             selection_result=selection_result,
             config=self.config,
+            n_trials=n_trials,
+            significant_indices=significant_indices,
+            ic_pvalues=ic_pvalues,
         )
     
     def _reinject_diversity_pool(self, population: List[AlphaExpression]) -> List[AlphaExpression]:

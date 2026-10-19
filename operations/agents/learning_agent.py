@@ -222,7 +222,7 @@ def handle_self_improvement(payload: Dict[str, Any],
         from operations.improvement_pipeline import ImprovementPipeline
         pipeline = ImprovementPipeline(base_dir=ROOT)
         cycle_count = int((payload or {}).get("cycle_count", 0))
-        improvement_result = pipeline.run_cycle(cycle_count=cycle_count)
+        improvement_result = pipeline.run_cycle(cycle_num=cycle_count)
     except Exception as exc:
         logger.debug("improvement pipeline trigger from self_improvement failed: %s", exc)
 

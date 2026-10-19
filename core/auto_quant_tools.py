@@ -1272,16 +1272,17 @@ class AutoQuantTools(StoreBackedState):
             ga = GAEngine(config=config)
             result = ga.evolve(df, verbose=False)
 
-            significant = [ic for ic in result.best_ics if abs(ic) >= 0.02]
+            significant = result.significant_ics
             best_ic = max((abs(ic) for ic in result.best_ics), default=0)
 
             # Persist discovered alphas for ensemble integration
             out_file = Path("artifacts/mined_alphas.json")
             out_file.parent.mkdir(parents=True, exist_ok=True)
             mined_data = {
-                "expressions": [str(e) for e in result.best_expressions[:10]],
-                "best_ics": [round(float(ic), 4) for ic in result.best_ics[:10]],
+                "expressions": [str(e) for e in result.significant_expressions[:10]],
+                "best_ics": [round(float(ic), 4) for ic in result.significant_ics[:10]],
                 "significant_count": len(significant),
+                "n_trials": result.n_trials,
                 "best_ic": round(float(best_ic), 4),
             }
             out_file.write_text(json.dumps(mined_data, indent=2), encoding="utf-8")
@@ -1289,8 +1290,9 @@ class AutoQuantTools(StoreBackedState):
             return {
                 "total_evaluated": len(result.all_expressions),
                 "significant_count": len(significant),
+                "n_trials": result.n_trials,
                 "best_ic": round(float(best_ic), 4),
-                "expressions": [str(e)[:80] for e in result.best_expressions[:5]],
+                "expressions": [str(e)[:80] for e in result.significant_expressions[:5]],
             }
         except Exception as exc:
             logger.debug("GA alpha miner failed: %s", exc)

@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from .expression_tree import AlphaExpression
+from .expression_tree import AlphaExpression, evaluate_with_cache
 from .expression_generator import ExpressionGenerator
 from .ic_evaluator import ICEvaluator, ICResult, calculate_forward_returns_5day
 from .genetic_operators import GeneticOperators
