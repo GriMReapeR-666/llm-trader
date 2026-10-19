@@ -321,7 +321,7 @@ class ContinuousBacktestPipeline:
                 # SOURCE_OVERFIT miner needs.
                 try:
                     if str(wfa_stage.get("status", "")).upper() == "OK":
-                        _wf_live_sharpe = wfa_stage.get("reported_walkforward_sharpe")
+                        _wf_live_sharpe = wfa_stage.get("annualized_sharpe_20")
                         _wf_n = int(wfa_stage.get("r_multiples", 0) or 0)
                         if _wf_live_sharpe is not None and _wf_n >= 20:
                             from core.meta_loop import get_meta_loop
@@ -703,8 +703,25 @@ class ContinuousBacktestPipeline:
                 sem = std / (len(items) ** 0.5)
                 return mean / sem
 
+            def _annualized_from(items: List[float]) -> Optional[float]:
+                """Same normalisation as the Stage-1 engine Sharpe.
+
+                The engine reports mean(R)/std(R) * sqrt(252); the t-stat above
+                is not comparable to it. Meta IS/OOS comparisons use this one.
+                """
+                if len(items) < 2:
+                    return None
+                mean = sum(items) / len(items)
+                var = sum((x - mean) ** 2 for x in items) / (len(items) - 1)
+                std = var ** 0.5
+                if std == 0:
+                    return None
+                return mean / std * (252 ** 0.5)
+
             wf_sharpe = _sharpe_from(last_20)
             robust_sharpe = _sharpe_from(last_40)
+            annualized_20 = _annualized_from(last_20)
+            annualized_40 = _annualized_from(last_40)
 
             return {
                 "status": "OK",
@@ -715,10 +732,14 @@ class ContinuousBacktestPipeline:
                 "floor_40": {"met": floor_40_ok, "count": len(last_40)},
                 "reported_walkforward_sharpe": wf_sharpe,
                 "robust_sharpe_40": robust_sharpe,
+                "annualized_sharpe_20": annualized_20,
+                "annualized_sharpe_40": annualized_40,
                 "mean_r": float(sum(multiples) / len(multiples)) if multiples else 0.0,
                 "note": (
                     "R-multiples sourced through labelled_dataset; the previous "
-                    "reader queried the non-existent trades.r_multiple column."
+                    "reader queried the non-existent trades.r_multiple column. "
+                    "reported_walkforward_sharpe is a t-stat; annualized_* use "
+                    "the engine's mean/std*sqrt(252) convention."
                 ),
             }
 
@@ -1012,19 +1033,37 @@ class ContinuousBacktestPipeline:
         /api/backtests and research.divergence_monitor read
         artifacts/backtest_results/pipeline_results.json (4-source fan-in);
         without this write the pipeline's contribution goes stale.
+
+        Writes are atomic: a previous run left a 0-byte file behind when the
+        process died between truncate and dump, and every later append then
+        failed silently on the JSON load. A corrupt/empty file starts a fresh
+        history instead of freezing the fan-in forever.
         """
         try:
-            history = []
-            if os.path.exists(self.results_path):
-                with open(self.results_path, "r") as f:
-                    history = json.load(f)
+            history: List[Any] = []
+            if os.path.exists(self.results_path) and os.path.getsize(self.results_path) > 0:
+                try:
+                    with open(self.results_path, "r", encoding="utf-8") as f:
+                        loaded = json.load(f)
+                    if isinstance(loaded, list):
+                        history = loaded
+                    elif isinstance(loaded, dict):
+                        history = [loaded]
+                    else:
+                        log.warning("Pipeline results file had unexpected shape %s; starting fresh", type(loaded).__name__)
+                except (json.JSONDecodeError, OSError) as parse_exc:
+                    log.warning("Pipeline results file unreadable (%s); starting fresh", parse_exc)
             history.append(results)
             # Keep last 100 results
             history = history[-100:]
-            with open(self.results_path, "w") as f:
+            tmp_path = self.results_path + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(history, f, indent=2, default=str)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, self.results_path)
         except Exception as exc:
-            log.debug("Failed to save results: %s", exc)
+            log.warning("Failed to save results: %s", exc)
 
 
 # ------------------------------------------------------------------

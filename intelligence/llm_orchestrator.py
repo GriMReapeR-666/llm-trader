@@ -4926,6 +4926,12 @@ class LLMOrchestrator:
                 return False
             with open(path, "r", encoding="utf-8") as fh:
                 payload = json.load(fh)
+            # The fan-in artifact is an append-only list of runs; older
+            # writers also emitted a single dict. Accept both, newest last.
+            if isinstance(payload, list):
+                payload = payload[-1] if payload else {}
+            if not isinstance(payload, dict):
+                return False
             stages = payload.get("stages") or {}
             cpcv = stages.get("cpcv") or {}
             dsr = stages.get("dsr") or {}

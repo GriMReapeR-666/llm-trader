@@ -441,3 +441,26 @@ class TestVerdictGates:
                          "walkforward": {"status": "OK", "floor_20": {"met": True, "count": 20}}}}
         )
         assert low_dsr["passed"] is False
+
+
+class TestResultsFanInDurability:
+    def test_save_results_recovers_from_empty_file(self, tmp_path):
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        pipe = ContinuousBacktestPipeline(base_dir=str(tmp_path))
+        # Reproduce the 0-byte crash artifact.
+        with open(pipe.results_path, "w", encoding="utf-8"):
+            pass
+
+        pipe._save_results({"symbol": "EURUSD", "strategy_name": "s1", "stages": {}})
+        import json
+        with open(pipe.results_path, "r", encoding="utf-8") as fh:
+            history = json.load(fh)
+        assert isinstance(history, list) and len(history) == 1
+        assert history[0]["symbol"] == "EURUSD"
+
+        pipe._save_results({"symbol": "GBPUSD", "strategy_name": "s2", "stages": {}})
+        with open(pipe.results_path, "r", encoding="utf-8") as fh:
+            history = json.load(fh)
+        assert [r["symbol"] for r in history] == ["EURUSD", "GBPUSD"]
+        assert not (tmp_path / "artifacts" / "backtest_results" / "pipeline_results.json.tmp").exists()

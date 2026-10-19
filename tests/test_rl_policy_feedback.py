@@ -157,18 +157,18 @@ def test_live_evidence_gate_reads_pipeline_artifact(tmp_path):
     # Unknown evidence fails closed.
     assert orch._rl_live_evidence_ok() is False
 
-    path.write_text(json.dumps({
+    path.write_text(json.dumps([{
         "stages": {
             "cpcv": {"status": "INSUFFICIENT_SAMPLES_FOR_CPCV"},
             "dsr": {"passed": True},
         }
-    }), encoding="utf-8")
+    }]), encoding="utf-8")
     assert orch._rl_live_evidence_ok() is False
 
-    path.write_text(json.dumps({
+    path.write_text(json.dumps([{
         "stages": {
             "cpcv": {"status": "CPCV_VALIDATED"},
             "dsr": {"passed": True},
         }
-    }), encoding="utf-8")
+    }]), encoding="utf-8")
     assert orch._rl_live_evidence_ok() is True
