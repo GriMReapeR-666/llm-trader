@@ -169,6 +169,17 @@ def load_mt5_bars(symbol: str, timeframe: str, n_bars: int) -> pd.DataFrame:
             _ATTACH_SLEEP,
         )
 
+        # Own the process-global MT5 session (leave it attached; tearing it
+        # down here would kill the engine loop / other research pipelines in
+        # the same process).  Retry discipline mirrors _ensure_mt5_attached()
+        # in data.market_data_provider — same attempt/backoff ladder and the
+        # same "skip the sleep on the first attempt" convention — but this path
+        # is for an explicit initialize (possibly credentialed) call site, so a
+        # raising initialize() still fails closed fast while only transient
+        # False/None outcomes are retried.  AS OF writing, load_mt5_bars owns the
+        # session directly; a later refactor should route this path through
+        # _ensure_mt5_attached() and layer an explicit initialize on top, to avoid
+        # maintaining a second copy of the ladder.
         init = getattr(_mt5, "initialize", None)
         if init is None:
             raise RuntimeError(
@@ -200,8 +211,15 @@ def load_mt5_bars(symbol: str, timeframe: str, n_bars: int) -> pd.DataFrame:
                     _ATTACH_BACKOFF_S[min(attempt, len(_ATTACH_BACKOFF_S) - 1)],
                 )
                 continue
-            attached = True
-            break
+            # init() returned True — verify the terminal is actually reachable,
+            # matching _ensure_mt5_attached()'s post-success terminal_info check.
+            try:
+                if _mt5.terminal_info() is not None:
+                    attached = True
+                    break
+            except Exception:
+                pass  # can't confirm reachability; treat the init() True as pending a retry
+            attached = False
         else:
             raise RuntimeError(
                 "MT5 initialize() failed after %d attempts; "
