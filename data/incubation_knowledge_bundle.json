@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-19T06:31:09.843569+00:00",
+  "generated_at": "2026-10-19T07:31:19.376927+00:00",
   "total_approved_causal_edges": 22,
   "causal_edges": [
     {
@@ -211,6 +211,12 @@
   ],
   "top_verified_heuristics": [
     {
+      "id": 109,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #38: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
       "id": 108,
       "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
       "lesson": "Cycle #37: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
@@ -262,12 +268,6 @@
       "id": 100,
       "summary": "Deterministic Replay Mastery: EQUILIBRIUM_LOW_VOL_RANGE_BOUND",
       "lesson": "In EQUILIBRIUM_LOW_VOL_RANGE_BOUND, synchronized US_INITIAL_JOBLESS_CLAIMS surprise (+0.05 sigma) propagated into EURUSD SELL bias. RL executed TIGHTEN_SL under XM Ultra Low costs, returning $+6.60.",
-      "confidence": 0.98
-    },
-    {
-      "id": 99,
-      "summary": "Deterministic Replay Mastery: INTERBANK_LIQUIDITY_BANKING_STRESS",
-      "lesson": "In INTERBANK_LIQUIDITY_BANKING_STRESS, synchronized FED_DISCOUNT_WINDOW_SURGE surprise (+3.40 sigma) propagated into USDJPY SELL bias. RL executed FULL_EXIT under XM Ultra Low costs, returning $+11.90.",
       "confidence": 0.98
     }
   ],
