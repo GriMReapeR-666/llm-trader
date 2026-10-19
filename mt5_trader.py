@@ -4889,6 +4889,78 @@ def execute_skill(**kwargs):
                     except Exception as _rsi_exc:
                         logging.getLogger("main").debug("Recursive self-improvement tick skipped: %s", _rsi_exc)
 
+                def _execute_research_sprint(_res_sym: str, _res_tf: str, _orch: Any = None, _paper_mode: bool = True) -> None:
+                    try:
+                        _r_t0 = time.time()
+                        logging.getLogger("main").info(
+                            "🔬 [AUTONOMOUS RESEARCH] starting research sprint for %s (%s)...",
+                            _res_sym, _res_tf,
+                        )
+                        # 1. Continuous Backtest Pipeline (TCE, DSR, CPCV, WFE)
+                        try:
+                            from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+                            from research.strategy_signal_registry import _REGISTRY as _STRAT_REG
+                            _pipeline = ContinuousBacktestPipeline()
+                            _strat_names = sorted(_STRAT_REG.keys())
+                            _vbars = int(os.getenv("BACKTEST_VALIDATION_BARS", "4000") or 4000)
+                            _vdf = None
+                            try:
+                                _vdf = fetch_ohlc(_res_sym, _res_tf, count=max(_vbars, 500))
+                            except Exception as _vfetch_exc:
+                                logging.getLogger("main").debug(
+                                    "Research sweep bars fetch failed (%s); pipeline will fetch per strategy",
+                                    _vfetch_exc,
+                                )
+                            for _sname in _strat_names:
+                                try:
+                                    _bt_res = _pipeline.run_validation_cycle(
+                                        symbol=_res_sym, strategy_name=_sname, timeframe=_res_tf,
+                                        bars=_vbars, bars_df=_vdf,
+                                    )
+                                    if _bt_res:
+                                        _status = _bt_res.get("verdict", {}).get("status", "COMPLETE")
+                                        logging.getLogger("main").debug(
+                                            "🔬 [AUTONOMOUS RESEARCH] %s backtest: status=%s",
+                                            _sname, _status,
+                                        )
+                                except Exception as _bt_one:
+                                    logging.getLogger("main").debug(
+                                        "Research backtest sprint skipped %s: %s", _sname, _bt_one)
+                            logging.getLogger("main").info(
+                                "🔬 [AUTONOMOUS RESEARCH] Continuous backtest sweep complete: %d strategies",
+                                len(_strat_names),
+                            )
+                        except Exception as _bt_err:
+                            logging.getLogger("main").debug("Research backtest sprint skipped: %s", _bt_err)
+
+                        # 2. Alpha Discovery on historical bars
+                        try:
+                            _hist_df = fetch_ohlc(_res_sym, _res_tf, count=200)
+                            if _hist_df is not None and len(_hist_df) >= 40:
+                                from core.alpha_discovery import AlphaDiscoveryEngine
+                                _discovery = AlphaDiscoveryEngine(state_file="alpha_discovery_state.json")
+                                _split = int(len(_hist_df) * 0.7)
+                                _val_alphas = _discovery.run_discovery_cycle(_hist_df.iloc[:_split], _hist_df.iloc[_split:])
+                                if _val_alphas:
+                                    logging.getLogger("main").info(
+                                        "🔬 [AUTONOMOUS RESEARCH] Alpha Discovery found %d validated alphas", len(_val_alphas)
+                                    )
+                        except Exception as _alpha_err:
+                            logging.getLogger("main").debug("Research alpha discovery skipped: %s", _alpha_err)
+
+                        # 3. Macro & COT Ingest
+                        try:
+                            if _orch and hasattr(_orch, "pre_pulse_macro_ingest"):
+                                _orch.pre_pulse_macro_ingest(_res_sym, paper_mode=_paper_mode)
+                        except Exception as _macro_err:
+                            logging.getLogger("main").debug("Research macro ingest skipped: %s", _macro_err)
+
+                        logging.getLogger("main").info(
+                            "🔬 [AUTONOMOUS RESEARCH] Sprint finished in %.2fs", time.time() - _r_t0
+                        )
+                    except Exception as _wsprint_exc:
+                        logging.getLogger("main").warning("Autonomous research sprint error: %s", _wsprint_exc)
+
                 # Auto-Select Symbol
                 current_symbol = args.symbol
                 skip_analysis = False
@@ -4910,91 +4982,10 @@ def execute_skill(**kwargs):
                         maint_symbol or "PORTFOLIO"
                     )
                     # --- Weekend / Holiday Autonomous Research Routine ---
-                    # When live trading is closed, use downtime to run offline research:
-                    # 1) Continuous Backtesting across active strategies (TCE, DSR, CPCV, WFE)
-                    # 2) Formulaic Alpha Factor Discovery on cached historical bars
-                    # 3) Friday CFTC COT & FRED Macro Sentiment Refresh
                     if cycle_count == 1 or cycle_count % 10 == 0:
                         _res_sym = maint_symbol or (args.symbol if args.symbol and str(args.symbol).upper() != "AUTO" else "EURUSD")
                         _res_tf = args.timeframe if args.timeframe != "AUTO" else "H1"
-                        try:
-                            _r_t0 = time.time()
-                            logging.getLogger("main").info(
-                                "🔬 [WEEKEND RESEARCH] starting autonomous research sprint for %s (%s)...",
-                                _res_sym, _res_tf,
-                            )
-                            # 1. Continuous Backtest Pipeline (TCE, DSR, CPCV, WFE)
-                            # Iterate the registered per-strategy signals instead of
-                            # the "default" generic ruleset, which never fires on
-                            # the tiny evidence window and mislabels every run.
-                            try:
-                                from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
-                                from research.strategy_signal_registry import _REGISTRY as _STRAT_REG
-                                _pipeline = ContinuousBacktestPipeline()
-                                _strat_names = sorted(_STRAT_REG.keys())
-                                # Strategy-specific CPCV needs >= 40 net-of-cost
-                                # trades per strategy; the 500-bar default yields
-                                # ~5 and every CPCV stage reports insufficiency.
-                                # One shared fetch keeps all strategies on an
-                                # identical evidence window (and avoids 18 refetches).
-                                _vbars = int(os.getenv("BACKTEST_VALIDATION_BARS", "4000") or 4000)
-                                _vdf = None
-                                try:
-                                    _vdf = fetch_ohlc(_res_sym, _res_tf, count=max(_vbars, 500))
-                                except Exception as _vfetch_exc:
-                                    logging.getLogger("main").debug(
-                                        "Research sweep bars fetch failed (%s); pipeline will fetch per strategy",
-                                        _vfetch_exc,
-                                    )
-                                for _sname in _strat_names:
-                                    try:
-                                        _bt_res = _pipeline.run_validation_cycle(
-                                            symbol=_res_sym, strategy_name=_sname, timeframe=_res_tf,
-                                            bars=_vbars, bars_df=_vdf,
-                                        )
-                                        if _bt_res:
-                                            _status = _bt_res.get("verdict", {}).get("status", "COMPLETE")
-                                            logging.getLogger("main").debug(
-                                                "🔬 [WEEKEND RESEARCH] %s backtest: status=%s",
-                                                _sname, _status,
-                                            )
-                                    except Exception as _bt_one:
-                                        logging.getLogger("main").debug(
-                                            "Weekend backtest sprint skipped %s: %s", _sname, _bt_one)
-                                logging.getLogger("main").info(
-                                    "🔬 [WEEKEND RESEARCH] Continuous backtest sweep complete: %d strategies",
-                                    len(_strat_names),
-                                )
-                            except Exception as _bt_err:
-                                logging.getLogger("main").debug("Weekend backtest sprint skipped: %s", _bt_err)
-
-                            # 2. Alpha Discovery on historical bars
-                            try:
-                                _hist_df = fetch_ohlc(_res_sym, _res_tf, count=200)
-                                if _hist_df is not None and len(_hist_df) >= 40:
-                                    from core.alpha_discovery import AlphaDiscoveryEngine
-                                    _discovery = AlphaDiscoveryEngine(state_file="alpha_discovery_state.json")
-                                    _split = int(len(_hist_df) * 0.7)
-                                    _val_alphas = _discovery.run_discovery_cycle(_hist_df.iloc[:_split], _hist_df.iloc[_split:])
-                                    if _val_alphas:
-                                        logging.getLogger("main").info(
-                                            "🔬 [WEEKEND RESEARCH] Alpha Discovery found %d validated alphas", len(_val_alphas)
-                                        )
-                            except Exception as _alpha_err:
-                                logging.getLogger("main").debug("Weekend alpha discovery skipped: %s", _alpha_err)
-
-                            # 3. Macro & COT Ingest
-                            try:
-                                if hasattr(orch, "pre_pulse_macro_ingest"):
-                                    orch.pre_pulse_macro_ingest(_res_sym, paper_mode=args.paper)
-                            except Exception as _macro_err:
-                                logging.getLogger("main").debug("Weekend macro ingest skipped: %s", _macro_err)
-
-                            logging.getLogger("main").info(
-                                "🔬 [WEEKEND RESEARCH] Sprint finished in %.2fs", time.time() - _r_t0
-                            )
-                        except Exception as _wsprint_exc:
-                            logging.getLogger("main").warning("Weekend research sprint error: %s", _wsprint_exc)
+                        _execute_research_sprint(_res_sym, _res_tf, orch, args.paper)
                 elif auto_symbol_mode and scanner:
                     if display: display.update_footer("Scanning markets...")
                     else: print("Scanning markets...")
@@ -5071,6 +5062,10 @@ def execute_skill(**kwargs):
                             "⏸️ [DECISION] HOLD %s | No scanner opportunities (score below threshold); maintenance pulse active",
                             maint_symbol or "PORTFOLIO"
                         )
+                        if cycle_count == 1 or cycle_count % 10 == 0:
+                            _res_sym = maint_symbol or (args.symbol if args.symbol and str(args.symbol).upper() != "AUTO" else "EURUSD")
+                            _res_tf = args.timeframe if args.timeframe != "AUTO" else "H1"
+                            _execute_research_sprint(_res_sym, _res_tf, orch, args.paper)
                 elif str(current_symbol).upper() == "AUTO":
                     # Defensive: never analyse the literal token AUTO.
                     skip_analysis = True

@@ -163,20 +163,54 @@ def load_mt5_bars(symbol: str, timeframe: str, n_bars: int) -> pd.DataFrame:
     initialized_here = False
     try:
         if _mt5.terminal_info() is None:
-            from data.market_data_provider import _ensure_mt5_attached
+            from data.market_data_provider import (
+                _ATTACH_MAX_ATTEMPTS,
+                _ATTACH_BACKOFF_S,
+                _ATTACH_SLEEP,
+            )
 
-            if not _ensure_mt5_attached(_mt5):
-                # Bare attach failed; try credentialed login from .env if configured
-                if not _initialize_with_env(_mt5):
-                    raise RuntimeError(
-                        "MT5 initialize() failed; "
-                        "start the MetaTrader 5 terminal and retry"
+            init = getattr(_mt5, "initialize", None)
+            if init is None:
+                raise RuntimeError(
+                    "MetaTrader5.initialize is unavailable; "
+                    "start the MetaTrader 5 terminal and retry"
+                )
+
+            attached = False
+            for attempt in range(_ATTACH_MAX_ATTEMPTS):
+                if attempt:
+                    _ATTACH_SLEEP(_ATTACH_BACKOFF_S[min(attempt - 1,
+                                                        len(_ATTACH_BACKOFF_S) - 1)])
+                try:
+                    attached = bool(init())
+                except Exception as exc:
+                    logger.warning(
+                        "MT5 init attempt %d/%d failed with exception; failing closed: %s",
+                        attempt + 1, _ATTACH_MAX_ATTEMPTS, exc,
                     )
+                    raise RuntimeError(
+                        "MT5 initialize() failed: %s — "
+                        "start the MetaTrader 5 terminal and retry"
+                        % (exc,)
+                    ) from exc
+                if not attached:
+                    logger.warning(
+                        "MT5 init attempt %d/%d refused by terminal; retrying in %.2fs",
+                        attempt + 1, _ATTACH_MAX_ATTEMPTS,
+                        _ATTACH_BACKOFF_S[min(attempt, len(_ATTACH_BACKOFF_S) - 1)],
+                    )
+                    continue
+                attached = True
+                break
+            else:
+                raise RuntimeError(
+                    "MT5 initialize() failed after %d attempts; "
+                    "start the MetaTrader 5 terminal and retry"
+                    % _ATTACH_MAX_ATTEMPTS
+                )
+
             initialized_here = True
 
-
-
-        n_bars = int(n_bars)
         if n_bars <= _MT5_MAX_BARS_PER_CALL:
             raw = fetch_ohlc(symbol, timeframe, count=n_bars)
         else:
