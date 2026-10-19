@@ -80,7 +80,14 @@ def _finite_feature_values(values: Any) -> bool:
     return True
 
 
-SYNTHETIC_SOURCE_MARKERS = {"synthetic_demo_generator", "synthetic", "demo_sample_generator"}
+SYNTHETIC_SOURCE_MARKERS = {
+    "synthetic_demo_generator", "synthetic", "demo_sample_generator",
+    # Backtest-engine rows are fixtures by construction. The canonical journal
+    # gained 50 all-winner EURUSD rows (tickets 200000+, Jan 1-5 2025) from a
+    # backtest fixture run; admitting them as live evidence inflated
+    # walk-forward Sharpe and every meta IS/OOS comparison.
+    "backtest", "backtest_fixture", "fixture",
+}
 
 
 def _as_int(value: Any) -> Optional[int]:
