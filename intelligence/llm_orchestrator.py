@@ -658,6 +658,22 @@ class LLMOrchestrator:
         except Exception as _ofg_exc:
             logging.getLogger("LLMOrchestrator").debug("OverfitGate init skipped: %s", _ofg_exc)
             self.overfit_gate = None
+        # RL policy (advisory only): load trained Q-table if RL_POLICY_ENABLED.
+        # Trained policies are used for sizing/confidence adjustment, never
+        # for overriding the LLM decision.  Fail-closed: any load failure
+        # leaves self.rl_trainer = None and the advisory is skipped.
+        self.rl_trainer = None
+        if os.getenv("RL_POLICY_ENABLED", "").strip().lower() in {"1", "true", "yes"}:
+            try:
+                from research.rl_trainer import RLTrainer
+                _rl = RLTrainer()
+                _rl.load_model()
+                self.rl_trainer = _rl
+                logging.getLogger("LLMOrchestrator").info(
+                    "RL policy loaded (RL_POLICY_ENABLED): states=%d", len(getattr(_rl, "q_table", {})))
+            except Exception as _rl_exc:
+                logging.getLogger("LLMOrchestrator").warning("RL policy load skipped: %s", _rl_exc)
+                self.rl_trainer = None
         self.provider_circuit = ProviderCircuitBreaker(self.store)
         # Rule-based position management (replaces LLM suggestions)
         try:
@@ -822,6 +838,12 @@ class LLMOrchestrator:
             try:
                 from research.rl_trainer import RLTrainer
                 self.rl_trainer = RLTrainer()
+                # Load any previously trained Q-table so the RL advisory
+                # uses real learned values instead of an empty table.
+                try:
+                    self.rl_trainer.load_model()
+                except Exception as _load_exc:
+                    logging.getLogger("LLMOrchestrator").debug("RL model load skipped: %s", _load_exc)
             except ImportError as e:
                 logging.getLogger("LLMOrchestrator").warning(f"RL trainer not available: {e}")
                 self.enable_rl = False
@@ -4859,6 +4881,32 @@ class LLMOrchestrator:
         except Exception:
             return base
 
+    def _rl_advisory(self, state: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Advisory RL signal from the trained Q-table.
+
+        Returns a dict {action, q_values, explored} when an RL policy is
+        loaded (RL_POLICY_ENABLED=1) and the state resolves to a known key;
+        otherwise None.  ADVISORY ONLY: never overrides the LLM decision,
+        only annotates confidence.  Fail-closed: any error -> None.
+        """
+        trainer = getattr(self, "rl_trainer", None)
+        if trainer is None:
+            return None
+        try:
+            action, explored = trainer.select_action(state, explore=False)
+            # Extract Q-values for the resolved state key (best-effort).
+            q_values = None
+            try:
+                key = trainer._build_state_key(state) if hasattr(trainer, "_build_state_key") else None
+                if key is not None and hasattr(trainer, "q_table"):
+                    q_values = trainer.q_table.get(key)
+            except Exception:
+                q_values = None
+            return {"action": str(action), "q_values": q_values, "explored": bool(explored)}
+        except Exception as _rl_exc:
+            logging.getLogger("LLMOrchestrator").debug("RL advisory skipped: %s", _rl_exc)
+            return None
+
     def _journal_closed_r_multiples(self, limit: int = 120) -> List[float]:
         """Realised R-multiples of reconciled closed trades, newest → oldest.
 
@@ -4961,6 +5009,20 @@ class LLMOrchestrator:
             if not results:
                 return
             log = logging.getLogger("LLMOrchestrator")
+
+            # --- 0. RL ADVISORY (advisory only; never execution authority) ---
+            try:
+                _rl_state = {
+                    "win_rate": float((toon.get("indicators") or {}).get("win_rate", 0.5) or 0.5),
+                    "confluence_score": float((toon.get("indicators") or {}).get("confluence_score", 0.0) or 0.0),
+                    "regime": str((toon.get("regime_allocation") or {}).get("regime", {}).get("regime", "UNKNOWN")),
+                }
+                _rl_adv = self._rl_advisory(_rl_state)
+                if _rl_adv is not None:
+                    toon["rl_advisory"] = _rl_adv
+                    log.info("RL advisory: action=%s explored=%s", _rl_adv.get("action"), _rl_adv.get("explored"))
+            except Exception as _rl_adv_exc:
+                log.debug("RL advisory skipped: %s", _rl_adv_exc)
 
             # --- 1. META-ADAPTIVE: adjust risk parameters ---
             meta = results.get("meta_adaptive", {})
