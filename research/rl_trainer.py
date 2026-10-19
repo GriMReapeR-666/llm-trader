@@ -239,6 +239,25 @@ class RLTrainer:
             self.exploitation_count += 1
             return action, False
 
+    # Context dimensions that may be unseen but do not change the core setup.
+    # Lookup backs off over them in this order (most specific first), averaging
+    # learned Q-values across matching states at the first level with any match.
+    _RL_BACKOFF_MASKS = (
+        ("sess",),
+        ("sess", "news"),
+        ("sess", "news", "trend"),
+        ("sess", "news", "trend", "htf"),
+        ("sess", "news", "trend", "htf", "dir"),
+    )
+
+    @staticmethod
+    def _mask_state_key(key: str, masked: set) -> str:
+        parts = []
+        for part in str(key).split("|"):
+            name = part.split(":", 1)[0]
+            parts.append("{}:*".format(name) if name in masked else part)
+        return "|".join(parts)
+
     def q_values_for_state(
         self, state: Dict[str, Any], allow_backoff: bool = True
     ) -> Tuple[Optional[Dict[str, float]], str]:
@@ -246,11 +265,12 @@ class RLTrainer:
 
         Offline Kronos episodes carry synthetic session labels; live sessions
         are real.  Rather than shrinking both policies to a common fake
-        session, an unseen exact key backs off to the same state with the
-        session dimension masked to ``unknown`` (the bucket offline training
-        uses).  This is genuine generalisation over a nuisance dimension, not
-        a reward invention: if no learned key matches, ``(None, key)`` is
-        returned and callers must treat the policy as having no opinion.
+        session, an unseen exact key backs off over contextual dimensions
+        (session -> news -> trend strength -> HTF -> direction) and averages the
+        Q-values of matching learned states.  This is genuine generalisation
+        over nuisance/context bins, not reward invention: if no learned key
+        matches even the coarsest core, ``(None, key)`` is returned and callers
+        must treat the policy as having no opinion.
         """
         key = self._build_state_key(state)
         try:
@@ -261,18 +281,26 @@ class RLTrainer:
             return dict(exact), key
         if not allow_backoff:
             return None, key
-        parts = key.split("|")
-        masked = "|".join(
-            "sess:unknown" if p.startswith("sess:") else p for p in parts
-        )
-        if masked == key:
-            return None, key
-        try:
-            backed_off = self.q_table.get(masked)
-        except Exception:
-            backed_off = None
-        if backed_off:
-            return dict(backed_off), masked
+        for mask_names in self._RL_BACKOFF_MASKS:
+            masked = set(mask_names)
+            target = self._mask_state_key(key, masked)
+            matches = []
+            for learned_key, values in list(self.q_table.items()):
+                if not values:
+                    continue
+                if self._mask_state_key(learned_key, masked) == target:
+                    matches.append(values)
+            if not matches:
+                continue
+            actions = set()
+            for values in matches:
+                actions.update(values.keys())
+            averaged = {}
+            for action in actions:
+                averaged[str(action)] = sum(
+                    float(values.get(action, 0.0) or 0.0) for values in matches
+                ) / len(matches)
+            return averaged, target
         return None, key
 
     def policy_advantage(
