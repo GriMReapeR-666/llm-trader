@@ -4563,19 +4563,6 @@ def execute_skill(**kwargs):
             logging.getLogger("main").warning("supervisor boot skipped: %s", sup_exc)
         # -----------------------------------------------------------------
 
-        # --- S.Q Priority Queue: formal task scheduling (UAQP Orchestrator Queue) ---
-        _task_queue = None
-        try:
-            from core.task_queue import TaskQueue, migrate_from_intervals
-            from core.auto_quant_tools import DEFAULT_INTERVALS
-            _task_queue = migrate_from_intervals(DEFAULT_INTERVALS)
-            logging.getLogger("main").info(
-                "S.Q Priority Queue initialized (%d scheduled tasks)",
-                len(_task_queue._pending),
-            )
-        except Exception as _tq_exc:
-            logging.getLogger("main").warning("S.Q Task Queue init skipped: %s", _tq_exc)
-
         # --- κ Compliance Audit: hash-chained immutable log (UAQP Agent κ) ---
         _audit = None
         try:
@@ -4858,7 +4845,6 @@ def execute_skill(**kwargs):
                         _pipe = run_pipeline(
                             lifecycle_path=getattr(_plugin_store, "path", "trading_state.db"),
                             outbox_path="alerts_outbox.db",
-                            queue=_task_queue,
                         )
                         _inc = _pipe.get("incubation", {})
                         logging.getLogger("main").info(
@@ -5391,7 +5377,13 @@ def execute_skill(**kwargs):
                         logging.getLogger("main").debug("Meta-improvement health check skipped: %s", _mi_exc)
 
                 # --- Kronos Signal Fusion: get regime-adjusted signal (every 30 cycles) ---
-                if _kronos_fusion is not None and cycle_count % 30 == 0 and cycle_count > 0:
+                # Never fuse on the literal AUTO token; there is no market context for it.
+                if (
+                    _kronos_fusion is not None
+                    and cycle_count % 30 == 0
+                    and cycle_count > 0
+                    and str(current_symbol or "").upper() not in ("", "AUTO")
+                ):
                     try:
                         _kronos_signal = _kronos_fusion.get_regime_adjusted_signal(current_symbol)
                         if _kronos_signal.get("action") != "HOLD":
@@ -5500,43 +5492,6 @@ def execute_skill(**kwargs):
                     except Exception:
                         pass
 
-                # --- S.Q Priority Queue tick: execute ready tasks ---
-                # The queue is the scheduler of record: recurring tasks
-                # (e.g. lifecycle_decay_evaluation) run here instead of via
-                # hidden cycle-count triggers elsewhere in the loop.
-                if _task_queue is not None:
-                    try:
-                        _ready = _task_queue.get_ready_tasks(cycle_num=cycle_count)
-                        for _sq_task in _ready:
-                            if _sq_task.name == "lifecycle_decay_evaluation":
-                                try:
-                                    from operations.strategy_evaluation import evaluate as _slc_eval
-                                    _eval_report = _slc_eval(
-                                        getattr(_plugin_store, "path", "trading_state.db"),
-                                        registry_specs={str(k): v for k, v in REGISTERED_SETUPS.items()},
-                                        registry_fingerprint=registered_setup_fingerprint(),
-                                    )
-                                    _task_queue.complete(_sq_task.task_id, result={
-                                        "transitions": len(_eval_report.get("transitions", [])),
-                                        "alerts_enqueued": _eval_report.get("alerts_enqueued"),
-                                    })
-                                    if _eval_report.get("transitions"):
-                                        logging.getLogger("main").warning(
-                                            "S.Q lifecycle evaluation: %d transitions",
-                                            len(_eval_report["transitions"]),
-                                        )
-                                except Exception as _slc_exc:
-                                    _task_queue.fail(_sq_task.task_id, str(_slc_exc)[:300])
-                            else:
-                                # Known tool tasks are executed by their own
-                                # subsystems; here we only mark non-owned tasks
-                                # seen so the queue metrics stay honest.
-                                logging.getLogger("main").debug(
-                                    "S.Q: task %s ready (owned elsewhere)", _sq_task.task_id,
-                                )
-                    except Exception as _tq_exc:
-                        logging.getLogger("main").debug("S.Q tick skipped: %s", _tq_exc)
-
                 # --- κ Audit: log cycle completion ---
                 if _audit is not None:
                     try:
@@ -5556,7 +5511,9 @@ def execute_skill(**kwargs):
                         logging.getLogger("main").debug("κ audit log skipped: %s", _ka_exc)
 
                 # --- Auto-generate alpha health dashboard after each cycle ---
-                if not getattr(args, 'no_dashboard', False):
+                # Maintenance pulses share the bookkeeping band now; writing two
+                # HTML decks every 5s is pure churn, so throttle them.
+                if not getattr(args, 'no_dashboard', False) and (not skip_analysis or cycle_count % 10 == 0):
                     try:
                         from ui.alpha_dashboard import generate_alpha_dashboard
                         _dash_path = generate_alpha_dashboard(
@@ -5572,8 +5529,8 @@ def execute_skill(**kwargs):
                             "Alpha dashboard auto-gen skipped: %s", _dash_exc
                         )
 
-                # --- Auto-generate compliance dashboard (κ + S.Q) ---
-                if not getattr(args, 'no_dashboard', False) and _audit is not None:
+                # --- Auto-generate compliance dashboard (κ audit) ---
+                if not getattr(args, 'no_dashboard', False) and _audit is not None and (not skip_analysis or cycle_count % 10 == 0):
                     try:
                         from ui.compliance_dashboard import generate_compliance_dashboard
                         _comp_path = generate_compliance_dashboard(
