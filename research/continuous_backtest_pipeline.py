@@ -155,13 +155,21 @@ class ContinuousBacktestPipeline:
         strategy_name: str = "default",
         timeframe: str = "H1",
         bars: int = 500,
+        bars_df: Optional[Any] = None,
     ) -> Dict[str, Any]:
-        """Entry point called by mt5_trader.py background validation loop."""
+        """Entry point called by mt5_trader.py background validation loop.
+
+        ``bars_df`` lets a caller that already fetched the OHLC window (e.g. a
+        multi-strategy sweep) reuse the exact same bars for every strategy:
+        one broker fetch, one identical evidence window, no per-strategy
+        refetch drift.
+        """
         res = self.run_full_validation(
             symbol=symbol,
             strategy_name=strategy_name,
             timeframe=timeframe,
             bars=bars,
+            bars_df=bars_df,
             run_walkforward=True,
             run_dsr=True,
             compare_live=True,
@@ -193,6 +201,7 @@ class ContinuousBacktestPipeline:
         run_dsr: bool = True,
         compare_live: bool = True,
         cost_overrides: Optional[Dict[str, Any]] = None,
+        bars_df: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """Run full validation suite for a symbol/timeframe."""
         log.info("=" * 60)
@@ -223,7 +232,8 @@ class ContinuousBacktestPipeline:
             # sys.modules["mt5_trader"] here: it is always absent when the
             # engine runs as `python mt5_trader.py` and would block Stage 1
             # on every cycle.
-            bars_df = fetch_ohlc(symbol, timeframe, max(bars, 500))
+            if bars_df is None:
+                bars_df = fetch_ohlc(symbol, timeframe, max(bars, 500))
             if bars_df is None or len(bars_df) < 200:
                 raise RuntimeError(
                     f"Backtest requires >=200 bars of {symbol} {timeframe}; "
@@ -254,6 +264,7 @@ class ContinuousBacktestPipeline:
                     backtest_max_dd=float(backtest_res.get("max_drawdown", 0.0) or 0.0),
                     backtest_win_rate=float(backtest_res.get("win_rate", 0.0) or 0.0),
                     backtest_n_trades=int(backtest_res.get("total_trades", 0) or 0),
+                    holding_horizon=str(timeframe or ""),
                 )
             except Exception as _ml_exc:
                 log.debug("Meta-loop log_outcome skipped: %s", _ml_exc)
@@ -303,6 +314,29 @@ class ContinuousBacktestPipeline:
                     cost_overrides=cost_overrides,
                 )
                 results["stages"]["walkforward"] = wfa_stage
+                # Feed measured live evidence back to the meta-loop corpus.
+                # Only broker-reconciled R-multiples that cleared the 20-sample
+                # floor count; an insufficiency is not an outcome and is never
+                # logged as one. This is the live half of the IS/OOS pair the
+                # SOURCE_OVERFIT miner needs.
+                try:
+                    if str(wfa_stage.get("status", "")).upper() == "OK":
+                        _wf_live_sharpe = wfa_stage.get("reported_walkforward_sharpe")
+                        _wf_n = int(wfa_stage.get("r_multiples", 0) or 0)
+                        if _wf_live_sharpe is not None and _wf_n >= 20:
+                            from core.meta_loop import get_meta_loop
+                            get_meta_loop().log_outcome(
+                                hypothesis_id=str(strategy_name),
+                                hypothesis_source="continuous_backtest_pipeline",
+                                backtest_sharpe=float(
+                                    results.get("stages", {}).get("backtest", {}).get("sharpe", 0.0) or 0.0
+                                ),
+                                live_sharpe=float(_wf_live_sharpe),
+                                live_n_trades=_wf_n,
+                                holding_horizon=str(timeframe or ""),
+                            )
+                except Exception as _mll_exc:
+                    log.debug("Meta-loop live evidence feed skipped: %s", _mll_exc)
             except Exception as exc:
                 log.exception("Stage 3 (walk-forward) failed: %s", exc)
                 results["stages"]["walkforward"] = {

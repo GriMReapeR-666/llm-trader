@@ -798,8 +798,8 @@ class LLMRouter:
             ]
         elif p == "cerebras":
             return [
-                {"id": "qwen-3-27b", "name": "Qwen 3 27B (Free)", "provider": "Cerebras"},
-                {"id": "llama3.1-8b", "name": "Llama 3.1 8B (Free)", "provider": "Cerebras"},
+                {"id": "gpt-oss-120b", "name": "GPT-OSS 120B (Free)", "provider": "Cerebras"},
+                {"id": "qwen-3.8-27b", "name": "Qwen 3.8 27B (Free)", "provider": "Cerebras"},
             ]
         elif p == "nvidia_nim":
             return [
@@ -833,7 +833,7 @@ class LLMRouter:
             "mistralai/mistral-nemo:free",
             "qwen/qwen3-8b:free",
         ],
-        "cerebras": ["qwen-3-27b", "llama3.1-8b"],
+        "cerebras": ["gpt-oss-120b", "qwen-3.8-27b"],
         "nvidia_nim": [
             "nvidia/nemotron-3-super-120b-a12b",
             "meta/llama-3.2-11b-vision-instruct",
@@ -874,7 +874,10 @@ class LLMRouter:
             return False
         if model_id.endswith(":free"):
             return True
-        free_prefixes = ("nvidia/", "meta/llama-3.2", "openai/gpt-oss", "qwen-3", "llama3.1", "mistralai/mistral-nemo")
+        free_prefixes = (
+            "nvidia/", "meta/llama-3.2", "openai/gpt-oss", "gpt-oss",
+            "qwen-3", "llama3.1", "mistralai/mistral-nemo",
+        )
         return model_id.startswith(free_prefixes)
 
     def fetch_model_catalogue(self, provider: Optional[str] = None, force_refresh: bool = False) -> List[Dict[str, Any]]:

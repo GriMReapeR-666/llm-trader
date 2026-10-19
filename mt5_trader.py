@@ -4932,10 +4932,25 @@ def execute_skill(**kwargs):
                                 from research.strategy_signal_registry import _REGISTRY as _STRAT_REG
                                 _pipeline = ContinuousBacktestPipeline()
                                 _strat_names = sorted(_STRAT_REG.keys())
+                                # Strategy-specific CPCV needs >= 40 net-of-cost
+                                # trades per strategy; the 500-bar default yields
+                                # ~5 and every CPCV stage reports insufficiency.
+                                # One shared fetch keeps all strategies on an
+                                # identical evidence window (and avoids 18 refetches).
+                                _vbars = int(os.getenv("BACKTEST_VALIDATION_BARS", "4000") or 4000)
+                                _vdf = None
+                                try:
+                                    _vdf = fetch_ohlc(_res_sym, _res_tf, count=max(_vbars, 500))
+                                except Exception as _vfetch_exc:
+                                    logging.getLogger("main").debug(
+                                        "Research sweep bars fetch failed (%s); pipeline will fetch per strategy",
+                                        _vfetch_exc,
+                                    )
                                 for _sname in _strat_names:
                                     try:
                                         _bt_res = _pipeline.run_validation_cycle(
                                             symbol=_res_sym, strategy_name=_sname, timeframe=_res_tf,
+                                            bars=_vbars, bars_df=_vdf,
                                         )
                                         if _bt_res:
                                             _status = _bt_res.get("verdict", {}).get("status", "COMPLETE")
@@ -5054,7 +5069,7 @@ def execute_skill(**kwargs):
                         )
                         logging.getLogger("main").info(
                             "⏸️ [DECISION] HOLD %s | No scanner opportunities (score below threshold); maintenance pulse active",
-                            cycle_count, maint_symbol or "PORTFOLIO"
+                            maint_symbol or "PORTFOLIO"
                         )
                 elif str(current_symbol).upper() == "AUTO":
                     # Defensive: never analyse the literal token AUTO.

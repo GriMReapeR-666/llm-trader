@@ -4884,28 +4884,122 @@ class LLMOrchestrator:
     def _rl_advisory(self, state: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Advisory RL signal from the trained Q-table.
 
-        Returns a dict {action, q_values, explored} when an RL policy is
-        loaded (RL_POLICY_ENABLED=1) and the state resolves to a known key;
-        otherwise None.  ADVISORY ONLY: never overrides the LLM decision,
-        only annotates confidence.  Fail-closed: any error -> None.
+        Resolves Q-values through the trainer's session-backoff lookup, so an
+        unseen live session can still use an offline-trained state.  ADVISORY
+        ONLY: never overrides the LLM decision.  Fail-closed: any error -> None.
         """
         trainer = getattr(self, "rl_trainer", None)
         if trainer is None:
             return None
         try:
-            action, explored = trainer.select_action(state, explore=False)
-            # Extract Q-values for the resolved state key (best-effort).
-            q_values = None
-            try:
+            if hasattr(trainer, "q_values_for_state"):
+                q_values, key = trainer.q_values_for_state(state)
+            else:  # pragma: no cover - legacy trainer
                 key = trainer._build_state_key(state) if hasattr(trainer, "_build_state_key") else None
-                if key is not None and hasattr(trainer, "q_table"):
-                    q_values = trainer.q_table.get(key)
-            except Exception:
-                q_values = None
-            return {"action": str(action), "q_values": q_values, "explored": bool(explored)}
+                q_values = trainer.q_table.get(key) if key is not None else None
+            if not q_values:
+                return None
+            action = max(q_values, key=q_values.get)
+            return {
+                "action": str(action),
+                "q_values": {str(k).upper(): float(v) for k, v in q_values.items()},
+                "state_key": key,
+                "explored": False,
+                "execution_authority": False,
+            }
         except Exception as _rl_exc:
             logging.getLogger("LLMOrchestrator").debug("RL advisory skipped: %s", _rl_exc)
             return None
+
+    def _rl_live_evidence_ok(self) -> bool:
+        """Latest CPCV + DSR evidence gate for LIVE RL influence.
+
+        Reads the pipeline artifact the research sweep writes.  Unknown,
+        missing, or and non-validated evidence fails closed (no influence).
+        """
+        try:
+            base = getattr(self, "repo_base_dir", None) or os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))
+            )
+            path = os.path.join(base, "artifacts", "backtest_results", "pipeline_results.json")
+            if not os.path.exists(path):
+                return False
+            with open(path, "r", encoding="utf-8") as fh:
+                payload = json.load(fh)
+            stages = payload.get("stages") or {}
+            cpcv = stages.get("cpcv") or {}
+            dsr = stages.get("dsr") or {}
+            return (
+                str(cpcv.get("status", "")).upper() == "CPCV_VALIDATED"
+                and bool(dsr.get("passed", False))
+            )
+        except Exception:
+            return False
+
+    RL_SIZING_MIN_UPDATES = 50
+    RL_SIZING_MIN_SPREAD = 0.05
+
+    def _rl_sizing_multiplier(
+        self,
+        state: Dict[str, Any],
+        action: str,
+        paper_mode: bool = False,
+    ) -> float:
+        """Bounded, downsize-only RL influence on position size.
+
+        The Q-policy may only ever REDUCE size when it disagrees with the
+        chosen direction; agreement is a no-op.  This makes the influence
+        monotone in risk (no silent loosening) while still being a real
+        learned input to sizing.  Requirements:
+
+          - a loaded trainer with >= ``RL_SIZING_MIN_UPDATES`` updates;
+          - a learned Q spread >= ``RL_SIZING_MIN_SPREAD`` (an all-zero or
+            near-flat table has no opinion);
+          - PAPER/DEMO: journal scope is non-LIVE (checked by caller's mode);
+          - LIVE: explicit ``RL_POLICY_ENABLED`` opt-in, research-influence
+            approval, and CPCV_VALIDATED + DSR-passed pipeline evidence.
+
+        Any failure returns exactly 1.0 (no change).
+        """
+        try:
+            if not getattr(self, "enable_rl", False):
+                return 1.0
+            trainer = getattr(self, "rl_trainer", None)
+            if trainer is None or not isinstance(state, dict) or not state:
+                return 1.0
+            if not hasattr(trainer, "policy_advantage"):
+                return 1.0
+            if int(getattr(trainer, "total_updates", 0) or 0) < self.RL_SIZING_MIN_UPDATES:
+                return 1.0
+            evidence = trainer.policy_advantage(state, action)
+            if not evidence:
+                return 1.0
+            if float(evidence.get("spread", 0.0) or 0.0) < self.RL_SIZING_MIN_SPREAD:
+                return 1.0
+            if not paper_mode:
+                enabled = os.getenv("RL_POLICY_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+                if not enabled:
+                    return 1.0
+                if not self._research_influence_allowed("rl", paper_mode=False):
+                    return 1.0
+                if not self._rl_live_evidence_ok():
+                    return 1.0
+            # RL prefers a different action: halve size.  Never block, never
+            # increase.  Logged with the Q evidence for auditability.
+            if float(evidence.get("advantage", 0.0)) < 0.0:
+                logging.getLogger("LLMOrchestrator").info(
+                    "RL sizing downsize (paper=%s): action=%s adv=%.4f spread=%.4f updates=%d key=%s",
+                    bool(paper_mode), evidence.get("action"),
+                    float(evidence.get("advantage", 0.0)),
+                    float(evidence.get("spread", 0.0)),
+                    int(evidence.get("updates", 0)),
+                    evidence.get("state_key"),
+                )
+                return 0.5
+            return 1.0
+        except Exception as _rl_exc:
+            logging.getLogger("LLMOrchestrator").debug("RL sizing multiplier skipped: %s", _rl_exc)
+            return 1.0
 
     def _journal_closed_r_multiples(self, limit: int = 120) -> List[float]:
         """Realised R-multiples of reconciled closed trades, newest → oldest.
@@ -5006,23 +5100,28 @@ class LLMOrchestrator:
         try:
             aqt = toon.get("auto_quant_tools", {})
             results = aqt.get("results", {})
-            if not results:
-                return
             log = logging.getLogger("LLMOrchestrator")
 
             # --- 0. RL ADVISORY (advisory only; never execution authority) ---
+            # Runs even when no advanced tool produced results: the RL state is
+            # built from the raw market snapshot, not from the tool payload.
             try:
-                _rl_state = {
-                    "win_rate": float((toon.get("indicators") or {}).get("win_rate", 0.5) or 0.5),
-                    "confluence_score": float((toon.get("indicators") or {}).get("confluence_score", 0.0) or 0.0),
-                    "regime": str((toon.get("regime_allocation") or {}).get("regime", {}).get("regime", "UNKNOWN")),
-                }
+                _rl_state = self._build_rl_state(toon)
                 _rl_adv = self._rl_advisory(_rl_state)
+                if _rl_state:
+                    toon["rl_market_state"] = _rl_state
                 if _rl_adv is not None:
                     toon["rl_advisory"] = _rl_adv
-                    log.info("RL advisory: action=%s explored=%s", _rl_adv.get("action"), _rl_adv.get("explored"))
+                    log.info(
+                        "RL advisory: action=%s adv_q=%s key=%s",
+                        _rl_adv.get("action"), _rl_adv.get("q_values"), _rl_adv.get("state_key"),
+                    )
             except Exception as _rl_adv_exc:
                 log.debug("RL advisory skipped: %s", _rl_adv_exc)
+
+            if not results:
+                return
+
 
             # --- 1. META-ADAPTIVE: adjust risk parameters ---
             meta = results.get("meta_adaptive", {})
@@ -9821,9 +9920,26 @@ Total Trades: {len(closed_trades)}"""
                 _alpha_ic = float(_alpha_ens.get("overall_ic", 0.0))
                 _alpha_conf = str(_alpha_ens.get("composite_confidence", "unknown"))
 
+                # RL policy (Loop 5) influence is bounded and DOWNSIZE-ONLY:
+                # when the learned Q-table disagrees with the chosen direction
+                # the size is halved; agreement is a no-op.  LIVE additionally
+                # requires the CPCV/DSR evidence gate (see _rl_sizing_multiplier).
+                _rl_mult = 1.0
+                try:
+                    _rl_mult = self._rl_sizing_multiplier(
+                        self._build_rl_state(toon), action, paper_mode=paper_mode,
+                    )
+                    if _rl_mult != 1.0:
+                        decision["rl_sizing_multiplier"] = _rl_mult
+                        decision["rl_sizing_reason"] = "policy_disagrees_downsize_only"
+                except Exception as _rlm_exc:
+                    log.debug("RL sizing skipped: %s", _rlm_exc)
+                    _rl_mult = 1.0
+                _sizing_conf = self._sizing_confidence(decision) * _rl_mult
+
                 safe_vol = self.risk.calc_position_size(
                     symbol, entry, sl,
-                    confidence=self._sizing_confidence(decision),
+                    confidence=_sizing_conf,
                     alpha_composite=_alpha_composite,
                     trade_direction=action,
                     alpha_overall_ic=_alpha_ic,

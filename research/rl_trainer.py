@@ -163,8 +163,14 @@ class RLTrainer:
         trend_strength, htf_trend, session.
         """
         try:
-            # Volatility: use atr_normalized (produced by _build_rl_state)
+            # Volatility: use atr_normalized (produced by _build_rl_state).
+            # Offline Kronos episodes produce the same volatility measure under
+            # ``volatility_range`` (real bar range of the simulated series), so
+            # fall back to it instead of emitting an "unknown" bin that no live
+            # state could ever match.
             atr_norm = state.get("atr_normalized")
+            if atr_norm is None:
+                atr_norm = state.get("volatility_range")
             vol_bin = self._numeric_bin(atr_norm, [0.003, 0.008]) if atr_norm is not None else "unknown"
 
             # Direction / MA alignment
@@ -190,8 +196,13 @@ class RLTrainer:
             trend_strength = state.get("trend_strength")
             trend_bin = self._numeric_bin(trend_strength, [0.3, 0.7])
 
-            # Time features
-            session = state.get("session", "unknown")
+            # Time features.  Only real session buckets are canonical; the
+            # offline simulator's "sim" label (and any other placeholder) maps
+            # to "unknown" so the backoff lookup below can bridge sessions
+            # rather than inventing a fake session.
+            session = str(state.get("session", "unknown") or "unknown").lower()
+            if session not in {"asia", "london", "ny", "overlap"}:
+                session = "unknown"
 
             # Build compact state key (includes rsi_bin, drops phantom bar_pos)
             state_key = (
@@ -227,6 +238,78 @@ class RLTrainer:
             action = max(q_values, key=q_values.get)
             self.exploitation_count += 1
             return action, False
+
+    def q_values_for_state(
+        self, state: Dict[str, Any], allow_backoff: bool = True
+    ) -> Tuple[Optional[Dict[str, float]], str]:
+        """Return learned Q-values for ``state`` plus the key that matched.
+
+        Offline Kronos episodes carry synthetic session labels; live sessions
+        are real.  Rather than shrinking both policies to a common fake
+        session, an unseen exact key backs off to the same state with the
+        session dimension masked to ``unknown`` (the bucket offline training
+        uses).  This is genuine generalisation over a nuisance dimension, not
+        a reward invention: if no learned key matches, ``(None, key)`` is
+        returned and callers must treat the policy as having no opinion.
+        """
+        key = self._build_state_key(state)
+        try:
+            exact = self.q_table.get(key)
+        except Exception:
+            exact = None
+        if exact:
+            return dict(exact), key
+        if not allow_backoff:
+            return None, key
+        parts = key.split("|")
+        masked = "|".join(
+            "sess:unknown" if p.startswith("sess:") else p for p in parts
+        )
+        if masked == key:
+            return None, key
+        try:
+            backed_off = self.q_table.get(masked)
+        except Exception:
+            backed_off = None
+        if backed_off:
+            return dict(backed_off), masked
+        return None, key
+
+    def policy_advantage(
+        self, state: Dict[str, Any], action: str
+    ) -> Optional[Dict[str, Any]]:
+        """Q-advantage of ``action`` over the best alternative, if learned.
+
+        Returns ``None`` when the state has no learned Q-values or the action
+        is not tradable.  The caller decides how (and whether) to use the
+        advantage; this method grants no authority.
+        """
+        action_u = str(action or "").upper()
+        if action_u not in {"BUY", "SELL"}:
+            return None
+        q_values, key = self.q_values_for_state(state)
+        if not q_values:
+            return None
+        try:
+            chosen = float(q_values.get(action_u, 0.0))
+            alternatives = [
+                float(v) for a, v in q_values.items() if str(a).upper() != action_u
+            ]
+            if not alternatives:
+                return None
+            best_alternative = max(alternatives)
+            spread = max(q_values.values()) - min(q_values.values())
+        except (TypeError, ValueError):
+            return None
+        return {
+            "action": action_u,
+            "advantage": chosen - best_alternative,
+            "q_values": {str(k).upper(): float(v) for k, v in q_values.items()},
+            "state_key": key,
+            "spread": float(spread),
+            "updates": int(self.total_updates),
+            "execution_authority": False,
+        }
     
     def calculate_reward(self, trade_result: Dict[str, Any]) -> float:
         """Terminal reward from broker-reconciled close (cost-aware R_net).
