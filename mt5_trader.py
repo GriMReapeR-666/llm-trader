@@ -4856,12 +4856,17 @@ def execute_skill(**kwargs):
                             outbox_path="alerts_outbox.db",
                             queue=_task_queue,
                         )
+                        _inc = _pipe.get("incubation", {})
                         logging.getLogger("main").info(
-                            "Autonomous pipeline tick: %d discovered, %d registered, %d skipped, %d flagged",
+                            "Autonomous pipeline tick: %d discovered, %d registered, %d skipped, %d flagged | Incubation: %s (%d causal edges, %d heuristics, MAML=%s)",
                             _pipe.get("discovery", {}).get("members", 0),
                             _pipe.get("registered", 0),
                             _pipe.get("skipped", 0),
                             _pipe.get("flagged", 0),
+                            _inc.get("status", "N/A"),
+                            _inc.get("edges", 0),
+                            _inc.get("heuristics", 0),
+                            _inc.get("maml_profile", "DEFAULT"),
                         )
                     except Exception as _pipe_exc:
                         logging.getLogger("main").warning(

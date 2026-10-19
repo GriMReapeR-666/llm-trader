@@ -80,6 +80,7 @@ def run_pipeline(
         "registered": 0,
         "skipped": 0,
         "flagged": 0,
+        "incubation": {"status": "NOT_LOADED", "edges": 0, "heuristics": 0},
     }
     try:
         rows = _rows(lifecycle_path)
@@ -92,6 +93,15 @@ def run_pipeline(
                 result["flagged"] += 1
             else:
                 result["skipped"] += 1
+
+        # Ingest research-trained causal intelligence bundle for forward incubation
+        sync = sync_incubation_knowledge()
+        result["incubation"] = {
+            "status": sync.get("status", "NOT_FOUND"),
+            "edges": sync.get("edges_count", 0),
+            "heuristics": sync.get("heuristics_count", 0),
+            "maml_profile": sync.get("maml_profile"),
+        }
     except Exception as exc:
         logger.debug("autonomous pipeline tick failed: %s", exc)
     return result
