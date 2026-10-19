@@ -214,6 +214,11 @@ class AutomatedTrainingManager:
                 episodes=n_episodes, symbol=symbol, regime="volatile",
             )
             results["qlearn"] = q_result.get("mean_episode_reward", 0)
+            # Persist the trained Q-table so the live RL advisory can load it.
+            try:
+                trainer.save_model()
+            except Exception as _save_exc:
+                log.debug("RL Q-table save skipped: %s", _save_exc)
             log.info("  Q-learning: reward=%.4f", results["qlearn"])
         except Exception as e:
             log.debug("  Q-learning failed: %s", e)

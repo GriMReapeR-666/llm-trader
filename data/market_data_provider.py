@@ -184,6 +184,24 @@ def _server_utc_offset_seconds(mt5_inst: Any, probe_symbols: Tuple[str, ...] = (
         return 0
 
 
+#: Bounded retry ladder for the lazy MT5 attach.  A cold terminal — or one
+#: still booting when the continuous backtest pipeline starts — commonly
+#: refuses the FIRST bare ``initialize()`` and accepts it a second later.  Both
+#: attach call sites used to be single-shot, so one transient miss turned a
+#: reachable terminal into a whole failed validation run (or silently degraded
+#: broker specs to DEFAULT_CONFIG).  Three attempts over ~1.5s converts that
+#: miss; a genuinely absent terminal still fails closed almost immediately.
+#:
+#: ponytail: fixed sleep ladder, no jitter — ceiling: attach contention across
+#: parallel validation processes; upgrade path: jittered backoff or a
+#: file-lock around the attach.
+_ATTACH_MAX_ATTEMPTS = 3
+_ATTACH_BACKOFF_S = (0.5, 1.0)
+#: Module-level alias so tests can patch the sleep without patching time.sleep
+#: globally.
+_ATTACH_SLEEP = time.sleep
+
+
 def _ensure_mt5_attached(mt5_inst: Any) -> bool:
     """Lazily attach this process to the MT5 terminal for data-only consumers.
 
@@ -199,8 +217,13 @@ def _ensure_mt5_attached(mt5_inst: Any) -> bool:
     The bare attach is the same data-plane session mt5_trader.py already
     sanctions for paper market data: it returns real broker OHLC, never
     synthetic or external fallback, so the fail-closed doctrine is intact.
-    Objects without an ``initialize`` attribute (test fakes, exotic shims)
-    keep the prior behavior exactly.
+    The attach is retried up to ``_ATTACH_MAX_ATTEMPTS`` times with the
+    ``_ATTACH_BACKOFF_S`` ladder because a booting terminal refuses the first
+    ``initialize()``; only the transient False/None outcomes are retried — a
+    raising ``terminal_info()``/``initialize()`` still fails fast (a broken
+    shim is not a booting terminal).  Objects without an ``initialize``
+    attribute (test fakes, exotic shims) keep the prior behavior exactly:
+    False immediately, no retries, no sleeping.
     """
     try:
         if mt5_inst.terminal_info() is not None:
@@ -210,16 +233,35 @@ def _ensure_mt5_attached(mt5_inst: Any) -> bool:
     init = getattr(mt5_inst, "initialize", None)
     if init is None:
         return False
-    try:
-        attached = bool(init())
-    except Exception:
-        return False
-    if not attached:
-        return False
-    try:
-        return mt5_inst.terminal_info() is not None
-    except Exception:
-        return False
+    for attempt in range(_ATTACH_MAX_ATTEMPTS):
+        if attempt:
+            _ATTACH_SLEEP(_ATTACH_BACKOFF_S[min(attempt - 1,
+                                                len(_ATTACH_BACKOFF_S) - 1)])
+        try:
+            attached = bool(init())
+        except Exception as exc:
+            logger.warning(
+                "MT5 attach attempt %d/%d failed with exception; failing closed: %s",
+                attempt + 1, _ATTACH_MAX_ATTEMPTS, exc,
+            )
+            return False
+        if not attached:
+            logger.warning(
+                "MT5 attach attempt %d/%d refused by terminal; retrying in %.2fs",
+                attempt + 1, _ATTACH_MAX_ATTEMPTS,
+                _ATTACH_BACKOFF_S[min(attempt, len(_ATTACH_BACKOFF_S) - 1)],
+            )
+            continue
+        try:
+            if mt5_inst.terminal_info() is not None:
+                return True
+        except Exception:
+            return False
+    logger.warning(
+        "MT5 attach failed after %d attempts; terminal not reachable in this process",
+        _ATTACH_MAX_ATTEMPTS,
+    )
+    return False
 
 
 def fetch_ohlc(symbol: str, timeframe: str, count: int = 100) -> pd.DataFrame:
@@ -278,6 +320,10 @@ def fetch_ohlc(symbol: str, timeframe: str, count: int = 100) -> pd.DataFrame:
         )
 
     rates_frame = pd.DataFrame(rates)
+    if "tick_volume" in rates_frame.columns and "volume" not in rates_frame.columns:
+        rates_frame["volume"] = rates_frame["tick_volume"]
+    elif "real_volume" in rates_frame.columns and "volume" not in rates_frame.columns:
+        rates_frame["volume"] = rates_frame["real_volume"]
     # MT5 epochs are broker-server-time; convert to true UTC so completed-bar
     # lineage never appears in the future (server time > capture time).
     offset = _server_utc_offset_seconds(mt5_inst)
@@ -991,6 +1037,7 @@ class MarketDataProvider:
                 # latency on the market-order path.
                 _latency = 0.0
                 try:
+                    from core.order_execution import _symbol_tick
                     _lat_t0 = time.perf_counter()
                     _tick = _symbol_tick(symbol)
                     _latency = (time.perf_counter() - _lat_t0) * 1000.0
@@ -1483,18 +1530,28 @@ class MarketDataProvider:
         # with an empty object.
         if not acc_info and self.paper_account_evidence:
             _bal = float(getattr(self.risk, "balance", 0.0) or 0.0)
-            _eq = float(getattr(self.risk, "equity", _bal) or _bal)
+            # RiskManager has no ``equity`` attribute (only equity_floor_fraction),
+            # so the old getattr(self.risk, "equity", _bal) always fell back to
+            # the balance and paper evidence reported balance as equity - open
+            # floating P&L never surfaced here. current_equity() is the real
+            # accessor: MT5, else the injected paper venue, else the snapshot.
+            try:
+                _eq = float(self.risk.current_equity())
+            except Exception:
+                _eq = _bal
+            if not (_eq > 0.0):
+                _eq = _bal
             if _bal > 0.0 or _eq > 0.0:
                 acc_info = {
                     "server": "PAPER_SIMULATED", "currency": "USD", "leverage": 100,
                     "balance": _bal, "equity": _eq, "margin": 0.0,
                     "margin_free": _eq, "margin_level": 0.0,
-                    "mode": "PAPER_SIMULATED", "source": "risk_manager_seed",
+                    "mode": "PAPER_SIMULATED", "source": "risk_manager_equity",
                     "simulated": True,
                 }
-        
+
         balance = float(acc_info.get("balance", self.risk.balance) or self.risk.balance)
-        equity = float(acc_info.get("equity", self.risk.balance) or self.risk.balance)
+        equity = float(acc_info.get("equity") or balance)
         self.risk.update_account(balance, equity)
 
         now_ts = time.time()

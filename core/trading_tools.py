@@ -649,17 +649,20 @@ class ListSkillsInput(BaseModel):
 
 # execute_dynamic_metric_analysis removed from tool interface (PI-P1 / TL-S1 safety finding)
 def execute_dynamic_metric_analysis(code: str, description: str = "Custom metric analysis") -> Dict[str, Any]:
-    """Calculate custom metrics or inspect trading data via code interpreter (non-tool helper)."""
-    from research.code_interpreter import DynamicMetricInterpreter
-    interpreter = DynamicMetricInterpreter()
-    res = interpreter.execute_code(code)
+    """Dynamically write, validate, and execute arbitrary Python functions (DISABLED for security).
+
+    Kept disarmed on purpose (I1 / f1957992). The merge brought a version that
+    instantiates DynamicMetricInterpreter and calls execute_code() on the
+    caller-supplied string, which re-arms unsandboxed arbitrary code execution
+    behind an LLM-reachable tool. The inert stub below is retained instead.
+    """
     return {
         "task_description": description,
-        "success": res.success,
-        "result": res.result,
-        "stdout": res.stdout,
-        "error": res.error,
-        "execution_time_ms": res.execution_time_ms,
+        "success": False,
+        "result": None,
+        "stdout": "",
+        "error": "Dynamic metric Python execution is disabled for safety.",
+        "execution_time_ms": 0.0,
     }
 
 
@@ -1340,9 +1343,19 @@ def evaluate_portfolio_risk_gate(
     # Heat via RiskManager if available
     try:
         from core.risk_manager import RiskManager  # type: ignore
-        # Use persisted state if store exists, else ephemeral. Paper default $10k
-        # keeps the gate runnable with MT5 disconnected; RiskManager rejects 0.
-        rm = RiskManager(balance=float(equity or 10000), risk_per_trade=0.01)
+        # EPHEMERAL, deliberately. This is a read-only probe asked by the LLM,
+        # not the engine's risk manager, so it must neither read nor rewrite the
+        # live circuit-breaker anchors. It previously took the default relative
+        # "risk_state.json", which ``core.state_persistence`` resolves to
+        # ``data/state/`` - so on a day/week rollover the constructor's own
+        # save_state() stamped this probe's throwaway $10k paper balance over
+        # the real account. That is how the live state came to read
+        # start_equity=10000 next to weekly_start_equity=100000, which disabled
+        # the weekly circuit entirely.
+        # Paper default $10k keeps the gate runnable with MT5 disconnected;
+        # RiskManager rejects 0.
+        rm = RiskManager(balance=float(equity or 10000), risk_per_trade=0.01,
+                         state_file=RiskManager.EPHEMERAL_STATE)
         hv = rm.open_portfolio_heat_r()
         if hv is not None:
             heat_val = float(hv)
@@ -1912,21 +1925,36 @@ def reconcile_broker_and_journal_orders(db_path: str = "trading_state.db") -> Di
         from datetime import datetime, timezone, timedelta
         from operations.daily_reconciliation import compare_day
         from core.trading_safety import TradingStore
-        store = TradingStore(path=db_path)
+        import MetaTrader5 as mt5
+
         now = datetime.now(timezone.utc)
-        report = compare_day(store=store, broker_deals=[], start=now - timedelta(days=1), end=now)
+        start = now - timedelta(days=1)
+        
+        deals = mt5.history_deals_get(start, now)
+        if deals is None:
+            return {
+                "reconciliation_status": "BROKER_UNAVAILABLE",
+                "owned_seen": 0,
+                "discrepancies_count": 0,
+                "is_execution_synchronized": False,
+            }
+            
+        store = TradingStore(path=db_path)
+        report = compare_day(store=store, broker_deals=deals, start=start, end=now)
+        discrepancies = len(report.get("discrepancies", []))
+        
         return {
-            "reconciliation_status": "CLEARED_SYNCED",
+            "reconciliation_status": "CLEARED_SYNCED" if discrepancies == 0 else "DISCREPANCIES_FOUND",
             "owned_seen": report.get("owned_seen", 0),
-            "discrepancies_count": len(report.get("discrepancies", [])),
-            "is_execution_synchronized": True,
+            "discrepancies_count": discrepancies,
+            "is_execution_synchronized": discrepancies == 0,
         }
     except Exception:
         return {
-            "reconciliation_status": "CLEARED_SYNCED",
+            "reconciliation_status": "RECONCILIATION_ERROR",
             "owned_seen": 0,
             "discrepancies_count": 0,
-            "is_execution_synchronized": True,
+            "is_execution_synchronized": False,
         }
 
 
@@ -2662,7 +2690,7 @@ RESEARCH_TOOLS = [
     audit_journal_integrity,
     query_retrieval_audit_trail,
     sync_working_memory_state,
-    # Dynamic & Skill Extensibility (execute_dynamic_metric_analysis removed:
+# Dynamic & Skill Extensibility (execute_dynamic_metric_analysis removed:
     # PI-P1/TL-S1 unsandboxed exec must not be a tool; plain helper remains
     # at module level for non-tool callers only)
     invoke_agent_skill,

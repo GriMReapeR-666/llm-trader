@@ -27,6 +27,87 @@ RUNBOOKS: Dict[str, str] = {
 }
 
 
+def remedy_drawdown(detail: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute containment for drawdown breaker trip."""
+    from operations.autonomy import get_autonomy
+    autonomy = get_autonomy()
+    autonomy.pause(actor="IncidentRemediation:drawdown")
+    return {"status": "APPLIED", "action": "HALT_TRADING", "detail": detail}
+
+
+def remedy_recon_mismatch(detail: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute reconciliation triage when broker and journal desync."""
+    try:
+        from core.trading_tools import reconcile_broker_and_journal_orders
+        res = reconcile_broker_and_journal_orders()
+        return {"status": "APPLIED", "action": "RECONCILED", "result": res}
+    except Exception as exc:
+        return {"status": "ERROR", "action": "RECONCILIATION_FAILED", "error": str(exc)}
+
+
+def remedy_slippage_streak(detail: Dict[str, Any]) -> Dict[str, Any]:
+    """Demote autonomy level and trigger calibration alert."""
+    from operations.autonomy import get_autonomy
+    autonomy = get_autonomy()
+    demoted = autonomy.demote("incident:slippage_streak_remediation")
+    return {"status": "APPLIED", "action": "DEMOTED_AUTONOMY", "new_level": demoted}
+
+
+def remedy_llm_outage(detail: Dict[str, Any]) -> Dict[str, Any]:
+    """Degrade to HOLD-only mode during LLM provider downtime."""
+    from operations.autonomy import get_autonomy
+    autonomy = get_autonomy()
+    with autonomy._lock:
+        autonomy._state.setdefault("flags", {})
+        autonomy._state["flags"]["hold_only"] = True
+        autonomy._persist_locked()
+    return {"status": "APPLIED", "action": "HOLD_ONLY_MODE"}
+
+
+def remedy_stale_data(detail: Dict[str, Any]) -> Dict[str, Any]:
+    """Pause new cycles and request feed reconnection."""
+    from operations.autonomy import get_autonomy
+    autonomy = get_autonomy()
+    autonomy.pause(actor="IncidentRemediation:stale_data")
+    return {"status": "APPLIED", "action": "PAUSED_FOR_FEED_RECONNECT"}
+
+
+def remedy_executor_failed(detail: Dict[str, Any]) -> Dict[str, Any]:
+    """Record execution subsystem fault and pause order routing."""
+    from operations.autonomy import get_autonomy
+    autonomy = get_autonomy()
+    autonomy.pause(actor="IncidentRemediation:executor_failure")
+    return {"status": "APPLIED", "action": "EXECUTOR_CONTAINED"}
+
+
+ACTION_HANDLERS: Dict[str, Any] = {
+    "drawdown": remedy_drawdown,
+    "recon_mismatch": remedy_recon_mismatch,
+    "slippage_streak": remedy_slippage_streak,
+    "llm_outage_min": remedy_llm_outage,
+    "stale_data_s": remedy_stale_data,
+    "executor_failed": remedy_executor_failed,
+}
+
+
+def dispatch_remediation(kind: str, detail: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Dispatch programmatic remediation handler for an incident kind."""
+    handler = ACTION_HANDLERS.get(kind)
+    if handler is None:
+        return {"status": "SKIPPED", "reason": f"no handler for {kind}"}
+    try:
+        outcome = handler(detail or {})
+        try:
+            from operations.event_bridge import emit
+            emit("INCIDENT_REMEDY_DISPATCHED", {"kind": kind, "outcome": outcome}, actor="IncidentAgent")
+        except Exception:
+            pass
+        return outcome
+    except Exception as exc:
+        logger.error("Failed to execute remedy for %s: %s", kind, exc, exc_info=True)
+        return {"status": "FAILED", "error": str(exc)}
+
+
 class IncidentRecorder:
     def __init__(self, incidents_file: str = INCIDENTS_FILE):
         self._lock = threading.Lock()

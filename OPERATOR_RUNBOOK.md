@@ -59,6 +59,10 @@ Single-shot: one spawn, then exits — a crashed boot is NOT re-spawned (no
 boot loops). History: the 10:04:10Z fire failed (`'START_TRADING.bat' is not
 recognized` — bare filename to `cmd /c`); fixed 10:27Z to spawn the absolute
 path. Verified live: 10:28:30Z spawn (2.78GB free) → `run_started` 10:29:17Z.
+Since 2026-10-18 the spawn uses `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP`,
+so a boot survives the death of the launcher session (live-proven: a harness
+restart cancelled the parent shell and the engine child died with it - lease
+went 7.8h stale).
 
 ### Watchers to have armed during/after a session
 | Watcher | Fires | Outputs |
@@ -144,7 +148,7 @@ provider can no longer stall the first cycle.
 
 | Env | Default | Meaning |
 |---|---|---|
-| `LLM_TRADER_BOOT_STAGE_BUDGETS` | `calendar_collect=30, bulk_calendar_ingest=30, data_source_pipeline=45, realtime_news_ingest=45` | per-stage seconds, `name=seconds` comma-separated; invalid entries are logged and dropped |
+| `LLM_TRADER_BOOT_STAGE_BUDGETS` | `calendar_collect=30, bulk_calendar_ingest=30, data_source_pipeline=45, realtime_news_ingest=90` | per-stage seconds, `name=seconds` comma-separated; invalid entries are logged and dropped. `realtime_news_ingest` was raised 45→90 after it missed the 45s deadline on 2026-09-30 and 2026-10-02 (elapsed p95 45.0s); the bootstrap twin `bootstrap_realtime_news_ingest` matches |
 
 Stage outcomes (`ok`/`timed_out`/`elapsed_s`/`budget_s` per stage) are recorded in
 `_pulse_macro_cache[symbol]["boot_stage_outcomes"]`. Tests:
@@ -364,6 +368,29 @@ sanctioned recovery, from repo root:
 python -X utf8 -c "import sys; sys.path[:0]=['operations','research']; from agent_operations import AgentOperations; o=AgentOperations('trading_state.db'); print(o.recover_stale_tasks(900), o.queue_health())"
 ```
 
-Zero trades for days with healthy cycles is EXPECTED pre-deployment: the
+### 6.1 External inputs landed Oct 2026 (status annotations)
+
+- **Zero-lag macro provenance** — `data/zero_lag_macro_provider.py` exposes
+  `source_quality_annotations()`: every hardcoded physical-proxy ratio is
+  labelled `LIVE` or `SYNTHETIC_PLACEHOLDER` based on whether its upstream
+  Yahoo quotes are cached and differ from the placeholder anchors. Check the
+  annotation before trusting a ratio in LLM context or gate logic.
+- **TradingView advisory bridge (ingest-only)** — `data/tradingview_bridge.py`
+  receives TV webhook alerts on POST `/alert`, auth-gated via env
+  `TV_WEBHOOK_SECRET` (header `X-TV-Token`). Rows land in `order_intents` with
+  status `ADVISORY`: they are never executed and are invisible to the pending
+  reconciler and the killswitch cancel loop. Starting the server:
+  `python -m data.tradingview_bridge` (bind/port default 127.0.0.1:19887).
+- **Social evidence tier** — `SOCIAL_EVIDENCE_ONLY` in
+  `intelligence/macro_source_policy.py` permits ingest of whitelisted social
+  entity posts via `data/social_entity_ingest.py` (Trump/@POTUS, central
+  banks, market outlets; override via `data/social_watchlist.json`). Posts are
+  journaled for LLM context with `causal_authority=False` — the causal block
+  on social domains is unchanged.
+- **Boot stale state** — daemon writes a lease-backed `engine.pid`
+  (JSON: pid + stamped_at); a live prior lease refuses a second start
+  (single-instance discipline). `operations/live_state_probe.py`
+  (`probe_live_state` / `sweep_live_state`) reconciles stale schedule claims
+  and ghost `RUNNING` agent_runs at boot; every recovery is WARNING-logged.: the
 confluence/news/regime gates and the CRITICAL-grade overfit filter are doing
 their job (`proposal_validated` payloads show the veto reasons).

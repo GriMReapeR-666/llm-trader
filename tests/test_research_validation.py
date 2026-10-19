@@ -147,6 +147,7 @@ def test_labelled_dataset_excludes_synthetic_fixture_rows(tmp_path: Path):
         (11, '{"source": "synthetic_demo_generator"}', "synthetic_close"),
         (12, _json.dumps({"proposal_features": {**features, "source": "demo_sample_generator"}}), "target"),
         (13, "{}", "synthetic_close"),
+        (14, _json.dumps({"source": "backtest", "proposal_features": features}), "target"),
     ]
     for ticket, payload, reason in rows:
         con.execute(
@@ -163,11 +164,11 @@ def test_labelled_dataset_excludes_synthetic_fixture_rows(tmp_path: Path):
 
     # Broker-link them so the SYNTHETIC gate is what refuses them, proving the
     # marker check still works independently of the reconciliation gate.
-    _mark_broker_submitted(raw, [11, 12, 13])
+    _mark_broker_submitted(raw, [11, 12, 13, 14])
 
     manual = labelled_dataset(raw)
     assert manual["sample_size"] == 0
-    assert manual["excluded"]["synthetic_row_excluded"] == 3
+    assert manual["excluded"]["synthetic_row_excluded"] == 4
 
 
 def test_labelled_dataset_requires_independent_broker_evidence(tmp_path: Path):

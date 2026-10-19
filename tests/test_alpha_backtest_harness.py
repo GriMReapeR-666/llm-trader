@@ -295,3 +295,45 @@ class TestHarness:
         # Different thresholds should produce different trade counts
         assert r1.ic_weighted.total_trades != r2.ic_weighted.total_trades or \
                r1.equal_weight.total_trades != r2.equal_weight.total_trades
+
+
+# ---------------------------------------------------------------------------
+# MT5 session ownership
+# ---------------------------------------------------------------------------
+
+def test_load_mt5_bars_leaves_shared_session_attached(monkeypatch):
+    """Attach when needed, but never shutdown() the process-global session.
+
+    The engine loop and other research pipelines share one MetaTrader5 IPC
+    session per process; a harness-side shutdown surfaces as "MT5 terminal not
+    attached in this process" on the engine's next cycle.
+    """
+    import sys
+    import types
+
+    import data.market_data_provider as mdp
+    import research.alpha_backtest_harness as harness
+
+    shutdowns = []
+    fake_mt5 = types.SimpleNamespace(
+        terminal_info=lambda: None,          # no session yet -> attach path
+        initialize=lambda *a, **k: True,     # attach succeeds first try
+        shutdown=lambda: shutdowns.append("shutdown"),
+    )
+    monkeypatch.setitem(sys.modules, "MetaTrader5", fake_mt5)
+
+    frame = pd.DataFrame({
+        "time": pd.date_range("2024-01-01", periods=60, freq="h"),
+        "open": np.full(60, 1.0),
+        "high": np.full(60, 1.1),
+        "low": np.full(60, 0.9),
+        "close": np.linspace(1.0, 1.5, 60),
+        "volume": np.full(60, 1000.0),
+    })
+    monkeypatch.setattr(mdp, "fetch_ohlc", lambda symbol, timeframe, count: frame.copy())
+
+    out = harness.load_mt5_bars("EURUSD", "H1", 60)
+
+    assert shutdowns == []
+    assert {"time", "open", "high", "low", "close"} <= set(out.columns)
+    assert len(out) == 60

@@ -51,11 +51,32 @@ BASE_DIR = _root_dir  # Alias for backward compatibility with RL training pipeli
 if _root_dir not in sys.path:
     sys.path.insert(0, _root_dir)
 
+# Single import root (C1): bare and package-qualified imports of the same
+# file resolve to ONE module object (one kill-switch latch, one set of
+# singletons).  Installed before the first repo import below.
+try:
+    from _import_root import install as _install_import_root
+    _install_import_root()
+except ImportError:
+    # sitecustomize may not have run (python -S, an embedded interpreter);
+    # the canonical import still installs the finder and re-registers itself
+    # under the bare name, so both spellings share one module object.
+    try:
+        from core._import_root import install as _install_import_root
+        _install_import_root()
+    except Exception as _ir_exc:  # pragma: no cover - bootstrap must never die here
+        import warnings as _warnings
+        _warnings.warn(f"single-import-root install failed: {_ir_exc}")
+except Exception as _ir_exc:  # pragma: no cover - bootstrap must never die here
+    import warnings as _warnings
+    _warnings.warn(f"single-import-root install failed: {_ir_exc}")
+
 import time
 import json
 import logging
 import math
 import hashlib
+import threading
 from dataclasses import dataclass, replace
 from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime, timedelta, timezone # Added timezone for UTC support
@@ -1493,7 +1514,7 @@ def _drain_operator_controls(orch: Any) -> None:
 
 def main() -> None:
     """Main entry point for the MT5 LLM Trader"""
-    global mt5
+    global mt5, pd, np
     
     # Initialize configuration and logging
     cfg = Config.from_sources()
@@ -1770,6 +1791,8 @@ def main() -> None:
                         help="Mount named plugin profile (paper/live/research/backtest). Auto-maps from --paper/--live flags if not set.")
     ap_llm.add_argument("--list-profiles", action="store_true", help="List available plugin profiles and exit")
     ap_llm.add_argument("--bounded-autonomy", action="store_true", help="Enable Bounded-Autonomy LLM Agent Pipeline (NZE 2026: R ∘ V_LLM ∘ S)")
+    ap_llm.add_argument("--execution-engine", choices=["orchestrator", "graph"], default="orchestrator",
+                        help="Primary decision engine: 'orchestrator' (legacy multi-strategy) or 'graph' (modular LangGraph Deliberative Engine)")
 
     # ── Demo Trading Orchestrator (live training pipeline) ───────────────────
     ap_demo = sub.add_parser("demo-run", help="Autonomous demo trading with live training pipeline")
@@ -2948,15 +2971,50 @@ def main() -> None:
                 end_dt = min(now, start_dt + timedelta(days=1))
 
             if args.paper:
-                from operations.daily_reconciliation import adapt_paper_deals, compare_day
-                closed_rows = store.closed_trade_rows_between(start_dt.isoformat(), end_dt.isoformat())
-                paper_deals = adapt_paper_deals(closed_rows)
-                report = compare_day(store, paper_deals, start_dt, end_dt, require_timestamps=False)
+                # Paper mode has no independent broker side, so there is
+                # nothing honest to reconcile.  The PaperBroker's closed history
+                # is in-memory on the trader process (core/order_execution.py:
+                # self.history, trimmed to 1000) and is unreachable from this
+                # CLI; the only durable thing here is the journal itself.
+                # Feeding journal rows back in as "broker" deals compares the
+                # journal against itself: it can never disagree, so it can
+                # never be evidence.  And because journal rows carry `pnl`
+                # while the deal adapter reads `profit`, every non-zero-P&L
+                # trade was additionally reported as a spurious mismatch
+                # (live: refused_discrepant=5) plus a durable ATTENTION work
+                # item per trade, overwriting any real report for the period.
+                # compare_day already refuses to mint evidence from these
+                # (refused_journal_derived), so nothing reached the gates --
+                # but it still wrote false alarms.  Refuse outright.
+                #
+                # The genuine paper evidence path is the in-process one:
+                # operations/learning_loop._resolve_broker_deals reads
+                # context.paper_broker.history (real PaperBroker closes) and
+                # runs compare_day over it.  That is separate from this CLI.
+                report = {
+                    "status": "NO_INDEPENDENT_BROKER_SOURCE",
+                    "period_start": start_dt.isoformat(),
+                    "period_end": end_dt.isoformat(),
+                    "reason": (
+                        "paper mode supplies no broker-side evidence: the journal "
+                        "cannot be reconciled against itself, and the PaperBroker's "
+                        "closed history lives in the trader process, not the journal. "
+                        "No reconciliation was run and no evidence was written."
+                    ),
+                    "execution_evidence_written": 0,
+                    "execution_authority": False,
+                    "hint": ("run without --paper against MetaTrader5 deal history; "
+                             "paper closes are reconciled in-process by "
+                             "operations/learning_loop.run_daily_review"),
+                }
             else:
-                mt5_inst = _get_mt5()
-                if mt5_inst is None:
-                    raise RuntimeError("MetaTrader5 module unavailable for live reconciliation; specify --paper to run against paper ledger")
-                deals = mt5_inst.history_deals_get(start_dt, end_dt)
+                # Genuine broker side.  (This used to call an undefined
+                # `_get_mt5()`, so the only live path always raised NameError.)
+                if mt5 is None:
+                    raise RuntimeError(
+                        "MetaTrader5 module unavailable for live reconciliation; "
+                        "there is no independent broker side without it")
+                deals = mt5.history_deals_get(start_dt, end_dt)
                 if deals is None:
                     raise RuntimeError("MT5 deal history unavailable for reconciliation")
                 from operations.daily_reconciliation import compare_day
@@ -3237,7 +3295,6 @@ def main() -> None:
             return
 
     if args.cmd == "research-sim":
-        import numpy as np
         if args.action == "simulate-ar1":
             from research.synthetic_path_simulator import fit_ar1_model, generate_synthetic_paths, optimize_strategy_ensemble, default_mean_reversion_strategy
             np.random.seed(42)
@@ -3942,7 +3999,10 @@ def execute_skill(**kwargs):
 
     # LLM Trading Orchestrator
     if args.cmd == "llm-trade":
-        # Single-instance engine lock (CC-F9, PR 3.4):
+# Single-instance engine lock (CC-F9, PR 3.4), kept from origin/main.
+        # An OS-level mutex on engine.lock, independent of the PID lease below,
+        # so a stale pid file can never be the only thing standing between two
+        # engines.
         from core.file_lock import FileLock
         _lock_path = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.lock")
         global _engine_file_lock
@@ -3953,16 +4013,54 @@ def execute_skill(**kwargs):
             sys.exit(3)
         _engine_file_lock.write_pid(os.getpid())
 
-        # Single-instance lifecycle: publish PID so the API/deck can display it.
+        # Single-instance lifecycle: publish PID so the API/deck can guard
+        # against double-spawn and offer a real stop. Best-effort only.
+        # Lease-backed: the writer stamps {pid, created_at, stamped_at} and a
+        # daemon heartbeat re-stamps it, so a crash left behind a PID file is
+        # detected by any observer (operations/live_state_probe.py) instead of
+        # lying for hours - and a pid Windows later recycles cannot pass for us.
         _pid_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.pid")
         try:
+            from operations.live_state_probe import (claim_pid_lease, read_pid_lease,
+                                                     start_pid_lease_heartbeat, sweep_live_state)
+
+            # Single-instance guard as a LEASE: a live holder wins, a dead or
+            # stale one is taken over. Refusing here is what stops two engines
+            # thrashing the journal DB and racing the broker.
+            _claim = claim_pid_lease(_pid_path)
+            if not _claim["acquired"]:
+                print(f"[lifecycle] REFUSING TO START: another engine (pid {_claim.get('pid')}) "
+                      f"already holds engine.pid ({_claim.get('reason')}). "
+                      f"Stop it first (delete engine.pid or use the API stop command).")
+                sys.exit(2)
+
+            # Recover any stale boot/liveness state from a previous crash:
+            # expired schedule claims, ghost agent_runs, supervisor lying
+            # about RUNNING. Every finding is logged as a WARNING (P0-1).
+            # NOTE: no `orch` here - it is constructed ~380 lines further down,
+            # so referencing it raised NameError and skipped the sweep entirely.
+            try:
+                _sweep = sweep_live_state(getattr(args, "journal_path", None) or "trading_state.db",
+                                          _pid_path)
+                if _sweep["released_claims"] or _sweep["recovered_runs"] or (_sweep["supervisor"] or {}).get("recovered"):
+                    print(f"[lifecycle] live-state sweep: {_sweep['released_claims']} stale claim(s) "
+                          f"released, {_sweep['recovered_runs']} ghost run(s) recovered, "
+                          f"supervisor recovered={bool((_sweep['supervisor'] or {}).get('recovered'))}")
+            except Exception as _sweep_exc:
+                logging.getLogger("main").warning("live-state sweep skipped: %s", _sweep_exc)
+
             import atexit as _atexit
-            with open(_pid_path, "w", encoding="utf-8") as _pf:
-                _pf.write(str(os.getpid()))
+
+            # Re-stamp the lease while we live. Without this the file is a
+            # stale artifact again after PID_LEASE_MAX_AGE_S and every observer
+            # (watchdog, GUI, operator) would call a healthy engine dead.
+            start_pid_lease_heartbeat(_pid_path)
 
             def _cleanup_pid():
                 try:
-                    os.remove(_pid_path)
+                    # Ownership-checked: never delete a lease a successor took.
+                    if read_pid_lease(_pid_path).get("pid") == os.getpid():
+                        os.remove(_pid_path)
                 except OSError:
                     pass
                 try:
@@ -3974,6 +4072,11 @@ def execute_skill(**kwargs):
             _atexit.register(_cleanup_pid)
         except OSError as _pid_exc:
             print(f"[lifecycle] engine.pid write failed (non-fatal): {_pid_exc}")
+        except SystemExit:
+            raise
+        except Exception as _pid_lifecycle_exc:
+            # pid lease / sweep are boot-enhancements, never trading blockers.
+            logging.getLogger("main").warning("pid lifecycle init failed (non-fatal): %s", _pid_lifecycle_exc)
 
         # --debug: re-configure logging with trading-critical modules at DEBUG
         if getattr(args, 'debug', False):
@@ -4114,7 +4217,8 @@ def execute_skill(**kwargs):
                         "Error: No LLM providers have API keys configured "
                         "(every decision would be a deterministic HOLD).\n"
                         "Set at least one provider key in .env "
-                        "(OPENROUTER_API_KEY, CEREBRAS_API_KEY, NVIDIA_API_KEY, ROUTESME_KEY)."
+                        "(OPENROUTER_API_KEY, CEREBRAS_API_KEY, NVIDIA_API_KEY, ROUTESME_KEY, "
+                        "OMNIROUTER_KEY)."
                     )
                     sys.exit(1)
             except Exception as e:
@@ -4328,7 +4432,11 @@ def execute_skill(**kwargs):
                     _orch_factory_exc)
                 orch = None
         if orch is None:
-            orch = LLMOrchestrator(**orch_kwargs)
+            try:
+                orch = LLMOrchestrator(**orch_kwargs)
+            except Exception as _orch_ctor_exc:
+                logging.getLogger("main").exception("LLMOrchestrator construction failed: %s", _orch_ctor_exc)
+                raise
         # H4: fail rows a dead engine left ACKNOWLEDGED. They were claimed
         # but never applied; re-running them blindly could double-apply, so
         # the operator re-issues deliberately.
@@ -4455,19 +4563,6 @@ def execute_skill(**kwargs):
             logging.getLogger("main").warning("supervisor boot skipped: %s", sup_exc)
         # -----------------------------------------------------------------
 
-        # --- S.Q Priority Queue: formal task scheduling (UAQP Orchestrator Queue) ---
-        _task_queue = None
-        try:
-            from core.task_queue import TaskQueue, migrate_from_intervals
-            from core.auto_quant_tools import DEFAULT_INTERVALS
-            _task_queue = migrate_from_intervals(DEFAULT_INTERVALS)
-            logging.getLogger("main").info(
-                "S.Q Priority Queue initialized (%d scheduled tasks)",
-                len(_task_queue._pending),
-            )
-        except Exception as _tq_exc:
-            logging.getLogger("main").warning("S.Q Task Queue init skipped: %s", _tq_exc)
-
         # --- κ Compliance Audit: hash-chained immutable log (UAQP Agent κ) ---
         _audit = None
         try:
@@ -4583,22 +4678,26 @@ def execute_skill(**kwargs):
 
             # 4. GA alpha mining (quick 1 generation)
             try:
-                import pandas as pd
                 from research.alpha_miner.ga_engine import GAEngine, GAConfig
-                _rates = mt5.copy_rates_from_pos(args.symbol if args.symbol != "AUTO" else "EURUSD", mt5.TIMEFRAME_H1, 0, 1000)
-                if _rates is not None and len(_rates) > 100:
-                    _df = pd.DataFrame(_rates)
-                    _df['time'] = pd.to_datetime(_df['time'], unit='s')
-                    _df = _df.rename(columns={'tick_volume': 'volume'})
+                _ga_sym = args.symbol if args.symbol != "AUTO" else "EURUSD"
+                _ga_tf = args.timeframe if args.timeframe != "AUTO" else "H1"
+                _ga_bars = int(os.getenv("BACKTEST_VALIDATION_BARS", "4000") or 4000)
+                _df = fetch_ohlc(_ga_sym, _ga_tf, count=max(_ga_bars, 500))
+                if _df is not None and len(_df) > 100:
                     _ga = GAEngine(config=GAConfig(population_size=15, generations=1, min_ic_threshold=0.005))
                     _ga_result = _ga.evolve(_df, verbose=False)
-                    _sig = [ic for ic in _ga_result.best_ics if abs(ic) >= 0.02]
+                    _sig = _ga_result.significant_ics
                     logging.getLogger("main").info(
-                        "  [4/6] GA miner: %d alphas evaluated, %d significant, best=%.4f",
-                        len(_ga_result.all_expressions), len(_sig),
+                        "  [4/6] GA miner: %d alphas evaluated, %d significant "
+                        "(Bonferroni over %d trials), best=%.4f",
+                        len(_ga_result.all_expressions), len(_sig), _ga_result.n_trials,
                         max((abs(ic) for ic in _ga_result.best_ics), default=0)
                     )
-                    _startup_results["ga_miner"] = {"evaluated": len(_ga_result.all_expressions), "significant": len(_sig)}
+                    _startup_results["ga_miner"] = {
+                        "evaluated": len(_ga_result.all_expressions),
+                        "significant": len(_sig),
+                        "n_trials": _ga_result.n_trials,
+                    }
             except Exception as e:
                 logging.getLogger("main").debug("  [4/6] GA miner skipped: %s", e)
 
@@ -4746,19 +4845,122 @@ def execute_skill(**kwargs):
                         _pipe = run_pipeline(
                             lifecycle_path=getattr(_plugin_store, "path", "trading_state.db"),
                             outbox_path="alerts_outbox.db",
-                            queue=_task_queue,
                         )
+                        _inc = _pipe.get("incubation", {})
                         logging.getLogger("main").info(
-                            "Autonomous pipeline tick: %d discovered, %d registered, %d skipped, %d flagged",
+                            "Autonomous pipeline tick: %d discovered, %d registered, %d skipped, %d flagged | Incubation: %s (%d causal edges, %d heuristics, MAML=%s)",
                             _pipe.get("discovery", {}).get("members", 0),
                             _pipe.get("registered", 0),
                             _pipe.get("skipped", 0),
                             _pipe.get("flagged", 0),
+                            _inc.get("status", "N/A"),
+                            _inc.get("edges", 0),
+                            _inc.get("heuristics", 0),
+                            _inc.get("maml_profile", "DEFAULT"),
                         )
                     except Exception as _pipe_exc:
                         logging.getLogger("main").warning(
                             "Autonomous pipeline tick FAILED: %s", _pipe_exc
                         )
+
+                # --- Autonomous recursive self-improvement tick (every 25 loops) ---
+                if cycle_count % 25 == 0:
+                    try:
+                        from core.self_improvement_loop import RecursiveSelfImprovementEngine
+                        _rsi_store = getattr(orch, "store", None)
+                        _rsi_engine = RecursiveSelfImprovementEngine(state_file="artifacts/self_improvement_state.json")
+                        _rsi_res = _rsi_engine.run_improvement_cycle(store=_rsi_store)
+                        if _rsi_res:
+                            _proposals = _rsi_res if isinstance(_rsi_res, list) else [_rsi_res]
+                            for _p in _proposals:
+                                _st = getattr(_p, "status", "") if not isinstance(_p, dict) else _p.get("status", "")
+                                _imp = getattr(_p, "improvement_pct", 0.0) if not isinstance(_p, dict) else _p.get("improvement_pct", 0.0)
+                                _cat = getattr(_p, "category", "") if not isinstance(_p, dict) else _p.get("category", "")
+                                if _st in ("APPLIED", "VALIDATED"):
+                                    logging.getLogger("main").info(
+                                        "Recursive self-improvement cycle %d -> %s (+%.2f%%) | %s",
+                                        cycle_count, _st, _imp, _cat
+                                    )
+                    except Exception as _rsi_exc:
+                        logging.getLogger("main").debug("Recursive self-improvement tick skipped: %s", _rsi_exc)
+
+                def _execute_research_sprint(_res_sym: str, _res_tf: str, _orch: Any = None, _paper_mode: bool = True) -> None:
+                    try:
+                        _r_t0 = time.time()
+                        _vbars = int(os.getenv("BACKTEST_VALIDATION_BARS", "4000") or 4000)
+                        _vdf = None
+                        logging.getLogger("main").info(
+                            "🔬 [AUTONOMOUS RESEARCH] starting research sprint for %s (%s)...",
+                            _res_sym, _res_tf,
+                        )
+                        # 1. Continuous Backtest Pipeline (TCE, DSR, CPCV, WFE)
+                        try:
+                            from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+                            from research.strategy_signal_registry import _REGISTRY as _STRAT_REG
+                            _pipeline = ContinuousBacktestPipeline()
+                            _strat_names = sorted(_STRAT_REG.keys())
+                            try:
+                                _vdf = fetch_ohlc(_res_sym, _res_tf, count=max(_vbars, 500))
+                            except Exception as _vfetch_exc:
+                                logging.getLogger("main").debug(
+                                    "Research sweep bars fetch failed (%s); pipeline will fetch per strategy",
+                                    _vfetch_exc,
+                                )
+                            for _sname in _strat_names:
+                                try:
+                                    _bt_res = _pipeline.run_validation_cycle(
+                                        symbol=_res_sym, strategy_name=_sname, timeframe=_res_tf,
+                                        bars=_vbars, bars_df=_vdf,
+                                    )
+                                    if _bt_res:
+                                        _status = _bt_res.get("verdict", {}).get("status", "COMPLETE")
+                                        logging.getLogger("main").debug(
+                                            "🔬 [AUTONOMOUS RESEARCH] %s backtest: status=%s",
+                                            _sname, _status,
+                                        )
+                                except Exception as _bt_one:
+                                    logging.getLogger("main").debug(
+                                        "Research backtest sprint skipped %s: %s", _sname, _bt_one)
+                            logging.getLogger("main").info(
+                                "🔬 [AUTONOMOUS RESEARCH] Continuous backtest sweep complete: %d strategies",
+                                len(_strat_names),
+                            )
+                        except Exception as _bt_err:
+                            logging.getLogger("main").debug("Research backtest sprint skipped: %s", _bt_err)
+
+                        # 2. Alpha Discovery on the same multi-thousand-bar history
+                        # as the backtest sweep. The sealed evaluator's IC t-test
+                        # needs >=4 independent 20-bar blocks after Bonferroni
+                        # deflation; a 200-bar fetch cannot support that claim.
+                        try:
+                            _hist_df = _vdf
+                            if _hist_df is None or len(_hist_df) < 200:
+                                _hist_df = fetch_ohlc(_res_sym, _res_tf, count=max(_vbars, 500))
+                            if _hist_df is not None and len(_hist_df) >= 200:
+                                from core.alpha_discovery import AlphaDiscoveryEngine
+                                _discovery = AlphaDiscoveryEngine(state_file="alpha_discovery_state.json")
+                                _split = int(len(_hist_df) * 0.7)
+                                _val_alphas = _discovery.run_discovery_cycle(_hist_df.iloc[:_split], _hist_df.iloc[_split:])
+                                if _val_alphas:
+                                    logging.getLogger("main").info(
+                                        "🔬 [AUTONOMOUS RESEARCH] Alpha Discovery found %d validated alphas",
+                                        len(_val_alphas),
+                                    )
+                        except Exception as _alpha_err:
+                            logging.getLogger("main").debug("Research alpha discovery skipped: %s", _alpha_err)
+
+                        # 3. Macro & COT Ingest
+                        try:
+                            if _orch and hasattr(_orch, "pre_pulse_macro_ingest"):
+                                _orch.pre_pulse_macro_ingest(_res_sym, paper_mode=_paper_mode)
+                        except Exception as _macro_err:
+                            logging.getLogger("main").debug("Research macro ingest skipped: %s", _macro_err)
+
+                        logging.getLogger("main").info(
+                            "🔬 [AUTONOMOUS RESEARCH] Sprint finished in %.2fs", time.time() - _r_t0
+                        )
+                    except Exception as _wsprint_exc:
+                        logging.getLogger("main").warning("Autonomous research sprint error: %s", _wsprint_exc)
 
                 # Auto-Select Symbol
                 current_symbol = args.symbol
@@ -4777,66 +4979,14 @@ def execute_skill(**kwargs):
                         timeframe=args.timeframe if args.timeframe != "AUTO" else "H1",
                     )
                     logging.getLogger("main").info(
-                        "⏸️ [DECISION] Cycle %d: HOLD %s | Market Holiday/Weekend; trading halted, maintenance & research routines active",
-                        cycle_count, maint_symbol or "PORTFOLIO"
+                        "⏸️ [DECISION] HOLD %s | Market Holiday/Weekend; trading halted, maintenance & research routines active",
+                        maint_symbol or "PORTFOLIO"
                     )
                     # --- Weekend / Holiday Autonomous Research Routine ---
-                    # When live trading is closed, use downtime to run offline research:
-                    # 1) Continuous Backtesting across active strategies (TCE, DSR, CPCV, WFE)
-                    # 2) Formulaic Alpha Factor Discovery on cached historical bars
-                    # 3) Friday CFTC COT & FRED Macro Sentiment Refresh
                     if cycle_count == 1 or cycle_count % 10 == 0:
                         _res_sym = maint_symbol or (args.symbol if args.symbol and str(args.symbol).upper() != "AUTO" else "EURUSD")
                         _res_tf = args.timeframe if args.timeframe != "AUTO" else "H1"
-                        try:
-                            _r_t0 = time.time()
-                            logging.getLogger("main").info(
-                                "🔬 [WEEKEND RESEARCH] Cycle %d: starting autonomous research sprint for %s (%s)...",
-                                cycle_count, _res_sym, _res_tf,
-                            )
-                            # 1. Continuous Backtest Pipeline (TCE, DSR, CPCV, WFE)
-                            try:
-                                from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
-                                _pipeline = ContinuousBacktestPipeline()
-                                _bt_res = _pipeline.run_validation_cycle(
-                                    symbol=_res_sym, strategy_name="default", timeframe=_res_tf,
-                                )
-                                if _bt_res:
-                                    _status = _bt_res.get("verdict", {}).get("status", "COMPLETE")
-                                    logging.getLogger("main").info(
-                                        "🔬 [WEEKEND RESEARCH] Continuous backtest complete: status=%s", _status
-                                    )
-                            except Exception as _bt_err:
-                                logging.getLogger("main").debug("Weekend backtest sprint skipped: %s", _bt_err)
-
-                            # 2. Alpha Discovery on historical bars
-                            try:
-                                from data.market_data_provider import fetch_ohlc
-                                _hist_df = fetch_ohlc(_res_sym, _res_tf, count=200)
-                                if _hist_df is not None and len(_hist_df) >= 40:
-                                    from core.alpha_discovery import AlphaDiscoveryEngine
-                                    _discovery = AlphaDiscoveryEngine(state_file="alpha_discovery_state.json")
-                                    _split = int(len(_hist_df) * 0.7)
-                                    _val_alphas = _discovery.run_discovery_cycle(_hist_df.iloc[:_split], _hist_df.iloc[_split:])
-                                    if _val_alphas:
-                                        logging.getLogger("main").info(
-                                            "🔬 [WEEKEND RESEARCH] Alpha Discovery found %d validated alphas", len(_val_alphas)
-                                        )
-                            except Exception as _alpha_err:
-                                logging.getLogger("main").debug("Weekend alpha discovery skipped: %s", _alpha_err)
-
-                            # 3. Macro & COT Ingest
-                            try:
-                                if hasattr(orch, "pre_pulse_macro_ingest"):
-                                    orch.pre_pulse_macro_ingest(_res_sym, paper_mode=args.paper)
-                            except Exception as _macro_err:
-                                logging.getLogger("main").debug("Weekend macro ingest skipped: %s", _macro_err)
-
-                            logging.getLogger("main").info(
-                                "🔬 [WEEKEND RESEARCH] Sprint finished in %.2fs", time.time() - _r_t0
-                            )
-                        except Exception as _wsprint_exc:
-                            logging.getLogger("main").warning("Weekend research sprint error: %s", _wsprint_exc)
+                        _execute_research_sprint(_res_sym, _res_tf, orch, args.paper)
                 elif auto_symbol_mode and scanner:
                     if display: display.update_footer("Scanning markets...")
                     else: print("Scanning markets...")
@@ -4870,6 +5020,24 @@ def execute_skill(**kwargs):
 
                     if opportunities:
                         best = opportunities[0]
+                        
+                        _last_sym = getattr(scanner, "_last_scanner_symbol", None)
+                        if _last_sym and best["symbol"] == _last_sym:
+                            has_pos = False
+                            if hasattr(orch, "trade_manager") and hasattr(orch.trade_manager, "_get_positions"):
+                                try:
+                                    has_pos = bool(orch.trade_manager._get_positions(symbol=_last_sym))
+                                except Exception:
+                                    pass
+                            
+                            if not has_pos:
+                                for opp in opportunities[1:3]:
+                                    if opp["symbol"] != _last_sym:
+                                        best = opp
+                                        break
+                                        
+                        scanner._last_scanner_symbol = best["symbol"]
+                        
                         current_symbol = best["symbol"]
                         score = best["score"]
                         msg = f" Selected {current_symbol} (Score: {score})"
@@ -4892,9 +5060,13 @@ def execute_skill(**kwargs):
                             timeframe=args.timeframe if args.timeframe != "AUTO" else "H1",
                         )
                         logging.getLogger("main").info(
-                            "⏸️ [DECISION] Cycle %d: HOLD %s | No scanner opportunities (score below threshold); maintenance pulse active",
-                            cycle_count, maint_symbol or "PORTFOLIO"
+                            "⏸️ [DECISION] HOLD %s | No scanner opportunities (score below threshold); maintenance pulse active",
+                            maint_symbol or "PORTFOLIO"
                         )
+                        if cycle_count == 1 or cycle_count % 10 == 0:
+                            _res_sym = maint_symbol or (args.symbol if args.symbol and str(args.symbol).upper() != "AUTO" else "EURUSD")
+                            _res_tf = args.timeframe if args.timeframe != "AUTO" else "H1"
+                            _execute_research_sprint(_res_sym, _res_tf, orch, args.paper)
                 elif str(current_symbol).upper() == "AUTO":
                     # Defensive: never analyse the literal token AUTO.
                     skip_analysis = True
@@ -4904,227 +5076,254 @@ def execute_skill(**kwargs):
                         timeframe=args.timeframe if args.timeframe != "AUTO" else "H1",
                     )
                     logging.getLogger("main").info(
-                        "⏸️ [DECISION] Cycle %d: HOLD | Defensive AUTO symbol pulse", cycle_count
+                        "⏸️ [DECISION] HOLD | Defensive AUTO symbol pulse",
                     )
 
-                if skip_analysis:
-                    if args.continuous or cycle_count < args.loops:
-                        sleep_time = max(10.0 if holiday_active else 0.5, float(args.poll_interval))
-                        if display:
-                            display.update_footer(f"Next market pulse in {sleep_time:g}s (maintenance-only)...")
-                            deadline = time.monotonic() + sleep_time
-                            while time.monotonic() < deadline:
-                                display.update_heartbeat()
-                                time.sleep(min(1.0, max(0.05, deadline - time.monotonic())))
-                        else:
-                            print(f"\n Next market pulse in {sleep_time:g} seconds...")
-                            time.sleep(sleep_time)
-                    continue
+                if not skip_analysis:
+                    # Scanner/AUTO selections must receive the same broker
+                    # contract/specification capture as explicit symbols before
+                    # any proposal is allowed. Cache successful captures for the
+                    # session so a five-second pulse does not repeatedly mutate
+                    # the broker-preflight evidence.
+                    if client and current_symbol and current_symbol not in preflighted_symbols:
+                        resolved = preflight_symbols([current_symbol])
+                        current_symbol = resolved.get(current_symbol, current_symbol)
+                        preflighted_symbols.add(current_symbol)
 
-                # Scanner/AUTO selections must receive the same broker
-                # contract/specification capture as explicit symbols before
-                # any proposal is allowed. Cache successful captures for the
-                # session so a five-second pulse does not repeatedly mutate
-                # the broker-preflight evidence.
-                if client and current_symbol and current_symbol not in preflighted_symbols:
-                    resolved = preflight_symbols([current_symbol])
-                    current_symbol = resolved.get(current_symbol, current_symbol)
-                    preflighted_symbols.add(current_symbol)
-
-                # A dropped terminal connection must degrade into a retry on
-                # the next pulse, never terminate the continuous process.
-                if client is not None:
-                    try:
-                        client.reconnect_if_needed()
-                    except Exception as conn_exc:
-                        logging.getLogger("main").warning("MT5 reconnection check failed: %s", conn_exc)
-
-                strategy_cycles = resolve_strategy_cycles(args.timeframe, args.strategies)
-                # Pipeline V2: enabled by default (stage-based telemetry + fallback).
-                # Set PIPELINE_V2=0 or --no-pipeline-v2 to disable.
-                _v2_enabled = os.environ.get("PIPELINE_V2", "1") != "0" and not getattr(args, 'no_pipeline_v2', False)
-                if _v2_enabled:
-                    try:
-                        from core.harness.pipeline_v2 import install_orchestrator_entrypoint
-                        install_orchestrator_entrypoint()
-                    except Exception as _v2_exc:
-                        logging.getLogger("main").warning(
-                            "PIPELINE_V2 entrypoint unavailable (%s); legacy path", _v2_exc)
-                        _v2_enabled = False
-                # --- Graph State Checkpoint: snapshot S at cycle start (UAQP persistence) ---
-                _cp_id = None
-                if _crash_recovery is not None:
-                    try:
-                        _cp_id = _crash_recovery.begin_cycle_checkpoint(cycle_count)
-                    except Exception as _cp_exc:
-                        logging.getLogger("main").debug("Checkpoint begin skipped: %s", _cp_exc)
-                # ------------------------------------------------------------------------
-                # --- Deliberative Graph shadow evaluation (opt-in, paper-only) ---
-                # DELIBERATIVE_GRAPH_SHADOW=1 + a paper profile with the
-                # DeliberativeGraphPlugin mounted: run the graph engine alongside
-                # the legacy cycle as an observation lane. It uses the profile's
-                # own paper broker/router and never touches the live path.
-                _delib_app = None
-                if (os.environ.get("DELIBERATIVE_GRAPH_SHADOW", "1") != "0"
-                        and harness_ctx is not None
-                        and harness_ctx.has("deliberative_graph")):
-                    _delib_app = harness_ctx.get("deliberative_graph")
-                    logging.getLogger("main").info(
-                        "Deliberative Graph shadow mode enabled.")
-
-                # Run strategy cycles — parallel when multiple strategies active
-                def _run_one_strategy(_sname, _stf):
-                    _ct0 = time.time()
-                    try:
-                        _entry = orch.execute_cycle
-                        if _v2_enabled and hasattr(orch, "execute_cycle_v2"):
-                            _entry = orch.execute_cycle_v2
-                        _res = _entry(
-                            symbol=current_symbol,
-                            timeframe=_stf,
-                            cycle_num=cycle_count,
-                            total_cycles=args.loops if not args.continuous else 9999,
-                            paper_mode=args.paper,
-                            display_instance=display,
-                            strategy=_sname,
-                        )
-                        _dec = _res[0] if isinstance(_res, (tuple, list)) and _res else _res
-                        if isinstance(_dec, dict):
-                            _action = _dec.get("action", "HOLD")
-                            _reason = _dec.get("reasoning", "Cycle complete")
-                            _conf = _dec.get("confidence")
-                            _conf_str = f" (conf: {_conf:.2f})" if _conf is not None else ""
-                            if _action != "HOLD":
-                                _entry_p = _dec.get("entry", 0.0)
-                                _sl = _dec.get("stop_loss", 0.0)
-                                _tp = _dec.get("take_profit", 0.0)
-                                _msg = f"⚡ [DECISION] Cycle {cycle_count}: {_action} {current_symbol} {_stf} ({_sname}) @ {_entry_p} (SL: {_sl}, TP: {_tp}){_conf_str} | {_reason}"
-                            else:
-                                _msg = f"⏸️ [DECISION] Cycle {cycle_count}: HOLD {current_symbol} {_stf} ({_sname}){_conf_str} | {_reason}"
-                            logging.getLogger("main").info(_msg)
-                            if display and hasattr(display, "update_execution_log"):
-                                display.update_execution_log([_msg])
+                    # A dropped terminal connection must degrade into a retry on
+                    # the next pulse, never terminate the continuous process.
+                    if client is not None:
                         try:
-                            from operations.event_bridge import emit as _deck_emit
-                            _deck_emit("CYCLE_COMPLETE", {
-                                "symbol": current_symbol, "strategy": _sname,
-                                "timeframe": _stf,
-                                "duration_ms": int((time.time() - _ct0) * 1000),
-                            }, correlation_id=f"{current_symbol}-{_stf}")
-                        except Exception as _em_exc:
-                            logging.getLogger("mt5_trader").debug("event emission failed: %s", _em_exc)
-                    except KeyboardInterrupt:
-                        raise
-                    except Exception as _cyc_exc:
-                        logging.getLogger("main").exception(
-                            "Cycle failed (%s %s %s); continuing on next pulse",
-                            _sname, current_symbol, _stf,
-                        )
-                        if display:
-                            display.update_execution_log(
-                                [f"\u26a0\ufe0f Cycle error ({_sname}): {str(_cyc_exc)[:200]}"]
+                            client.reconnect_if_needed()
+                        except Exception as conn_exc:
+                            logging.getLogger("main").warning("MT5 reconnection check failed: %s", conn_exc)
+
+                    strategy_cycles = resolve_strategy_cycles(args.timeframe, args.strategies)
+                    # Pipeline V2: enabled by default (stage-based telemetry + fallback).
+                    # Set PIPELINE_V2=0 or --no-pipeline-v2 to disable.
+                    _v2_enabled = os.environ.get("PIPELINE_V2", "1") != "0" and not getattr(args, 'no_pipeline_v2', False)
+                    if _v2_enabled:
+                        try:
+                            from core.harness.pipeline_v2 import install_orchestrator_entrypoint
+                            install_orchestrator_entrypoint()
+                        except Exception as _v2_exc:
+                            logging.getLogger("main").warning(
+                                "PIPELINE_V2 entrypoint unavailable (%s); legacy path", _v2_exc)
+                            _v2_enabled = False
+                    # --- Graph State Checkpoint: snapshot S at cycle start (UAQP persistence) ---
+                    _cp_id = None
+                    if _crash_recovery is not None:
+                        try:
+                            _cp_id = _crash_recovery.begin_cycle_checkpoint(cycle_count)
+                        except Exception as _cp_exc:
+                            logging.getLogger("main").debug("Checkpoint begin skipped: %s", _cp_exc)
+                    # ------------------------------------------------------------------------
+                    # --- Deliberative Graph shadow evaluation (opt-in, paper-only) ---
+                    # DELIBERATIVE_GRAPH_SHADOW=1 + a paper profile with the
+                    # DeliberativeGraphPlugin mounted: run the graph engine alongside
+                    # the legacy cycle as an observation lane. It uses the profile's
+                    # own paper broker/router and never touches the live path.
+                    _delib_app = None
+                    if (os.environ.get("DELIBERATIVE_GRAPH_SHADOW", "1") != "0"
+                            and harness_ctx is not None
+                            and harness_ctx.has("deliberative_graph")):
+                        _delib_app = harness_ctx.get("deliberative_graph")
+                        logging.getLogger("main").info(
+                            "Deliberative Graph shadow mode enabled.")
+                    if _delib_app is None and getattr(args, "execution_engine", "orchestrator") == "graph":
+                        try:
+                            from intelligence.deliberative_graph import build_deliberative_graph
+                            _delib_app = build_deliberative_graph(
+                                db_path=getattr(args, "journal_path", None) or "trading_state.db",
+                                router=getattr(orch, "router", None),
+                                broker=getattr(orch, "client", None) or getattr(orch, "paper_broker", None),
                             )
+                            logging.getLogger("main").info("Primary Deliberative Graph execution engine initialized.")
+                        except Exception as _dg_exc:
+                            logging.getLogger("main").warning("Deliberative Graph init failed: %s", _dg_exc)
 
-                # Hoist calendar / news / macro ingestion once per pulse before strategy execution
-                if hasattr(orch, "pre_pulse_macro_ingest"):
-                    try:
-                        orch.pre_pulse_macro_ingest(current_symbol, paper_mode=args.paper)
-                    except Exception as _pulse_ingest_exc:
-                        logging.getLogger("main").debug("Pre-pulse macro ingest skipped: %s", _pulse_ingest_exc)
-
-                # NOTE (H5): no speculative VIX clear here. An earlier revision
-                # read a VIX out of the pulse macro cache, but no producer
-                # writes a timestamped VIX there and orch.macro_provider does
-                # not exist, so the block could never run — while looking like
-                # a live clearing path. Market-data clearing happens where a
-                # real VIX exists (the shadow deliberative graph, opt-in);
-                # the always-available clear is the operator path
-                # (POST /api/latch/clear, `mt5_trader.py latch --clear`).
-
-                if len(strategy_cycles) > 1:
-                    from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed as _AC
-                    with _TPE(max_workers=len(strategy_cycles), thread_name_prefix="strat") as _strat_pool:
-                        _strat_futs = {
-                            _strat_pool.submit(_run_one_strategy, sn, stf): sn
-                            for sn, stf in strategy_cycles
-                        }
-                        for _fut in _AC(_strat_futs):
-                            _fut.result()  # propagate exceptions logged inside _run_one_strategy
-                else:
-                    for _sn, _stf in strategy_cycles:
-                        _run_one_strategy(_sn, _stf)
-
-                # --- Deliberative Graph shadow cycle (observations only) ---
-                if _delib_app is not None and strategy_cycles:
-                    try:
-                        from intelligence.graph_state import (
-                            create_initial_trading_cycle_state as _mk_graph_state,
-                        )
-                        from core.shared_state import ui_state as _ui_state
-                        _shadow_name, _shadow_tf = strategy_cycles[0]
-                        _ui_state.reset_graph_pipeline(symbol=current_symbol, timeframe=_shadow_tf)
-
-                        _shadow_final = {}
-                        _stream_iter = _delib_app.stream(
-                            _mk_graph_state(
-                                symbol=current_symbol,
-                                timeframe=_shadow_tf,
-                                strategy=_shadow_name,
-                                paper_mode=True,
-                            ),
-                            config={"configurable": {
-                                "thread_id": f"shadow_{current_symbol}_{_shadow_tf}_{cycle_count}",
-                            }},
-                        )
-                        for _event in _stream_iter:
-                            for _node_name, _state_update in _event.items():
-                                _shadow_final.update(_state_update)
-                                _ui_state.update_graph_step(_node_name, _state_update)
+                    # Run strategy cycles — parallel when multiple strategies active
+                    def _run_one_strategy(_sname, _stf):
+                        _ct0 = time.time()
+                        try:
+                            if getattr(args, "execution_engine", "orchestrator") == "graph" and _delib_app is not None:
+                                from intelligence.graph_state import create_initial_trading_cycle_state as _mk_graph_state
+                                from core.shared_state import ui_state as _ui_state
+                                _ui_state.reset_graph_pipeline(symbol=current_symbol, timeframe=_stf)
+                                _g_init = _mk_graph_state(
+                                    symbol=current_symbol,
+                                    timeframe=_stf,
+                                    strategy=_sname,
+                                    paper_mode=args.paper,
+                                )
+                                _g_tid = f"exec_{current_symbol}_{_stf}_{cycle_count}"
+                                _g_final = _delib_app.invoke(_g_init, config={"configurable": {"thread_id": _g_tid}})
+                                _g_status = _g_final.get("status", "UNKNOWN")
+                                _g_action = _g_final.get("order_intent", {}).get("action", "HOLD") if _g_status == "EXECUTED" else "HOLD"
+                                _msg = f"⚡ [GRAPH DECISION] {_g_action} {current_symbol} {_stf} ({_sname}) -> {_g_status}"
+                                logging.getLogger("main").info(_msg)
+                                if display and hasattr(display, "update_execution_log"):
+                                    display.update_execution_log([_msg])
                                 try:
-                                    from ui.gui_api import emit_deliberation_step as _emit_dstep
-                                    _out_str = _state_update if isinstance(_state_update, str) else json.dumps(
-                                        _state_update, default=str
-                                    )[:400]
-                                    _emit_dstep(
-                                        node_id=_node_name,
-                                        status="done" if _node_name in ("order_execution", "rejection_sink") else "running",
-                                        output=_out_str,
-                                        node_label=_node_name.replace("_", " ").title(),
-                                    )
+                                    from operations.event_bridge import emit as _deck_emit
+                                    _deck_emit("CYCLE_COMPLETE", {
+                                        "symbol": current_symbol, "strategy": _sname,
+                                        "timeframe": _stf,
+                                        "duration_ms": int((time.time() - _ct0) * 1000),
+                                    }, correlation_id=f"{current_symbol}-{_stf}")
                                 except Exception:
                                     pass
+                                return
 
-                        _shadow_summary = {
-                            "status": _shadow_final.get("status"),
-                            "validation_passed": _shadow_final.get("validation_passed"),
-                            "fusion_score": _shadow_final.get("fusion_score"),
-                            "rejection_reasons": _shadow_final.get("rejection_reasons"),
-                        }
-                        logging.getLogger("main").info(
-                            "Deliberative shadow %s/%s -> %s",
-                            current_symbol, _shadow_tf, _shadow_summary,
-                        )
+                            _entry = orch.execute_cycle
+                            if _v2_enabled and hasattr(orch, "execute_cycle_v2"):
+                                _entry = orch.execute_cycle_v2
+                            _res = _entry(
+                                symbol=current_symbol,
+                                timeframe=_stf,
+                                cycle_num=cycle_count,
+                                total_cycles=args.loops if not args.continuous else 9999,
+                                paper_mode=args.paper,
+                                display_instance=display,
+                                strategy=_sname,
+                            )
+                            _dec = _res[0] if isinstance(_res, (tuple, list)) and _res else _res
+                            if isinstance(_dec, dict):
+                                _action = _dec.get("action", "HOLD")
+                                _reason = _dec.get("reasoning", "Cycle complete")
+                                _conf = _dec.get("confidence")
+                                _conf_str = f" (conf: {_conf:.2f})" if _conf is not None else ""
+                                if _action != "HOLD":
+                                    _entry_p = _dec.get("entry", 0.0)
+                                    _sl = _dec.get("stop_loss", 0.0)
+                                    _tp = _dec.get("take_profit", 0.0)
+                                    _msg = f"⚡ [DECISION] {_action} {current_symbol} {_stf} ({_sname}) @ {_entry_p} (SL: {_sl}, TP: {_tp}){_conf_str} | {_reason}"
+                                else:
+                                    _msg = f"⏸️ [DECISION] HOLD {current_symbol} {_stf} ({_sname}){_conf_str} | {_reason}"
+                                logging.getLogger("main").info(_msg)
+                                if display and hasattr(display, "update_execution_log"):
+                                    display.update_execution_log([_msg])
+                            try:
+                                from operations.event_bridge import emit as _deck_emit
+                                _deck_emit("CYCLE_COMPLETE", {
+                                    "symbol": current_symbol, "strategy": _sname,
+                                    "timeframe": _stf,
+                                    "duration_ms": int((time.time() - _ct0) * 1000),
+                                }, correlation_id=f"{current_symbol}-{_stf}")
+                            except Exception as _em_exc:
+                                logging.getLogger("mt5_trader").debug("event emission failed: %s", _em_exc)
+                        except KeyboardInterrupt:
+                            raise
+                        except Exception as _cyc_exc:
+                            logging.getLogger("main").exception(
+                                "Cycle failed (%s %s %s); continuing on next pulse",
+                                _sname, current_symbol, _stf,
+                            )
+                            if display:
+                                display.update_execution_log(
+                                    [f"\u26a0\ufe0f Cycle error ({_sname}): {str(_cyc_exc)[:200]}"]
+                                )
+
+                    # Hoist calendar / news / macro ingestion once per pulse before strategy execution
+                    if hasattr(orch, "pre_pulse_macro_ingest"):
                         try:
-                            from operations.event_bridge import emit as _shadow_emit
-                            _shadow_emit("DELIBERATIVE_SHADOW", {
-                                "symbol": current_symbol,
-                                "strategy": _shadow_name,
-                                "timeframe": _shadow_tf,
-                                **_shadow_summary,
-                            }, correlation_id=f"{current_symbol}-{_shadow_tf}")
-                        except Exception:
-                            pass
-                    except Exception as _sh_exc:
-                        logging.getLogger("main").debug(
-                            "Deliberative shadow cycle skipped: %s", _sh_exc)
+                            orch.pre_pulse_macro_ingest(current_symbol, paper_mode=args.paper)
+                        except Exception as _pulse_ingest_exc:
+                            logging.getLogger("main").debug("Pre-pulse macro ingest skipped: %s", _pulse_ingest_exc)
 
-                # --- Graph State Checkpoint: complete snapshot after all strategies ---
-                if _crash_recovery is not None and _cp_id is not None:
-                    try:
-                        _crash_recovery.complete_cycle_checkpoint(_cp_id)
-                    except Exception as _cp_exc:
-                        logging.getLogger("main").debug("Checkpoint complete skipped: %s", _cp_exc)
-                # ------------------------------------------------------------------------
+                    # NOTE (H5): no speculative VIX clear here. An earlier revision
+                    # read a VIX out of the pulse macro cache, but no producer
+                    # writes a timestamped VIX there and orch.macro_provider does
+                    # not exist, so the block could never run — while looking like
+                    # a live clearing path. Market-data clearing happens where a
+                    # real VIX exists (the shadow deliberative graph, opt-in);
+                    # the always-available clear is the operator path
+                    # (POST /api/latch/clear, `mt5_trader.py latch --clear`).
+
+                    if len(strategy_cycles) > 1:
+                        from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed as _AC
+                        with _TPE(max_workers=len(strategy_cycles), thread_name_prefix="strat") as _strat_pool:
+                            _strat_futs = {
+                                _strat_pool.submit(_run_one_strategy, sn, stf): sn
+                                for sn, stf in strategy_cycles
+                            }
+                            for _fut in _AC(_strat_futs):
+                                _fut.result()  # propagate exceptions logged inside _run_one_strategy
+                    else:
+                        for _sn, _stf in strategy_cycles:
+                            _run_one_strategy(_sn, _stf)
+
+                    # --- Deliberative Graph shadow cycle (observations only) ---
+                    if _delib_app is not None and strategy_cycles:
+                        try:
+                            from intelligence.graph_state import (
+                                create_initial_trading_cycle_state as _mk_graph_state,
+                            )
+                            from core.shared_state import ui_state as _ui_state
+                            _shadow_name, _shadow_tf = strategy_cycles[0]
+                            _ui_state.reset_graph_pipeline(symbol=current_symbol, timeframe=_shadow_tf)
+
+                            _shadow_final = {}
+                            _stream_iter = _delib_app.stream(
+                                _mk_graph_state(
+                                    symbol=current_symbol,
+                                    timeframe=_shadow_tf,
+                                    strategy=_shadow_name,
+                                    paper_mode=True,
+                                ),
+                                config={"configurable": {
+                                    "thread_id": f"shadow_{current_symbol}_{_shadow_tf}_{cycle_count}",
+                                }},
+                            )
+                            for _event in _stream_iter:
+                                for _node_name, _state_update in _event.items():
+                                    _shadow_final.update(_state_update)
+                                    _ui_state.update_graph_step(_node_name, _state_update)
+                                    try:
+                                        from ui.gui_api import emit_deliberation_step as _emit_dstep
+                                        _out_str = _state_update if isinstance(_state_update, str) else json.dumps(
+                                            _state_update, default=str
+                                        )[:400]
+                                        _emit_dstep(
+                                            node_id=_node_name,
+                                            status="done" if _node_name in ("order_execution", "rejection_sink") else "running",
+                                            output=_out_str,
+                                            node_label=_node_name.replace("_", " ").title(),
+                                        )
+                                    except Exception:
+                                        pass
+
+                            _shadow_summary = {
+                                "status": _shadow_final.get("status"),
+                                "validation_passed": _shadow_final.get("validation_passed"),
+                                "fusion_score": _shadow_final.get("fusion_score"),
+                                "rejection_reasons": _shadow_final.get("rejection_reasons"),
+                            }
+                            logging.getLogger("main").info(
+                                "Deliberative shadow %s/%s -> %s",
+                                current_symbol, _shadow_tf, _shadow_summary,
+                            )
+                            try:
+                                from operations.event_bridge import emit as _shadow_emit
+                                _shadow_emit("DELIBERATIVE_SHADOW", {
+                                    "symbol": current_symbol,
+                                    "strategy": _shadow_name,
+                                    "timeframe": _shadow_tf,
+                                    **_shadow_summary,
+                                }, correlation_id=f"{current_symbol}-{_shadow_tf}")
+                            except Exception:
+                                pass
+                        except Exception as _sh_exc:
+                            logging.getLogger("main").debug(
+                                "Deliberative shadow cycle skipped: %s", _sh_exc)
+
+                    # --- Graph State Checkpoint: complete snapshot after all strategies ---
+                    if _crash_recovery is not None and _cp_id is not None:
+                        try:
+                            _crash_recovery.complete_cycle_checkpoint(_cp_id)
+                        except Exception as _cp_exc:
+                            logging.getLogger("main").debug("Checkpoint complete skipped: %s", _cp_exc)
+                    # ------------------------------------------------------------------------
 
                 # --- WebSocket Keepalive Heartbeat (prevents 1011 disconnects) ---
                 # Emit a lightweight heartbeat every cycle to keep the API server's
@@ -5178,7 +5377,13 @@ def execute_skill(**kwargs):
                         logging.getLogger("main").debug("Meta-improvement health check skipped: %s", _mi_exc)
 
                 # --- Kronos Signal Fusion: get regime-adjusted signal (every 30 cycles) ---
-                if _kronos_fusion is not None and cycle_count % 30 == 0 and cycle_count > 0:
+                # Never fuse on the literal AUTO token; there is no market context for it.
+                if (
+                    _kronos_fusion is not None
+                    and cycle_count % 30 == 0
+                    and cycle_count > 0
+                    and str(current_symbol or "").upper() not in ("", "AUTO")
+                ):
                     try:
                         _kronos_signal = _kronos_fusion.get_regime_adjusted_signal(current_symbol)
                         if _kronos_signal.get("action") != "HOLD":
@@ -5268,7 +5473,7 @@ def execute_skill(**kwargs):
                             display.update_execution_log(
                                 [f"⚠ Circuit: {t.get('key')} ({t.get('severity')})" for t in _trips[:3]])
                 except Exception as _cb_exc:
-                    logging.getLogger("main").debug("Circuit breaker evaluation skipped: %s", _cb_exc)
+                    logging.getLogger("main").warning("Circuit breaker evaluation error: %s", _cb_exc)
 
                 # --- G8: Autonomous Recovery — risk reduction on consecutive failures ---
                 _consecutive_failures = 0
@@ -5286,43 +5491,6 @@ def execute_skill(**kwargs):
                             _consecutive_failures)
                     except Exception:
                         pass
-
-                # --- S.Q Priority Queue tick: execute ready tasks ---
-                # The queue is the scheduler of record: recurring tasks
-                # (e.g. lifecycle_decay_evaluation) run here instead of via
-                # hidden cycle-count triggers elsewhere in the loop.
-                if _task_queue is not None:
-                    try:
-                        _ready = _task_queue.get_ready_tasks(cycle_num=cycle_count)
-                        for _sq_task in _ready:
-                            if _sq_task.name == "lifecycle_decay_evaluation":
-                                try:
-                                    from operations.strategy_evaluation import evaluate as _slc_eval
-                                    _eval_report = _slc_eval(
-                                        getattr(_plugin_store, "path", "trading_state.db"),
-                                        registry_specs={str(k): v for k, v in REGISTERED_SETUPS.items()},
-                                        registry_fingerprint=registered_setup_fingerprint(),
-                                    )
-                                    _task_queue.complete(_sq_task.task_id, result={
-                                        "transitions": len(_eval_report.get("transitions", [])),
-                                        "alerts_enqueued": _eval_report.get("alerts_enqueued"),
-                                    })
-                                    if _eval_report.get("transitions"):
-                                        logging.getLogger("main").warning(
-                                            "S.Q lifecycle evaluation: %d transitions",
-                                            len(_eval_report["transitions"]),
-                                        )
-                                except Exception as _slc_exc:
-                                    _task_queue.fail(_sq_task.task_id, str(_slc_exc)[:300])
-                            else:
-                                # Known tool tasks are executed by their own
-                                # subsystems; here we only mark non-owned tasks
-                                # seen so the queue metrics stay honest.
-                                logging.getLogger("main").debug(
-                                    "S.Q: task %s ready (owned elsewhere)", _sq_task.task_id,
-                                )
-                    except Exception as _tq_exc:
-                        logging.getLogger("main").debug("S.Q tick skipped: %s", _tq_exc)
 
                 # --- κ Audit: log cycle completion ---
                 if _audit is not None:
@@ -5343,7 +5511,9 @@ def execute_skill(**kwargs):
                         logging.getLogger("main").debug("κ audit log skipped: %s", _ka_exc)
 
                 # --- Auto-generate alpha health dashboard after each cycle ---
-                if not getattr(args, 'no_dashboard', False):
+                # Maintenance pulses share the bookkeeping band now; writing two
+                # HTML decks every 5s is pure churn, so throttle them.
+                if not getattr(args, 'no_dashboard', False) and (not skip_analysis or cycle_count % 10 == 0):
                     try:
                         from ui.alpha_dashboard import generate_alpha_dashboard
                         _dash_path = generate_alpha_dashboard(
@@ -5359,8 +5529,8 @@ def execute_skill(**kwargs):
                             "Alpha dashboard auto-gen skipped: %s", _dash_exc
                         )
 
-                # --- Auto-generate compliance dashboard (κ + S.Q) ---
-                if not getattr(args, 'no_dashboard', False) and _audit is not None:
+                # --- Auto-generate compliance dashboard (κ audit) ---
+                if not getattr(args, 'no_dashboard', False) and _audit is not None and (not skip_analysis or cycle_count % 10 == 0):
                     try:
                         from ui.compliance_dashboard import generate_compliance_dashboard
                         _comp_path = generate_compliance_dashboard(
@@ -5489,6 +5659,21 @@ def execute_skill(**kwargs):
                             logging.getLogger("main").warning("RL training data fetch failed: %s", _train_exc)
                     except Exception as _rl_exc:
                         logging.getLogger("main").debug("RL training pipeline skipped: %s", _rl_exc)
+
+                # --- Automated Training Manager: periodic RL + Kronos synthetic retrain (every 500 cycles) ---
+                if cycle_count % 500 == 0 and cycle_count > 0:
+                    try:
+                        from core.automated_training_manager import AutomatedTrainingManager
+                        _atm = AutomatedTrainingManager()
+                        _atm_sym = current_symbol if (current_symbol and str(current_symbol).upper() != "AUTO") else (watchlist[0] if watchlist else "EURUSD")
+                        _atm_res = _atm.run_training_cycle(symbol=_atm_sym, quick=True)
+                        logging.getLogger("main").info(
+                            "Periodic Automated Training [%s]: OOS_Sharpe=%.3f WFE=%.3f gate=%s (%.1fs)",
+                            _atm_sym, _atm_res.oos_sharpe, _atm_res.wfe,
+                            _atm_res.gate_passed, _atm_res.duration_seconds,
+                        )
+                    except Exception as _atm_exc:
+                        logging.getLogger("main").debug("Periodic automated training skipped: %s", _atm_exc)
 
                 # --- Automated PPO Training Pipeline ---
                 # Train every 200 cycles (≈100 minutes at 30s intervals)
@@ -5691,9 +5876,22 @@ def execute_skill(**kwargs):
                     try:
                         from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
                         _pipeline = ContinuousBacktestPipeline()
+                        # Strategy-specific CPCV needs a real trade sample. The
+                        # 500-bar default yields ~5 trades and every CPCV stage
+                        # reports insufficiency; 4000 bars yields enough trades
+                        # for a genuine purged split. Env-tunable for slow boxes.
+                        _val_bars = int(os.getenv("BACKTEST_VALIDATION_BARS", "4000") or 4000)
+                        _val_sym = (
+                            current_symbol
+                            if current_symbol and str(current_symbol).upper() != "AUTO"
+                            else "EURUSD"
+                        )
+                        _val_tf = args.timeframe if args.timeframe != "AUTO" else "H1"
                         _bt_result = _pipeline.run_validation_cycle(
-                            symbol=current_symbol,
+                            symbol=_val_sym,
                             strategy_name=strategy_name if 'strategy_name' in dir() else "default",
+                            timeframe=_val_tf,
+                            bars=_val_bars,
                         )
                         if _bt_result:
                             logging.getLogger("main").info(
@@ -5716,10 +5914,23 @@ def execute_skill(**kwargs):
                 if cycle_count % 250 == 0 and cycle_count > 0:
                     try:
                         from core.alpha_discovery import AlphaDiscoveryEngine
-                        _discovery = AlphaDiscoveryEngine(state_file="alpha_discovery_state.json")
-                        if 'df' in locals() and df is not None and len(df) >= 40:
-                            _split = int(len(df) * 0.7)
-                            _val_alphas = _discovery.run_discovery_cycle(df.iloc[:_split], df.iloc[_split:])
+                        # The IC t-test needs >=4 independent 20-bar blocks after
+                        # Bonferroni deflation; the old 500-bar strategy frame
+                        # could not support a significance claim.
+                        _alpha_sym = (
+                            current_symbol
+                            if current_symbol and str(current_symbol).upper() != "AUTO"
+                            else "EURUSD"
+                        )
+                        _alpha_tf = args.timeframe if args.timeframe != "AUTO" else "H1"
+                        _alpha_bars = int(os.getenv("BACKTEST_VALIDATION_BARS", "4000") or 4000)
+                        _alpha_df = fetch_ohlc(_alpha_sym, _alpha_tf, count=max(_alpha_bars, 500))
+                        if _alpha_df is not None and len(_alpha_df) >= 200:
+                            _discovery = AlphaDiscoveryEngine(state_file="alpha_discovery_state.json")
+                            _split = int(len(_alpha_df) * 0.7)
+                            _val_alphas = _discovery.run_discovery_cycle(
+                                _alpha_df.iloc[:_split], _alpha_df.iloc[_split:]
+                            )
                             if _val_alphas:
                                 logging.getLogger("main").info(
                                     "Alpha Discovery: %d validated formulaic alphas discovered", len(_val_alphas)
@@ -5742,15 +5953,26 @@ def execute_skill(**kwargs):
                         # shadow them for earlier main() branches (scrub-history
                         # uses Path, history-overview uses pd).
                         from research.alpha_miner.ga_engine import GAEngine, GAConfig
-                        if 'df' in locals() and df is not None and len(df) >= 100:
+                        _ga_sym = (
+                            current_symbol
+                            if current_symbol and str(current_symbol).upper() != "AUTO"
+                            else "EURUSD"
+                        )
+                        _ga_tf = args.timeframe if args.timeframe != "AUTO" else "H1"
+                        _ga_bars = int(os.getenv("BACKTEST_VALIDATION_BARS", "4000") or 4000)
+                        _ga_df = fetch_ohlc(_ga_sym, _ga_tf, count=max(_ga_bars, 500))
+                        if _ga_df is not None and len(_ga_df) >= 100:
                             _ga_config = GAConfig(population_size=30, generations=2, min_ic_threshold=0.01)
                             _ga = GAEngine(config=_ga_config)
-                            _ga_result = _ga.evolve(df, verbose=False)
-                            _significant = [ic for ic in _ga_result.best_ics if abs(ic) >= 0.02]
+                            _ga_result = _ga.evolve(_ga_df, verbose=False)
+                            _significant = _ga_result.significant_ics
                             if _significant:
                                 logging.getLogger("main").info(
-                                    "GA Miner: %d significant alphas found, best IC=%.4f",
-                                    len(_significant), max(abs(ic) for ic in _significant)
+                                    "GA Miner: %d/%d frontier alphas significant after "
+                                    "Bonferroni over %d trials, best IC=%.4f",
+                                    len(_significant), len(_ga_result.best_ics),
+                                    _ga_result.n_trials,
+                                    max(abs(ic) for ic in _significant),
                                 )
                                 # Persist for ensemble integration
                                 _out = Path("artifacts/mined_alphas.json")
@@ -5759,10 +5981,18 @@ def execute_skill(**kwargs):
                                 # here would shadow the builtin for ALL earlier main() branches
                                 # (UnboundLocalError in strategy-tune/macro-prune printers).
                                 _out.write_text(json.dumps({
-                                    "expressions": [str(e) for e in _ga_result.best_expressions[:10]],
-                                    "best_ics": [round(float(ic), 4) for ic in _ga_result.best_ics[:10]],
+                                    "expressions": [str(e) for e in _ga_result.significant_expressions[:10]],
+                                    "best_ics": [round(float(ic), 4) for ic in _ga_result.significant_ics[:10]],
+                                    "n_trials": _ga_result.n_trials,
                                     "cycle": cycle_count,
                                 }, indent=2), encoding="utf-8")
+                            else:
+                                logging.getLogger("main").info(
+                                    "GA Miner: no frontier alpha survived Bonferroni "
+                                    "deflation over %d trials (best IC=%.4f)",
+                                    _ga_result.n_trials,
+                                    max((abs(ic) for ic in _ga_result.best_ics), default=0.0),
+                                )
                     except Exception as _ga_exc:
                         logging.getLogger("main").debug("GA miner periodic run error: %s", _ga_exc)
 
@@ -5868,7 +6098,7 @@ def execute_skill(**kwargs):
 
                 # Sleep between cycles
                 if args.continuous or cycle_count < args.loops:
-                    sleep_time = max(0.5, float(args.poll_interval))
+                    sleep_time = max(10.0 if (holiday_active or skip_analysis) else 0.5, float(args.poll_interval))
                     if display:
                         display.update_footer(f"Next market pulse in {sleep_time:g}s (LLM remains event-gated)...")
                         # Heartbeat loop with sub-second-safe polling.

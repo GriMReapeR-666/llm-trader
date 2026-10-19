@@ -152,9 +152,13 @@ def test_code_highlighter_and_line_numbers():
 # --- 4. Drawer DOM Mounting, Node Deep-Dive, and Lens Toggle ---
 
 @pytest.mark.skipif(__import__("shutil").which("node") is None, reason="needs node")
-@pytest.mark.xfail(strict=True, reason="ROADMAP Phase 9: drawer JS calls ta.select(), absent in the test DOM shim")
 def test_drawer_mounting_and_node_rendering():
-    """Verify deep-dive drawer mounts into DOM, populates node details, and renders all 8 schema attributes."""
+    """Verify deep-dive drawer mounts into DOM, populates node details, and renders all 8 schema attributes.
+
+    Formerly xfail(strict) under "ROADMAP Phase 9 ... absent in the test DOM
+    shim" — the shim now implements what the drawer needs, the test passes
+    deterministically, and a stale strict-xfail fails the suite on every pass.
+    """
     node_script = """
     // DOM Mock Environment
     class MockElement {

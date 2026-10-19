@@ -8,7 +8,8 @@ import os
 import json
 import random
 import logging
-from typing import Dict, Any, List, Tuple
+import tempfile
+from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime
 from collections import defaultdict
 
@@ -20,10 +21,20 @@ class RLTrainer:
     """
     
     def __init__(self, learning_rate: float = 0.1, discount_factor: float = 0.95, 
-                 epsilon: float = 0.2, model_path: str = "rl_model.json"):
+                 epsilon: float = 0.2, model_path: Optional[str] = None):
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = epsilon  # Exploration rate
+        
+        # Anchor relative default model_path to project root if not in CWD
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if model_path is None:
+            model_path = os.path.join(repo_root, "rl_model.json")
+        elif not os.path.isabs(model_path):
+            if not os.path.exists(model_path):
+                candidate = os.path.join(repo_root, model_path)
+                if os.path.exists(candidate) or not os.path.exists(model_path):
+                    model_path = candidate
         self.model_path = model_path
         
         # Q-table: state_key -> {action: q_value}
@@ -152,8 +163,14 @@ class RLTrainer:
         trend_strength, htf_trend, session.
         """
         try:
-            # Volatility: use atr_normalized (produced by _build_rl_state)
+            # Volatility: use atr_normalized (produced by _build_rl_state).
+            # Offline Kronos episodes produce the same volatility measure under
+            # ``volatility_range`` (real bar range of the simulated series), so
+            # fall back to it instead of emitting an "unknown" bin that no live
+            # state could ever match.
             atr_norm = state.get("atr_normalized")
+            if atr_norm is None:
+                atr_norm = state.get("volatility_range")
             vol_bin = self._numeric_bin(atr_norm, [0.003, 0.008]) if atr_norm is not None else "unknown"
 
             # Direction / MA alignment
@@ -179,8 +196,13 @@ class RLTrainer:
             trend_strength = state.get("trend_strength")
             trend_bin = self._numeric_bin(trend_strength, [0.3, 0.7])
 
-            # Time features
-            session = state.get("session", "unknown")
+            # Time features.  Only real session buckets are canonical; the
+            # offline simulator's "sim" label (and any other placeholder) maps
+            # to "unknown" so the backoff lookup below can bridge sessions
+            # rather than inventing a fake session.
+            session = str(state.get("session", "unknown") or "unknown").lower()
+            if session not in {"asia", "london", "ny", "overlap"}:
+                session = "unknown"
 
             # Build compact state key (includes rsi_bin, drops phantom bar_pos)
             state_key = (
@@ -216,6 +238,106 @@ class RLTrainer:
             action = max(q_values, key=q_values.get)
             self.exploitation_count += 1
             return action, False
+
+    # Context dimensions that may be unseen but do not change the core setup.
+    # Lookup backs off over them in this order (most specific first), averaging
+    # learned Q-values across matching states at the first level with any match.
+    _RL_BACKOFF_MASKS = (
+        ("sess",),
+        ("sess", "news"),
+        ("sess", "news", "trend"),
+        ("sess", "news", "trend", "htf"),
+        ("sess", "news", "trend", "htf", "dir"),
+    )
+
+    @staticmethod
+    def _mask_state_key(key: str, masked: set) -> str:
+        parts = []
+        for part in str(key).split("|"):
+            name = part.split(":", 1)[0]
+            parts.append("{}:*".format(name) if name in masked else part)
+        return "|".join(parts)
+
+    def q_values_for_state(
+        self, state: Dict[str, Any], allow_backoff: bool = True
+    ) -> Tuple[Optional[Dict[str, float]], str]:
+        """Return learned Q-values for ``state`` plus the key that matched.
+
+        Offline Kronos episodes carry synthetic session labels; live sessions
+        are real.  Rather than shrinking both policies to a common fake
+        session, an unseen exact key backs off over contextual dimensions
+        (session -> news -> trend strength -> HTF -> direction) and averages the
+        Q-values of matching learned states.  This is genuine generalisation
+        over nuisance/context bins, not reward invention: if no learned key
+        matches even the coarsest core, ``(None, key)`` is returned and callers
+        must treat the policy as having no opinion.
+        """
+        key = self._build_state_key(state)
+        try:
+            exact = self.q_table.get(key)
+        except Exception:
+            exact = None
+        if exact:
+            return dict(exact), key
+        if not allow_backoff:
+            return None, key
+        for mask_names in self._RL_BACKOFF_MASKS:
+            masked = set(mask_names)
+            target = self._mask_state_key(key, masked)
+            matches = []
+            for learned_key, values in list(self.q_table.items()):
+                if not values:
+                    continue
+                if self._mask_state_key(learned_key, masked) == target:
+                    matches.append(values)
+            if not matches:
+                continue
+            actions = set()
+            for values in matches:
+                actions.update(values.keys())
+            averaged = {}
+            for action in actions:
+                averaged[str(action)] = sum(
+                    float(values.get(action, 0.0) or 0.0) for values in matches
+                ) / len(matches)
+            return averaged, target
+        return None, key
+
+    def policy_advantage(
+        self, state: Dict[str, Any], action: str
+    ) -> Optional[Dict[str, Any]]:
+        """Q-advantage of ``action`` over the best alternative, if learned.
+
+        Returns ``None`` when the state has no learned Q-values or the action
+        is not tradable.  The caller decides how (and whether) to use the
+        advantage; this method grants no authority.
+        """
+        action_u = str(action or "").upper()
+        if action_u not in {"BUY", "SELL"}:
+            return None
+        q_values, key = self.q_values_for_state(state)
+        if not q_values:
+            return None
+        try:
+            chosen = float(q_values.get(action_u, 0.0))
+            alternatives = [
+                float(v) for a, v in q_values.items() if str(a).upper() != action_u
+            ]
+            if not alternatives:
+                return None
+            best_alternative = max(alternatives)
+            spread = max(q_values.values()) - min(q_values.values())
+        except (TypeError, ValueError):
+            return None
+        return {
+            "action": action_u,
+            "advantage": chosen - best_alternative,
+            "q_values": {str(k).upper(): float(v) for k, v in q_values.items()},
+            "state_key": key,
+            "spread": float(spread),
+            "updates": int(self.total_updates),
+            "execution_authority": False,
+        }
     
     def calculate_reward(self, trade_result: Dict[str, Any]) -> float:
         """Terminal reward from broker-reconciled close (cost-aware R_net).
@@ -346,11 +468,32 @@ class RLTrainer:
                 "saved_at": datetime.now().isoformat()
             }
             
-            with open(path, 'w') as f:
-                json.dump(data, f, indent=2)
-            
+            # Write atomically. A plain open(path,'w') truncates in place, so a
+            # crash or full disk mid-dump left a torn JSON file and the entire
+            # learned Q-table was unrecoverable - the next boot started from
+            # zero with no fallback. Temp file + os.replace() means the reader
+            # (this process at __init__, or the next boot) only ever sees a
+            # complete document.
+            directory = os.path.dirname(os.path.abspath(path))
+            os.makedirs(directory, exist_ok=True)
+            fd, tmp_path = tempfile.mkstemp(
+                dir=directory, prefix=".rl_model-", suffix=".tmp")
+            try:
+                with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_path, path)
+            except Exception:
+                # Never leave a stray temp file behind on failure.
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
+
             self.log.info(f"RL model saved to {path} ({len(self.q_table)} states)")
-            
+
         except Exception as e:
             self.log.error(f"Failed to save RL model: {e}")
     

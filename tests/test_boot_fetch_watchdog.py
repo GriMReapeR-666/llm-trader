@@ -23,7 +23,7 @@ def test_stage_budgets_defaults(monkeypatch):
     budgets = stage_budgets()
     assert budgets["calendar_collect"] == 30.0
     assert budgets["data_source_pipeline"] == 45.0
-    assert budgets["realtime_news_ingest"] == 45.0
+    assert budgets["realtime_news_ingest"] == 90.0
     assert budgets["bulk_calendar_ingest"] == 30.0
 
 

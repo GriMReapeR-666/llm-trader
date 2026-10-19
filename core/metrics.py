@@ -165,16 +165,28 @@ def calculate_deflated_sharpe_ratio(
     skewness: float = 0.0,
     kurtosis: float = 3.0,
     benchmark_sharpe: float = 0.0,
+    annualized: bool = True,
+    periods_per_year: float = 252.0,
 ) -> float:
-    """Deflated Sharpe Ratio (Bailey & Author-C):
+    """Deflated Sharpe Ratio (Bailey & López de Prado 2014):
     Adjusts Sharpe ratio for multiple testing and selection bias.
     Returns p-value of rejecting the null hypothesis (true Sharpe <= benchmark).
+
+    Unit Consistency:
+    De-annualizes estimated_sharpe when annualized=True (the standard in backtest
+    reports where Sharpe is annualized via sqrt(252)), aligning it with per-period
+    quantities (se_null, sr_variance).
     """
     if num_trials < 1 or sample_size < 10:
         return 1.0
     
     sr = float(estimated_sharpe)
     sr_0 = float(benchmark_sharpe)
+    
+    if annualized and periods_per_year > 1.0:
+        scale = math.sqrt(periods_per_year)
+        sr = sr / scale
+        sr_0 = sr_0 / scale
     n = float(sample_size)
     k = float(num_trials)
     gamma_3 = float(skewness)
@@ -954,7 +966,12 @@ class QuantitativeMetricsEngine:
         
         # Quarter-Kelly recommendation
         qk = calculate_quarter_kelly_sizing(win_rate, payoff_ratio)
-        
+
+        # Time under water
+        tuw = calculate_time_under_water(self.equity_curve) if self.equity_curve else {
+            "max_underwater_bars": 0, "avg_underwater_bars": 0.0, "current_underwater_bars": 0, "underwater_periods": []
+        }
+
         return {
             "total_trades": total_trades,
             "win_rate": round(win_rate, 4),
@@ -976,6 +993,9 @@ class QuantitativeMetricsEngine:
             "advisory_quarter_kelly": round(qk, 4),
             "current_equity": round(current_eq, 2),
             "total_pnl": round(current_eq - self.initial_balance, 2),
+            "max_underwater_bars": tuw["max_underwater_bars"],
+            "avg_underwater_bars": tuw["avg_underwater_bars"],
+            "current_underwater_bars": tuw["current_underwater_bars"],
         }
 
 
@@ -1330,6 +1350,52 @@ def screen_candidate_setups_fdr(
         "fdr_target": fdr_target,
         "discoveries": discoveries,
         "results": results,
+    }
+
+def calculate_time_under_water(
+    equity_curve: Sequence[float],
+) -> Dict[str, Any]:
+    """Calculate time-under-water metrics (drawdown duration in bars).
+
+    Tracks consecutive periods where equity is strictly below previous all-time-high.
+
+    Args:
+        equity_curve: Sequential series of account equity values.
+
+    Returns:
+        Dict with max_underwater_bars, avg_underwater_bars, current_underwater_bars, underwater_periods.
+    """
+    arr = np.asarray(equity_curve, dtype=float)
+    if len(arr) < 2 or not np.all(np.isfinite(arr)):
+        return {
+            "max_underwater_bars": 0,
+            "avg_underwater_bars": 0.0,
+            "current_underwater_bars": 0,
+            "underwater_periods": [],
+        }
+
+    running_max = np.maximum.accumulate(arr)
+    is_underwater = arr < running_max
+
+    completed_periods: List[int] = []
+    current_run = 0
+
+    for under in is_underwater:
+        if under:
+            current_run += 1
+        else:
+            if current_run > 0:
+                completed_periods.append(current_run)
+                current_run = 0
+
+    max_period = max(completed_periods + [current_run]) if (completed_periods or current_run > 0) else 0
+    avg_period = float(np.mean(completed_periods)) if completed_periods else 0.0
+
+    return {
+        "max_underwater_bars": int(max_period),
+        "avg_underwater_bars": round(avg_period, 2),
+        "current_underwater_bars": int(current_run),
+        "underwater_periods": completed_periods,
     }
 
 

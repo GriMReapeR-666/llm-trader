@@ -91,3 +91,86 @@ def test_decisions_idempotent_across_calls(tmp_path):
     factory.write_decision(first["id"], "APPROVED")
     applied_twice = factory.process_decisions()
     assert applied_twice == []
+
+
+# --- CRITICAL #10: the invalidation marker must describe the rows next to it ---
+
+def _marked_registry(n_strategies):
+    """A registry shaped like strategy_registry.json: rows plus a marker whose
+    counts were captured when the verdict was written."""
+    return {
+        "strategies": [
+            {"id": "s%d" % i, "stage": "CANDIDATE" if i else "FULL"}
+            for i in range(n_strategies)
+        ],
+        "_EVIDENCE_INVALID": {
+            "verdict": "promoted_metrics_unbacked",
+            "strategy_count": n_strategies,
+            "stages": {"FULL": 1, "CANDIDATE": n_strategies - 1},
+            "why": ["no code pointer"],
+            "action": "do not trade this",
+        },
+    }
+
+
+def _write(path, data):
+    from core.file_utils import safe_atomic_write_json
+    safe_atomic_write_json(path, data)
+
+
+def test_write_heals_marker_count(tmp_path):
+    """Appending a strategy must move the marker's count with it."""
+    import json
+
+    reg = str(tmp_path / "registry.json")
+    _write(reg, _marked_registry(3))
+    factory = StrategyFactory(reg, str(tmp_path / "o.jsonl"), str(tmp_path / "d.jsonl"))
+
+    factory.upsert({"id": "new", "name": "gamma", "stage": "FULL"})
+
+    saved = json.load(open(reg, encoding="utf-8"))
+    m = saved["_EVIDENCE_INVALID"]
+    assert m["strategy_count"] == len(saved["strategies"]) == 4, (
+        "marker count went stale on write: %r" % m["strategy_count"])
+    assert m["stages"]["FULL"] == 2 and m["stages"]["CANDIDATE"] == 2, m["stages"]
+
+
+def test_heal_never_fabricates_or_downgrades_the_marker(tmp_path):
+    """Self-healing must not invent a verdict, nor edit the audit text."""
+    from core.file_utils import heal_strategy_registry_marker
+
+    # 1. No marker in, no marker out — nobody reviewed this file.
+    plain = {"strategies": [{"id": "a", "stage": "CANDIDATE"}]}
+    assert "_EVIDENCE_INVALID" not in heal_strategy_registry_marker(plain)
+
+    # 2. Verdict text is untouched; only the derived counts move.
+    marked = _marked_registry(5)
+    marked["strategies"].append({"id": "b", "stage": "RETIRED"})
+    heal_strategy_registry_marker(marked)
+    m = marked["_EVIDENCE_INVALID"]
+    assert m["verdict"] == "promoted_metrics_unbacked"
+    assert m["why"] == ["no code pointer"] and m["action"] == "do not trade this"
+    assert m["strategy_count"] == 6
+    # a stage the marker never mentioned still shows up honestly
+    assert m["stages"]["RETIRED"] == 1
+
+    # 3. A registry with no marker key at all is left completely alone.
+    assert heal_strategy_registry_marker({"strategies": []}) == {"strategies": []}
+
+
+def test_malformed_registry_does_not_lose_the_marker(tmp_path):
+    """A strategies key of the wrong type must not strip the disclosure."""
+    import json
+
+    reg = str(tmp_path / "registry.json")
+    broken = _marked_registry(2)
+    broken["strategies"] = "not-a-list"
+    _write(reg, broken)
+
+    factory = StrategyFactory(reg, str(tmp_path / "o.jsonl"), str(tmp_path / "d.jsonl"))
+    factory.upsert({"id": "s1", "name": "alpha", "stage": "CANDIDATE"})
+
+    saved = json.load(open(reg, encoding="utf-8"))
+    assert saved["_EVIDENCE_INVALID"]["verdict"] == "promoted_metrics_unbacked", (
+        "the invalidation marker was dropped from a file live code still reads")
+    assert saved["_EVIDENCE_INVALID"]["strategy_count"] == len(saved["strategies"])

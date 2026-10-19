@@ -215,18 +215,28 @@ def merge_bridge_into_decision(
 ) -> Dict[str, Any]:
     """Overlay bridged continuous numeric params onto an LLM decision without granting authority.
 
-    The RL bridge may fill numeric fields only (entry, stop_loss, take_profit)
-    and NEVER mutates or overrides the decision 'action'. A HOLD/NONE stays HOLD/NONE.
+The RL bridge may fill numeric fields only (entry, stop_loss, take_profit)
+    and NEVER mutates or overrides the decision 'action'. A HOLD/NONE stays
+    HOLD/NONE.
+
+    When ``fill_missing_only`` is True, only empty/null numeric fields are filled.
+    RL exploration is strictly advisory and cannot convert a HOLD into a trade (01a F4).
     """
     out = dict(decision or {})
     out["rl_bridged_params"] = bridged.as_dict()
     out["execution_authority"] = False
+
+    current_action = str(out.get("action") or "HOLD").upper()
+    if current_action in {"", "HOLD", "NONE", "NULL"}:
+        out["action"] = "HOLD"
+        return out
+
     if bridged.action == "HOLD":
         return out
 
     overlay = bridged.to_decision_overlay()
     if fill_missing_only:
-        # Numeric continuous execution parameters only: action is NEVER changed
+# Numeric continuous execution parameters only: action is NEVER changed
         for key in ("entry", "stop_loss", "take_profit"):
             if out.get(key) in (None, "", 0, 0.0) and overlay.get(key) is not None:
                 out[key] = overlay[key]

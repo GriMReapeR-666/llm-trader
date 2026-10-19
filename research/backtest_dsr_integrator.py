@@ -37,6 +37,13 @@ from core.trial_ledger import TrialLedger, DSR_GATE_THRESHOLD, DSRResult
 
 logger = logging.getLogger(__name__)
 
+# A deflated Sharpe on a handful of trades has no statistical meaning: with
+# 4 trades a Sharpe of ~14 is routinely annualized noise, and the DSR of the
+# multiplied-testing family can reach 1.0 and stamp the run PASSED (observed
+# across the PU-0156 campaign sweep). Below this trade count the gate refuses
+# to bless anything — a strategy must actually trade to be validated.
+MIN_TRADES_FOR_DSR = 30
+
 
 # ---------------------------------------------------------------------------
 # DSR Report
@@ -59,6 +66,9 @@ class DSRReport:
     skewness: float = 0.0
     kurtosis: float = 3.0
     verdict: str = ""              # "PASS" or "FAIL_NOT_SIGNIFICANT"
+    n_trades: int = 0              # Trades this run executed (floor against tiny samples)
+    min_trades_required: int = MIN_TRADES_FOR_DSR
+    trades_floor_met: bool = True  # False when n_trades < min_trades_required
     metadata: Optional[Dict[str, Any]] = None
     validated_at: float = 0.0
 
@@ -79,6 +89,9 @@ class DSRReport:
             "skewness": round(self.skewness, 4),
             "kurtosis": round(self.kurtosis, 4),
             "verdict": self.verdict,
+            "n_trades": self.n_trades,
+            "min_trades_required": self.min_trades_required,
+            "trades_floor_met": self.trades_floor_met,
             "metadata": self.metadata or {},
             "validated_at": self.validated_at,
         }
@@ -149,6 +162,7 @@ class BacktestDSRIntegrator:
         kurtosis: Optional[float] = None,
         metadata: Optional[Dict[str, Any]] = None,
         strategy_class: Optional[str] = None,
+        n_trades: Optional[int] = None,
     ) -> DSRReport:
         """Validate a backtest result against the DSR gate.
 
@@ -200,7 +214,16 @@ class BacktestDSRIntegrator:
             strategy_class=_strategy_class,
         )
 
-        # Build report
+        # Build report. The run-level trade count is enforced even when the
+        # deflated Sharpe itself looks fine: a 4-trade Sharpe of ~14 passed
+        # the old gate purely because the deflation used the ledger-wide
+        # family size, not this run's evidence. Tiny samples are noise,
+        # not virtue. The floor applies only when the caller supplies the
+        # run's trade count (n_trades); observation counts that are bar
+        # counts are not trade counts and don't trip it.
+        _floor_enforced = n_trades is not None
+        _n_trades = int(n_trades) if n_trades is not None else 0
+        _floor_met = (not _floor_enforced) or (_n_trades >= MIN_TRADES_FOR_DSR)
         report = DSRReport(
             strategy_id=strategy_id,
             passed_gate=dsr_result.is_significant,
@@ -216,9 +239,19 @@ class BacktestDSRIntegrator:
             skewness=_skew,
             kurtosis=_kurt,
             verdict=dsr_result.verdict,
+            n_trades=_n_trades,
+            min_trades_required=MIN_TRADES_FOR_DSR,
+            trades_floor_met=_floor_met,
             metadata=metadata,
             validated_at=time.time(),
         )
+
+        # Trade-floor override: executed AFTER the report is built so the
+        # report still carries the trial's statistical facts (DSR value,
+        # family size) while blessing nothing.
+        if not _floor_met:
+            report.passed_gate = False
+            report.verdict = "FAIL_INSUFFICIENT_TRADES"
 
         if report.passed_gate:
             logger.info(

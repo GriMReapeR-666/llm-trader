@@ -22,12 +22,34 @@ from core.trading_safety import BOT_MAGICS
 class RiskManager(StoreBackedState):
     store_key = "risk_manager_state"
 
+    #: Persisted anchors above this multiple of the account's live scale are
+    #: treated as written under a different account scale (see
+    #: _repair_foreign_scale_anchors).
+    _ANCHOR_SCALE_LIMIT = 2.0
+
+    # Sentinel for a RiskManager that must neither read nor write the shared
+    # risk state. ``state_file`` defaults to the RELATIVE "risk_state.json",
+    # and ``core.state_persistence`` resolves any relative path against
+    # ``data/state/`` - so a bare ``RiskManager(balance=...)`` silently loads
+    # and rewrites the LIVE circuit-breaker anchors. Read-only callers (an LLM
+    # tool probing portfolio heat, a probe, a test helper) construct one to ask
+    # a question, and on a day/week rollover __init__ called save_state(), which
+    # stamped their throwaway $10k paper balance over the real account's
+    # anchors. That is how data/state/risk_state.json came to hold
+    # start_equity=10000 against weekly_start_equity=100000.
+    #
+    # Pass this instead. It is explicit and greppable, unlike a temp path that
+    # would leak a file per call or a None that atomic_write_json would turn
+    # into a file literally named "None".
+    EPHEMERAL_STATE = ":ephemeral:"
+
     def __init__(self, balance: float, risk_per_trade: float = 0.01, 
                  max_drawdown: float = 0.10, cooldown_seconds: int = 300,
                  max_trades_per_hour: int = 5, max_daily_loss: float = 0.03,
                  max_consecutive_losses: int = 5, store: Any = None,
                  equity_floor_fraction: float = 0.20,
-                 state_file: str = "risk_state.json"):
+                 state_file: str = "risk_state.json",
+                 is_paper: Optional[bool] = None):
         if not self._finite(balance, positive=True):
             raise ValueError("balance must be finite and positive")
         if not self._finite(risk_per_trade, positive=True) or float(risk_per_trade) > 0.02:
@@ -54,6 +76,10 @@ class RiskManager(StoreBackedState):
         
         self.initial_balance = float(balance)
         self.equity_floor_fraction = float(equity_floor_fraction)
+        self.is_paper = is_paper if is_paper is not None else (
+            os.getenv("LLM_TRADER_TRADING_MODE", "").strip().upper() == "PAPER"
+            or os.getenv("LLM_TRADER_PAPER_MODE") == "1"
+        )
         self.daily_start_equity = balance
         self.weekly_start_equity = balance
         self.weekly_recovered_r = 0.0
@@ -80,8 +106,14 @@ class RiskManager(StoreBackedState):
         self.managed_magics = set(BOT_MAGICS)
         self._active_positions_provider: Optional[Callable[[], int]] = None
         self._portfolio_heat_provider: Optional[Callable[[], Optional[float]]] = None
+        self._equity_provider: Optional[Callable[[], Optional[float]]] = None
         # When daily loss or peak DD trips, open positions must flatten — not only block entries.
         self._flatten_reason: Optional[str] = None
+
+        # Dynamic trade plan (event calendar / session / growth ladder).
+        # Lazily attached; ``off`` mode ⇒ zero behavioral and cost difference.
+        self.trade_plan_engine: Optional[Any] = None
+        self.last_trade_plan: Optional[Any] = None
 
         # Semi-Parametric Markov Chain (SPMC) strategy regime filter (Tolusic, 2026)
         try:
@@ -109,23 +141,21 @@ class RiskManager(StoreBackedState):
         self.state_week = f"{now_dt.isocalendar()[0]}-W{now_dt.isocalendar()[1]}"
         self.weekly_circuit_step_down = False
         self.weekly_recovered_r = 0.0
-        try:
-            acc = mt5.account_info()
-            self.weekly_start_equity = float(acc.equity) if acc else self.balance
-        except Exception:
-            self.weekly_start_equity = self.balance
+        self.weekly_start_equity = self.current_equity()
         self.save_state()
 
     def reset_daily_limits(self):
-        self.state_date = datetime.now().date().isoformat()
+        # UTC is canonical for the whole day/week rollover: __init__ (current_date
+        # / current_week), reset_weekly_limits and the load-failure fallback all
+        # stamp UTC. Stamping local here made the two halves of the same
+        # rollover disagree - on a UTC+5:30 host a restart during the UTC evening
+        # stamped TOMORROW, so the next UTC midnight compared equal and skipped
+        # the reset, leaving the 3% daily-loss breaker anchored ~24h stale.
+        self.state_date = datetime.now(timezone.utc).date().isoformat()
         self._flatten_reason = None
         
-        # Get current equity as start point
-        try:
-            acc = mt5.account_info()
-            self.daily_start_equity = float(acc.equity) if acc else self.balance
-        except Exception:
-            self.daily_start_equity = self.balance
+        # Anchor strictly to self.current_equity() to ensure consistency with paper vs live
+        self.daily_start_equity = self.current_equity()
         
         logging.getLogger("RiskManager").info(f"🔁 Daily Limits Reset. Start Equity: ${self.daily_start_equity:.2f}")
         self.save_state()
@@ -144,42 +174,132 @@ class RiskManager(StoreBackedState):
         except (TypeError, ValueError):
             return datetime.now(timezone.utc).isoformat()
 
+    def _repair_foreign_scale_anchors(self, data: Dict[str, Any]) -> bool:
+        """Re-anchor persisted circuit-breaker anchors that cannot be ours.
+
+        Audit P0-2: a weekly/daily anchor written under a different account
+        scale (weekly $100k on a $10k account) inflates the drawdown
+        denominator until that breaker can never trip, and the same
+        foreign-scale ``peak_equity`` instead trips the level-3 peak-to-trough
+        breaker on *every* call. Both are re-anchored to the live account.
+
+        Why ``max(live equity, initial_balance)`` is the reference: an anchor
+        more than ``_ANCHOR_SCALE_LIMIT`` times the account's CURRENT scale
+        cannot describe this account, whereas an anchor at or below it is
+        legitimate growth or restart continuity and is preserved untouched.
+
+        Why a tripped breaker blocks the repair: re-anchoring resets the
+        measured drawdown to zero. On state that already shows an engaged
+        weekly step-down or a peak-drawdown flatten, that would unmask a real
+        loss, so the tripped denominator is kept and only logged.
+
+        Repairing the number must never cost protection, so when the persisted
+        (foreign-scale) anchor still implies a real drawdown the matching
+        non-destructive latch is engaged instead of quietly forgotten:
+        ``weekly_circuit_step_down`` only halves sizing until +2R recovers.
+        No flatten reason is ever fabricated here — ``pending_flatten_reason``
+        really closes positions (core/trade_manager.py), so inventing one from
+        unprovable state would liquidate a healthy book.
+
+        ponytail: a 2x rule cannot distinguish a foreign state file from an
+        account that tripled and gave most of it back. Upgrade path: persist a
+        monotonic equity high-water ledger so foreign scale is provable
+        rather than inferred.
+        """
+        log = logging.getLogger("RiskManager")
+        live = self._account_equity()
+        if not self._finite(live, positive=True):
+            live = self.balance          # paper/no-MT5: balance is the equity
+        reference = max(float(live), float(self.initial_balance))
+        if reference <= 0:
+            return False
+        limit = self._ANCHOR_SCALE_LIMIT * reference
+        now = datetime.now(timezone.utc)
+        try:
+            weekly = float(data.get("weekly_start_equity") or 0.0)
+            daily = float(data.get("start_equity") or 0.0)
+            peak = float(data.get("peak_equity") or 0.0)
+        except (TypeError, ValueError) as exc:
+            # Unparseable anchors mean the guard cannot prove the persisted
+            # scale. Failing loud beats the documented silent-degradation bug
+            # class (audit 4.11): the breakers then run on whatever load_state
+            # parsed, and the operator can see why.
+            log.error("Risk-state anchors are malformed (%s); foreign-scale "
+                      "anchor check skipped — verify weekly_start_equity / "
+                      "peak_equity by hand.", exc)
+            return False
+
+        # A stale period is re-anchored by the existing day/week rollover in
+        # __init__ (reset_daily_limits / reset_weekly_limits run whenever the
+        # persisted date or week differs), so the guard only needs to cover the
+        # live period.
+        live_week = f"{now.isocalendar()[0]}-W{now.isocalendar()[1]}"
+        weekly_tripped = bool(data.get("weekly_circuit_step_down"))
+        peak_tripped = "peak_drawdown" in str(data.get("flatten_reason") or "")
+        repaired = False
+
+        if (str(data.get("week", "")) == live_week and not weekly_tripped
+                and weekly > limit):
+            log.warning("Re-anchoring weekly_start_equity %.2f -> %.2f: persisted "
+                        "weekly anchor exceeds %.1fx the account scale %.2f, so the "
+                        "weekly drawdown breaker could never trip.",
+                        weekly, float(live), self._ANCHOR_SCALE_LIMIT, reference)
+            implied_dd = (weekly - float(live)) / weekly
+            weekly_threshold = min(0.06, self.risk_per_trade * 6.0)
+            if implied_dd >= weekly_threshold:
+                # The account may really have fallen from that anchor; hold the
+                # weekly size step-down (recoverable at +2R) rather than
+                # re-baselining the loss away.
+                log.critical("Engaging the weekly size step-down: equity %.2f is "
+                             "%.1f%% below the discarded weekly anchor %.2f, but "
+                             "that anchor cannot be verified. Trading at 50%% size "
+                             "until +2R is recovered or an operator clears it.",
+                             float(live), implied_dd * 100.0, weekly)
+                self.weekly_circuit_step_down = True
+                self.weekly_recovered_r = 0.0
+            self.weekly_start_equity = float(live)
+            repaired = True
+        if str(data.get("date", "")) == now.date().isoformat() and daily > limit:
+            log.warning("Re-anchoring daily_start_equity %.2f -> %.2f: persisted "
+                        "daily anchor exceeds %.1fx the account scale %.2f, so the "
+                        "daily loss breaker could never trip.",
+                        daily, float(live), self._ANCHOR_SCALE_LIMIT, reference)
+            self.daily_start_equity = float(live)
+            repaired = True
+        if peak > limit:
+            if peak_tripped:
+                log.info("peak_equity %.2f exceeds %.1fx the account scale %.2f — "
+                         "kept: a peak-drawdown flatten is already on record, so "
+                         "the level-3 breaker stays armed.",
+                         peak, self._ANCHOR_SCALE_LIMIT, reference)
+            else:
+                # No peak-drawdown flatten on record despite a foreign-scale
+                # peak is itself the proof: a real drawdown this deep trips
+                # level 3 on every check and leaves a flatten reason on disk.
+                log.critical("Re-anchoring peak_equity %.2f -> %.2f: %.1fx the "
+                             "account scale %.2f with no peak-drawdown flatten on "
+                             "record. Left in place it re-arms the level-3 breaker "
+                             "and forces emergency cash liquidation every cycle.",
+                             peak, max(float(live), float(self.initial_balance)),
+                             self._ANCHOR_SCALE_LIMIT, reference)
+                self.peak_equity = max(float(live), float(self.initial_balance))
+                repaired = True
+        return repaired
+
     def load_state(self):
+        # Ephemeral means ephemeral: no shared file is read, so a read-only
+        # probe cannot inherit a stranger's breaker state either.
+        if self.state_file == self.EPHEMERAL_STATE:
+            return
         try:
             # Single transport: store -> file (one-time migration) -> default.
             data = self._load_state_dict()
             if isinstance(data, dict) and data:
-                self.daily_start_equity = data.get("start_equity", self.balance)
-                self.weekly_start_equity = data.get("weekly_start_equity", self.balance)
-                self.weekly_recovered_r = float(data.get("weekly_recovered_r", 0.0) or 0.0)
-                self.weekly_circuit_step_down = bool(data.get("weekly_circuit_step_down", False))
-                self.state_date = data.get("date", "")
-                self.state_week = data.get("week", "")
-                self.trade_timestamps = [self._parse_to_iso(value) for value in data.get("trade_timestamps", [])]
-                self.last_trade_time = {str(key): self._parse_to_iso(value) for key, value in (data.get("last_trade_time", {}) or {}).items()}
-                self.peak_equity = float(data.get("peak_equity", self.peak_equity) or self.peak_equity)
-                try:
-                    self.consecutive_losses = max(0, int(data.get("consecutive_losses", 0) or 0))
-                except (TypeError, ValueError):
-                    self.consecutive_losses = 0
-                try:
-                    self.consecutive_wins = max(0, int(data.get("consecutive_wins", 0) or 0))
-                except (TypeError, ValueError):
-                    self.consecutive_wins = 0
-                try:
-                    history = [float(v) for v in (data.get("trade_r_history", []) or [])]
-                    self.trade_r_history = [v for v in history if math.isfinite(v)][-50:]
-                except (TypeError, ValueError):
-                    self.trade_r_history = []
-                self.permanent_halt = bool(data.get("permanent_halt", False))
-                # Adopt a persisted initial_balance ONLY when it is consistent
-                # with this process's account scale (within 2x of the
-                # constructor anchor). This preserves legitimate restart
-                # continuity — the equity floor stays anchored to the true
-                # original capital across restarts — while refusing stale
-                # state written under a different account scale (e.g. test
-                # pollution at 100k re-anchoring a 10k account's floor to
-                # 20000 → instant false PERMANENT HALT).
+                self.daily_start_equity = self._as_float(data.get("start_equity"), self.balance)
+                self.weekly_start_equity = self._as_float(data.get("weekly_start_equity"), self.balance)
+                self.peak_equity = self._as_float(data.get("peak_equity"), self.peak_equity)
+                # Adopt a persisted initial_balance BEFORE the anchor guard so
+                # both reason from the same trusted account scale.
                 try:
                     _persisted_initial = float(data.get("initial_balance") or 0.0)
                 except (TypeError, ValueError):
@@ -194,8 +314,39 @@ class RiskManager(StoreBackedState):
                         "different account scale; floor re-anchored.",
                         _persisted_initial, self.initial_balance,
                     )
+                _anchors_repaired = False
+                self.weekly_recovered_r = float(data.get("weekly_recovered_r", 0.0) or 0.0)
+                self.weekly_circuit_step_down = bool(data.get("weekly_circuit_step_down", False))
+                self.state_date = data.get("date", "")
+                self.state_week = data.get("week", "")
+                self.trade_timestamps = [self._parse_to_iso(value) for value in data.get("trade_timestamps", [])]
+                self.last_trade_time = {str(key): self._parse_to_iso(value) for key, value in (data.get("last_trade_time", {}) or {}).items()}
+                try:
+                    self.consecutive_losses = max(0, int(data.get("consecutive_losses", 0) or 0))
+                except (TypeError, ValueError):
+                    self.consecutive_losses = 0
+                try:
+                    self.consecutive_wins = max(0, int(data.get("consecutive_wins", 0) or 0))
+                except (TypeError, ValueError):
+                    self.consecutive_wins = 0
+                try:
+                    history = [float(v) for v in (data.get("trade_r_history", []) or [])]
+                    self.trade_r_history = [v for v in history if math.isfinite(v)][-50:]
+                except (TypeError, ValueError):
+                    self.trade_r_history = []
+                self.permanent_halt = bool(data.get("permanent_halt", False))
                 flatten = data.get("flatten_reason")
                 self._flatten_reason = str(flatten) if flatten else None
+                # Runs last: the guard writes weekly_start_equity /
+                # peak_equity / weekly_circuit_step_down and must not be
+                # clobbered by the persisted loads above.
+                _anchors_repaired = self._repair_foreign_scale_anchors(data)
+                if _anchors_repaired:
+                    # Persist the repair, not just the in-memory value: the
+                    # audit metric is `risk_state.json weekly anchor == actual
+                    # equity`, and an unrepaired file re-corrupts the breakers
+                    # on every later restart.
+                    self.save_state()
             elif self.store is not None:
                 self.daily_start_equity = self.balance
                 self.weekly_start_equity = self.balance
@@ -218,11 +369,20 @@ class RiskManager(StoreBackedState):
             return
         self.store = store
         self.load_state()
-        self.current_date = datetime.now().date().isoformat()
+        # UTC, to match reset_daily_limits()'s stamp and __init__'s compare.
+        self.current_date = datetime.now(timezone.utc).date().isoformat()
         if self.state_date != self.current_date:
             self.reset_daily_limits()
         else:
             self.save_state()
+
+    @staticmethod
+    def _as_float(value: Any, default: float) -> float:
+        """Tolerant float read for persisted fields; never raises."""
+        try:
+            return float(value)
+        except (TypeError, ValueError, OverflowError):
+            return float(default)
 
     @staticmethod
     def _finite(value: Any, *, positive: bool = False) -> bool:
@@ -250,6 +410,11 @@ class RiskManager(StoreBackedState):
             return None
 
     def save_state(self):
+        # Never writes the shared state for an ephemeral instance. This is the
+        # guard that stops a read-only caller from stamping its balance over the
+        # live account's anchors.
+        if self.state_file == self.EPHEMERAL_STATE:
+            return
         try:
             payload = {
                 "start_equity": self.daily_start_equity,
@@ -281,7 +446,7 @@ class RiskManager(StoreBackedState):
             return False
         equity = current_equity
         if equity is None:
-            equity = self._account_equity()
+            equity = self.current_equity()
         if equity is None:
             equity = self.balance
         if not self._finite(equity, positive=False):
@@ -306,7 +471,7 @@ class RiskManager(StoreBackedState):
             return True
         equity = current_equity
         if equity is None:
-            equity = self._account_equity()
+            equity = self.current_equity()
         if equity is None:
             equity = self.balance
         
@@ -427,7 +592,7 @@ class RiskManager(StoreBackedState):
             return False
         equity = current_equity
         if equity is None:
-            equity = self._account_equity()
+            equity = self.current_equity()
         if equity is None:
             equity = self.balance
         floor = self.initial_balance * self.equity_floor_fraction
@@ -454,7 +619,7 @@ class RiskManager(StoreBackedState):
         """Drawdown control ladder vs peak equity: 1.0 / 0.75 / 0.50 / 0.25 / 0.0."""
         equity = current_equity
         if equity is None:
-            equity = self._account_equity()
+            equity = self.current_equity()
         if equity is None:
             equity = self.balance
         if not self._finite(equity, positive=True) or not self._finite(self.peak_equity, positive=True):
@@ -622,13 +787,36 @@ class RiskManager(StoreBackedState):
         }
 
     def check_max_drawdown(self, current_equity: Optional[float] = None) -> bool:
-        """Level 3 Circuit Breaker: Peak-to-trough >= 15% liquidates all positions to cash."""
+        """Level 3 Circuit Breaker: liquidate all positions to cash on peak-to-trough drawdown.
+
+Returns True when trading is ALLOWED, False when the breaker has tripped and
+positions must be flattened — the polarity is the opposite of what the name
+suggests, so read this before branching on the result.
+
+The threshold is ``self.max_drawdown`` (default 0.10, constructor line 29; see
+also ``tests/test_section_e_hardening.py`` which pins 10%). It was documented
+here as 15%, which never matched the configured value and would have misled
+anyone reasoning about how much drawdown the account can absorb.
+"""
         equity = current_equity
         if equity is None:
-            equity = self._account_equity()
+            equity = self.current_equity()
         if equity is None:
             equity = self.balance
         self.peak_equity = max(self.peak_equity, equity)
+        if not self._finite(self.peak_equity, positive=True):
+            # A non-finite high-water mark makes every comparison below False,
+            # so this breaker would silently allow ANY drawdown - and json
+            # round-trips NaN/Infinity literals by default, so one lands on
+            # disk. Foreign *scale* is decided once, at load, by
+            # _repair_foreign_scale_anchors(); re-deciding it here instead would
+            # disarm the breaker exactly when equity falls furthest below a
+            # legitimately earned peak. Re-seed from the equity we can measure.
+            logging.critical(
+                "peak_equity %r is not a usable high-water mark; re-seeding from "
+                "equity %.2f so the level-3 drawdown breaker measures again.",
+                self.peak_equity, equity)
+            self.peak_equity = equity
         if self.peak_equity <= 0:
             return True
         peak_dd = (self.peak_equity - equity) / self.peak_equity
@@ -698,6 +886,50 @@ class RiskManager(StoreBackedState):
         """Inject a custom portfolio heat provider (e.g. for paper broker)."""
         self._portfolio_heat_provider = provider
 
+    def set_equity_provider(self, provider: Callable[[], Optional[float]]) -> None:
+        """Inject a callable returning the venue's current equity (paper broker).
+
+        Mirrors ``set_active_positions_provider``/``set_portfolio_heat_provider``.
+        Without it, a paper session has no authenticated MT5 terminal, so
+        ``mt5.account_info()`` returns None at every read and every caller falls
+        back to ``self.balance`` - a value only refreshed by the single
+        ``update_account`` call in data/market_data_provider.py, which is itself
+        a no-op when ``acc_info`` is absent. The paper seed balance was
+        therefore frozen for the whole process: sizing never compounded as the
+        simulated account won or lost, and the drawdown anchor never moved.
+        """
+        self._equity_provider = provider
+
+    def current_equity(self) -> float:
+        """The account's equity right now, best source first.
+
+        When is_paper is True: injected venue provider (paper) -> configured balance.
+        When is_paper is False: MT5 (live/demo) -> injected venue provider -> last known snapshot.
+        Always returns a positive float so callers can divide by it without re-guarding.
+        """
+        if not getattr(self, "is_paper", False):
+            live = self._account_equity()
+            if live is not None and self._finite(live, positive=True):
+                return float(live)
+
+        if self._equity_provider is not None:
+            try:
+                supplied = float(self._equity_provider())
+            except Exception:
+                supplied = None
+            if supplied is not None and self._finite(supplied, positive=True):
+                return supplied
+
+        if getattr(self, "is_paper", False):
+            return float(self.balance)
+
+        # Non-paper fallback when MT5 returned None
+        live = self._account_equity()
+        if live is not None and self._finite(live, positive=True):
+            return float(live)
+
+        return float(self.balance)
+
     def check_active_trade_limit(self, custom_count: Optional[int] = None) -> bool:
         """Enforce maximum simultaneous open positions across paper, demo, and live.
 
@@ -761,6 +993,84 @@ class RiskManager(StoreBackedState):
         drawdown = (self.peak_equity - current) / self.peak_equity if self.peak_equity > 0 else 1.0
         return drawdown < float(self.max_drawdown)
 
+    # ------------------------------------------------------------------
+    # Dynamic trade plan (context ladder: calendar, session, growth curve)
+    # ------------------------------------------------------------------
+    def attach_trade_plan_engine(self, mode: Optional[str] = None,
+                                 events_provider: Optional[Callable[[], Any]] = None,
+                                 use_journal_calendar: bool = True) -> Any:
+        """Attach (idempotently) the ``core.trade_planner.TradePlanEngine``.
+
+        Default mode comes from ``TRADE_PLANNER_MODE`` (``observe`` unless
+        overridden). When ``use_journal_calendar`` and this instance has a
+        store, the engine reads the ``macro_events`` mirror (60 s memo, no
+        network I/O) for the news-calendar component.
+        """
+        if self.trade_plan_engine is not None:
+            return self.trade_plan_engine
+        try:
+            from core.trade_planner import TradePlanEngine, state_calendar_provider
+        except Exception as exc:                   # never disable base sizing
+            logging.getLogger("RiskManager").debug("TradePlanEngine unavailable: %s", exc)
+            return None
+        provider = events_provider
+        state = "UNKNOWN"
+        if provider is None and use_journal_calendar:
+            db_path = getattr(self.store, "path", None)
+            if db_path:
+                try:
+                    provider, state = state_calendar_provider(db_path)
+                except Exception as exc:
+                    logging.getLogger("RiskManager").debug(
+                        "TradePlanEngine state calendar unavailable: %s", exc)
+        self.trade_plan_engine = TradePlanEngine(
+            events_provider=provider, mode=mode, calendar_state=state)
+        return self.trade_plan_engine
+
+    def _apply_trade_plan(self, symbol: str, market: Optional[dict], equity: float,
+                          entry: float = 0.0, sl: float = 0.0) -> float:
+        """Reduction-only plan scale for one sizing decision (1.0 when inert).
+
+        Modes: ``off``/unattached → 1.0 (byte-identical legacy sizing);
+        ``observe`` → plan logged, no veto, scale still never *increases*
+        risk (growth taper capped ≤ 1); ``enforce`` → applies vetoes (0.0)
+        and the context scale. A planner fault degrades to 1.0 without
+        disabling any upstream gate.
+        """
+        engine = self.attach_trade_plan_engine()
+        if engine is None or getattr(engine, "mode", "off") == "off":
+            return 1.0
+        try:
+            plan = engine.plan(
+                symbol=symbol,
+                entry=float(entry or 0.0),
+                sl=float(sl or 0.0),
+                market=market,
+                equity=float(equity or 0.0),
+                peak_equity=float(self.peak_equity or 0.0),
+                anchor_equity=float(min(self.balance, self.initial_balance)),
+            )
+            self.last_trade_plan = plan
+            plan_desc = plan.describe()
+            if plan.decision == "VETO":
+                if engine.mode == "enforce":
+                    logging.getLogger("RiskManager").warning(
+                        "TradePlan VETO %s: %s", symbol, plan_desc)
+                    return 0.0
+                logging.getLogger("RiskManager").warning(
+                    "TradePlan would-VETO (observe) %s: %s", symbol, plan_desc)
+            elif plan.risk_scale < 0.999:
+                logging.getLogger("RiskManager").info(
+                    "TradePlan scale %.2f%s %s: %s", plan.risk_scale,
+                    "" if engine.mode == "enforce" else " (observe: not applied)",
+                    symbol, plan_desc)
+            # Observe is log-only: never resize, never veto.
+            return plan.risk_scale if engine.mode == "enforce" else 1.0
+        except Exception as exc:
+            logging.getLogger("RiskManager").debug("TradePlan skipped: %s", exc)
+            return 1.0
+
+
     def remaining_daily_risk(self, equity: float) -> float:
         if not self._finite(equity, positive=True) or not self._finite(self.daily_start_equity, positive=True):
             return 0.0
@@ -795,7 +1105,7 @@ class RiskManager(StoreBackedState):
             positions = list(mt5.positions_get() or [])
         except Exception:
             return None
-        equity = self._account_equity() or self.balance
+        equity = self.current_equity()
         if equity is None or equity <= 0:
             return None
         unit = equity * self.risk_per_trade
@@ -903,7 +1213,7 @@ class RiskManager(StoreBackedState):
         if entry == sl: return 0.0
 
         # 2. Strict Risk Calculation (Universal 1R with Circuit Step-Down)
-        equity = self._account_equity()
+        equity = self.current_equity()
         if equity is None:
             equity = self.balance
         if not self._finite(equity, positive=True):
@@ -1167,8 +1477,9 @@ class RiskManager(StoreBackedState):
             except (TypeError, ValueError):
                 pass
 
-        # Use configured risk per trade (e.g. 0.01) * Multiplier
-        risk_amt = equity * self.risk_per_trade * size_multiplier
+        # Use configured risk per trade (e.g. 0.01) * Multiplier * trade-plan scale
+        plan_scale = self._apply_trade_plan(symbol, market, equity, entry=entry, sl=sl)
+        risk_amt = equity * self.risk_per_trade * size_multiplier * plan_scale
         # Only log if > 0 to avoid spam on rejections
         if risk_amt > 0:
              logging.getLogger("RiskManager").info(
@@ -1188,11 +1499,39 @@ class RiskManager(StoreBackedState):
 
         # 4. Volume Calculation
         dist = abs(entry - sl)
+
+        # Gold Scaling Ladder Overlay (Micro-account 9-rung ladder & step-delay elimination)
+        if any(g in symbol.upper() for g in ("XAU", "GOLD")):
+            try:
+                from core.gold_scaling_ladder import GoldScalingLadder
+                ladder = GoldScalingLadder(peak_equity=self.peak_equity)
+                sl_pips = dist / 0.10  # 1 retail pip = $0.10/oz on gold
+                ladder_res = ladder.calculate_lot_size(
+                    current_equity=equity,
+                    proposed_stop_pips=sl_pips,
+                    spread_points=float(market.get("spread", 15.0)) if market else 15.0,
+                    adx_14=float(market.get("adx", 25.0)) if market and "adx" in market else None,
+                    daily_atr_dollars=float(market.get("daily_atr", 50.0)) if market and "daily_atr" in market else None,
+                )
+                if ladder_res.get("status") == "REJECTED":
+                    logging.getLogger("RiskManager").warning("GoldScalingLadder rejected: %s", ladder_res.get("reason"))
+                    return 0.0
+                ladder_lot = float(ladder_res.get("calculated_lot", 0.0) or 0.0)
+                if ladder_lot > 0:
+                    logging.getLogger("RiskManager").info(
+                        "GoldScalingLadder: Rung %s (%s) → %.2f lots",
+                        ladder_res.get("rung_id"), ladder_res.get("rule_applied"), ladder_lot,
+                    )
+                    return ladder_lot
+            except Exception as _gsl_exc:
+                logging.getLogger("RiskManager").debug("GoldScalingLadder overlay skipped: %s", _gsl_exc)
+
         info = self._symbol_spec(symbol)
         
         if not info:
             # Fallback (Forex)
-            loss_per_lot = (dist / 0.00001) * 1.0 # Standard
+            point_size = 0.001 if 'JPY' in symbol else 0.00001
+            loss_per_lot = (dist / point_size) * 1.0 # Standard
             min_vol, max_vol, step = 0.01, 100.0, 0.01
         else:
             tick_size = info.trade_tick_size
@@ -1207,7 +1546,8 @@ class RiskManager(StoreBackedState):
             
             # Crypto/Index handling (TickValue often 0 or 1 per point)
             if tick_size == 0 or tick_value == 0:
-                 loss_per_lot = dist # Assume 1.0 val per 1.0 price
+                 logging.warning(f"Rejecting trade on {symbol}: tick_size or tick_value is 0.")
+                 return 0.0
             else:
                  loss_per_lot = (dist / tick_size) * tick_value
         

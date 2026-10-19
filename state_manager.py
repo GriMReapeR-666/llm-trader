@@ -28,6 +28,31 @@ class StateManager:
         else:
             self._store = store_or_path
         self._path = store_or_path if isinstance(store_or_path, str) else getattr(store_or_path, "path", "trading_state.db")
+        self._apply_pragmas()
+
+    def _apply_pragmas(self) -> None:
+        """Harden SQLite concurrency with WAL mode, synchronous=NORMAL, and busy_timeout=5000."""
+        if isinstance(self._path, str) and self._path != ":memory:":
+            try:
+                import sqlite3
+                with sqlite3.connect(self._path, timeout=5.0) as con:
+                    con.execute("PRAGMA journal_mode=WAL;")
+                    con.execute("PRAGMA synchronous=NORMAL;")
+                    con.execute("PRAGMA busy_timeout=5000;")
+            except Exception as exc:
+                logger.debug("StateManager._apply_pragmas failed on %s: %s", self._path, exc)
+
+    def get_connection(self):
+        """Return a configured SQLite connection with hardened concurrency pragmas."""
+        if hasattr(self._store, "_connect"):
+            return self._store._connect()
+        import sqlite3
+        con = sqlite3.connect(self._path, timeout=5.0)
+        con.row_factory = sqlite3.Row
+        con.execute("PRAGMA journal_mode=WAL;")
+        con.execute("PRAGMA synchronous=NORMAL;")
+        con.execute("PRAGMA busy_timeout=5000;")
+        return con
 
     def get(self, key: str, default: Any = None) -> Any:
         """Read a state key from the store."""

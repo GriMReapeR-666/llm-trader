@@ -152,11 +152,14 @@ def label_d2_blackout_gate(fb: Any) -> D2_BlackoutGate:
     if getattr(fb, "is_exchange_halt", False) or getattr(fb, "is_peg_broken", False):
         return D2_BlackoutGate.BLACKOUT_FREEZE
 
+    if getattr(fb, "is_blackout_active", False):
+        return D2_BlackoutGate.BLACKOUT_FREEZE
+
     tier = str(getattr(fb, "tier", "HIGH")).upper()
-    if tier == "HIGH":
+    if tier in ("HIGH", "CRITICAL", "TIER_1"):
         m = float(getattr(fb, "minutes_to_release", 999.0))
         # Release window: T-5m to T+2m (m from 5.0 down to -2.0)
-        if -2.0 <= m <= 5.0 or getattr(fb, "is_blackout_active", False):
+        if -2.0 <= m <= 5.0:
             return D2_BlackoutGate.BLACKOUT_FREEZE
         # Post-shock trading window: T+2m to T+30m (m from -2.0 to -30.0)
         elif -30.0 <= m < -2.0:

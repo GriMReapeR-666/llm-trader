@@ -34,7 +34,21 @@ def test_fetch_data_computes_indicators_and_alphas(monkeypatch):
         get_account_info=lambda: {"balance": 10000.0, "equity": 10000.0},
     )
 
-    provider = MarketDataProvider(client=client, risk_manager=risk)
+    # Stub the whole api_manager surface: fetch_data otherwise performs live
+    # NewsAPI/FRED calls, which hang the suite on network latency. Those
+    # branches are fail-soft, so empty returns are the correct hermetic
+    # shape - this test covers indicator/alpha computation only.
+    api = SimpleNamespace(
+        get_news=lambda *a, **k: [],
+        get_hot_topics=lambda *a, **k: [],
+        get_fred_data=lambda *a, **k: {},
+        get_status=lambda *a, **k: {},
+    )
+
+    provider = MarketDataProvider(client=client, risk_manager=risk, api_manager=api)
+    # Guards against a regression where the ctor builds its own APIManager
+    # and silently re-introduces live NewsAPI/FRED calls into the test.
+    assert provider.api_manager is api
     monkeypatch.setattr(mdp, "_get_fetch_ohlc", lambda: (lambda s, tf, count=100: df.copy()))
 
     toon = provider.fetch_data("EURUSD", "M15")

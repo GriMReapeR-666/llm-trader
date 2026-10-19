@@ -39,9 +39,16 @@ class MarketScanner:
         opportunities = []
         self._provider_cache = self._collect_provider_snapshot()
 
-        # Without an authenticated client, fail closed rather than selecting a
-        # symbol from delayed or synthetic data.
-        if not self.client:
+        # Without an authenticated client or attached MT5 terminal data session,
+        # fail closed rather than selecting a symbol from delayed or synthetic data.
+        terminal_ok = False
+        try:
+            from data.market_data_provider import _ensure_mt5_attached, _get_mt5
+            terminal_ok = bool(_ensure_mt5_attached(_get_mt5()))
+        except Exception:
+            terminal_ok = False
+
+        if not self.client and not terminal_ok:
             return self._fallback_scan()
 
         if limit_to_watchlist:

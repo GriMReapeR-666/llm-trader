@@ -96,10 +96,19 @@ def main() -> int:
                 session_log = open(
                     os.path.join(ROOT, "artifacts", "watch_guarded_boot_session.log"),
                     "ab")
+                # DETACHED_PROCESS: the boot must survive the death of whatever
+                # launched it. Live-proven 2026 session: a harness restart
+                # cancelled the parent shell and the engine child died with it
+                # (lease went 7.8h stale). CREATE_NEW_PROCESS_GROUP alone is
+                # not isolation; a detached session is.
+                _detach_flags = (
+                    getattr(subprocess, "DETACHED_PROCESS", 0)
+                    | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                )
                 proc = subprocess.Popen(
                     ["cmd", "/c", os.path.join(ROOT, "START_TRADING.bat")],
                     cwd=ROOT, env=env, stdout=session_log, stderr=subprocess.STDOUT,
-                    creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
+                    creationflags=_detach_flags)
                 _log("boot spawned (pid {}); watcher exits - session monitoring "
                      "stays with the 2h duty watcher".format(proc.pid))
                 return 0

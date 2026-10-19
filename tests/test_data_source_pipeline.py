@@ -228,3 +228,46 @@ def test_gate_cross_call_repeat_collapsed_by_graph_identity(tmp_path):
     payload = _json.loads(rows[0][0])
     assert payload.get("dedupe_key"), "stored row carries the gate's dedupe key"
     assert len(payload["dedupe_key"]) == 24
+
+
+def test_ingest_optional_providers_short_circuits_on_timeout():
+    from data.data_source_pipeline import ingest_optional_providers
+
+    calls = []
+
+    class FakeOpenBB:
+        def fetch_all_macro(self, time_budget_s=None):
+            calls.append("macro")
+            return [("macro:gdp", False, "OpenBB call timed out after 5.0s (time budget)")]
+
+        def fetch_all_central_bank(self, time_budget_s=None):
+            calls.append("central_bank")
+            return [("cb:rates", True, "ok")]
+
+    class FakeAPIManager:
+        openbb = FakeOpenBB()
+        seeking_alpha = None
+        portfolio123 = None
+
+    rep = ingest_optional_providers(None, FakeAPIManager(), symbol="EURUSD")
+    assert calls == ["macro"], "Must short-circuit immediately after first timeout instead of burning serial timeouts"
+    assert rep["openbb"]["succeeded"] == 0
+    assert any("short-circuited" in str(item) for item in rep["openbb"]) or rep["openbb"]["status"] == "EMPTY"
+
+
+def test_ingest_alternative_nowcast_passes_max_age(monkeypatch):
+    from data.data_source_pipeline import ingest_alternative_nowcast
+    import data.alternative_data_provider as adp
+
+    recorded = {}
+
+    class FakeProvider:
+        def fetch_nowcast_snapshot(self, include_stubs=False, max_age_s=300.0):
+            recorded["include_stubs"] = include_stubs
+            recorded["max_age_s"] = max_age_s
+            return {"observations": [], "live_count": 0, "stub_count": 0}
+
+    monkeypatch.setattr(adp, "AlternativeDataProvider", FakeProvider)
+    out = ingest_alternative_nowcast(None, max_age_s=1200.0)
+    assert recorded.get("max_age_s") == 1200.0
+

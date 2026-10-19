@@ -217,8 +217,17 @@ def test_does_not_insert_simulated_trades_or_promotions_into_live_store(tmp_path
 
     # Check backtest DB: trades are logged, but NO lifecycle promotions or approved memories
     with sqlite3.connect(bt_db_path) as con_bt:
-        bt_trades = con_bt.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
+        # Backtest fills land in research_backtest_trades, deliberately NOT in
+        # `trades` - the table that TradingStore.record_open_trade writes to.
+        # A dedicated table name is part of the isolation guarantee.
+        bt_trades = con_bt.execute("SELECT COUNT(*) FROM research_backtest_trades").fetchone()[0]
         assert bt_trades > 0, "Dedicated backtest store should contain logged backtest trades"
+
+        bt_tables_live = {row[0] for row in con_bt.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+        assert "trades" not in bt_tables_live, (
+            "Backtest store must not create a `trades` table; simulated fills "
+            "belong in research_backtest_trades only."
+        )
 
         bt_runs = con_bt.execute("SELECT COUNT(*) FROM research_validation_runs").fetchone()[0]
         assert bt_runs > 0, "Dedicated backtest store should contain validation run"

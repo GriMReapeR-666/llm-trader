@@ -21,7 +21,13 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from core.file_utils import safe_atomic_write, safe_atomic_write_json, safe_atomic_write_lines
+from core.file_utils import (
+    EVIDENCE_MARKER_KEY,
+    heal_strategy_registry_marker,
+    safe_atomic_write,
+    safe_atomic_write_json,
+    safe_atomic_write_lines,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +50,61 @@ QUARANTINE_RULES: List[Dict[str, Any]] = [
     {"metric": "profit_factor", "op": "<", "threshold": 0.90, "min_trades": 20},
     {"metric": "max_dd", "op": ">", "threshold": 20.0, "min_trades": 0},
 ]
+
+#: Stages that assert "these metrics are backed by evidence".
+VALIDATED_STAGES = ("FULL", "EVALUATION")
+
+#: Reported stage for a row whose metrics the registry itself marked invalid.
+UNVALIDATED_STAGE = "CANDIDATE"
+
+
+def registry_evidence_invalid(registry: Any) -> bool:
+    """True when *registry* declares its own promoted metrics unbacked.
+
+    The marker is a disclosure, so honouring it means reading it as authority
+    rather than as audit text. Fail-closed: only an explicit *absence* of the
+    key clears a registry. A marker present but shaped wrong (a bare string, a
+    truncated write) is still a marker we could not parse, and a claim we could
+    not parse is a claim we cannot vouch for — so it counts as invalid.
+    """
+    if not isinstance(registry, dict):
+        # Not a registry object at all: callers extract no rows from it either,
+        # so nothing is surfaced and nothing needs invalidating.
+        return False
+    return EVIDENCE_MARKER_KEY in registry
+
+
+def as_unvalidated(strategy: Any) -> Any:
+    """*strategy* as a copy that no longer claims a validated stage.
+
+    Only the stage (and a flag naming the reason) changes. The recorded metrics
+    are deliberately left alone: the registry's ``max_dd`` feeds the sizing
+    halt in ``intelligence/llm_orchestrator`` and stripping it would weaken a
+    live safety gate to make a cosmetic change. The defect being fixed is the
+    claim of *validated status*, not the presence of the numbers.
+    """
+    if not isinstance(strategy, dict) or strategy.get("stage") not in VALIDATED_STAGES:
+        return strategy
+    row = dict(strategy)
+    row["stage"] = UNVALIDATED_STAGE
+    row["_evidence_invalid"] = (
+        "registry marks its promoted metrics unbacked "
+        "(promoted_metrics_unbacked); stage is not validated")
+    return row
+
+
+def unvalidated_view(registry: Any) -> List[Dict[str, Any]]:
+    """Registry rows as the runtime is allowed to see them.
+
+    Returns copies, never the stored rows, so the audit trail on disk and in
+    ``_reg`` keeps the stage that was actually recorded.
+    """
+    strategies = registry.get("strategies") if isinstance(registry, dict) else None
+    if not isinstance(strategies, list):
+        return []
+    if not registry_evidence_invalid(registry):
+        return list(strategies)
+    return [as_unvalidated(s) for s in strategies]
 
 
 def _read_json(path: str, default: Any) -> Any:
@@ -81,17 +142,37 @@ class StrategyFactory:
     def _load(self) -> Dict[str, Any]:
         reg = _read_json(self.registry_file, {"strategies": []})
         if not isinstance(reg.get("strategies"), list):
-            reg = {"strategies": []}
+            # Keep the invalidation marker even when the strategies list is
+            # unusable: dropping it would strip the CRITICAL #10 disclosure
+            # from a file live code still reads.
+            reg = {"strategies": [], EVIDENCE_MARKER_KEY: reg[EVIDENCE_MARKER_KEY]} \
+                if isinstance(reg.get(EVIDENCE_MARKER_KEY), dict) else {"strategies": []}
         return reg
 
     def _persist_locked(self) -> None:
+        # Keep _EVIDENCE_INVALID's counts describing the rows written beside
+        # them (CRITICAL #10); a frozen count fails the honesty guard.
+        heal_strategy_registry_marker(self._reg)
         safe_atomic_write_json(self.registry_file, self._reg)
 
     def all(self) -> List[Dict[str, Any]]:
+        """Every registry row, at the stage the runtime may act on.
+
+        The file's own ``_EVIDENCE_INVALID`` marker is authoritative: while it
+        is present no row leaves here as FULL/EVALUATION, because the metrics
+        behind those stages are precisely the ones the marker calls unbacked.
+        This is read-side only — ``get()`` and the write paths still see the
+        recorded stage, so nothing here rewrites the registry or launders the
+        marker away.
+        """
         with self._lock:
-            return list(self._reg["strategies"])
+            return unvalidated_view(self._reg)
 
     def get(self, strategy_id: str) -> Optional[Dict[str, Any]]:
+        # Deliberately un-projected: this is the lifecycle/transition path
+        # (set_stage, evaluate, process_decisions). Those write back through
+        # ``_persist_locked``; feeding them a demoted copy would let a read-side
+        # opinion rewrite the recorded stage on the next save.
         with self._lock:
             return next((s for s in self._reg["strategies"] if s["id"] == strategy_id), None)
 

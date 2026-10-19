@@ -8,7 +8,9 @@ can approve an order or change position size.
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Sequence
+
+import numpy as np
 
 try:
     from research.research_validation import labelled_dataset, purged_walk_forward_splits
@@ -185,3 +187,73 @@ def baseline_report(path: str = "trading_state.db", *, train_minimum: int = 100,
     report["promotion_safe"] = False
     report["reason"] = "Baselines are research evidence only; a candidate still needs repeated out-of-sample superiority, model registry review, and operator approval."
     return report
+
+
+def run_null_hypothesis_trade_permutation_test(
+    r_values: Iterable[float] | Sequence[float],
+    n_permutations: int = 1000,
+    seed: int = 42,
+    minimum_trades: int = 20,
+) -> Dict[str, Any]:
+    """Run non-parametric null hypothesis permutation test on trade outcomes.
+
+    The null hypothesis is that the strategy has zero directional edge, meaning
+    positive and negative trade returns are equally likely coin flips across the
+    observed trade magnitude distribution (|R_i|).
+
+    In each permutation step, random Rademacher signs (+1 or -1 with probability 0.5)
+    are applied to absolute trade payoffs. The fraction of permuted sample means that
+    equal or exceed the observed strategy mean R provides an empirical one-sided p-value.
+
+    Offline research only: execution_authority is strictly False.
+    """
+    if isinstance(r_values, (str, bytes)) or not isinstance(r_values, (list, tuple, np.ndarray)):
+        return {
+            "status": "INVALID_INPUT",
+            "reason": "r_values must be an iterable of numeric trade returns",
+            "execution_authority": False,
+        }
+
+    clean_r: List[float] = []
+    for r in r_values:
+        if r is None or isinstance(r, bool):
+            continue
+        try:
+            val = float(r)
+            if math.isfinite(val):
+                clean_r.append(val)
+        except (ValueError, TypeError):
+            continue
+
+    if len(clean_r) < minimum_trades:
+        return {
+            "status": "INSUFFICIENT_DATA",
+            "trade_count": len(clean_r),
+            "minimum_required": minimum_trades,
+            "reason": f"Observed trades ({len(clean_r)}) below required threshold ({minimum_trades})",
+            "execution_authority": False,
+        }
+
+    n_perms = max(100, int(n_permutations))
+    observed_mean = sum(clean_r) / len(clean_r)
+    abs_mags = np.array([abs(x) for x in clean_r], dtype=float)
+    n_trades = len(clean_r)
+
+    rng = np.random.default_rng(seed)
+    random_signs = rng.choice(np.array([-1.0, 1.0]), size=(n_perms, n_trades))
+    permuted_means = (random_signs * abs_mags).mean(axis=1)
+
+    p_value = float(np.mean(permuted_means >= observed_mean))
+    p95 = float(np.percentile(permuted_means, 95.0))
+    is_significant = bool(p_value < 0.05 and observed_mean > 0)
+
+    return {
+        "status": "READY_FOR_REVIEW",
+        "trade_count": n_trades,
+        "observed_expectancy_r": round(observed_mean, 6),
+        "n_permutations": n_perms,
+        "p_value": round(p_value, 6),
+        "is_statistically_significant": is_significant,
+        "permuted_mean_95th_percentile": round(p95, 6),
+        "execution_authority": False,
+    }

@@ -2,6 +2,7 @@
 
 Verifies basic functionality of the alpha mining pipeline.
 """
+import json
 import sys
 
 import pytest
@@ -45,6 +46,94 @@ def generate_test_data(n_bars: int = 500) -> pd.DataFrame:
         "close": close,
         "volume": volume,
     })
+
+
+def test_normalizers_are_causal():
+    """Regression: `cs_*` normalizers must not read future bars.
+
+    They were full-sample (`rank(pct=True)` / `.mean()` / `.std()` over the whole
+    series), so appending bars silently changed the value at earlier bars. That
+    look-ahead is what let the GA register alphas graded "strong" at IC -0.127
+    that no live bar could reproduce.
+
+    The oracle: evaluate on N bars, evaluate again on N+future bars, and require
+    the first N values to be bit-identical. Appending the future must change
+    nothing in the past.
+    """
+    from research.alpha_miner.expression_tree import create_leaf, create_unary
+
+    rng = np.random.default_rng(7)
+    n, cut, m = 260, 200, 60
+    idx = pd.RangeIndex(n)
+    close = pd.Series(100 + np.cumsum(rng.normal(0, 1, n)), index=idx)
+    ohlcv = pd.DataFrame({
+        "open": close, "high": close * 1.01, "low": close * 0.99,
+        "close": close, "volume": pd.Series(rng.lognormal(10, 0.3, n), index=idx),
+    }, index=idx)
+
+    # A genuinely uncertain future path - a constant tail hides the bug.
+    fut_close = pd.Series(close.iloc[-1] + np.cumsum(rng.normal(0, 1, m)),
+                          index=pd.RangeIndex(n, n + m))
+    fut_vol = pd.Series(rng.lognormal(10, 0.3, m), index=pd.RangeIndex(n, n + m))
+    extended = pd.concat([ohlcv, pd.DataFrame({
+        "open": fut_close, "high": fut_close * 1.01, "low": fut_close * 0.99,
+        "close": fut_close, "volume": fut_vol,
+    })], axis=0)
+
+    leaf = create_leaf(field="close")
+    for op in ("cs_rank", "cs_scale", "cs_normalize"):
+        for window in (5, 20, 100):
+            expr = create_unary(op, leaf, window=window)
+            before = expr.evaluate(ohlcv).iloc[:cut].to_numpy()
+            after = expr.evaluate(extended).iloc[:cut].to_numpy()
+            assert np.allclose(before, after, equal_nan=True), (
+                f"{op}(window={window}) changed past values when future bars were "
+                f"appended -> look-ahead bias (max divergence "
+                f"{np.nanmax(np.abs(before - after)):.6g})"
+            )
+
+
+def test_causality_guard_rejects_future_constructs():
+    """Both stacks share one rule set; causality is a hard reject, not a penalty."""
+    from core.alpha_causality import find_lookahead_violations, is_causal
+    from research.alpha_miner.alpha_judge import judge_candidate
+
+    # Causal: `cs_rank`/`ts_rank` are rolling and must NOT trip the guard, which
+    # is why the rules rely on a \b boundary (in `_` is a word character).
+    for expr in ("ts_rank(close, 20)", "cs_rank(close, 20)", "cs_normalize(volume, 20)",
+                 "divide(subtract(close, ts_mean(close, 20)), ts_std(close, 20))"):
+        assert is_causal(expr), f"false positive on causal expression: {expr}"
+
+    # Look-ahead, including negative periods passed as any argument.
+    for expr in ("rank(close)", "zscore(close)", "normalize(close)",
+                 "shift(close, -3)", "ts_delay(close, -2)", "close.shift(-1)",
+                 "ts_rank(close.shift(-1), 20)"):
+        violations = find_lookahead_violations(expr)
+        assert violations, f"missed look-ahead: {expr}"
+        assert not judge_candidate(expr).accepted, f"judge accepted look-ahead: {expr}"
+
+    # The GA stack used to pass `rank`/`cs_normalize` at a constant 8.0/10.0.
+    assert judge_candidate("rank(close)").lookahead == 0.0
+
+
+def test_alpha_strategy_serialises_unmeasured_metrics():
+    """Regression: `ic_ir=None` crashed `to_dict()` and silently froze the registry.
+
+    `_save_alpha_strategies` swallowed the TypeError into a `logger.warning`, so
+    `strategy_registry.json` stayed frozen at its pre-fix contents while every
+    call site reported success.
+    """
+    from research.alpha_miner.strategy_bridge import AlphaStrategy
+
+    strategy = AlphaStrategy(
+        strategy_id="alpha_test", name="T", expression="ts_rank(close, 20)",
+        ic_mean=-0.0312, ic_ir=None, ic_quality="good",
+        shap_values={}, created_at=1.0,
+    )
+    payload = strategy.to_dict()  # must not raise
+    assert payload["ic_ir"] is None
+    assert payload["ic_mean"] == -0.0312
+    assert json.loads(json.dumps(payload))["ic_ir"] is None  # JSON round-trip
 
 
 def test_expression_tree():
@@ -163,9 +252,13 @@ def test_pca_projector():
     print("  [PASS] Passed")
 
 
-@pytest.mark.xfail(strict=True, reason="ROADMAP Phase 5: PCA aborts on +/-inf instead of sanitizing")
 def test_pca_projector_sanitizes_inf():
-    """+/-inf from an expression must not abort PCA/quality-diversity selection."""
+    """+/-inf from an expression must not abort PCA/quality-diversity selection.
+
+    ROADMAP Phase 5 item now resolved: compute_behavior_matrix sanitizes
+    non-finite values instead of aborting. The strict xfail marker that pinned
+    this to "known broken" was removed once it started failing on success.
+    """
     print("\nTesting PCA projector inf sanitization...")
 
     import research.alpha_miner.pca_projector as pca_mod
@@ -339,6 +432,46 @@ def test_optimal_strategy():
     print(f"  compute_strategy_quality: {quality['sharpe_ratio']:.4f}")
     
     print("  [PASS] Passed")
+
+
+class TestICSignificanceDeflation:
+    """GA frontier significance is deflated by the true trial count and the
+    rolling IC series is subsampled so only independent windows are tested."""
+
+    def test_overlapping_windows_are_not_counted_as_independent(self):
+        from research.alpha_miner.ga_engine import ic_significance
+
+        # Each independent IC value repeated across its 20-bar window; only
+        # every 20th observation may enter the test.
+        samples = np.array(
+            [0.13, -0.03, 0.08, 0.05, 0.02, 0.11, -0.01, 0.07, 0.03, 0.09] * 2
+        )
+        series = pd.Series(np.repeat(samples, 20))
+        _, p1, th1 = ic_significance(series, n_trials=1)
+        assert p1 <= th1 and p1 < 0.05
+        _, p2, th2 = ic_significance(series, n_trials=10 ** 6)
+        assert p2 == p1
+        assert p2 > th2  # same IC, but a 10^6-hypothesis campaign fails
+
+    def test_zero_dispersion_fails_closed(self):
+        from research.alpha_miner.ga_engine import ic_significance
+
+        t, p, _ = ic_significance(pd.Series([0.2] * 400), n_trials=1)
+        assert t == 0.0
+        assert p == 1.0
+
+    def test_ga_result_reports_trials_and_significance(self):
+        from research.alpha_miner.ga_engine import GAEngine, GAConfig
+
+        df = generate_test_data(300)
+        engine = GAEngine(config=GAConfig(population_size=12, generations=1))
+        result = engine.evolve(df, verbose=False)
+
+        assert result.n_trials == 12 * (1 + 1)
+        assert len(result.ic_pvalues) == len(result.best_expressions)
+        assert result.n_significant == len(result.significant_indices)
+        assert len(result.significant_ics) == result.n_significant
+        assert result.to_dict()["n_trials"] == result.n_trials
 
 
 if __name__ == "__main__":

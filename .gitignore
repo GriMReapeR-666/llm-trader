@@ -60,6 +60,12 @@ lessons.jsonl
 approvals_outbox.jsonl
 .security_audit_cache.json
 data/state/
+data/candle_archive/
+data/ewc_state_*.json
+data/meta_adaptive_*.json
+data/*_report.json
+*code_versions.json
+*.parquet
 
 # ==============================================================================
 # HEAVY BINARIES, MODELS & CACHES (NEVER COMMIT)
@@ -99,12 +105,27 @@ venv/
 env/
 
 # IDE & agent tooling
+.vscode/
 .kilo/
 .opencode/
 .freebuff/
 .cursor/
+.agents/
+.gravitas/
+_scratch/
+_scratc/
+_split_evidence_chain.py
+verify_split.py
+final_verification.txt
+*.flag*
+
 
 # System & logs
+*.tmp
+*.pid
+*.patch
+tmp-smoke/
+approval_decisions.jsonl*
 *.log
 *.log.*
 .DS_Store

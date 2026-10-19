@@ -308,9 +308,20 @@ class MetaCorpus:
                 (limit,),
             ).fetchall()
         entries = []
+        valid_fields = set(CorpusEntry.__dataclass_fields__.keys()) if hasattr(CorpusEntry, "__dataclass_fields__") else set()
         for row in rows:
-            d = json.loads(row["entry_json"])
-            entries.append(CorpusEntry(**d))
+            try:
+                d = json.loads(row["entry_json"])
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if not isinstance(d, dict):
+                continue
+            if valid_fields:
+                d = {k: v for k, v in d.items() if k in valid_fields}
+            try:
+                entries.append(CorpusEntry(**d))
+            except (TypeError, ValueError):
+                continue
         return entries
 
     def get_entry_count(self) -> int:
@@ -431,9 +442,14 @@ class PatternMiner:
             if len(source_entries) < 5:
                 continue
 
-            # Compute average IS/OOS divergence
+            # Compute average IS/OOS divergence. A hypothesis with no measured
+            # live trades has live_sharpe=0 by default; treating that as total
+            # degradation would manufacture an "overfit" pattern from absence
+            # of evidence. Only measured live outcomes participate.
             divergences = []
             for e in source_entries:
+                if e.live_n_trades <= 0:
+                    continue
                 if e.backtest_sharpe > 0:
                     div = (e.backtest_sharpe - e.live_sharpe) / e.backtest_sharpe
                     divergences.append(div)
@@ -472,7 +488,9 @@ class PatternMiner:
             if len(feature_entries) < 5:
                 continue
 
-            live_sharpes = [e.live_sharpe for e in feature_entries]
+            live_sharpes = [
+                e.live_sharpe for e in feature_entries if e.live_n_trades > 0
+            ]
             if len(live_sharpes) < 3:
                 continue
 

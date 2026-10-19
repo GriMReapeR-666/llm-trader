@@ -19,6 +19,15 @@ import pytest
 
 from data.api_manager import APIManager, _run_bounded
 
+# NOTE: APIManager's response cache (api_cache.json) used to be a bare relative
+# name, so constructing APIManager() with no arguments rewrote the file at the
+# REPO ROOT.  The isolation now lives in conftest
+# (isolate_shared_api_cache) rather than here: it was a per-module fixture at
+# first, and three other modules (test_boot_datasheet, test_data_ingestion_
+# hardening, test_openbb_data_bridge) construct APIManager() with no arguments
+# too, so each one had to be fixed separately until the shared file got a
+# suite-wide owner.
+
 
 # ---------------------------------------------------------------------------
 # _run_bounded helper
@@ -184,6 +193,24 @@ def test_boot_stage_timeout_fails_open_with_marker():
     assert elapsed < 3.0
     assert result["status"] == "TIMEOUT"
     assert "budget" in result["error"]
+
+
+def test_boot_stage_timeout_emits_event():
+    from core.autonomous_bootstrap import _boot_stage
+
+    def hang():
+        time.sleep(5)
+
+    emitted = []
+    def fake_emit(event_type, payload):
+        emitted.append((event_type, payload))
+
+    result = _boot_stage("bootstrap_probe", hang, 0.4, emit_event=fake_emit)
+    assert result["status"] == "TIMEOUT"
+    assert len(emitted) == 1
+    assert emitted[0][0] == "boot_fetch_stage_timeout"
+    assert emitted[0][1]["stage"] == "bootstrap_probe"
+
 
 
 def test_boot_stage_exception_contained():

@@ -83,7 +83,8 @@ class ExpressionGenerator:
         else:  # cs_unary
             op = random.choice(CS_UNARY)
             child = self.generate_leaf()
-            return create_unary(op, child)
+            window = random.choice(self.windows)
+            return create_unary(op, child, window=window)
     
     def generate_expression(self, max_depth: int = 2) -> AlphaExpression:
         """Generate a random expression tree up to max_depth.
@@ -155,7 +156,8 @@ class ExpressionGenerator:
                     expr = create_unary(op, child, window=window)
                 else:  # cs_unary
                     child = self.generate_leaf()
-                    expr = create_unary(op, child)
+                    window = random.choice(self.windows)
+                    expr = create_unary(op, child, window=window)
                 
                 population.append(expr)
         

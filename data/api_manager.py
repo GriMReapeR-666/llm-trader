@@ -51,6 +51,12 @@ def _run_bounded(fn: Callable[[], Any], budget_s: float) -> Tuple[bool, Any, Opt
         return False, None, box["error"]
     return True, box.get("result"), None
 
+#: Response cache.  A bare relative name on purpose: the live bot runs from
+#: the repo root.  Hoisted to a module constant so a test can repoint it
+#: (tests/conftest.py::isolate_shared_api_cache) instead of every instance
+#: re-deriving a path the suite would then write to the repo root.
+API_CACHE_FILE = "api_cache.json"
+
 # Optional imports with fallbacks
 try:
     from newsapi import NewsApiClient
@@ -179,7 +185,7 @@ class APIManager:
         self.rate_limiter.add_limiter("sec", max_requests=10, time_window=1)        # 10/sec
         
         # Cache to avoid duplicate requests
-        self.cache_file = "api_cache.json"
+        self.cache_file = API_CACHE_FILE
         self.cache_ttl = 900  # 15 minutes
         self.cache = self._load_cache()
 
@@ -752,17 +758,52 @@ class APIManager:
                 return True
         return False
 
-    def is_holiday(self) -> bool:
-        """Check if today is a major banking holiday (UTC based)"""
-        today = datetime.utcnow().strftime("%m-%d")
-        holidays = [
-            "01-01", # New Year
-            "12-25", # Christmas
-        ]
-        weekday = datetime.utcnow().weekday()
-        if weekday >= 5:
-             return True
-             
-        if today in holidays:
-            return True
-        return False
+    def is_holiday(self, dt: Optional[datetime] = None) -> bool:
+        """Check if markets are closed for a holiday or outside weekly FX session hours.
+
+        FX market session: Sunday ~21:00 UTC to Friday ~21:00 UTC.
+        Closed:
+          - Friday >= 21:00 UTC
+          - Saturday all day
+          - Sunday < 21:00 UTC
+          - Major holidays (New Year Jan 1, Christmas Dec 25)
+        """
+        return is_holiday(dt)
+
+
+def is_holiday(dt: Optional[datetime] = None) -> bool:
+    """Check if markets are closed for a holiday or outside weekly FX session hours.
+
+    FX market session: Sunday ~21:00 UTC to Friday ~21:00 UTC.
+    Closed:
+      - Friday >= 21:00 UTC
+      - Saturday all day
+      - Sunday < 21:00 UTC
+      - Major holidays (New Year Jan 1, Christmas Dec 25)
+    """
+    now = dt if dt is not None else datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    else:
+        now = now.astimezone(timezone.utc)
+
+    today = now.strftime("%m-%d")
+    holidays = [
+        "01-01",  # New Year
+        "12-25",  # Christmas
+    ]
+    if today in holidays:
+        return True
+
+    weekday = now.weekday()  # Monday is 0, Sunday is 6
+    hour = now.hour
+
+    if weekday == 4:  # Friday: closes at 21:00 UTC
+        return hour >= 21
+    elif weekday == 5:  # Saturday: closed all day
+        return True
+    elif weekday == 6:  # Sunday: opens at 21:00 UTC
+        return hour < 21
+
+    return False
+

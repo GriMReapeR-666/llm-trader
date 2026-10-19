@@ -681,9 +681,14 @@ class TestExport:
         result = tmp_db.export_json()
         assert result.endswith("news_correlation_export.json")
         import os
-        assert os.path.exists(result)
+        # The conftest artifacts sandbox redirects writes under artifacts/ into
+        # this test's tmp_path, so follow the write to where it actually landed
+        # instead of reaching around the guard.
+        from conftest import artifacts_sandbox_path
+        written = artifacts_sandbox_path(result)
+        assert os.path.exists(written), "export not written at %s" % written
         # Clean up
-        os.remove(result)
+        os.remove(written)
 
 
 # =============================================================================

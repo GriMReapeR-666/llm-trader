@@ -50,6 +50,12 @@ def test_harness_full_context_mounting(tmp_path):
 
 
 def test_code_mode_execution(tmp_path):
+    """Code mode must REFUSE on the live plugin path.
+
+    ``ctx.get("code_interpreter")`` is the instance the decision LLM reaches
+    through ``execute_dynamic_metric_analysis``, so this is the attack surface
+    the Gate 0 disarm covers — not just the class in isolation.
+    """
     db_path = str(tmp_path / "code_mode.db")
     ctx = TradingContext(name="CodeModeCtx")
     ctx.plugin(SkillsPlugin, db_path=db_path)
@@ -61,15 +67,25 @@ arr = np.array([10.0, 20.0, 30.0])
 result = {"mean": float(np.mean(arr)), "sum": float(np.sum(arr))}
 """
     exec_res = interpreter.execute_code(code)
-    assert exec_res.success is True
-    actual_result = exec_res.result.get("result") if isinstance(exec_res.result, dict) and "result" in exec_res.result else exec_res.result
-    assert actual_result == {"mean": 20.0, "sum": 60.0}
+
+    assert exec_res.success is False, (
+        "the plugin-mounted interpreter executed code; the Gate 0 disarm is "
+        "not applied on this path")
+    assert exec_res.result is None
+    assert "deactivated" in (exec_res.error or "")
     assert exec_res.execution_time_ms >= 0
 
     ctx.dispose()
 
 
 def test_creator_mode_skill_synthesis_and_hot_mount(tmp_path):
+    """Autonomous skill synthesis must fail closed while execution is disarmed.
+
+    Synthesis validates a candidate by RUNNING it.  With execution disarmed no
+    candidate can be validated, so the correct behaviour is: refuse to mark it
+    VERIFIED, and refuse to mount it.  A skill that was never validated must
+    never reach the registry, where ``execute_skill`` would run its handler.
+    """
     db_path = str(tmp_path / "creator_mode.db")
     ctx = TradingContext(name="CreatorModeCtx")
     ctx.plugin(SkillsPlugin, db_path=db_path)
@@ -91,11 +107,63 @@ def execute_skill(**kwargs):
         code_str=skill_code,
     )
 
-    assert synth_res.validation_passed is True
-    assert synth_res.status == "VERIFIED"
+    assert synth_res.validation_passed is False, (
+        "synthesis verified a skill it could not execute — validation is not "
+        "fail-closed")
+    assert synth_res.status == "CANDIDATE", synth_res.status
+    assert "deactivated" in (synth_res.error or ""), synth_res.error
+
+    # Containment: an unverified skill must be refused by the mount path, so no
+    # handler reaches SkillRegistry.
+    disp = creator.hot_mount_skill(registry, synth_res, ctx=ctx)
+    assert disp is None, "an unverified skill was hot-mounted"
+    assert "synthetic_momentum_audit" not in registry._skills
+    assert len(registry._skills) == initial_skills_count, (
+        "the registry changed for a skill that was never validated")
+
+    ctx.dispose()
+
+
+def test_creator_mode_hot_mount_roundtrip(tmp_path):
+    """The mount/execute/unmount machinery, independent of validation.
+
+    ``test_creator_mode_skill_synthesis_and_hot_mount`` can no longer reach the
+    happy path: synthesis validates by executing, and execution is disarmed, so
+    no candidate can reach VERIFIED through it.  That would silently leave
+    ``hot_mount_skill``'s success branch, the reversible ``Disposable`` handle
+    and ``SkillRegistry.execute_skill`` with no coverage at all.
+
+    ``hot_mount_skill`` takes a result object, so it is exercised here directly
+    with a hand-built VERIFIED one.  The ``exec`` it performs runs a literal
+    from this test file — the disarmed capability is ``execute_code`` accepting
+    caller-supplied code, not this.
+    """
+    from research.creator_engine import SkillSynthesisResult
+
+    db_path = str(tmp_path / "creator_roundtrip.db")
+    ctx = TradingContext(name="CreatorRoundtripCtx")
+    ctx.plugin(SkillsPlugin, db_path=db_path)
+
+    creator: CreatorEngine = ctx.get("creator_engine")
+    registry = ctx.get("skill_registry")
+    initial_skills_count = len(registry._skills)
+
+    skill_code = """
+def execute_skill(**kwargs):
+    symbol = kwargs.get("symbol", "EURUSD")
+    return {"status": "SUCCESS", "calculated_metric": 99.5, "symbol": symbol}
+"""
+    verified = SkillSynthesisResult(
+        skill_name="synthetic_momentum_audit",
+        category="DYNAMIC",
+        code=skill_code,
+        validation_passed=True,
+        status="VERIFIED",
+    )
 
     # Hot mount into registry
-    disp = creator.hot_mount_skill(registry, synth_res, ctx=ctx)
+    disp = creator.hot_mount_skill(registry, verified, ctx=ctx)
+    assert disp is not None, "a VERIFIED skill should mount"
     assert "synthetic_momentum_audit" in registry._skills
     assert len(registry._skills) == initial_skills_count + 1
 

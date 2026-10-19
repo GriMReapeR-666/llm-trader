@@ -488,6 +488,16 @@ Multi-provider LLM routing with load balancing, failover, and rate limiting.
 | NVIDIA NIM | Llama, DeepSeek | `NVIDIA_KEY_1`, `NVIDIA_KEY_2` |
 | TokenRouter | OpenAI-compatible | `TOKENROUTER_API_KEY` |
 | RoutesMe | OpenAI-compatible | `ROUTESME_API_KEY` |
+| OmniRouter | Self-hosted gateway; `auto` = built-in bridges w/ its own failover | `OMNIROUTER_KEY` |
+
+**OmniRouter tiering.** OmniRouter is a *separate cheap hub*, not part of the
+high-reasoning chain. NVIDIA NIM / TokenRouter / RoutesMe / OpenRouter remain
+authoritative for trade decisions; OmniRouter is for simple, high-volume work
+(small subagents, summarisation, extraction) and is deliberately excluded from
+the `*_LLM_FALLBACK` lists — it is a local process that may simply be stopped,
+and a trade agent must never silently drop onto it. Opt in per agent via
+`SIMPLE_LLM_PROVIDER`/`register_agent(...)`. Model `auto` lets the gateway pick
+and fail over across its built-in bridges (Qwen / GLM / DeepSeek / Gemini).
 
 **Key classes:**
 | Class | Purpose |
@@ -537,7 +547,9 @@ FRED and macroeconomic data ingestion:
 | OpenBB | `openbb_data_bridge.py` | Institutional market data |
 | EIA | `eia_provider.py` | Energy data |
 | CFTC COT | `cftc_cot_provider.py` | Commitment of Traders |
-| Zero-Lag Macro | `zero_lag_macro_provider.py` | Physical proxies, spreads, liquidity |
+| Zero-Lag Macro | `zero_lag_macro_provider.py` | Physical proxies, spreads, liquidity. **Status note (Oct 2026):** hardcoded constant proxies are now flagged live-vs-`SYNTHETIC_PLACEHOLDER` via `source_quality_annotations()` — check the annotation before feeding roles to the LLM. |
+| Social Evidence | `social_entity_ingest.py` | Entity post ingest (Trump/@POTUS, central banks, market outlets) — **ingest-only**; posts journal into local agent memory with `causal_authority=False`. Governed by the `SOCIAL_EVIDENCE_ONLY` tier in `macro_source_policy.py`; social domains remain causally blocked. |
+| TradingView Bridge | `tradingview_bridge.py` | Webhook receiver for TV alerts (auth-gated). Journals alerts as `ADVISORY` `order_intents` rows — never auto-executed; advisory rows are invisible to the pending-order reconciler and the killswitch cancel loop. |
 | Alternative Data | `alternative_data_provider.py` / `alternative_data_registry.py` | Non-traditional data |
 | Exness | `exness_provider.py` | Broker-specific data |
 | MT5 Calendar | `mt5_calendar_enhanced.py` / `mt5_calendar_wrapper.py` | Broker calendar |
@@ -946,6 +958,10 @@ Self-contained HTML dashboard with plotly.js. Auto-generates after each trading 
 | `NVIDIA_KEY_1`, `NVIDIA_KEY_2` | NVIDIA NIM keys |
 | `TOKENROUTER_API_KEY` | TokenRouter key |
 | `ROUTESME_API_KEY` | RoutesMe key |
+| `OMNIROUTER_KEY` | OmniRouter gateway key (`sk-…` from its dashboard) |
+| `OMNIROUTER_API_KEY` | Alias for `OMNIROUTER_KEY` |
+| `OMNIROUTER_BASE_URL` | Gateway base URL (default `http://localhost:8080/v1`) |
+| `OMNIROUTER_RPM` | OmniRouter rate limit (default 60) |
 
 **Per-Agent Routing:**
 | Variable | Purpose |

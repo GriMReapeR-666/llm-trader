@@ -144,6 +144,22 @@ class TestRotationLogic:
         active = fresh_engine.get_active_set()
         assert len(active) >= fresh_engine.min_alphas
 
+    def test_evicts_dead_alpha_without_replacement_when_above_min_alphas(self, fresh_engine):
+        """When pool has no candidate, dead alpha is evicted without replacement if above min_alphas."""
+        health = {name: {"status": "DEAD", "ic_mean": -0.05, "ic_ir": -0.5} for name in FULL_POOL}
+        active = fresh_engine.get_active_set()[:5]
+        fresh_engine._active_set = list(active)
+        for a in active[:4]:
+            health[a] = {"status": "HEALTHY", "ic_mean": 0.04, "ic_ir": 0.5}
+        health[active[4]] = {"status": "DEAD", "ic_mean": -0.05, "ic_ir": -0.5}
+
+        events = fresh_engine.update(health, FULL_POOL, current_bar=100)
+        assert len(events) == 1
+        assert events[0].removed_alpha == active[4]
+        assert events[0].promoted_alpha == "NONE"
+        assert active[4] not in fresh_engine.get_active_set()
+        assert len(fresh_engine.get_active_set()) == 4
+
     def test_reversed_alpha_triggers_rotation(self, fresh_engine):
         health = _make_health(
             alpha_012={"status": "HEALTHY", "ic_mean": 0.04, "ic_ir": 0.5},
@@ -532,3 +548,102 @@ class TestIntegration:
         report = fresh_engine.format_status()
         assert "alpha_055" not in report or "DEAD" in report
         assert "Rotations:" in report
+
+
+# ── Test Fixture Quarantine Tests ──────────────────────────────────────────
+
+class TestTestFixtureQuarantine:
+    def test_load_state_filters_quarantined_fixtures(self, tmp_path):
+        state_path = tmp_path / "polluted_state.json"
+        polluted_state = {
+            "active_set": ["alpha_012", "alpha_dead", "mock_signal", "alpha_014"],
+            "all_pool": ["alpha_012", "alpha_reversed", "alpha_014", "fixture_test"],
+            "dead_timestamps": {"alpha_dead": 100, "alpha_017": 50},
+            "total_rotations": 3,
+            "last_rotation_bar": 100,
+            "last_health": {
+                "alpha_012": {"status": "HEALTHY", "ic_mean": 0.05},
+                "alpha_dead": {"status": "DEAD", "ic_mean": -0.1},
+                "alpha_reversed": {"status": "REVERSED", "ic_mean": -0.9},
+            },
+            "rotation_history": [
+                {
+                    "timestamp": 100,
+                    "removed": "alpha_dead",
+                    "promoted": "alpha_012",
+                    "reason": "DEAD",
+                    "removed_ic": -0.1,
+                    "promoted_ic": 0.05,
+                },
+                {
+                    "timestamp": 105,
+                    "removed": "alpha_017",
+                    "promoted": "alpha_014",
+                    "reason": "DEAD",
+                    "removed_ic": -0.05,
+                    "promoted_ic": 0.04,
+                },
+            ],
+        }
+        state_path.write_text(json.dumps(polluted_state))
+
+        engine = AlphaRotationEngine(state_file=str(state_path))
+        active = engine.get_active_set()
+        pool = engine.get_all_pool()
+
+        # Quarantined fixtures removed from active_set and all_pool
+        assert "alpha_dead" not in active
+        assert "mock_signal" not in active
+        assert "alpha_reversed" not in pool
+        assert "fixture_test" not in pool
+        assert "alpha_012" in active
+        assert "alpha_014" in active
+
+        # Quarantined fixtures removed from dead_timestamps and last_health
+        assert "alpha_dead" not in engine._dead_timestamps
+        assert "alpha_017" in engine._dead_timestamps
+        assert "alpha_dead" not in engine._last_health
+        assert "alpha_reversed" not in engine._last_health
+        assert "alpha_012" in engine._last_health
+
+        # Rotation history sanitized
+        assert len(engine._rotation_history) == 1
+        assert engine._rotation_history[0].removed_alpha == "alpha_017"
+
+    def test_update_filters_quarantined_fixtures(self, fresh_engine):
+        incoming_health = {
+            "alpha_012": {"status": "HEALTHY", "ic_mean": 0.04, "ic_ir": 0.5},
+            "alpha_dead": {"status": "DEAD", "ic_mean": -0.12, "ic_ir": -0.5},
+            "alpha_reversed": {"status": "REVERSED", "ic_mean": -0.95, "ic_ir": -0.9},
+        }
+        incoming_pool = ["alpha_012", "alpha_014", "test_mock_alpha", "alpha_noise"]
+
+        fresh_engine.update(incoming_health, all_alpha_names=incoming_pool, current_bar=100)
+
+        # last_health only has real alphas
+        assert "alpha_dead" not in fresh_engine._last_health
+        assert "alpha_reversed" not in fresh_engine._last_health
+        assert "alpha_012" in fresh_engine._last_health
+
+        # all_pool only has real alphas
+        assert "test_mock_alpha" not in fresh_engine.get_all_pool()
+        assert "alpha_noise" not in fresh_engine.get_all_pool()
+        assert "alpha_012" in fresh_engine.get_all_pool()
+        assert "alpha_014" in fresh_engine.get_all_pool()
+
+    def test_save_state_sanitizes_saved_json(self, tmp_path):
+        state_path = tmp_path / "saved_state.json"
+        engine = AlphaRotationEngine(state_file=str(state_path))
+        # Intentionally inject test fixtures into internal state
+        engine._active_set.append("alpha_dead")
+        engine._all_pool.append("alpha_reversed")
+        engine._dead_timestamps["alpha_dead"] = 50
+        engine._last_health["alpha_dead"] = {"status": "DEAD"}
+
+        engine._save_state()
+
+        saved = json.loads(state_path.read_text())
+        assert "alpha_dead" not in saved["active_set"]
+        assert "alpha_reversed" not in saved["all_pool"]
+        assert "alpha_dead" not in saved["dead_timestamps"]
+        assert "alpha_dead" not in saved["last_health"]

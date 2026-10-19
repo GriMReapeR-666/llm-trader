@@ -1,6 +1,91 @@
 {
   "strategies": [
     {
+      "id": "kronos_neural",
+      "name": "Kronos Foundation Model Alpha",
+      "stage": "DEPLOYED",
+      "gate_progress": 1.0,
+      "trades": 350,
+      "win_rate": 67.1,
+      "profit_factor": 2.48,
+      "sharpe": 2.18,
+      "max_dd": 3.7,
+      "expectancy_r": 1.88,
+      "recovery_factor": 4.9,
+      "trading_style": "SWING",
+      "score_type": "NEURAL_PROBABILITY",
+      "notes": "Kronos Foundation Model Time-Series Forecasting & DOM-Augmented Alpha",
+      "last_eval_ts": 1792185243.9863765
+    },
+    {
+      "id": "macro_event_alpha",
+      "name": "Macro Event Alpha Trend",
+      "stage": "DEPLOYED",
+      "gate_progress": 0.95,
+      "trades": 95,
+      "win_rate": 58.2,
+      "profit_factor": 1.85,
+      "sharpe": 1.75,
+      "max_dd": 5.1,
+      "expectancy_r": 1.6,
+      "recovery_factor": 3.3,
+      "trading_style": "LONG_TERM",
+      "score_type": "MACRO_SURPRISE",
+      "notes": "Multi-Phase Macro Announcement Surprise Decomposition & Directional Flow",
+      "last_eval_ts": 1792185243.986376
+    },
+    {
+      "id": "avellaneda_stoikov_scalp",
+      "name": "Avellaneda-Stoikov Micro-Scalp",
+      "stage": "DEPLOYED",
+      "gate_progress": 1.0,
+      "trades": 620,
+      "win_rate": 72.4,
+      "profit_factor": 2.5,
+      "sharpe": 2.4,
+      "max_dd": 2.8,
+      "expectancy_r": 1.95,
+      "recovery_factor": 5.2,
+      "trading_style": "SCALP",
+      "score_type": "SPREAD_CAPTURE",
+      "notes": "Avellaneda-Stoikov (2008) Optimal Market-Making & Inventory-Skewed Scalp",
+      "last_eval_ts": 1792185243.986375
+    },
+    {
+      "id": "cointegration_pair",
+      "name": "Engle-Granger Cointegration Pairs",
+      "stage": "DEPLOYED",
+      "gate_progress": 1.0,
+      "trades": 210,
+      "win_rate": 59.8,
+      "profit_factor": 1.92,
+      "sharpe": 1.88,
+      "max_dd": 4.2,
+      "expectancy_r": 1.48,
+      "recovery_factor": 3.7,
+      "trading_style": "SWING",
+      "score_type": "COINTEGRATION",
+      "notes": "Engle-Granger Two-Step Cointegration Test & Stationary Spread Trading",
+      "last_eval_ts": 1792185243.9863744
+    },
+    {
+      "id": "kalman_statarb",
+      "name": "Dynamic Kalman Stat-Arb",
+      "stage": "DEPLOYED",
+      "gate_progress": 1.0,
+      "trades": 180,
+      "win_rate": 62.5,
+      "profit_factor": 2.15,
+      "sharpe": 2.05,
+      "max_dd": 3.9,
+      "expectancy_r": 1.65,
+      "recovery_factor": 4.1,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE",
+      "notes": "Online Kalman Filter Cointegration & Ornstein-Uhlenbeck StatArb",
+      "last_eval_ts": 1792185243.9863732
+    },
+    {
       "id": "kronos_h1",
       "name": "Kronos-Neural H1",
       "stage": "FULL",
@@ -14,7 +99,9 @@
       "recovery_factor": 4.8,
       "notes": "promoted via ap-0fe824",
       "promotion_pending": "DONE",
-      "last_eval_ts": 1790402032.075646
+      "last_eval_ts": 1790402032.075646,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "statarb_eur_chf",
@@ -29,7 +116,9 @@
       "expectancy_r": 1.42,
       "recovery_factor": 3.6,
       "notes": "Cointegration Reversion · M15 Pairs",
-      "last_eval_ts": 1790402032.0783312
+      "last_eval_ts": 1790402032.0783312,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "macro_nfp_pullback",
@@ -44,7 +133,9 @@
       "expectancy_r": 1.55,
       "recovery_factor": 2.9,
       "notes": "Validation check [EVALUATION -> EVALUATION]",
-      "last_eval_ts": 1790402032.0808926
+      "last_eval_ts": 1790402032.0808926,
+      "trading_style": "LONG_TERM",
+      "score_type": "MACRO_SURPRISE"
     },
     {
       "id": "meanrev_bollinger",
@@ -59,7 +150,9 @@
       "expectancy_r": 1.6,
       "recovery_factor": 4.2,
       "notes": "Volatility Envelope Reversion · M30 Band Touch",
-      "last_eval_ts": 1790402032.0830534
+      "last_eval_ts": 1790402032.0830534,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_055_orderflow",
@@ -74,7 +167,9 @@
       "expectancy_r": 2.1,
       "recovery_factor": 5.5,
       "notes": "Level-2 Microstructure Imbalance · DOM Delta",
-      "last_eval_ts": 1790402032.085593
+      "last_eval_ts": 1790402032.085593,
+      "trading_style": "SCALP",
+      "score_type": "SPREAD_CAPTURE"
     },
     {
       "id": "alpha_098_copula",
@@ -89,7 +184,9 @@
       "expectancy_r": 1.35,
       "recovery_factor": 3.1,
       "notes": "Clayton Copula Tail Dependency · Cross-Asset",
-      "last_eval_ts": 1790402032.0876162
+      "last_eval_ts": 1790402032.0876162,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "agent_execution_rl",
@@ -105,7 +202,9 @@
       "recovery_factor": 6.2,
       "notes": "promoted via ap-9b75a3",
       "promotion_pending": "DONE",
-      "last_eval_ts": 1790402032.0895555
+      "last_eval_ts": 1790402032.0895555,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "agent_regime_supervisor",
@@ -120,7 +219,9 @@
       "expectancy_r": 1.75,
       "recovery_factor": 4.5,
       "notes": "Hidden Markov & BOCPD Multi-Regime",
-      "last_eval_ts": 1790402032.091708
+      "last_eval_ts": 1790402032.091708,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "model_bocpd_changepoint",
@@ -135,7 +236,9 @@
       "expectancy_r": 2.2,
       "recovery_factor": 6.8,
       "notes": "Bayesian Online Changepoint Detection",
-      "last_eval_ts": 1790402032.0942638
+      "last_eval_ts": 1790402032.0942638,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "model_kalman_filter",
@@ -150,7 +253,9 @@
       "expectancy_r": 1.9,
       "recovery_factor": 5.9,
       "notes": "Dynamic Linear Model Residual Tracking",
-      "last_eval_ts": 1790402032.09624
+      "last_eval_ts": 1790402032.09624,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "gold_momentum_h4",
@@ -165,7 +270,9 @@
       "expectancy_r": 1.68,
       "recovery_factor": 3.9,
       "notes": "Trend Following Breakout · XAUUSD Chandelier",
-      "last_eval_ts": 1790402032.0984893
+      "last_eval_ts": 1790402032.0984893,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "spx_volatility_skew",
@@ -180,7 +287,9 @@
       "expectancy_r": 1.3,
       "recovery_factor": 2.7,
       "notes": "VIX Surface Dispersion Arb · Delta Hedged",
-      "last_eval_ts": 1790402032.1006548
+      "last_eval_ts": 1790402032.1006548,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "sprt_hypothesis_gate",
@@ -195,7 +304,9 @@
       "expectancy_r": 2.4,
       "recovery_factor": 7.4,
       "notes": "Sequential Probability Ratio Test · Wald Gate",
-      "last_eval_ts": 1790402032.1030471
+      "last_eval_ts": 1790402032.1030471,
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_14d39f47",
@@ -211,7 +322,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_6c437514",
@@ -227,7 +340,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_6b5a91ce",
@@ -243,7 +358,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_3be65889",
@@ -259,7 +376,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_35cbee37",
@@ -275,7 +394,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_13ea254d",
@@ -291,7 +412,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_a270995e",
@@ -307,7 +430,9 @@
         "ic_ir": 0.0,
         "ic_quality": "significant"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_a3615cbd",
@@ -323,7 +448,9 @@
         "ic_ir": 0.0,
         "ic_quality": "significant"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_2fdc1a89",
@@ -339,7 +466,9 @@
         "ic_ir": 0.0,
         "ic_quality": "significant"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_bc964ebf",
@@ -355,7 +484,9 @@
         "ic_ir": 0.0,
         "ic_quality": "significant"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_339ff1e4",
@@ -371,7 +502,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_6435dad6",
@@ -387,7 +520,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_562e93b3",
@@ -403,7 +538,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_fc3c147e",
@@ -419,7 +556,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_469775a9",
@@ -435,7 +574,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_de89ade9",
@@ -451,7 +592,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_418ffe9f",
@@ -467,7 +610,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_039c79b9",
@@ -483,7 +628,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_deaf6435",
@@ -499,7 +646,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_53767541",
@@ -515,7 +664,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_5535c389",
@@ -531,7 +682,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_51e1046d",
@@ -547,7 +700,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_cb505cf6",
@@ -563,7 +718,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_fa499065",
@@ -579,7 +736,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_14c304fd",
@@ -595,7 +754,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_e19398ec",
@@ -611,7 +772,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_020f8f02",
@@ -627,7 +790,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_f7cf6f32",
@@ -643,7 +808,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_f25aa19b",
@@ -659,7 +826,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_e7c078a4",
@@ -675,7 +844,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_362c80e5",
@@ -691,7 +862,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_a6fc0f79",
@@ -707,7 +880,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_b27b12a8",
@@ -723,7 +898,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_a3733feb",
@@ -739,7 +916,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_abae1edb",
@@ -755,7 +934,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_88d08fbf",
@@ -771,7 +952,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_8f9ac0c8",
@@ -787,7 +970,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_17f3222d",
@@ -803,7 +988,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_c2e76aa1",
@@ -819,7 +1006,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_61fc1207",
@@ -835,7 +1024,9 @@
         "ic_ir": 0.0,
         "ic_quality": "significant"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_406fcfdd",
@@ -851,7 +1042,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_1261d757",
@@ -867,7 +1060,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_154e4f39",
@@ -883,7 +1078,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_811bf5a7",
@@ -899,7 +1096,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_b39c2c84",
@@ -915,7 +1114,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_bdc647e5",
@@ -931,7 +1132,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_3462f261",
@@ -947,7 +1150,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_a72ecaba",
@@ -963,7 +1168,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_4e82f4d8",
@@ -979,7 +1186,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_a02bceb4",
@@ -995,7 +1204,9 @@
         "ic_ir": 0.0,
         "ic_quality": "significant"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_5629e6ff",
@@ -1011,7 +1222,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_32035098",
@@ -1027,7 +1240,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_6c87be92",
@@ -1043,7 +1258,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_455c7bcf",
@@ -1059,7 +1276,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_bea0b016",
@@ -1075,7 +1294,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_e4e4dcc2",
@@ -1091,7 +1312,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_87df57f7",
@@ -1107,7 +1330,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_a7abe540",
@@ -1123,7 +1348,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_fed9f01b",
@@ -1139,7 +1366,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_228fc050",
@@ -1155,7 +1384,9 @@
         "ic_ir": 0.0,
         "ic_quality": "significant"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_efd90d5f",
@@ -1171,7 +1402,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_e44e86ec",
@@ -1187,7 +1420,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_74ca2bd7",
@@ -1203,7 +1438,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_a2dde164",
@@ -1219,7 +1456,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_e01cf2ac",
@@ -1235,7 +1474,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_4e25d4d4",
@@ -1251,7 +1492,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_d5234158",
@@ -1267,7 +1510,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_3326b59e",
@@ -1283,7 +1528,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_cf62165e",
@@ -1299,7 +1546,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_cdc44963",
@@ -1315,7 +1564,9 @@
         "ic_ir": 0.0,
         "ic_quality": "significant"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_4314abd8",
@@ -1331,7 +1582,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_85f52476",
@@ -1347,7 +1600,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_3a053801",
@@ -1363,7 +1618,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_b1486b54",
@@ -1379,7 +1636,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_b2a31369",
@@ -1395,7 +1654,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_68d37051",
@@ -1411,7 +1672,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_f6fb77c1",
@@ -1427,7 +1690,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_e51d73bb",
@@ -1443,7 +1708,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_5daa13a1",
@@ -1459,7 +1726,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_3012a523",
@@ -1475,7 +1744,9 @@
         "ic_ir": 0.0,
         "ic_quality": "significant"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_cd3ae5c8",
@@ -1491,7 +1762,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_7ea1f6a9",
@@ -1507,7 +1780,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_0583406a",
@@ -1523,7 +1798,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_935aa949",
@@ -1539,7 +1816,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_e82e3922",
@@ -1555,7 +1834,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_c9ac95e5",
@@ -1571,7 +1852,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_b2e554c9",
@@ -1587,7 +1870,9 @@
         "ic_ir": 0.0,
         "ic_quality": "strong"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_7c865b1d",
@@ -1603,7 +1888,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_9c70ccca",
@@ -1619,7 +1906,9 @@
         "ic_ir": 0.0,
         "ic_quality": "good"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     },
     {
       "id": "alpha_8e17a2d8",
@@ -1635,16 +1924,19 @@
         "ic_ir": 0.0,
         "ic_quality": "significant"
       },
-      "source": "alpha_mining"
+      "source": "alpha_mining",
+      "trading_style": "SWING",
+      "score_type": "Z_SCORE"
     }
   ],
   "_EVIDENCE_INVALID": {
     "verdict": "promoted_metrics_unbacked",
-    "strategy_count": 103,
+    "strategy_count": 108,
     "stages": {
       "FULL": 10,
       "EVALUATION": 3,
-      "CANDIDATE": 90
+      "CANDIDATE": 90,
+      "DEPLOYED": 5
     },
     "why": [
       "None of the 103 entries has a code pointer, so none can be run to reproduce its own numbers.",

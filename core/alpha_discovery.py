@@ -32,6 +32,11 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 try:
+    from core.alpha_causality import find_lookahead_violations
+except ImportError:
+    from alpha_causality import find_lookahead_violations
+
+try:
     from core.state_persistence import StoreBackedState
 except ImportError:
     from core.state_persistence import StoreBackedState
@@ -142,11 +147,14 @@ class SafeAlphaEvaluator:
             logger.debug("Expression too complex: depth=%d", self._compute_complexity(expression))
             return None
 
-        # Causality guard: rank() is a full-sample percentile normalizer — on
-        # single-symbol data it uses future information (look-ahead bias) and
-        # would inflate in-sample IC. Reject it explicitly.
-        if re.search(r"\brank\s*\(", expression):
-            logger.debug("Expression rejected: non-causal primitive 'rank' (look-ahead)")
+        # Causality guard: full-sample normalizers (rank/zscore/normalize) and
+        # negative shifts read future bars on single-symbol data, inflating
+        # in-sample IC. Rules live in `core.alpha_causality` and are shared with
+        # the GA miner (`research/alpha_miner/alpha_judge.py`) so the two stacks
+        # cannot enforce opposite policies again.
+        violations = find_lookahead_violations(expression)
+        if violations:
+            logger.debug("Expression rejected: non-causal primitive(s) %s", violations)
             return None
 
         # Build safe namespace
@@ -201,8 +209,18 @@ class SafeAlphaEvaluator:
         for col in _ALLOWED_COLUMNS:
             if col in df.columns:
                 ns[col] = df[col]
+            elif col == "volume":
+                if "tick_volume" in df.columns:
+                    ns["volume"] = df["tick_volume"]
+                elif "real_volume" in df.columns:
+                    ns["volume"] = df["real_volume"]
             elif col == "returns" and "close" in df.columns:
                 ns["returns"] = df["close"].pct_change()
+
+        if "vwap" in df.columns:
+            ns["vwap"] = df["vwap"]
+        elif "close" in df.columns:
+            ns["vwap"] = df["close"]
 
         return ns
 
@@ -290,9 +308,48 @@ class AlphaCandidate:
     rejection_reason: str = ""
     discovered_at: float = 0.0
     hash: str = ""
+    # Multiple-testing evidence: counts of the campaign, not just the candidate.
+    ic_tstat: float = 0.0
+    ic_pvalue: float = 1.0
+    n_trials: int = 1
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+def ic_significance(
+    ic_values: List[float],
+    n_trials: int = 1,
+    alpha: float = 0.05,
+) -> Tuple[float, float, float]:
+    """Two-sided t-test on the mean IC with Bonferroni trial deflation.
+
+    The campaign trials ``n_trials`` (hypotheses evaluated so far, including
+    this one) come from the experience memory, so a campaign that tried 5,000
+    expressions must clear ``alpha / 5,000`` rather than a nominal 0.05.
+    ``ic_values`` must already be non-overlapping blocks — overlapping windows
+    silently inflate the t-statistic.
+
+    Returns ``(t_stat, p_value, p_threshold)``. Degenerate samples (all-equal
+    or too few blocks) are treated as unmeasurable (p=1.0), never as
+    infinitely significant.
+    """
+    from scipy import stats as sp_stats
+
+    trials = max(1, int(n_trials))
+    threshold = float(alpha) / trials
+    n = len(ic_values)
+    if n < 4:
+        return 0.0, 1.0, threshold
+    mean = float(np.mean(ic_values))
+    std = float(np.std(ic_values, ddof=1))
+    if not np.isfinite(std) or std <= 1e-12:
+        return 0.0, 1.0, threshold
+    t_stat = mean / (std / np.sqrt(n))
+    p_value = float(2.0 * sp_stats.t.sf(abs(t_stat), df=n - 1))
+    if not np.isfinite(p_value):
+        p_value = 1.0
+    return float(t_stat), p_value, threshold
 
 
 class SealedSandboxEvaluator:
@@ -309,12 +366,14 @@ class SealedSandboxEvaluator:
         max_turnover: float = 0.5,
         min_sharpe: float = 0.3,
         embargo_pct: float = 0.02,
+        max_ic_pvalue: float = 0.05,
     ):
         self.min_ic_ir = min_ic_ir
         self.min_ic_mean = min_ic_mean
         self.max_turnover = max_turnover
         self.min_sharpe = min_sharpe
         self.embargo_pct = embargo_pct
+        self.max_ic_pvalue = max_ic_pvalue
         self.evaluator = SafeAlphaEvaluator()
 
     def evaluate_candidate(
@@ -322,11 +381,16 @@ class SealedSandboxEvaluator:
         candidate: AlphaCandidate,
         train_df: pd.DataFrame,
         test_df: pd.DataFrame,
+        n_trials: int = 1,
     ) -> AlphaCandidate:
         """Evaluate a candidate alpha in the sealed sandbox.
 
         Uses temporal isolation: train_df for IC computation,
         test_df for out-of-sample validation.
+
+        ``n_trials`` is the total number of hypotheses the discovery campaign
+        has evaluated (including this one); it deflates the IC p-value
+        threshold by Bonferroni so a large campaign must clear a stricter bar.
         """
         # Evaluate expression on training data
         alpha_series = self.evaluator.evaluate(candidate.expression, train_df)
@@ -356,22 +420,54 @@ class SealedSandboxEvaluator:
         alpha_vals = alpha_series[valid_mask].values
         ret_vals = fwd_ret[valid_mask].values
 
-        for i in range(window, len(alpha_vals)):
+        # Compute IC on non-overlapping windows to avoid deflating ic_std via autocorrelation
+        step = window
+        for i in range(window, len(alpha_vals) + 1, step):
             a = alpha_vals[i - window:i]
             r = ret_vals[i - window:i]
-            if np.std(a) > 0 and np.std(r) > 0:
+            if np.std(a) > 1e-8 and np.std(r) > 1e-8:
                 corr, _ = sp_stats.spearmanr(a, r)
                 if np.isfinite(corr):
                     ic_values.append(corr)
 
-        if len(ic_values) < 10:
+        # Fail closed on overlapping IC windows: the t-test below treats the IC
+        # values as independent samples, so a series built by sliding a 20-bar
+        # window one bar at a time carries no significance information. Require
+        # at least 4 fully independent (non-overlapping) blocks instead.
+        if len(ic_values) < 4:
             candidate.status = "REJECTED"
-            candidate.rejection_reason = f"Too few IC values: {len(ic_values)}"
+            candidate.rejection_reason = (
+                f"Insufficient non-overlapping IC blocks: {len(ic_values)} < 4"
+            )
             return candidate
 
         candidate.ic_mean = float(np.mean(ic_values))
         candidate.ic_std = float(np.std(ic_values))
         candidate.ic_ir = candidate.ic_mean / max(candidate.ic_std, 1e-6)
+        candidate.n_trials = max(1, int(n_trials))
+        candidate.ic_tstat, candidate.ic_pvalue, _p_threshold = ic_significance(
+            ic_values, candidate.n_trials, self.max_ic_pvalue
+        )
+
+        # Apply thresholds (fail closed: require strictly positive IC and IC_IR)
+        if candidate.ic_mean < self.min_ic_mean:
+            candidate.status = "REJECTED"
+            candidate.rejection_reason = f"IC mean too low: {candidate.ic_mean:.4f} < {self.min_ic_mean}"
+            return candidate
+
+        if candidate.ic_ir < self.min_ic_ir:
+            candidate.status = "REJECTED"
+            candidate.rejection_reason = f"IC_IR too low: {candidate.ic_ir:.4f} < {self.min_ic_ir}"
+            return candidate
+
+        if candidate.ic_pvalue > _p_threshold:
+            candidate.status = "REJECTED"
+            candidate.rejection_reason = (
+                f"IC not significant after trial deflation: p={candidate.ic_pvalue:.3g} "
+                f"> {_p_threshold:.3g} (n_trials={candidate.n_trials}, "
+                f"n_ic={len(ic_values)})"
+            )
+            return candidate
 
         # Out-of-sample validation on test set
         test_alpha = self.evaluator.evaluate(candidate.expression, test_df)
@@ -382,17 +478,32 @@ class SealedSandboxEvaluator:
                 test_ic_values = []
                 t_alpha = test_alpha[test_valid].values
                 t_ret = test_fwd[test_valid].values
-                for i in range(window, len(t_alpha)):
+                for i in range(window, len(t_alpha) + 1, step):
                     a = t_alpha[i - window:i]
                     r = t_ret[i - window:i]
-                    if np.std(a) > 0 and np.std(r) > 0:
+                    if np.std(a) > 1e-8 and np.std(r) > 1e-8:
                         corr, _ = sp_stats.spearmanr(a, r)
                         if np.isfinite(corr):
                             test_ic_values.append(corr)
+                if len(test_ic_values) < 2:
+                    for i in range(window, len(t_alpha)):
+                        a = t_alpha[i - window:i]
+                        r = t_ret[i - window:i]
+                        if np.std(a) > 1e-8 and np.std(r) > 1e-8:
+                            corr, _ = sp_stats.spearmanr(a, r)
+                            if np.isfinite(corr):
+                                test_ic_values.append(corr)
                 if test_ic_values:
-                    test_ic_mean = np.mean(test_ic_values)
-                    # Penalize if test IC is much lower than train IC (overfitting)
-                    if test_ic_mean < candidate.ic_mean * 0.3:
+                    test_ic_mean = float(np.mean(test_ic_values))
+                    # Sign-aware overfit check:
+                    if np.sign(test_ic_mean) != np.sign(candidate.ic_mean):
+                        candidate.status = "REJECTED"
+                        candidate.rejection_reason = (
+                            f"Overfitting sign reversal: train IC={candidate.ic_mean:.4f}, "
+                            f"test IC={test_ic_mean:.4f}"
+                        )
+                        return candidate
+                    if abs(test_ic_mean) < abs(candidate.ic_mean) * 0.3:
                         candidate.status = "REJECTED"
                         candidate.rejection_reason = (
                             f"Overfitting: train IC={candidate.ic_mean:.4f}, "
@@ -404,17 +515,6 @@ class SealedSandboxEvaluator:
         if alpha_series.notna().sum() > 1:
             changes = alpha_series.diff().abs()
             candidate.turnover = float(changes.mean())
-
-        # Apply thresholds
-        if abs(candidate.ic_ir) < self.min_ic_ir:
-            candidate.status = "REJECTED"
-            candidate.rejection_reason = f"IC_IR too low: {candidate.ic_ir:.4f} < {self.min_ic_ir}"
-            return candidate
-
-        if abs(candidate.ic_mean) < self.min_ic_mean:
-            candidate.status = "REJECTED"
-            candidate.rejection_reason = f"IC mean too low: {candidate.ic_mean:.4f}"
-            return candidate
 
         candidate.status = "VALIDATED"
         candidate.discovered_at = time.time()
@@ -564,14 +664,23 @@ def _router_llm_generate(prompt: str) -> str:
                 "llm_router has no initialized providers — set OPENROUTER_API_KEY "
                 "(or TOKENROUTER_KEY / ROUTESME_KEY / CEREBRAS_API_KEY / NVIDIA_KEY) in .env")
         primary = os.getenv("ALPHA_LLM_PROVIDER") or (
-            "openrouter" if "openrouter" in available else available[0])
+            "omnirouter" if "omnirouter" in available else (
+                "openrouter" if "openrouter" in available else available[0]
+            )
+        )
         if primary not in available:
             primary = available[0]
+        model = os.getenv("ALPHA_LLM_MODEL")
+        if not model:
+            model = "auto" if primary == "omnirouter" else "meta-llama/llama-3.2-11b-vision-instruct:free"
+        fallback_providers = [p for p in available if p != primary]
+        if "omnirouter" in available and "omnirouter" not in fallback_providers and primary != "omnirouter":
+            fallback_providers.insert(0, "omnirouter")
         router.register_agent(
             "alpha_discovery",
             provider=primary,
-            model=os.getenv("ALPHA_LLM_MODEL", "meta-llama/llama-3.2-11b-vision-instruct:free"),
-            fallback_providers=[p for p in available if p != primary],
+            model=model,
+            fallback_providers=fallback_providers,
             allow_failover=True,
         )
 
@@ -749,7 +858,14 @@ delta(ts_rank(close, 20), 1) * ts_rank(volume, 20) | volume_price | Volume-ranke
             self.memory.save()
 
         # Step 3: EVALUATE (sealed sandbox)
-        for raw in raw_candidates[:self.max_alphas_per_cycle]:
+        # Deflation trials: every previously recorded candidate was a tested
+        # hypothesis, and each candidate in this batch counts positionally so
+        # it faces the deflation of everything tried before it.
+        _trial_base = (
+            self.memory.memory.total_validated + self.memory.memory.total_rejected
+        )
+        for _trial_idx, raw in enumerate(raw_candidates[:self.max_alphas_per_cycle]):
+            _n_trials = _trial_base + _trial_idx + 1
             candidate = AlphaCandidate(
                 expression=raw["expression"],
                 name=f"alpha_d{self.memory.memory.generation_count}_{len(validated)}",
@@ -770,7 +886,9 @@ delta(ts_rank(close, 20), 1) * ts_rank(volume, 20) | volume_price | Volume-ranke
                 continue
 
             # Sealed sandbox evaluation
-            candidate = self.evaluator.evaluate_candidate(candidate, train_df, test_df)
+            candidate = self.evaluator.evaluate_candidate(
+                candidate, train_df, test_df, n_trials=_n_trials
+            )
 
             if candidate.status == "VALIDATED":
                 # --- ζ Code Safety Agent: review expression before acceptance ---
@@ -811,12 +929,17 @@ delta(ts_rank(close, 20), 1) * ts_rank(volume, 20) | volume_price | Volume-ranke
                                 candidate.expression[:50],
                             )
                             continue
-                        # APPROVED or SANDBOX_FAILED — log and continue
+                        if review.verdict == SafetyVerdict.SANDBOX_FAILED:
+                            candidate.status = "REJECTED"
+                            candidate.rejection_reason = "ζ SANDBOX EXECUTION FAILED: verification failed"
+                            self.memory.record_rejected(candidate)
+                            logger.warning("Rejected (ζ sandbox failed): %s", candidate.name)
+                            continue
                         if review.verdict != SafetyVerdict.APPROVED:
-                            logger.info(
-                                "ζ verdict=%s for %s (proceeding)",
-                                review.verdict.value, candidate.name,
-                            )
+                            candidate.status = "REJECTED"
+                            candidate.rejection_reason = f"ζ review not approved (verdict={review.verdict.value})"
+                            self.memory.record_rejected(candidate)
+                            continue
                     except Exception as e:
                         logger.warning("ζ review failed (proceeding): %s", e)
 

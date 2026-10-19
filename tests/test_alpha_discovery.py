@@ -46,6 +46,17 @@ class TestSafeAlphaEvaluator:
         result = evaluator.evaluate("delta(close, 5) * scale(volume, 1.0)", df)
         assert result is not None
 
+    def test_volume_tick_volume_fallback(self):
+        from core.alpha_discovery import SafeAlphaEvaluator
+        evaluator = SafeAlphaEvaluator()
+        df = _make_ohlcv(100)
+        df_fx = df.rename(columns={"volume": "tick_volume"})
+        assert "volume" not in df_fx.columns
+        result = evaluator.evaluate("delta(close, 1) * scale(volume, 1.0)", df_fx)
+        assert result is not None
+        assert isinstance(result, pd.Series)
+        assert len(result) == 100
+
     def test_blocks_import(self):
         from core.alpha_discovery import SafeAlphaEvaluator
         evaluator = SafeAlphaEvaluator()
@@ -184,6 +195,31 @@ class TestSealedSandbox:
         )
         result = evaluator.evaluate_candidate(candidate, train, test)
         assert result.status == "REJECTED"
+
+    def test_negative_ic_rejected(self):
+        from core.alpha_discovery import SealedSandboxEvaluator, AlphaCandidate
+        evaluator = SealedSandboxEvaluator(min_ic_ir=0.15, min_ic_mean=0.02)
+        n = 300
+        t = np.linspace(0, 50, n)
+        close = 100.0 + np.sin(t) * 10.0
+        df = pd.DataFrame({
+            "open": close,
+            "high": close + 1,
+            "low": close - 1,
+            "close": close,
+            "volume": np.ones(n) * 1000,
+        })
+        train = df.iloc[:200]
+        test = df.iloc[200:]
+        candidate = AlphaCandidate(
+            expression="0 - delta(close, 1)",
+            name="neg_alpha",
+            category="momentum",
+        )
+        result = evaluator.evaluate_candidate(candidate, train, test)
+        # Must be rejected because IC mean and IC_IR are negative
+        assert result.status == "REJECTED"
+        assert "too low" in result.rejection_reason
 
 
 # ===========================================================================
@@ -374,17 +410,22 @@ class TestRouterGenerationPath:
                 return lr.LLMRouter.deterministic_hold_fallback("alpha_discovery", [])
 
         import sys
-        old = sys.modules.get("llm_router")
-        sys.modules["llm_router"] = type(sys)("llm_router")
-        sys.modules["llm_router"].get_router = lambda: _FakeRouter()
+        old = sys.modules.get("data.llm_router")
+        fake = type(sys)("data.llm_router")
+        fake.get_router = lambda: _FakeRouter()
+        sys.modules["data.llm_router"] = fake
         try:
             with pytest.raises(_RouterLLMError):
                 _router_llm_generate("prompt")
         finally:
+            # _router_llm_generate does `from data.llm_router import get_router`,
+            # so the fake MUST be keyed on the dotted name. Patching the bare
+            # "llm_router" key silently no-ops once the real module is cached,
+            # which made this test order-dependent.
             if old is not None:
-                sys.modules["llm_router"] = old
+                sys.modules["data.llm_router"] = old
             else:
-                del sys.modules["llm_router"]
+                del sys.modules["data.llm_router"]
 
     def test_adapter_rejects_error_string(self):
         """Router 'Error: ...' return values must raise, not parse as alphas."""
@@ -398,17 +439,19 @@ class TestRouterGenerationPath:
             def generate(self, agent, messages, **kw):
                 return "Error: openrouter failed: 503"
 
-        old = sys.modules.get("llm_router")
-        sys.modules["llm_router"] = type(sys)("llm_router")
-        sys.modules["llm_router"].get_router = lambda: _FakeRouter()
+        old = sys.modules.get("data.llm_router")
+        fake = type(sys)("data.llm_router")
+        fake.get_router = lambda: _FakeRouter()
+        sys.modules["data.llm_router"] = fake
         try:
             with pytest.raises(_RouterLLMError):
                 _router_llm_generate("prompt")
         finally:
+            # Keyed on the dotted name - see test_router_hold_payload_raises.
             if old is not None:
-                sys.modules["llm_router"] = old
+                sys.modules["data.llm_router"] = old
             else:
-                del sys.modules["llm_router"]
+                del sys.modules["data.llm_router"]
 
     def test_adapter_end_to_end_with_real_router(self, monkeypatch):
         """Full chain through the REAL LLMRouter (fake provider, no HTTP):
@@ -434,3 +477,76 @@ class TestRouterGenerationPath:
         assert text.startswith("delta(close, 2)")
         assert "alpha_discovery" in router.agents, "agent was not auto-registered"
         assert router.agents["alpha_discovery"]["provider"] == "fakeprov"
+
+
+# ===========================================================================
+# 5. IC significance & trial deflation
+# ===========================================================================
+
+class TestICSignificance:
+    """Mean-IC t-test with Bonferroni deflation over campaign trials."""
+
+    def test_zero_dispersion_is_unmeasurable(self):
+        from core.alpha_discovery import ic_significance
+
+        t, p, threshold = ic_significance([0.2] * 25, n_trials=1)
+        assert t == 0.0
+        assert p == 1.0
+        assert threshold == pytest.approx(0.05)
+
+    def test_deflation_rejects_a_marginal_t(self):
+        from core.alpha_discovery import ic_significance
+
+        # Non-overlapping blocks with mean 0.05, std ~0.083 -> t ~ 2.4.
+        values = [0.13, -0.03] * 8
+        t1, p1, th1 = ic_significance(values, n_trials=1)
+        assert t1 > 2.0
+        assert p1 <= th1  # significant under a single hypothesis
+        _, p2, th2 = ic_significance(values, n_trials=10_000)
+        assert p2 == p1  # identical evidence ...
+        assert th2 == pytest.approx(0.05 / 10_000)
+        assert p2 > th2  # ... but the campaign deflation rejects it
+
+    def test_too_few_blocks_is_unmeasurable(self):
+        from core.alpha_discovery import ic_significance
+
+        assert ic_significance([0.4, 0.1, 0.2], n_trials=1)[1] == 1.0
+
+    def test_evaluator_applies_deflation(self):
+        import numpy as np
+        import pandas as pd
+        from core.alpha_discovery import AlphaCandidate, SealedSandboxEvaluator
+
+        # Strong, stable momentum: AR(1) increments so delta(close, 1) predicts
+        # the next return with a large, consistent IC.
+        rng = np.random.default_rng(7)
+        n = 1200
+        eps = rng.normal(0, 0.001, n)
+        inc = np.zeros(n)
+        for i in range(1, n):
+            inc[i] = 0.85 * inc[i - 1] + eps[i]
+        close = 1.08 + np.cumsum(inc)
+        df = pd.DataFrame({
+            "open": close,
+            "high": close + 0.001,
+            "low": close - 0.001,
+            "close": close,
+            "volume": np.full(n, 1e5),
+        })
+        train, test = df.iloc[:800], df.iloc[800:]
+
+        candidate = AlphaCandidate(
+            expression="delta(close, 1)", name="deflated", category="momentum"
+        )
+        ok = SealedSandboxEvaluator().evaluate_candidate(candidate, train, test, n_trials=1)
+        assert ok.status == "VALIDATED"
+        assert ok.ic_pvalue < 0.05
+
+        candidate = AlphaCandidate(
+            expression="delta(close, 1)", name="deflated", category="momentum"
+        )
+        killed = SealedSandboxEvaluator().evaluate_candidate(
+            candidate, train, test, n_trials=10 ** 30
+        )
+        assert killed.status == "REJECTED"
+        assert "trial deflation" in killed.rejection_reason

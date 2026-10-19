@@ -136,18 +136,23 @@ def post_validate_r1_routing(
 
 
 def find_catalog_seed_source_id(graph: MacroGraph) -> Optional[str]:
+    """Newest source whose payload declares the catalog-seed kind.
+
+    Matches on ``payload.kind`` directly. The previous version scanned only the
+    200 most-recently-captured sources and JSON-parsed each, which returned
+    ``None`` forever once ``macro_sources`` outgrew that window: the seed is a
+    long-lived row written once per catalog version, while the table accrues a
+    source per article per cycle, so the seed fell ~76k ranks down. Every
+    mirroring attempt then bailed at the "seed missing" guard -- which returns a
+    normal result rather than raising, so nothing logged it.
+    """
     with graph._con() as con:
-        rows = con.execute(
-            "SELECT source_id, payload FROM macro_sources ORDER BY captured_at DESC LIMIT 200"
-        ).fetchall()
-    for row in rows:
-        try:
-            payload = json.loads(row["payload"] or "{}")
-        except (TypeError, ValueError, json.JSONDecodeError):
-            continue
-        if payload.get("kind") == "economic_dynamics_catalog_seed":
-            return str(row["source_id"])
-    return None
+        row = con.execute(
+            "SELECT source_id FROM macro_sources"
+            " WHERE json_extract(payload,'$.kind')='economic_dynamics_catalog_seed'"
+            " ORDER BY captured_at DESC LIMIT 1"
+        ).fetchone()
+    return str(row["source_id"]) if row else None
 
 
 def _finite_number(value: Any) -> Optional[float]:
@@ -186,10 +191,10 @@ def mirror_runtime_reaction_to_catalog(
     actual = _finite_number(event.get("actual"))
     forecast = _finite_number(event.get("forecast"))
     previous = _finite_number(event.get("previous"))
-    if actual is None or forecast is None:
+    if actual is None or (forecast is None and previous is None):
         return {
             "mirrored": False,
-            "reason": "missing numeric actual/forecast",
+            "reason": "missing numeric actual/(forecast or previous)",
             "execution_authority": False,
         }
     if not isinstance(windows, dict) or not windows:
@@ -242,6 +247,7 @@ def mirror_runtime_reaction_to_catalog(
                 "mapped_entity": entity,
                 "routing_mode": routing_mode,
                 "runtime_title": _event_title(event)[:200],
+                "surprise_method": "CONSENSUS_DELTA" if forecast is not None else "PREVIOUS_DELTA",
                 "execution_authority": False,
             },
         },
@@ -276,11 +282,36 @@ def mirror_recent_reactions(
     skipped = 0
     r1_extended = 0
     r1_rejected = 0
+    skip_reasons: Dict[str, int] = {}
     seed_id = find_catalog_seed_source_id(graph)
+
+    def _skip(reason: str) -> None:
+        nonlocal skipped
+        skipped += 1
+        skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
+
+    # A reaction row carries actual/forecast/windows but no headline, so the
+    # synthesized fallback below classified an empty string and missed every
+    # time. Its source row already holds a descriptive title.
+    source_titles: Dict[str, str] = {}
+    _sids = {
+        str(r.get("event_source_id") or "")
+        for r in (recent_reactions or [])
+        if isinstance(r, dict)
+    } - {""}
+    if _sids:
+        marks = ",".join("?" * len(_sids))
+        with graph._con() as con:
+            for row in con.execute(
+                f"SELECT source_id,title FROM macro_sources WHERE source_id IN ({marks})",
+                tuple(_sids),
+            ):
+                source_titles[str(row["source_id"])] = str(row["title"] or "")
+
     # Index news by rough identity for title classification.
     for reaction in recent_reactions or []:
         if not isinstance(reaction, dict):
-            skipped += 1
+            _skip("malformed_row")
             continue
         windows = reaction.get("windows")
         if isinstance(windows, str):
@@ -289,14 +320,18 @@ def mirror_recent_reactions(
             except (TypeError, ValueError, json.JSONDecodeError):
                 windows = {}
         if not isinstance(windows, dict):
-            skipped += 1
+            _skip("unmeasurable_windows")
             continue
         # Prefer matching news row; else synthesize minimal event from reaction.
         event = {
             "actual": reaction.get("actual"),
             "forecast": reaction.get("forecast"),
             "previous": reaction.get("previous"),
-            "event": reaction.get("event") or reaction.get("title") or "",
+            "event": (
+                reaction.get("event")
+                or reaction.get("title")
+                or source_titles.get(str(reaction.get("event_source_id") or ""), "")
+            ),
         }
         matched_news = None
         for news in news_events or []:
@@ -334,12 +369,13 @@ def mirror_recent_reactions(
                 r1_extended += 1
         elif "r1 post-validation rejected" in str(result.get("reason", "")):
             r1_rejected += 1
-            skipped += 1
+            _skip("r1_rejected")
         else:
-            skipped += 1
+            _skip(str(result.get("reason") or "unclassified"))
     return {
         "mirrored_count": len(mirrored),
         "skipped": skipped,
+        "skip_reasons": skip_reasons,
         "r1_model_extended": r1_extended,
         "r1_rejected": r1_rejected,
         "mirrored": mirrored[:20],

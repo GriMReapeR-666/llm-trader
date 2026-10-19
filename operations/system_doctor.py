@@ -18,11 +18,27 @@ from operations.readiness_report import build as build_readiness
 
 
 def _check_mt5_installed() -> Tuple[bool, str]:
+    """MT5 tooling present: Python package, plus the calendar DLL truth.
+
+    find_mt5_dll() is the same single source MT5CalendarWrapper uses, so
+    the doctor can never claim a rosy install while the calendar wrapper
+    would refuse to construct. Pass stays package-based: a modern
+    exe-only MT5 build ships no terminal64.dll and only loses the
+    economic calendar, not live trading - but the DLL fact is reported
+    either way, never hidden behind a green check.
+    """
     try:
         import MetaTrader5  # noqa: F401
-        return True, "MetaTrader5 Python package installed"
     except ImportError:
         return False, "MetaTrader5 Python package not installed"
+    from data.mt5_calendar_wrapper import find_mt5_dll
+    dll = find_mt5_dll()
+    if dll:
+        return True, (f"MetaTrader5 Python package installed; "
+                      f"calendar terminal64.dll found at {dll}")
+    return True, ("MetaTrader5 Python package installed; terminal64.dll "
+                  "with MQL5 calendar exports not found - economic "
+                  "calendar unavailable (MT5CalendarWrapper would refuse to load)")
 
 
 def _check_mt5_terminal() -> Tuple[bool, str]:

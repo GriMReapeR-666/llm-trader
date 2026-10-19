@@ -30,7 +30,10 @@ def test_ast_proves_order_send_only_in_order_gateway():
     repo_root = Path(__file__).resolve().parent.parent.parent
 
     # Find all python files, excluding virtual environments, tests, compat bridge stubs, scripts
-    ignored_parts = {".venv", "venv", ".git", "tests", "compat", "scripts", "__pycache__"}
+    # .git-linked worktrees (.kilo/worktrees/* etc.) hold OTHER branches'
+    # production copies; the single-door invariant is about THIS checkout.
+    ignored_parts = {".venv", "venv", ".git", ".kilo", ".cline", ".cursor",
+                     "tests", "compat", "scripts", "docs", "__pycache__"}
     production_files_with_order_send = []
     adapter_import_violations = []
 

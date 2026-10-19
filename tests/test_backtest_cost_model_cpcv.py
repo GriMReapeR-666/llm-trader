@@ -174,3 +174,360 @@ class TestWalkForwardEvidence:
         assert wf.get("status") == "INSUFFICIENT_JOURNAL_EVIDENCE", wf
         assert wf.get("samples") == 0, wf
         assert "stability_score" not in wf, "fabricated metrics leaked"
+
+
+class TestStage1DataPath:
+    def test_stage1_runs_without_mt5_trader_in_sys_modules(self, tmp_path, monkeypatch):
+        """Engine-as-__main__ regression (2026-10-18, caught live).
+
+        The engine starts as `python mt5_trader.py`, so the engine module is
+        registered as sys.modules['__main__'] and never as 'mt5_trader'. A
+        Stage-1 pre-check keying on sys.modules['mt5_trader'].mt5 is therefore
+        always-None in the live engine and produced a permanent failure loop
+        (32 consecutive 'Stage 1 failed: MT5 terminal not attached' at the
+        ~2.5 min research cadence). fetch_ohlc() already fails closed on its
+        own; Stage 1 must simply call it and let its own guard raise when no
+        terminal is reachable in this process.
+        """
+        import sys
+        import pandas as pd
+        import data.market_data_provider as mdp
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        monkeypatch.delitem(sys.modules, "mt5_trader", raising=False)
+        assert "mt5_trader" not in sys.modules
+
+        rows = 320
+        base = np.linspace(1.09, 1.11, rows)
+        frame = pd.DataFrame(
+            {
+                "time": pd.date_range("2026-01-01", periods=rows, freq="1h"),
+                "open": base,
+                "high": base + 0.0010,
+                "low": base - 0.0010,
+                "close": base + 0.0005,
+                "tick_volume": np.full(rows, 1000.0),
+            }
+        )
+        seen = {}
+
+        def fake_fetch(symbol, timeframe, count):
+            seen["args"] = (symbol, timeframe, count)
+            return frame
+
+        monkeypatch.setattr(mdp, "fetch_ohlc", fake_fetch)
+
+        def fake_backtest(self, **kwargs):
+            seen["bars_df"] = kwargs.get("bars_df")
+            return {"status": "STUB", "sharpe": 0.11, "executed": 3}
+
+        monkeypatch.setattr(
+            ContinuousBacktestPipeline, "_run_pipeline_backtest", fake_backtest
+        )
+
+        pipe = ContinuousBacktestPipeline(base_dir=str(tmp_path))
+        res = pipe.run_full_validation(
+            symbol="EURUSD", timeframe="H1", bars=600,
+            run_walkforward=False, run_dsr=False, compare_live=False,
+        )
+        backtest = res["stages"]["backtest"]
+        assert backtest["status"] == "STUB", backtest
+        assert seen["args"] == ("EURUSD", "H1", 600)
+        assert seen["bars_df"] is frame
+
+
+class TestPipelineBacktestNormalization:
+    def test_engine_nested_metrics_are_flattened(self, tmp_path, monkeypatch):
+        """The MT5 backtest engine reports metrics nested under 'metrics'
+        (sharpe_ratio, win_rate, ...). The pipeline stages read a flat schema
+        (sharpe, win_rate, ...). _run_pipeline_backtest must normalize, or
+        every stage silently sees zeros (discovered 2026-10-18 via the long
+        gauntlet: Stage 1 always reported sharpe=0.000/trades=0)."""
+        import sys
+        import pandas as pd
+        import research.mt5_backtest_engine as mbe
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        class FakeEngine:
+            def run_full_autonomous_backtest(self, **kwargs):
+                return {
+                    "status": "COMPLETED",
+                    "metrics": {
+                        "sharpe_ratio": 1.7, "win_rate": 0.62, "profit_factor": 1.9,
+                        "expectancy_r": 0.4, "max_drawdown_pct": 8.5, "total_trades": 42,
+                    },
+                    "strategy_improvement": {
+                        "dsr_gate": {"n_trials": 711, "dsr": 1.0, "passed": True},
+                    },
+                }
+
+        monkeypatch.setattr(mbe, "MT5BrokerBacktestEngine", FakeEngine)
+        monkeypatch.setitem(sys.modules, "mt5_backtest_engine", mbe)
+
+        pipe = ContinuousBacktestPipeline(base_dir=str(tmp_path))
+        frame = pd.DataFrame({"close": [1.0] * 100})
+        res = pipe._run_pipeline_backtest("EURUSD", "default", frame)
+        assert res["status"] == "COMPLETED"
+        assert res["sharpe"] == 1.7
+        assert res["win_rate"] == 0.62
+        assert res["profit_factor"] == 1.9
+        assert res["expectancy_r"] == 0.4
+        assert res["max_drawdown"] == 8.5
+        assert res["total_trades"] == 42
+        assert res["n_trades"] == 42
+        assert res["n_obs"] == 100
+        assert res["r_multiples"] is None
+        assert res["n_trials"] == 711
+        assert "_raw" in res
+
+
+class TestRMultiplierExtraction:
+    def test_extracts_r_multiples_from_trade_dicts(self, tmp_path, monkeypatch):
+        import sys
+        import pandas as pd
+        import research.mt5_backtest_engine as mbe
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        class FakeEngine:
+            def run_full_autonomous_backtest(self, **kwargs):
+                return {
+                    "status": "COMPLETED",
+                    "metrics": {
+                        "sharpe_ratio": 1.2, "win_rate": 0.6, "profit_factor": 1.5,
+                        "expectancy_r": 0.3, "max_drawdown_pct": 5.0, "total_trades": 3,
+                        "trades": [
+                            {"trade_id": 1, "r_multiple": 0.5},
+                            {"trade_id": 2, "r_multiple": -0.2},
+                            {"trade_id": 3, "r_multiple": None},
+                        ],
+                    },
+                    "strategy_improvement": {"dsr_gate": {"n_trials": 100, "dsr": 1.2, "passed": True}},
+                }
+
+        monkeypatch.setattr(mbe, "MT5BrokerBacktestEngine", FakeEngine)
+        monkeypatch.setitem(sys.modules, "mt5_backtest_engine", mbe)
+
+        pipe = ContinuousBacktestPipeline(base_dir=str(tmp_path))
+        frame = pd.DataFrame({"open": [1.0]*10, "close": [1.0]*10, "high": [1.01]*10, "low": [0.99]*10})
+        res = pipe._run_pipeline_backtest("EURUSD", "default", frame)
+        assert res["r_multiples"] == [0.5, -0.2]
+        assert res["total_trades"] == 3
+
+
+class TestLiveValidationGateStage:
+    def test_stage_runs_and_returns_passed_flag(self, tmp_path, monkeypatch):
+        import sys
+        import pandas as pd
+        import research.mt5_backtest_engine as mbe
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        class FakeEngine:
+            def run_full_autonomous_backtest(self, **kwargs):
+                return {
+                    "status": "COMPLETED",
+                    "metrics": {
+                        "sharpe_ratio": 1.5, "win_rate": 55.0, "profit_factor": 2.0,
+                        "expectancy_r": 0.5, "max_drawdown_pct": 8.0, "total_trades": 5,
+                        "trades": [{"r_multiple": 0.5}, {"r_multiple": 0.3}],
+                    },
+                    "strategy_improvement": {"dsr_gate": {"n_trials": 100, "dsr": 1.5, "passed": True}},
+                }
+
+        monkeypatch.setattr(mbe, "MT5BrokerBacktestEngine", FakeEngine)
+        monkeypatch.setitem(sys.modules, "mt5_backtest_engine", mbe)
+
+        pipe = ContinuousBacktestPipeline(base_dir=str(tmp_path))
+        frame = pd.DataFrame({"open": [1.0]*10, "close": [1.0]*10, "high": [1.01]*10, "low": [0.99]*10})
+        res = pipe.run_full_validation("EURUSD", "default", timeframe="H1", bars=10,
+                                       run_walkforward=False, run_dsr=False, compare_live=False)
+        assert "live_validation" in res["stages"]
+        lv = res["stages"]["live_validation"]
+        assert isinstance(lv, dict)
+        assert "passed" in lv
+        assert "gates" in lv
+
+
+class TestDsrGate:
+    def test_prefers_engine_dsr_result(self):
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        pipe = ContinuousBacktestPipeline(base_dir="")
+        # 40 executed trades: above the tiny-sample floor, the engine's own
+        # DSR gate result is authoritative.
+        backtest_res = {
+            "sharpe": 7.91, "n_obs": 500, "total_trades": 40, "n_trials": 724,
+            "_raw": {"strategy_improvement": {"dsr_gate": {"dsr": 1.0, "passed": True}}},
+        }
+        out = pipe._run_dsr_gate(backtest_res, "EURUSD", "H1")
+        assert out["status"] == "OK"
+        assert out["deflated_sharpe"] == 1.0
+        assert out["passed"] is True
+
+    def test_four_trade_sharpe14_never_passes(self):
+        """The incident that motivated the floor: 4 executed trades annualized
+        to Sharpe ~14.6 with the engine-side DSR at 1.0 stamping the run as
+        validated. A run-level trade floor must reject it regardless of what
+        the engine-side statistics look like."""
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        pipe = ContinuousBacktestPipeline(base_dir="")
+        backtest_res = {
+            "sharpe": 14.59, "n_obs": 500, "total_trades": 4, "n_trials": 2323,
+            "_raw": {"strategy_improvement": {"dsr_gate": {"dsr": 1.0, "passed": True}}},
+        }
+        out = pipe._run_dsr_gate(backtest_res, "EURUSD", "H1")
+        assert out["status"] == "FAILED"
+        assert out["reason"] == "insufficient_trades"
+        assert out["passed"] is False
+        assert out["n_trades"] == 4
+        assert out["min_trades_required"] == 30
+        # And the compound verdict must refuse to bless such a run.
+        verdict = pipe._compute_verdict({
+            "backtest": {"status": "COMPLETED", "sharpe": 14.59, "total_trades": 4},
+            "dsr": out,
+            "walkforward": {"status": "OK", "floor_20": {"met": True, "count": 20}},
+        })
+        assert verdict["passed"] is False
+        assert "dsr_gate_failed" in verdict["blockers"]
+
+    def test_falls_back_to_pvalue_when_no_engine_result(self):
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        pipe = ContinuousBacktestPipeline(base_dir="")
+        # 40 executed trades (above the tiny-sample floor) so this test stays
+        # focused on the p-value fallback path itself.
+        backtest_res = {"sharpe": 0.2, "n_obs": 500, "total_trades": 40, "n_trials": 4}
+        out = pipe._run_dsr_gate(backtest_res, "EURUSD", "H1")
+        assert out["status"] == "OK"
+        # p-value path: passed only if deflated < 0.05
+        assert isinstance(out["passed"], bool)
+        assert "deflated_sharpe" in out
+
+
+class TestVerdictGates:
+    def test_completed_backtest_status_enables_pass(self):
+        """mt5_trader.py's background loop consumes verdict.passed live. The
+        backtest engine reports status 'COMPLETED', not 'OK'; keying the
+        stage check on 'OK' alone kept verdict.passed False for every run,
+        healthy or not (dead-wired gate discovered 2026-10-18 after the
+        live stage registry was restored). Exact quantitative gates below."""
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        pipe = ContinuousBacktestPipeline(base_dir="")
+        good = {
+            "stages": {
+                "backtest": {"status": "COMPLETED", "sharpe": 1.4},
+                "dsr": {"status": "OK", "deflated_sharpe": 1.6},
+                "walkforward": {
+                    "status": "OK",
+                    "floor_20": {"met": True, "count": 20},
+                },
+            }
+        }
+        verdict = pipe._compute_verdict(good)
+        assert verdict["passed"] is True, verdict
+        assert verdict["status"] == "PASSED"
+
+        # Honest failure paths must still fail:
+        weak_sharpe = pipe._compute_verdict(
+            {"stages": {"backtest": {"status": "COMPLETED", "sharpe": 0.2},
+                         "dsr": {"status": "OK", "deflated_sharpe": 1.6},
+                         "walkforward": {"status": "OK", "floor_20": {"met": True, "count": 20}}}}
+        )
+        assert weak_sharpe["passed"] is False
+        low_dsr = pipe._compute_verdict(
+            {"stages": {"backtest": {"status": "COMPLETED", "sharpe": 1.4},
+                         "dsr": {"status": "SKIPPED", "deflated_sharpe": 0.0},
+                         "walkforward": {"status": "OK", "floor_20": {"met": True, "count": 20}}}}
+        )
+        assert low_dsr["passed"] is False
+
+
+class TestResultsFanInDurability:
+    def test_save_results_recovers_from_empty_file(self, tmp_path):
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        pipe = ContinuousBacktestPipeline(base_dir=str(tmp_path))
+        # Reproduce the 0-byte crash artifact.
+        with open(pipe.results_path, "w", encoding="utf-8"):
+            pass
+
+        pipe._save_results({"symbol": "EURUSD", "strategy_name": "s1", "stages": {}})
+        import json
+        with open(pipe.results_path, "r", encoding="utf-8") as fh:
+            history = json.load(fh)
+        assert isinstance(history, list) and len(history) == 1
+        assert history[0]["symbol"] == "EURUSD"
+
+        pipe._save_results({"symbol": "GBPUSD", "strategy_name": "s2", "stages": {}})
+        with open(pipe.results_path, "r", encoding="utf-8") as fh:
+            history = json.load(fh)
+        assert [r["symbol"] for r in history] == ["EURUSD", "GBPUSD"]
+        assert not (tmp_path / "artifacts" / "backtest_results" / "pipeline_results.json.tmp").exists()
+
+
+class TestSharedBarsWindow:
+    def test_pipeline_reuses_supplied_bars_for_every_strategy(self, monkeypatch):
+        import numpy as np
+        import pandas as pd
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        n = 500
+        rng = np.random.default_rng(11)
+        close = 1.1 + np.cumsum(rng.normal(0, 0.0005, n))
+        frame = pd.DataFrame({
+            "open": close,
+            "high": close + 0.0008,
+            "low": close - 0.0008,
+            "close": close,
+            "volume": rng.integers(100, 1000, n),
+        })
+
+        def _must_not_fetch(*args, **kwargs):
+            raise AssertionError("pipeline refetched bars despite a supplied window")
+
+        monkeypatch.setattr("data.market_data_provider.fetch_ohlc", _must_not_fetch)
+
+        pipe = ContinuousBacktestPipeline()
+        result = pipe.run_full_validation(
+            symbol="EURUSD",
+            strategy_name="meanrev_bollinger",
+            timeframe="H1",
+            bars=n,
+            run_walkforward=False,
+            run_dsr=False,
+            compare_live=False,
+            bars_df=frame,
+        )
+        assert result["stages"]["backtest"]["status"] in ("COMPLETED", "completed")
+
+
+class TestRegimeLabel:
+    def test_short_or_missing_frame_is_explicitly_unknown(self):
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        assert ContinuousBacktestPipeline._regime_from_bars(None) == ""
+
+        import pandas as pd
+        short = pd.DataFrame({
+            "open": [1.0] * 10, "high": [1.01] * 10,
+            "low": [0.99] * 10, "close": [1.0] * 10,
+        })
+        assert ContinuousBacktestPipeline._regime_from_bars(short) == ""
+
+    def test_valid_frame_gets_measured_regime(self):
+        import numpy as np
+        import pandas as pd
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        n = 300
+        rng = np.random.default_rng(5)
+        close = 1.1 + np.cumsum(rng.normal(0, 0.0006, n))
+        frame = pd.DataFrame({
+            "open": close, "high": close + 0.001,
+            "low": close - 0.001, "close": close,
+        })
+        label = ContinuousBacktestPipeline._regime_from_bars(frame)
+        assert label in {
+            "LOW_VOL_TREND", "LOW_VOL_RANGE", "HIGH_VOL_TREND", "HIGH_VOL_CRISIS",
+        }

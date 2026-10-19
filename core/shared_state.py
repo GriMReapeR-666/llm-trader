@@ -1,6 +1,7 @@
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Deque, Union
 import threading
 
 @dataclass
@@ -19,7 +20,7 @@ class UIState:
     active_account_id: str = "N/A"
     
     # Logs / Reasoning
-    logs: List[Dict[str, Any]] = field(default_factory=list)
+    logs: Union[Deque[Dict[str, Any]], List[Dict[str, Any]]] = field(default_factory=lambda: deque(maxlen=100))
     
     # Dashboard Metrics
     active_narrative: str = "Initializing system..."
@@ -36,6 +37,8 @@ class UIState:
     # Technical Indicators & Multi-Timeframe
     technical_indicators: Dict[str, Any] = field(default_factory=dict)
     mtf_data: Dict[str, Any] = field(default_factory=dict)
+    smc_structure: Dict[str, Any] = field(default_factory=dict)
+    macro_intelligence: Dict[str, Any] = field(default_factory=dict)
     
     # Brain / RL
     rl_metrics: Dict[str, List[Any]] = field(default_factory=lambda: {"episodes": [], "rewards": [], "epsilon": []})
@@ -84,7 +87,7 @@ class UIState:
     # Methods to update thread-safely
     def add_log(self, log: Dict[str, Any]):
         self.logs.append(log)
-        if len(self.logs) > 100:
+        if not isinstance(self.logs, deque) and len(self.logs) > 100:
             self.logs.pop(0)
 
     def update_graph_step(self, node_name: str, state_update: Dict[str, Any]):

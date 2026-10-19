@@ -54,8 +54,14 @@ def test_pause_blocks_but_resume_clears(tmp_path):
     from core.trading_safety import TradingStore
     state, control = _tmp_paths(tmp_path)
     mgr = AutonomyManager(state, control)
-    # Journal-backed controls require a store (B1): store-less issue is refused.
-    assert mgr.issue_control("pause", actor="deck")["ok"] is False
+    # Store-less managers fall back to the local control_queue table rather than
+    # refusing (03a55b5d): refusing would silently drop an emergency pause.
+    # The control still takes effect immediately in the issuing process.
+    assert mgr.issue_control("pause", actor="deck")["ok"] is True
+    assert mgr.trading_allowed()[0] is False
+    assert mgr.issue_control("resume", actor="deck")["ok"] is True
+    assert mgr.trading_allowed()[0] is True
+
     mgr.attach_store(TradingStore(str(tmp_path / "journal.db")))
     assert mgr.issue_control("pause", actor="deck")["ok"] is True
     pending = mgr.drain_controls()

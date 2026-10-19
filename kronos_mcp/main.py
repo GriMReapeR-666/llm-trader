@@ -11,6 +11,7 @@ from typing import Optional
 
 # Ensure heavy deps lazy; register tools via import side-effects
 from . import tools_forecast  # noqa: F401
+from . import tools_mt5  # noqa: F401  # MT5 execution tier (bridge-backed)
 from .utils import mcp
 
 try:

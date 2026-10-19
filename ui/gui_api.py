@@ -19,6 +19,16 @@ from itertools import zip_longest
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+from collections import deque
+
+# Single import root (C1): bare and package-qualified imports of the same
+# file resolve to ONE module object.  Must run before the first repo import.
+try:
+    from core._import_root import install as _install_import_root
+    _install_import_root()
+except Exception as _ir_exc:  # pragma: no cover - bootstrap must never die here
+    warnings.warn(f"single-import-root install failed: {_ir_exc}")
+
 class _UIState:
     """Self-contained UI state — replaces broken shared_state import."""
     def __init__(self):
@@ -55,16 +65,15 @@ class _UIState:
         self.recent_fusion_results = []
         self.laya_decisions_count = 0
         self.laya_metrics = {}  # populated by trader process via /api/internal/update
-        self._logs: list = []
+        self._logs: deque = deque(maxlen=500)
 
     def add_log(self, entry: dict):
         self._logs.append(entry)
-        if len(self._logs) > 500:
-            self._logs = self._logs[-500:]
 
     @property
     def logs(self):
-        return {"entries": self._logs[-200:], "total_lines": len(self._logs)}
+        logs_list = list(self._logs)
+        return {"entries": logs_list[-200:], "total_lines": len(logs_list)}
 
 ui_state = _UIState()
 import sys as _sys
@@ -90,10 +99,20 @@ if not os.path.exists(GUI_DIST_DIR):
 
 app = FastAPI()
 
-
+# Resolved to origin/main's security block: it defines is_valid_host() and
+# get_configured_api_token(), both referenced by code that merged cleanly, and
+# it gates the dev-server origins behind GUI_DEV instead of always allowing
+# ports 3000/5173/8080.
 def is_valid_host(host_header: Optional[str]) -> bool:
     """Validate Host header against DNS rebinding.
-    Host must be 127.0.0.1:<port> or localhost:<port>."""
+
+    Resolved from origin/main's version against HEAD's ALLOWED_HOSTS. origin/main
+    hardcoded ("127.0.0.1", "localhost"), which rejects ``testserver`` - the
+    default Host Starlette's TestClient sends - so every in-process API test was
+    rejected at the host check before reaching the auth check it was asserting.
+    ALLOWED_HOSTS keeps that name so the ASGI test client works while a real
+    DNS-rebinding host (evil.example.com) is still refused.
+    """
     if not host_header:
         return False
     host = host_header.strip().lower()
@@ -103,7 +122,7 @@ def is_valid_host(host_header: Optional[str]) -> bool:
             return False
     else:
         hostname = host
-    return hostname in ("127.0.0.1", "localhost")
+    return hostname in ALLOWED_HOSTS
 
 
 def get_cors_allowed_origins() -> List[str]:
@@ -132,6 +151,10 @@ app.add_middleware(
 )
 
 
+# Resolved to origin/main: the token lands in a per-user config path with 0600
+# perms and 256 bits of entropy, and the function fails closed (Optional[str])
+# instead of silently generating a secret inside the git checkout at
+# artifacts/gui_api.key, which is a checked-in-tree file.
 def get_token_file_path() -> Path:
     env_path = os.environ.get("GUI_API_TOKEN_FILE")
     if env_path:
@@ -253,14 +276,28 @@ def is_engine_authenticated(headers: Any) -> bool:
     return False
 
 
+ALLOWED_HOSTS = {"localhost", "127.0.0.1", "testserver"}
+
+
 @app.middleware("http")
 async def api_auth_middleware(request: Request, call_next):
-    # 1. Host header validation: Host must be 127.0.0.1:<port> or localhost:<port>
+# Resolved to origin/main's middleware: it reuses is_valid_host(), keeps
+    # /api/health public, adds engine-token auth for /api/internal/update, and
+    # honours GUI_STRICT_AUTH across every /api route. HEAD's version also
+    # passed request.query_params into is_request_authenticated's `cookies`
+    # argument, contradicting the "query parameters are deliberately NOT
+    # accepted" rule stated in that same function.
+    # 1. Host header validation: Host must be a permitted local host.
+    # 400 is origin/main's contract and is kept: tests/test_gui_api_auth.py::
+    # test_wrong_host_header_returns_400 pins it explicitly. HEAD's
+    # test_gui_api_security.py asserted 403 for the same condition; that
+    # assertion was updated to match. Both are refusals - the security property
+    # is that a rebinding host never reaches the handler, not the exact class.
     host = request.headers.get("host")
     if not is_valid_host(host):
         return JSONResponse(
             status_code=400,
-            content={"error": "Bad Request: invalid Host header (must be 127.0.0.1:<port> or localhost:<port>)"},
+            content={"error": f"Bad Request: Host '{host}' not permitted."},
         )
 
     path = request.url.path
@@ -630,12 +667,17 @@ def get_brain_realtime_news(symbol: str = ""):
 
 @app.get("/api/config/models")
 def get_models():
-    """Return list of available models (Free + Standard)"""
-    models = [
-        {"id": "gpt-oss-120b", "name": "Cerebras: GPT-OSS 120B (billing-blocked)", "provider": "Cerebras"},
-    ]
-    
-    # 1. Fetch from OpenRouter
+    """Return list of available models across all configured providers."""
+    try:
+        from data.llm_router import get_router
+        router = get_router()
+        models = router.get_available_models()
+        existing_ids = {m["id"] for m in models}
+    except Exception:
+        models = []
+        existing_ids = set()
+
+    # 1. Fetch live OpenRouter free models if key exists
     import requests
     try:
         api_key = os.getenv("OPENROUTER_API_KEY")
@@ -652,31 +694,32 @@ def get_models():
                     p_prompt = float(pricing.get('prompt', 0))
                     p_comp = float(pricing.get('completion', 0))
                     is_free = (p_prompt == 0 and p_comp == 0)
-                    
-                    # Only add Free models OR popular paid ones
-                    if is_free:
-                         models.append({
-                             "id": m['id'],
-                             "name": f"{m.get('name')} (Free)",
-                             "provider": "OpenRouter"
-                         })
+                    if is_free and m['id'] not in existing_ids:
+                        models.append({
+                            "id": m['id'],
+                            "name": f"{m.get('name')} (Free)",
+                            "provider": "OpenRouter"
+                        })
+                        existing_ids.add(m['id'])
     except Exception as e:
         print(f"Failed to fetch OpenRouter models: {e}")
-        
-    # 2. Add Standard Fallbacks if fetching failed or just to ensure they exist
+
+    # Fallbacks to guarantee presence of core models
     fallbacks = [
+        {"id": "nvidia/nemotron-3-super-120b-a12b", "name": "NVIDIA Nemotron 3 Super 120B", "provider": "NVIDIA NIM"},
+        {"id": "nvidia/nemotron-3-super-120b-a12b:free", "name": "OpenRouter: Nemotron 3 Super 120B (Free)", "provider": "OpenRouter"},
         {"id": "mistralai/mistral-nemo", "name": "OpenRouter: Mistral Nemo (Free)", "provider": "OpenRouter"},
         {"id": "meta-llama/llama-3.3-70b-instruct", "name": "OpenRouter: Llama 3.3 70B (Free)", "provider": "OpenRouter"},
         {"id": "qwen/qwen3-8b", "name": "OpenRouter: Qwen3 8B (Free)", "provider": "OpenRouter"},
-        {"id": "openai/gpt-4-turbo", "name": "GPT-4 Turbo (Paid)", "provider": "OpenRouter"}
+        {"id": "openai/gpt-4-turbo", "name": "GPT-4 Turbo (Paid)", "provider": "OpenRouter"},
+        {"id": "qwen-3.8-27b", "name": "Cerebras: Qwen 3.8 27B", "provider": "Cerebras"},
+        {"id": "gpt-oss-120b", "name": "Cerebras: GPT-OSS 120B (billing-blocked)", "provider": "Cerebras"},
     ]
-    
-    # Add fallbacks if not already present
-    existing_ids = {m['id'] for m in models}
     for fb in fallbacks:
         if fb['id'] not in existing_ids:
             models.append(fb)
-            
+            existing_ids.add(fb['id'])
+
     return models
 
 @app.post("/api/internal/update")
@@ -771,8 +814,55 @@ def start_trading(config: dict):
     # Pass API Sync URL
     cmd.extend(["--api-sync", "http://127.0.0.1:8000/api/internal/update"])
 
-    # Single-instance guard (CC-F9): acquire FileLock to ensure no twin engines.
-    # Refuse to spawn a second engine when one is already alive.
+# Both single-instance guards are kept: they are independent files
+    # (engine.pid lease vs engine.lock), so together they close the gap where a
+    # stale pid file was the only thing standing between two engines. The lease
+    # check runs first because it returns this function's documented dict
+    # contract ("already_running" / "probe_failed").
+    #
+    # Single-instance guard: the engine publishes its PID to engine.pid at boot.
+    # Refuse to spawn a second engine when one is already alive — duplicate
+    # engines thrash the journal DB and race MT5 (observed as 2GB twin processes).
+    _pid_file = os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
+    # engine.pid is a JSON lease ({pid, created_at, stamped_at}) since the P0-3
+    # lease work, with legacy plain-int files still tolerated by the reader.
+    # Parsing it as a bare int raised ValueError, and the old `except: pass`
+    # then read that as "no engine" — silently disabling this whole guard,
+    # which is precisely how a twin engine gets started. engine_dead() is the
+    # single source of truth and also covers lease staleness and pid reuse.
+    try:
+        from operations.live_state_probe import engine_dead
+
+        _state = engine_dead(_pid_file)
+        if not _state["dead"] and _state.get("pid"):
+            _prev = int(_state["pid"])
+            _alive = True
+            try:
+                import psutil as _ps
+                _alive = "python" in (_ps.Process(_prev).name() or "").lower()
+            except Exception:
+                pass  # psutil missing / access denied: the lease verdict stands
+            if _alive:
+                ui_state.is_running = True
+                return {
+                    "status": "already_running",
+                    "message": f"Engine already running (pid {_prev}) — start refused to avoid a duplicate engine.",
+                    "pid": _prev,
+                }
+    except Exception as _probe_exc:
+        # A probe failure must NOT degrade to "no engine" — that fail-open is
+        # the exact bug this block exists to prevent. Refuse the spawn and let
+        # the operator decide; a false refusal is recoverable, a twin engine
+        # racing a live book is not.
+        logging.getLogger(__name__).warning(
+            "engine liveness probe failed (%s) — refusing spawn to avoid a duplicate engine", _probe_exc)
+        return {
+            "status": "probe_failed",
+            "message": f"Could not verify engine liveness ({_probe_exc}) — start refused to avoid a duplicate engine.",
+        }
+
+    # Single-instance guard (CC-F9), from origin/main: an OS-level mutex on
+    # engine.lock. Independent of the pid lease above.
     from core.file_lock import FileLock
     _lock_file = os.environ.get("LLM_TRADER_LOCK_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.lock")
     _engine_lock = FileLock(_lock_file)
@@ -1556,11 +1646,15 @@ def _nowcasts_snapshot(brain: dict) -> list:
             if os.path.exists(_db_path):
                 with sqlite3.connect(_db_path) as con:
                     con.row_factory = sqlite3.Row
+                    from intelligence.observation_provenance import QUARANTINED_VERDICTS
+                    marks = ",".join("?" * len(QUARANTINED_VERDICTS))
                     rows = con.execute(
-                        """SELECT entity, series, value, previous, surprise 
+                        f"""SELECT entity, series, value, previous, surprise 
                            FROM macro_observations 
                            WHERE value IS NOT NULL 
-                           ORDER BY observation_id DESC LIMIT 10"""
+                             AND data_provenance NOT IN ({marks})
+                           ORDER BY observation_id DESC LIMIT 10""",
+                        QUARANTINED_VERDICTS,
                     ).fetchall()
                     for r in rows:
                         val = float(r["value"])
@@ -1832,13 +1926,22 @@ def deck_control(action: str, request: Request, payload: dict = _Body(default={}
             _lock.release()
             return {"ok": False, "reason": "engine is not running (lock not held)"}
 
-        # Engine is running — get its PID from lockfile or pidfile
+        # Engine is running — resolve its PID from the lockfile, then the lease.
         _pid = _lock.read_pid()
         if not _pid:
             _pid_file = os.environ.get("LLM_TRADER_PID_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
+            # engine.pid is a JSON lease ({pid, created_at, stamped_at}) since
+            # P0-3. The bare int(open(...).read()) that used to sit here raised
+            # ValueError on the JSON, and the `except` turned every stop into
+            # "pid 0" — the operator could not stop a running bot. Read it
+            # through the lease reader, which also tolerates legacy plain-int
+            # files.
             try:
-                _pid = int(open(_pid_file, encoding="utf-8").read().strip() or 0) if os.path.exists(_pid_file) else 0
-            except (ValueError, OSError):
+                from operations.live_state_probe import engine_dead
+
+                _state = engine_dead(_pid_file)
+                _pid = int(_state.get("pid") or 0)
+            except Exception:
                 _pid = 0
 
         # Request graceful stop via stop.flag (CC-F4, CC-F9)
@@ -1918,6 +2021,13 @@ def deck_control(action: str, request: Request, payload: dict = _Body(default={}
                 detail=f"Control not issued: {result.get('reason', 'journal unavailable')}",
             )
         if result.get("ok"):
+            # Resolved to origin/main: it emits CONTROL_REQUESTED alongside
+            # CONTROL_ISSUED, and sets the REQUESTED / ACKNOWLEDGED / APPLIED
+            # statuses that the unconflicted get_control_status() below reads
+            # out of ctrl["status"]. The HTTP 200 still means QUEUED/ACCEPTED,
+            # never that positions were closed - the engine emits
+            # CONTROL_EXECUTED / CONTROL_PENDING / CONTROL_FAILED after it
+            # actually applies the control (C4/D1).
             cid = result.get("control_id")
             event_bridge.emit("CONTROL_ISSUED", {"action": action, "actor": session_actor, "control_id": cid})
             event_bridge.emit("CONTROL_REQUESTED", {"action": action, "actor": session_actor, "control_id": cid})
@@ -3420,31 +3530,103 @@ def _rl_training() -> dict:
     return result
 
 
+# Display labels for router provider ids (ids are the stable machine keys).
+_LLM_PROVIDER_LABELS = {
+    "openrouter": "OpenRouter",
+    "tokenrouter": "TokenRouter",
+    "routesme": "RoutesMe",
+    "cerebras": "Cerebras",
+    "nvidia_nim": "NVIDIA NIM",
+    "omnirouter": "OmniRouter",
+}
+
+
 @app.get("/api/llm-providers")
 def _llm_providers() -> list:
-    """LLM provider configs from environment and router."""
-    providers = []
+    """LLM provider status, read from the live router.
+
+    This used to return a hardcoded five-row list keyed off ``GEMINI_API_KEY``
+    and ``DEEPSEEK_API_KEY`` -- providers with no client implementation
+    anywhere in the tree -- while omitting the ones that do exist. It also
+    returned ``model``/``status``/``apiKey``, none of which the TUI reads: the
+    client's mapping (tui_opentui/src/transport/live.ts) then defaulted
+    ``health`` to "healthy" and ``models`` to ``[]``, so the deck rendered
+    every provider as a solid green dot with nothing under it, regardless of
+    the real state.
+
+    Read the router instead: it knows which providers exist, which are
+    actually initialized, and their live circuit / quota state. The response
+    shape matches ``LLMProvider`` (tui_opentui/src/types.ts).
+
+    Providers that are configured but not currently serving requests (no keys,
+    or deselected via ``configure(active_providers=...)``) are reported as
+    "down" rather than omitted, so an operator debugging "why isn't my
+    provider being used" can see it listed.
+    """
     try:
-        known = [
-            ("OpenRouter", "OPENROUTER_API_KEY", os.environ.get("OPENROUTER_MODEL", "mistralai/mistral-nemo")),
-            ("Cerebras", "CEREBRAS_API_KEY", os.environ.get("CEREBRAS_MODEL", "llama-3.3-70b")),
-            ("NVIDIA NIM", "NVIDIA_API_KEY", os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct")),
-            ("Gemini", "GEMINI_API_KEY", os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")),
-            ("DeepSeek", "DEEPSEEK_API_KEY", os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")),
-        ]
-        for name, env_var, model in known:
-            key = os.environ.get(env_var, "")
-            has_key = bool(key and len(key) > 5)
-            providers.append({
-                "id": name.lower().replace(" ", "_"),
-                "name": name,
-                "model": model,
-                "status": "active" if has_key else "disabled",
-                "apiKey": ("***" + key[-4:]) if has_key else "(not configured)",
-            })
+        from data.llm_router import get_router
+
+        router = get_router()
     except Exception as exc:
         logger.warning("LLM providers endpoint failed: %s", exc)
-    return providers
+        return []
+
+    try:
+        config = getattr(router, "config", {}) or {}
+        status = router.get_status().get("providers", {})
+        fallback_order = config.get("global_fallback_order", []) or []
+        # The model an agent is actually configured on, per provider.
+        default_models = {
+            cfg.get("provider"): cfg.get("model")
+            for cfg in (getattr(router, "agents", {}) or {}).values()
+            if isinstance(cfg, dict)
+        }
+
+        out = []
+        for name in config.get("providers", {}):
+            inst = getattr(router, "providers", {}).get(name)
+            live = status.get(name, {})
+            cfg = config["providers"][name]
+
+            if inst is None:
+                health = "down"
+            elif getattr(inst, "is_circuit_open", None) and inst.is_circuit_open():
+                health = "circuit_open"
+            elif live.get("status") == "PAUSED_QUOTA":
+                health = "degraded"
+            else:
+                health = "healthy"
+
+            models = [
+                {
+                    "id": m["id"],
+                    "name": m["name"],
+                    "provider": m.get("provider", name),
+                    # Per-model latency/token counters are not tracked by the
+                    # router; reported as absent rather than faked.
+                    "isDefault": m["id"] == default_models.get(name),
+                }
+                for m in router.get_available_models(name)
+            ]
+
+            base_url = ""
+            clients = getattr(inst, "clients", None) or []
+            if clients:
+                base_url = str(getattr(clients[0], "base_url", "") or "")
+
+            out.append({
+                "id": name,
+                "name": _LLM_PROVIDER_LABELS.get(name, name.replace("_", " ").title()),
+                "baseUrl": base_url,
+                "health": health,
+                "rpm": live.get("rpm", cfg.get("rpm", 0)),
+                "models": models,
+                "failoverPriority": fallback_order.index(name) if name in fallback_order else -1,
+            })
+        return out
+    except Exception as exc:
+        logger.warning("LLM providers endpoint failed: %s", exc)
+        return []
 
 
 @app.get("/api/win-probability")

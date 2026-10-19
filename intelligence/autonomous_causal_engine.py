@@ -36,6 +36,7 @@ except ImportError:
 MIN_REACTION_SAMPLES = 30
 MIN_CONFIDENCE = 0.70
 MIN_EMPIRICAL_WIN_RATE = 0.60
+MIN_CORRELATION: float = 0.15
 
 # Approved-edge reinforcement: bounded confidence nudges from measured event
 # reactions (see AutonomousCausalValidator.reinforce_approved_edges_from_reactions).
@@ -141,6 +142,136 @@ class AutonomousCausalValidator:
         self.graph = graph
         self.min_reaction_samples = min_reaction_samples
 
+    def _validate_from_observations(
+        self,
+        source_name: str,
+        target_name: str,
+        expected_sign: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Validate candidate edge direction against paired macro_observations series."""
+        try:
+            from intelligence.observation_provenance import QUARANTINED_VERDICTS
+        except ImportError:
+            QUARANTINED_VERDICTS = (
+                "SENTINEL_CONSTANT",
+                "DUPLICATED_FREQUENCY",
+                "INSUFFICIENT_EFFECTIVE_SAMPLES",
+                "NO_VALUE_RECORDED",
+            )
+        marks = ",".join("?" * len(QUARANTINED_VERDICTS))
+        with self.graph._con() as con:
+            table_exists = con.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='macro_observations'"
+            ).fetchone()
+            if not table_exists:
+                return None
+
+            s_series_row = con.execute(
+                f"""SELECT series, COUNT(*) as cnt
+                    FROM macro_observations
+                    WHERE entity = ? AND data_provenance NOT IN ({marks})
+                    GROUP BY series
+                    ORDER BY cnt DESC LIMIT 1""",
+                (source_name, *QUARANTINED_VERDICTS)
+            ).fetchone()
+            if not s_series_row:
+                return None
+            s_series = s_series_row["series"]
+
+            t_series_row = con.execute(
+                f"""SELECT series, COUNT(*) as cnt
+                    FROM macro_observations
+                    WHERE entity = ? AND data_provenance NOT IN ({marks})
+                    GROUP BY series
+                    ORDER BY cnt DESC LIMIT 1""",
+                (target_name, *QUARANTINED_VERDICTS)
+            ).fetchone()
+            if not t_series_row:
+                return None
+            t_series = t_series_row["series"]
+
+            rows_s = con.execute(
+                f"""SELECT strftime('%Y-%m-%d', observed_at) AS dt, value
+                   FROM macro_observations
+                   WHERE entity = ? AND series = ? AND data_provenance NOT IN ({marks})
+                   ORDER BY observed_at ASC""",
+                (source_name, s_series, *QUARANTINED_VERDICTS)
+            ).fetchall()
+            rows_t = con.execute(
+                f"""SELECT strftime('%Y-%m-%d', observed_at) AS dt, value
+                   FROM macro_observations
+                   WHERE entity = ? AND series = ? AND data_provenance NOT IN ({marks})
+                   ORDER BY observed_at ASC""",
+                (target_name, t_series, *QUARANTINED_VERDICTS)
+            ).fetchall()
+
+        if not rows_s or not rows_t:
+            return None
+
+        s_map: Dict[str, float] = {}
+        for r in rows_s:
+            try:
+                v = float(r["value"])
+                if math.isfinite(v):
+                    s_map[str(r["dt"])] = v
+            except (TypeError, ValueError):
+                continue
+
+        t_map: Dict[str, float] = {}
+        for r in rows_t:
+            try:
+                v = float(r["value"])
+                if math.isfinite(v):
+                    t_map[str(r["dt"])] = v
+            except (TypeError, ValueError):
+                continue
+
+        common_dates = sorted(set(s_map.keys()) & set(t_map.keys()))
+        if len(common_dates) < 2:
+            return None
+
+        returns_s: List[float] = []
+        returns_t: List[float] = []
+        for i in range(1, len(common_dates)):
+            d_prev, d_curr = common_dates[i - 1], common_dates[i]
+            s_prev, s_curr = s_map[d_prev], s_map[d_curr]
+            t_prev, t_curr = t_map[d_prev], t_map[d_curr]
+            if s_prev > 0 and t_prev > 0:
+                returns_s.append((s_curr - s_prev) / s_prev)
+                returns_t.append((t_curr - t_prev) / t_prev)
+
+        if not returns_s:
+            return None
+
+        n_samples = len(returns_s)
+        matching = 0
+        directional = expected_sign in ("POSITIVE", "NEGATIVE")
+        if directional:
+            for rs, rt in zip(returns_s, returns_t):
+                if expected_sign == "NEGATIVE":
+                    if (rs > 0 and rt < 0) or (rs < 0 and rt > 0):
+                        matching += 1
+                elif expected_sign == "POSITIVE":
+                    if (rs > 0 and rt > 0) or (rs < 0 and rt < 0):
+                        matching += 1
+
+        mean_s = sum(returns_s) / n_samples
+        mean_t = sum(returns_t) / n_samples
+        cov = sum((s - mean_s) * (t - mean_t) for s, t in zip(returns_s, returns_t)) / max(1, n_samples - 1)
+        var_s = sum((s - mean_s) ** 2 for s in returns_s) / max(1, n_samples - 1)
+        var_t = sum((t - mean_t) ** 2 for t in returns_t) / max(1, n_samples - 1)
+        denom = math.sqrt(var_s * var_t)
+        rho = cov / denom if denom > 1e-12 else 0.0
+
+        return {
+            "evidence_type": "OBSERVATION_TIME_SERIES",
+            "sample_count": len(common_dates),
+            "valid_samples": n_samples,
+            "matching_directions": matching,
+            "empirical_win_rate": (matching / n_samples) if directional else None,
+            "correlation": round(rho, 4),
+        }
+
     def validate_candidate_edge(self, edge_id: int) -> Dict[str, Any]:
         """Validate a candidate edge using historical event reaction statistics."""
         with self.graph._con() as con:
@@ -234,58 +365,83 @@ class AutonomousCausalValidator:
                 matching_directions += 1
 
         # R1: never default a high hit-rate; require a minimum measured sample.
-        if valid_samples < self.min_reaction_samples:
-            empirical_win_rate = None
-            now = utcnow()
-            with self.graph._con() as con:
-                con.execute(
-                    """INSERT INTO macro_edge_history(edge_id, changed_at, action, status, reviewer, payload)
-                       VALUES(?, ?, 'INSUFFICIENT_SAMPLE', 'CANDIDATE', 'AUTONOMOUS_VALIDATOR', ?)""",
-                    (int(edge_id), now, self.graph._json({
-                        "sample_count": sample_count,
-                        "valid_samples": valid_samples,
-                        "min_reaction_samples": self.min_reaction_samples,
-                        "empirical_win_rate": None,
-                        "initial_confidence": initial_confidence,
-                        "policy_tier": policy["tier"],
-                        "reason": "insufficient event reactions for autonomous approval",
-                    }))
+        evidence_type = "EVENT_REACTIONS"
+        correlation: Optional[float] = None
+        if valid_samples >= self.min_reaction_samples:
+            empirical_win_rate = matching_directions / valid_samples
+            approved = (
+                policy["allowed"]
+                and initial_confidence >= MIN_CONFIDENCE
+                and empirical_win_rate >= MIN_EMPIRICAL_WIN_RATE
+            )
+        else:
+            # Fall back to paired time-series observations if event reactions are insufficient
+            obs_res = self._validate_from_observations(source_name, target_name, expected_sign)
+            if obs_res and obs_res["valid_samples"] >= self.min_reaction_samples:
+                evidence_type = "OBSERVATION_TIME_SERIES"
+                valid_samples = obs_res["valid_samples"]
+                sample_count = obs_res["sample_count"]
+                empirical_win_rate = obs_res["empirical_win_rate"]
+                correlation = obs_res["correlation"]
+                sign_ok = (
+                    (expected_sign == "NEGATIVE" and correlation <= -MIN_CORRELATION)
+                    or (expected_sign == "POSITIVE" and correlation >= MIN_CORRELATION)
                 )
-            return {
-                "edge_id": edge_id,
-                "approved": False,
-                "status": "INSUFFICIENT_SAMPLE",
-                "source_name": source_name,
-                "target_name": target_name,
-                "sample_count": sample_count,
-                "valid_samples": valid_samples,
-                "min_reaction_samples": self.min_reaction_samples,
-                "empirical_win_rate": empirical_win_rate,
-                "adjusted_confidence": initial_confidence,
-                "reason": (
-                    f"need >= {self.min_reaction_samples} reactions with surprise; "
-                    f"have {valid_samples}"
-                ),
-                "lifecycle": advance_lifecycle(
-                    self.graph, int(edge_id), "MEASURED",
-                    evidence={"valid_samples": valid_samples,
-                              "min_reaction_samples": self.min_reaction_samples},
-                ),
-                "execution_authority": False,
-            }
-
-        empirical_win_rate = matching_directions / valid_samples
+                approved = (
+                    policy["allowed"]
+                    and initial_confidence >= MIN_CONFIDENCE
+                    and empirical_win_rate is not None
+                    and empirical_win_rate >= MIN_EMPIRICAL_WIN_RATE
+                    and sign_ok
+                )
+            else:
+                empirical_win_rate = None
+                now = utcnow()
+                obs_valid = obs_res["valid_samples"] if obs_res else 0
+                with self.graph._con() as con:
+                    con.execute(
+                        """INSERT INTO macro_edge_history(edge_id, changed_at, action, status, reviewer, payload)
+                           VALUES(?, ?, 'INSUFFICIENT_SAMPLE', 'CANDIDATE', 'AUTONOMOUS_VALIDATOR', ?)""",
+                        (int(edge_id), now, self.graph._json({
+                            "sample_count": sample_count,
+                            "valid_samples": valid_samples,
+                            "observation_valid_samples": obs_valid,
+                            "min_reaction_samples": self.min_reaction_samples,
+                            "empirical_win_rate": None,
+                            "initial_confidence": initial_confidence,
+                            "policy_tier": policy["tier"],
+                            "reason": "insufficient event reactions and observation samples for autonomous approval",
+                        }))
+                    )
+                return {
+                    "edge_id": edge_id,
+                    "approved": False,
+                    "status": "INSUFFICIENT_SAMPLE",
+                    "source_name": source_name,
+                    "target_name": target_name,
+                    "sample_count": sample_count,
+                    "valid_samples": valid_samples,
+                    "min_reaction_samples": self.min_reaction_samples,
+                    "empirical_win_rate": empirical_win_rate,
+                    "adjusted_confidence": initial_confidence,
+                    "reason": (
+                        f"need >= {self.min_reaction_samples} reactions with surprise (have {valid_samples}) "
+                        f"or paired observation samples (have {obs_valid})"
+                    ),
+                    "lifecycle": advance_lifecycle(
+                        self.graph, int(edge_id), "MEASURED",
+                        evidence={"valid_samples": valid_samples,
+                                  "observation_valid_samples": obs_valid,
+                                  "min_reaction_samples": self.min_reaction_samples},
+                    ),
+                    "execution_authority": False,
+                }
 
         # 3. Autonomous Approval Criteria (only after sample floor is met)
-        approved = (
-            policy["allowed"]
-            and initial_confidence >= MIN_CONFIDENCE
-            and empirical_win_rate >= MIN_EMPIRICAL_WIN_RATE
-        )
         adjusted_confidence = min(
             1.0,
             round(initial_confidence * (0.8 + 0.4 * empirical_win_rate), 4),
-        )
+        ) if (approved and empirical_win_rate is not None) else initial_confidence
 
         new_status = "AUTO_APPROVED" if approved else "REJECTED_STATISTICAL"
         now = utcnow()
@@ -301,10 +457,12 @@ class AutonomousCausalValidator:
                 """INSERT INTO macro_edge_history(edge_id, changed_at, action, status, reviewer, payload)
                    VALUES(?, ?, 'AUTO_VALIDATED', ?, 'AUTONOMOUS_VALIDATOR', ?)""",
                 (int(edge_id), now, new_status, self.graph._json({
+                    "evidence_type": evidence_type,
                     "sample_count": sample_count,
                     "valid_samples": valid_samples,
                     "min_reaction_samples": self.min_reaction_samples,
                     "empirical_win_rate": empirical_win_rate,
+                    "correlation": correlation,
                     "initial_confidence": initial_confidence,
                     "adjusted_confidence": adjusted_confidence,
                     "reaction_ids": consumed_ids,
@@ -323,10 +481,13 @@ class AutonomousCausalValidator:
             "min_reaction_samples": self.min_reaction_samples,
             "empirical_win_rate": empirical_win_rate,
             "adjusted_confidence": adjusted_confidence,
+            "evidence_type": evidence_type,
+            "correlation": correlation,
             "lifecycle": advance_lifecycle(
                 self.graph, int(edge_id),
                 "STAT_PASS" if approved else "STAT_FAIL",
                 evidence={
+                    "evidence_type": evidence_type,
                     "empirical_win_rate": empirical_win_rate,
                     "valid_samples": valid_samples,
                     "status": new_status,

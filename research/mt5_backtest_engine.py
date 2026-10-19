@@ -13,7 +13,7 @@ import sys
 import time
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, Sequence
+from typing import Any, Callable, Dict, List, Optional, Tuple, Sequence
 
 import numpy as np
 import pandas as pd
@@ -90,6 +90,8 @@ class BacktestMetrics:
             "total_friction_drag_usd": round(
                 self.total_spread_cost + self.total_slippage_cost + self.total_commission + self.total_swap, 2
             ),
+            "trades": self.trades,
+            "r_multiples": self.r_multiples,
         }
 
 
@@ -198,6 +200,7 @@ class MT5BrokerBacktestEngine:
         self.spread_pips = spread_pips
         self.slippage_pips = slippage_pips
         self.commission_per_lot = commission_per_lot
+        self._data_source = "unknown"
 
         if journal_path is not None and db_path is not None and journal_path != db_path:
             raise ValueError(
@@ -240,8 +243,10 @@ class MT5BrokerBacktestEngine:
 
         try:
             mt5_inst = None
+            attach_fn = None
             try:
-                from data.market_data_provider import _get_mt5
+                from data.market_data_provider import (
+                    _get_mt5, _ensure_mt5_attached as attach_fn)
                 mt5_inst = _get_mt5()
             except Exception:
                 try:
@@ -258,8 +263,19 @@ class MT5BrokerBacktestEngine:
 
                 if term_info is None and hasattr(mt5_inst, "initialize"):
                     try:
-                        mt5_inst.initialize()
-                        term_info = mt5_inst.terminal_info()
+                        # Reuse the provider's bounded-retry attach: a cold or
+                        # booting terminal commonly refuses the FIRST bare
+                        # initialize(), and this call site's single-shot
+                        # attempt turned that transient miss into
+                        # DEFAULT_CONFIG friction for the whole run.  Falls
+                        # back to the old one-shot when the provider module is
+                        # unavailable (flat-layout invocations).
+                        if attach_fn is not None:
+                            attached = attach_fn(mt5_inst)
+                        else:
+                            attached = bool(mt5_inst.initialize())
+                        if attached:
+                            term_info = mt5_inst.terminal_info()
                     except Exception:
                         pass
 
@@ -327,6 +343,7 @@ class MT5BrokerBacktestEngine:
         count: int = 1000,
     ) -> pd.DataFrame:
         """Fetch market data from MT5 using server-to-UTC converted pipeline."""
+        self._data_source = "live"
         try:
             from data.market_data_provider import fetch_ohlc
             df = fetch_ohlc(symbol=symbol, timeframe=timeframe, count=count)
@@ -344,7 +361,19 @@ class MT5BrokerBacktestEngine:
         except Exception:
             pass
 
-        # Deterministic test fixture fallback if MT5 terminal is completely detached
+        # Deterministic test fixture fallback if MT5 terminal is completely detached.
+        # This is ONLY allowed when explicitly opted in via env var (for CI/testing).
+        # In production, a missing data source must fail closed — never produce
+        # fake metrics that could flow into promotion gates or the trial ledger.
+        if os.getenv("MT5_BACKTEST_ALLOW_SYNTHETIC", "").strip().lower() not in ("1", "true", "yes"):
+            raise RuntimeError(
+                "fetch_market_data: no live MT5/data source available and "
+                "MT5_BACKTEST_ALLOW_SYNTHETIC is not set — refusing to "
+                "synthesize fake market data for backtesting."
+            )
+        logger.warning("fetch_market_data: using SYNTHETIC fixture data (seed=42) — "
+                       "results are NOT real market evidence.")
+        self._data_source = "synthetic"
         np.random.seed(42)
         dt_index = pd.date_range(end=pd.Timestamp.now(tz="UTC"), periods=count, freq="15min")
         returns = np.random.normal(0.0001, 0.0015, count)
@@ -375,13 +404,56 @@ class MT5BrokerBacktestEngine:
         timeframe: str = "M15",
         sl_pips: float = 30.0,
         tp_pips: float = 60.0,
+        entry_signal_scores: Optional[Sequence[float]] = None,
+        entry_signal_threshold: float = 1.0,
+        strategy_name: Optional[str] = None,
     ) -> BacktestMetrics:
-        """Run EMA crossover strategy with broker friction simulation."""
+        """Run EMA crossover strategy with broker friction simulation.
+
+        This entrypoint must be safe to call from
+        MT5BrokerBacktestEngine.run_full_autonomous_backtest even when the frame
+        that reaches it is empty or lacks OHLC columns, because that is exactly
+        the shape returned by ``fetch_market_data`` when MT5 is detached and the
+        deterministic fixture path is used. Such a frame is already reported as
+        ``INSUFFICIENT_DATA`` by ``process_data_improvement``; the fix here is to
+        keep the backtest entrypoints from raising a different error shape down
+        the stack.
+
+        External-signal mode (per-strategy registry wiring): when
+        ``entry_signal_scores`` is provided, entries come from the supplied
+        causal score array instead of the EMA cross — score >= threshold ->
+        long, score <= -threshold -> short, |score| < threshold -> entry.
+        Geometry (ATR stops), gates, sizing, and management stay shared with
+        the crossover path so cross-label comparisons remain apples-to-apples
+        on execution. A length mismatch raises — building entries from a
+        misaligned signal would silently trade a different ruleset under this
+        label's name.
+        """
+        missing_cols = [c for c in ("open", "high", "low", "close") if c not in bars_df.columns]
+        if bars_df.empty or missing_cols:
+            logger.warning(
+                "run_crossover_strategy: insufficient frame for %s/%s: bars_empty=%s missing=%s",
+                symbol, timeframe, bool(bars_df.empty), missing_cols,
+            )
+            return BacktestMetrics()
+
         close = bars_df["close"].values
-        fast_ema = pd.Series(close).ewm(span=fast_period, adjust=False).mean().values
-        slow_ema = pd.Series(close).ewm(span=slow_period, adjust=False).mean().values
-        entries_long = (fast_ema > slow_ema)
-        entries_short = (fast_ema < slow_ema)
+        if entry_signal_scores is not None:
+            scores = np.asarray(entry_signal_scores, dtype=np.float64)
+            if scores.shape[0] != len(close):
+                raise ValueError(
+                    "entry_signal_scores length %d != bars %d; refusing to trade "
+                    "a misaligned signal under this label" % (scores.shape[0], len(close))
+                )
+            entries_long = scores >= entry_signal_threshold
+            entries_short = scores <= -entry_signal_threshold
+            ruleset_name = strategy_name if strategy_name else f"external_signal_t{entry_signal_threshold:g}"
+        else:
+            fast_ema = pd.Series(close).ewm(span=fast_period, adjust=False).mean().values
+            slow_ema = pd.Series(close).ewm(span=slow_period, adjust=False).mean().values
+            entries_long = (fast_ema > slow_ema)
+            entries_short = (fast_ema < slow_ema)
+            ruleset_name = strategy_name if strategy_name else f"crossover_{fast_period}_{slow_period}"
 
         return self.run_strategy_backtest(
             bars_df=bars_df,
@@ -391,7 +463,7 @@ class MT5BrokerBacktestEngine:
             timeframe=timeframe,
             sl_pips=sl_pips,
             tp_pips=tp_pips,
-            strategy_name=f"crossover_{fast_period}_{slow_period}",
+            strategy_name=ruleset_name,
         )
 
     def run_strategy_backtest(
@@ -405,7 +477,23 @@ class MT5BrokerBacktestEngine:
         tp_pips: float = 60.0,
         strategy_name: str = "strategy",
     ) -> BacktestMetrics:
-        """Execute comprehensive strategy simulation with full MT5 friction models."""
+        """Execute comprehensive strategy simulation with full MT5 friction models.
+
+        The core simulation loop is guarded against empty frames and missing OHLC
+        columns because it is reached from ``run_crossover_strategy``, which itself
+        is called from the autonomous pipeline after ``process_data_improvement``
+        may already have emitted ``INSUFFICIENT_DATA``. Failing early here keeps
+        the failure shape consistent: ``BacktestMetrics()`` rather than a stack
+        trace.
+        """
+        missing_cols = [c for c in ("open", "high", "low", "close") if c not in bars_df.columns]
+        if bars_df.empty or missing_cols:
+            logger.warning(
+                "run_strategy_backtest: insufficient frame for %s/%s: bars_empty=%s missing=%s",
+                symbol, timeframe, bool(bars_df.empty), missing_cols,
+            )
+            return BacktestMetrics()
+
         close = bars_df["close"].values
         n = len(close)
         timestamps = bars_df.index if isinstance(bars_df.index, pd.DatetimeIndex) else (
@@ -608,6 +696,44 @@ class MT5BrokerBacktestEngine:
         n_bars = len(bars_df)
         reasons: List[str] = []
 
+        # 0. Fail-closed guard: an empty bar set or a frame without OHLC columns
+        #    (e.g. live OHLC unavailable upstream) must not crash the pipeline
+        #    with KeyError('close'). Report the gap as structured evidence and
+        #    refuse to fabricate any bar data.
+        missing_cols = [c for c in ("open", "high", "low", "close") if c not in bars_df.columns]
+        if n_bars == 0 or missing_cols:
+            anomalies = []
+            if n_bars == 0:
+                anomalies.append("EMPTY_BAR_SET")
+            anomalies.extend(f"MISSING_COLUMN_{c}" for c in missing_cols)
+            logger.warning(
+                "process_data_improvement: insufficient data for %s/%s: %s",
+                symbol, timeframe, ", ".join(anomalies),
+            )
+            return {
+                "status": "INSUFFICIENT_DATA",
+                "bars_inspected": n_bars,
+                "data_quality_passed": False,
+                "anomalies_detected": anomalies,
+                "zero_volume_bars": 0,
+                "return_spikes": 0,
+                "regime_distribution": {
+                    "BULL_TREND": 0,
+                    "BEAR_TREND": 0,
+                    "MEAN_REVERTING": 0,
+                    "HIGH_VOLATILITY_CHOP": 0,
+                },
+                "volatility_profiles": {
+                    "garman_klass_annualized": 0.0,
+                    "parkinson_annualized": 0.0,
+                },
+                "calibrated_friction": {
+                    "spread_pips": self.spread_pips,
+                    "slippage_pips": self.slippage_pips,
+                    "commission_per_lot": self.commission_per_lot,
+                },
+            }
+
         # 1. Temporal & Quality Integrity
         has_time = "time" in bars_df.columns or isinstance(bars_df.index, pd.DatetimeIndex)
         if not has_time:
@@ -721,6 +847,10 @@ class MT5BrokerBacktestEngine:
                 sharpe=metrics.sharpe_ratio,
                 n_observations=metrics.total_trades or 50,
                 returns=metrics.r_multiples,
+                # Run-level trade count: the gate's tiny-sample floor decides
+                # on what this run actually traded, not the ledger-wide
+                # family size.
+                n_trades=metrics.total_trades,
             )
             improvement["dsr_gate"] = {
                 "passed": bool(dsr_report.passed_gate),
@@ -728,6 +858,8 @@ class MT5BrokerBacktestEngine:
                 "raw_sharpe": round(float(dsr_report.raw_sharpe), 4),
                 "expected_max_sharpe": round(float(dsr_report.expected_max_sharpe), 4),
                 "n_trials": int(dsr_report.n_trials),
+                "n_trades": int(dsr_report.n_trades),
+                "trades_floor_met": bool(dsr_report.trades_floor_met),
             }
         except Exception as exc:
             improvement["dsr_gate"]["error"] = str(exc)
@@ -806,15 +938,16 @@ class MT5BrokerBacktestEngine:
         target_path = validate_backtest_journal_path(journal_path) if journal_path is not None else self.journal_path
         run_id = f"bt_{symbol}_{strategy_name}_{int(time.time())}"
         now_iso = datetime.now(timezone.utc).isoformat()
-        dataset_hash = hashlib.sha256(f"{symbol}_{time.time()}".encode()).hexdigest()[:16]
+        dataset_hash = hashlib.sha256(f"{symbol}_{time.time()}".encode()).hexdigest()
         report_payload = {
             "metrics": metrics.to_dict(),
             "friction_breakdown": self.last_friction_breakdown,
             "broker_specs": self.last_broker_specs,
             "data_improvement": data_improvement or {},
+            "data_source": getattr(self, "_data_source", "unknown"),
         }
         report_json = json.dumps(report_payload, default=str)
-        report_hash = hashlib.sha256(report_json.encode()).hexdigest()[:16]
+        report_hash = hashlib.sha256(report_json.encode()).hexdigest()
 
         journal_report: Dict[str, Any] = {
             "run_id": run_id,
@@ -855,7 +988,7 @@ class MT5BrokerBacktestEngine:
 
                 # 2. Persist individual backtest trades for downstream CPCV / ledger analytics
                 con.execute("""
-                    CREATE TABLE IF NOT EXISTS trades (
+                    CREATE TABLE IF NOT EXISTS research_backtest_trades (
                         ticket INTEGER PRIMARY KEY,
                         magic INTEGER,
                         strategy TEXT,
@@ -886,7 +1019,7 @@ class MT5BrokerBacktestEngine:
                 for idx, tr in enumerate(metrics.trades[:100]):  # Store up to 100 sample trades
                     ticket_id = base_ticket + idx
                     con.execute("""
-                        INSERT OR REPLACE INTO trades
+                        INSERT OR REPLACE INTO research_backtest_trades
                         (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, take_profit, risk_amount,
                          opened_at, closed_at, exit_price, pnl, exit_reason, payload, setup_id, gross_pnl, commission, swap, financing)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -991,6 +1124,9 @@ class MT5BrokerBacktestEngine:
         sl_pips: float = 30.0,
         tp_pips: float = 60.0,
         journal_path: Optional[str] = None,
+        signal_builder: Optional[Callable[[pd.DataFrame], Any]] = None,
+        entry_signal_threshold: float = 1.0,
+        bars_df: Optional[pd.DataFrame] = None,
     ) -> Dict[str, Any]:
         """Orchestrate the complete autonomous end-to-end backtesting pipeline:
         1. Live MT5 Broker Data & Specifications Acquisition
@@ -1008,21 +1144,52 @@ class MT5BrokerBacktestEngine:
 
         # 1. Fetch live MT5 broker specs & market data
         broker_specs = self.fetch_broker_specs(symbol)
-        bars_df = self.fetch_market_data(symbol, timeframe, count)
+        if bars_df is None or (hasattr(bars_df, "empty") and bars_df.empty):
+            bars_df = self.fetch_market_data(symbol, timeframe, count)
 
         # 2. Data Improvement
         data_improvement = self.process_data_improvement(bars_df, symbol, timeframe)
 
         # 3. Run Strategy Backtest Simulation
-        metrics = self.run_crossover_strategy(
-            bars_df=bars_df,
-            fast_period=fast_period,
-            slow_period=slow_period,
-            symbol=symbol,
-            timeframe=timeframe,
-            sl_pips=sl_pips,
-            tp_pips=tp_pips,
-        )
+        if signal_builder is None and strategy_name != "default":
+            try:
+                from research.strategy_signal_registry import build_signal, has_signal
+                if has_signal(strategy_name):
+                    def signal_builder(bdf: Any) -> Any:
+                        return build_signal(
+                            strategy_name,
+                            bdf["close"].to_numpy(dtype=np.float64),
+                            bdf["high"].to_numpy(dtype=np.float64),
+                            bdf["low"].to_numpy(dtype=np.float64),
+                        )
+            except Exception:
+                pass
+
+        run_kwargs: Dict[str, Any] = {
+            "bars_df": bars_df,
+            "fast_period": fast_period,
+            "slow_period": slow_period,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "sl_pips": sl_pips,
+            "tp_pips": tp_pips,
+            "strategy_name": strategy_name,
+        }
+        if signal_builder is not None:
+            # Per-label external-signal mode: the builder sees exactly the bars
+            # this simulation will trade, so score/bar alignment is guaranteed
+            # by construction. A misaligned or failing builder must fail the
+            # run loudly — building generic entries and stamping this label on
+            # them is the bug the per-strategy registry exists to kill.
+            scores = np.asarray(signal_builder(bars_df), dtype=np.float64)
+            if scores.shape[0] != len(bars_df):
+                raise ValueError(
+                    "signal builder produced %d scores for %d bars"
+                    % (scores.shape[0], len(bars_df))
+                )
+            run_kwargs["entry_signal_scores"] = scores
+            run_kwargs["entry_signal_threshold"] = entry_signal_threshold
+        metrics = self.run_crossover_strategy(**run_kwargs)
 
         config_summary = {
             "symbol": symbol,
@@ -1072,8 +1239,11 @@ class MT5BrokerBacktestEngine:
             "timeframe": timeframe,
             "strategy_name": strategy_name,
             "completed_at": datetime.now(timezone.utc).isoformat(),
+            "data_source": getattr(self, "_data_source", "unknown"),
             "broker_specs": broker_specs,
             "metrics": metrics.to_dict(),
+            "r_multiples": metrics.r_multiples,
+            "trades": metrics.trades,
             "data_improvement": data_improvement,
             "strategy_improvement": strategy_improvement,
             "journaling": journaling,

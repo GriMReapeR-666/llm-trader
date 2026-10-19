@@ -425,3 +425,14 @@ def get_kill_switch_latch() -> KillSwitchLatch:
         else:
             _LATCH = reg[token]
         return _LATCH
+
+
+# Canonical singleton registration: alias both bare and package module keys in sys.modules
+import sys as _sys
+_curr_mod = _sys.modules.get(__name__)
+if _curr_mod:
+    _sys.modules.setdefault("kill_switch_latch", _curr_mod)
+    _sys.modules.setdefault("data.kill_switch_latch", _curr_mod)
+    # If one was already set differently, unify them to this module
+    _sys.modules["kill_switch_latch"] = _curr_mod
+    _sys.modules["data.kill_switch_latch"] = _curr_mod

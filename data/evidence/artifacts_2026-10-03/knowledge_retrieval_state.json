@@ -1,8 +1,8 @@
 {
-  "total_queries": 200,
+  "total_queries": 211,
   "last_query": {
     "query": "OPEC oil supply",
-    "timestamp": "2026-10-02T02:47:29.260044+00:00",
+    "timestamp": "2026-10-04T21:19:18.400369+00:00",
     "results_count": 0,
     "sources": [
       "macro_graph",
@@ -13,20 +13,20 @@
   },
   "source_stats": {
     "macro_graph": {
-      "count": 200,
-      "total_time": 4.167401075363159
+      "count": 211,
+      "total_time": 4.811925172805786
     },
     "case_studies": {
-      "count": 199,
-      "total_time": 1.870270013809204
+      "count": 210,
+      "total_time": 1.881880283355713
     },
     "domain_knowledge": {
-      "count": 199,
-      "total_time": 1.1481132507324219
+      "count": 210,
+      "total_time": 1.1491742134094238
     },
     "semantic_memory": {
-      "count": 199,
-      "total_time": 1.243913173675537
+      "count": 210,
+      "total_time": 1.2836298942565918
     }
   }
 }

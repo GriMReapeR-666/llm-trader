@@ -104,6 +104,11 @@ class AgentOperations:
         # main loop, reflection lane, and TUI share the same store.
         con.execute("PRAGMA busy_timeout=10000")
         con.execute("PRAGMA synchronous=NORMAL")
+        if not str(self.db_path).startswith(":memory:"):
+            try:
+                con.execute("PRAGMA journal_mode=WAL")
+            except Exception:
+                pass
         return con
 
     def _init_db(self) -> None:
@@ -281,7 +286,7 @@ class AgentOperations:
                    payload: Optional[Dict[str, Any]] = None) -> bool:
         """Close a worker run without leaving a false RUNNING record."""
         status = str(status).upper()
-        if status not in {"COMPLETED", "FAILED", "STOPPED", "STALE_RECOVERED"}:
+        if status not in {"COMPLETED", "FAILED", "STOPPED", "STOP_FLAG", "STALE_RECOVERED"}:
             raise ValueError(f"invalid run status: {status}")
         with self._con() as con:
             row = con.execute("SELECT status,payload FROM agent_runs WHERE run_id=?", (run_id,)).fetchone()
@@ -878,6 +883,23 @@ class AgentOperations:
         due point cannot drive completion math, so the row is moved to a
         known future point at recovery and exposed via schedule_state for
         operator review.
+
+        ``limit`` makes the claim a scarce resource, so the ordering is
+        starvation-aware: a row wins its slot by MISSED TURNS
+        (``overdue / interval_seconds``), not by raw due point. Ordering by
+        ``next_run_at`` ranked by absolute lateness, which inverts the cost of
+        neglect across cadences — a 30-day archive 13 days late outranked a 60s
+        monitor 3 days late — and it locked the same rows out of every wave
+        (2026-10-16): the excluded rows keep the NEWEST due point, so they stay
+        excluded, so they never advance, so they stay excluded. That silently
+        starved 6 of 26 schedules, including ``event_monitor`` (calendar
+        ingestion) and ``alert_dispatch`` (the only alert sender). Ranking by
+        missed turns gives the most-neglected schedule the scarce slot, which
+        makes the lock unreachable: a row that misses turns climbs the queue.
+
+        Unparseable due points sort LAST so corrupt rows cannot displace live
+        work; they still claim when there is room, and the recovery path above
+        rewrites them.
         """
         if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
             raise ValueError("schedule claim limit must be a positive integer")
@@ -891,8 +913,13 @@ class AgentOperations:
                 """SELECT * FROM agent_schedules
                    WHERE enabled=1 AND next_run_at<=?
                      AND (claim_expires_at IS NULL OR claim_expires_at<=?)
-                   ORDER BY next_run_at LIMIT ?""",
-                (now.isoformat(), now.isoformat(), limit)).fetchall()
+                   ORDER BY
+                     CASE WHEN julianday(next_run_at) IS NULL THEN 1 ELSE 0 END,
+                     (julianday(?) - julianday(next_run_at))
+                       / NULLIF(interval_seconds, 0) DESC,
+                     next_run_at ASC
+                   LIMIT ?""",
+                (now.isoformat(), now.isoformat(), now.isoformat(), limit)).fetchall()
             for row in rows:
                 interval = int(row["interval_seconds"])
                 try:
@@ -934,7 +961,8 @@ class AgentOperations:
         return due
 
     def complete_schedule_dispatch(self, schedule_name: str, claimed_at: str,
-                                   status: str = "COMPLETED") -> bool:
+                                   status: str = "COMPLETED",
+                                   interval_override: Optional[int] = None) -> bool:
         """Advance cadence for one dispatched schedule (or release its claim).
 
         ``status='COMPLETED'`` re-stamps ``last_run_at`` to the completion
@@ -944,6 +972,12 @@ class AgentOperations:
         the claim, so the dispatch's cadence turn survives an abandoned
         dispatch. Both are guarded by ``claimed_at`` (the claim token), so a
         completion from a superseded claim can never touch the row.
+
+        ``interval_override`` (>0 int) replaces the row's stored interval for
+        THIS advance only — the dispatcher's tool for market-state-adaptive
+        cadence (e.g. widen a polling schedule while the market is closed).
+        It never touches the row: the next dispatch returns to the stored
+        interval unless the override is passed again.
         """
         if status not in ("COMPLETED", "SKIPPED"):
             raise ValueError("schedule dispatch status must be COMPLETED or SKIPPED")
@@ -965,6 +999,8 @@ class AgentOperations:
                     (name, token))
                 return True
             interval = int(row["interval_seconds"])
+            if isinstance(interval_override, int) and interval_override > 0:
+                interval = interval_override
             try:
                 due_at = datetime.fromisoformat(str(row["next_run_at"]).replace("Z", "+00:00"))
                 if due_at.tzinfo is None:

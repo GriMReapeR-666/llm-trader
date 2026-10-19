@@ -10,7 +10,12 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
+
+
+def utcnow() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 try:
     from intelligence.economic_dynamics_catalog import (
@@ -63,6 +68,70 @@ def _existing_keys(graph: MacroGraph) -> Set[Tuple[str, str, str, str]]:
         (str(r["src"]).upper(), str(r["tgt"]).upper(), str(r["relation"]).upper(), str(r["sign"]).upper())
         for r in rows
     }
+
+
+def consolidate_stale_seed_sources(graph: MacroGraph, canonical_source_id: str) -> int:
+    """Repoint catalog edges off superseded seed snapshots onto one canonical.
+
+    Each seed run writes a fresh ``macro_sources`` row whenever the catalog
+    summary changes, so the table accumulates one snapshot per catalog revision.
+    Edges only ever get the snapshot current at their creation time, leaving the
+    set split across several source ids.
+
+    That split is inert for validation: ``mirror_runtime_reaction_to_catalog``
+    writes every measured reaction to the *newest* seed
+    (``find_catalog_seed_source_id``), and ``AutonomousCausalValidator``
+    resolves samples via ``event_reactions.event_source_id = edge.source_id``.
+    An edge citing a superseded snapshot therefore matches no reaction forever
+    and can never clear its sample floor.
+
+    Repointing is safe at any lifecycle stage: source_id is provenance
+    bookkeeping, not a measurement, so no edge's confidence, sign, or status
+    changes and no approval is granted or revoked.
+    """
+    with graph._con() as con:
+        stale = [
+            str(row["source_id"])
+            for row in con.execute(
+                "SELECT DISTINCT source_id FROM macro_edges WHERE source_id<>?",
+                (canonical_source_id,),
+            )
+            if str(row["source_id"]).startswith("macro:")
+            and con.execute(
+                "SELECT 1 FROM macro_sources WHERE source_id=?"
+                " AND json_extract(payload,'$.kind')='economic_dynamics_catalog_seed'",
+                (str(row["source_id"]),),
+            ).fetchone()
+        ]
+        if not stale:
+            return 0
+        marks = ",".join("?" * len(stale))
+        rows = con.execute(
+            f"SELECT edge_id,source_id FROM macro_edges WHERE source_id IN ({marks})",
+            tuple(stale),
+        ).fetchall()
+        con.execute(
+            f"UPDATE macro_edges SET source_id=? WHERE source_id IN ({marks})",
+            (canonical_source_id, *stale),
+        )
+        for row in rows:
+            con.execute(
+                "INSERT INTO macro_edge_history(edge_id,changed_at,action,status,reviewer,payload)"
+                " VALUES(?,?,?,?,?,?)",
+                (
+                    int(row["edge_id"]),
+                    utcnow(),
+                    "SEED_CONSOLIDATED",
+                    "CANDIDATE",
+                    "ECONOMIC_DYNAMICS_SEED",
+                    graph._json({
+                        "from_source_id": str(row["source_id"]),
+                        "to_source_id": canonical_source_id,
+                        "reason": "evidence is mirrored onto the canonical seed only",
+                    }),
+                ),
+            )
+    return len(rows)
 
 
 def seed_economic_dynamics(
@@ -137,12 +206,15 @@ def seed_economic_dynamics(
         created.append(int(edge_id))
         existing.add(key)
 
+    repointed = consolidate_stale_seed_sources(graph, source_id)
+
     return {
         "source_id": source_id,
         "catalog_version": CATALOG_VERSION,
         "created_edge_ids": created,
         "created_count": len(created),
         "skipped_duplicates": skipped,
+        "repointed_from_stale_seed": repointed,
         "execution_authority": False,
         "status": "CANDIDATE_SEED_COMPLETE",
     }

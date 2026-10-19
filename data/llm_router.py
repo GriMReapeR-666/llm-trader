@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Multi-LLM Router - Unified interface for multiple LLM providers and agents
-Supports: OpenRouter, Cerebras, NVIDIA NIM
+Supports: OpenRouter, Cerebras, NVIDIA NIM, TokenRouter, RoutesMe, OmniRouter
 Features: Load balancing, failover, per-agent routing, rate limiting
 """
 
@@ -22,6 +22,29 @@ try:
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
+
+
+class LLMResponse(str):
+    """String subclass that preserves reasoning traces, provider metadata, and usage tokens.
+
+    Acts as a standard string for all consumers, comparisons, JSON parsing, and serialization,
+    while exposing .reasoning, .provider, .model, and .usage attributes.
+    """
+    reasoning: Optional[str] = None
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    usage: Optional[Dict[str, Any]] = None
+
+    def __new__(cls, content: str, reasoning: Optional[str] = None, provider: Optional[str] = None, model: Optional[str] = None, usage: Optional[Dict[str, Any]] = None):
+        instance = super().__new__(cls, content)
+        instance.reasoning = reasoning
+        instance.provider = provider
+        instance.model = model
+        instance.usage = usage or {}
+        return instance
+
+    def get_reasoning(self) -> str:
+        return self.reasoning or ""
 
 
 class RateLimiter:
@@ -233,7 +256,46 @@ class BaseLLMProvider:
             raise ValueError(
                 f"{provider_name}: upstream returned HTTP 200 with no choices"
                 + (f": {detail[:200]}" if detail else " (upstream model failure)"))
-        return choices[0].message
+        msg = choices[0].message
+        usage = getattr(completion, "usage", None)
+        if usage is not None:
+            try:
+                setattr(msg, "_usage", usage)
+            except Exception:
+                pass
+        return msg
+
+    def fetch_models(self) -> List[Dict[str, Any]]:
+        """Query provider's live model catalogue via OpenAI SDK client.
+
+        For aggregators (OpenRouter/TokenRouter) the live catalogue contains
+        thousands of paid models; we filter to free-tier entries so the
+        catalogue stays useful for 'best free model' selection.  On rate-limit
+        or quota errors we return [] and let the caller fall back to the
+        static list (no noisy 429 spam).
+        """
+        clients = getattr(self, "clients", None) or []
+        if not clients:
+            return []
+        try:
+            res = clients[0].models.list()
+        except Exception as e:
+            logger.debug("Live model fetch failed for %s: %s", self.provider_name, e)
+            return []
+        out = []
+        for m in getattr(res, "data", []) or []:
+            m_id = getattr(m, "id", None)
+            if not m_id:
+                continue
+            if self.provider_name in ("openrouter", "tokenrouter"):
+                if not (str(m_id).endswith(":free") or "free" in str(getattr(m, "name", "")).lower()):
+                    continue
+            out.append({
+                "id": m_id,
+                "name": getattr(m, "name", m_id),
+                "provider": self.provider_name,
+            })
+        return out
 
     def _retry_with_backoff(self, request_fn: Callable, **kwargs) -> str:
         if self.is_circuit_open():
@@ -402,6 +464,63 @@ class RoutesMeProvider(BaseLLMProvider):
         return self._retry_with_backoff(request)
 
 
+class OmniRouterProvider(BaseLLMProvider):
+    """Self-hosted OmniRouter gateway (github.com/Godde3s/omnirouter).
+
+    One OpenAI-compatible endpoint in front of the gateway's built-in bridges
+    (Qwen / GLM / DeepSeek / Gemini / OpenCode Zen). ``model="auto"`` hands
+    routing and failover to the gateway itself, which is what makes this a
+    good fit for cheap, high-volume work (subagents, summaries, extraction)
+    rather than the high-reasoning trading chain.
+
+    Deliberately kept out of the trader/analyst/risk fallback lists: the
+    gateway may be offline (it is a local process) and those agents must never
+    silently drop onto it. Point an agent or subagent at it explicitly.
+    """
+    provider_name = "omnirouter"
+    supports_seed = False  # free web bridges behind "auto" ignore seed
+
+    def __init__(self, api_keys: List[str], **kwargs):
+        rpm = kwargs.pop("rpm", 60)
+        super().__init__(api_keys, rpm=rpm, **kwargs)
+        self.clients = []
+        base_url = os.getenv("OMNIROUTER_BASE_URL", "http://localhost:8080/v1")
+        if OPENAI_AVAILABLE:
+            for key in self.api_keys:
+                self.clients.append(OpenAI(
+                    base_url=base_url,
+                    api_key=key,
+                    timeout=self.timeout,
+                    max_retries=0,
+                ))
+
+    def generate(self, messages: list, model: str, **kwargs) -> str:
+        if not self.clients:
+            return "Error: OmniRouter client not initialized. Check OMNIROUTER_KEY."
+
+        client = self.clients[self.current_key_index % len(self.clients)]
+        self.current_key_index += 1
+        # An empty model means "let the gateway choose" — its own failover
+        # chain across the built-in bridges.
+        target_model = model or "auto"
+
+        def request():
+            call_kwargs = dict(
+                model=target_model,
+                messages=messages,
+                temperature=kwargs.get("temperature", 0),
+                max_tokens=kwargs.get("max_tokens", 2500),
+            )
+            if kwargs.get("tools"):
+                call_kwargs["tools"] = kwargs["tools"]
+                if kwargs.get("tool_choice"):
+                    call_kwargs["tool_choice"] = kwargs["tool_choice"]
+            completion = client.chat.completions.create(**call_kwargs)
+            return self._extract_message(completion, self.provider_name)
+
+        return self._retry_with_backoff(request)
+
+
 class CerebrasProvider(BaseLLMProvider):
     provider_name = "cerebras"
 
@@ -467,6 +586,8 @@ class NvidiaNIMProvider(BaseLLMProvider):
         self.current_key_index += 1
 
         nvidia_model = model if "/" in model else f"nvidia/{model}"
+        if nvidia_model in {"meta/llama-3.2-11b-vision-instruct", "nvidia/meta/llama-3.2-11b-vision-instruct", "llama-3.2-11b-vision-instruct"}:
+            nvidia_model = os.getenv("LLM_ROUTER_MODEL_NVIDIA_NIM", "nvidia/nemotron-3-super-120b-a12b")
 
         def request():
             call_kwargs = dict(
@@ -526,6 +647,23 @@ class LLMRouter:
                     "rpm": int(os.getenv("NVIDIA_RPM", "60")),
                     "enabled": bool(os.getenv("NVIDIA_KEY_1") or os.getenv("NVIDIA_API_KEY")),
                 },
+                # Self-hosted gateway for simple/small-subagent work only.
+                # Opt-in per agent; never a silent fallback for the reasoning chain.
+                "omnirouter": {
+                    "api_keys": self._get_env_keys("OMNIROUTER_KEY") or (
+                        ["sk-omnirouter-local"] if (
+                            os.getenv("OMNIROUTER_ENABLED", "").lower() in {"1", "true", "yes"}
+                            or os.getenv("OMNIROUTER_AUTONOMOUS", "").lower() in {"1", "true", "yes"}
+                        ) else []
+                    ),
+                    "rpm": int(os.getenv("OMNIROUTER_RPM", "60")),
+                    "enabled": bool(
+                        os.getenv("OMNIROUTER_KEY")
+                        or os.getenv("OMNIROUTER_API_KEY")
+                        or (os.getenv("OMNIROUTER_ENABLED", "").lower() in {"1", "true", "yes"}
+                            or os.getenv("OMNIROUTER_AUTONOMOUS", "").lower() in {"1", "true", "yes"})
+                    ),
+                },
             },
             "agents": {
                 "trader": {
@@ -577,6 +715,12 @@ class LLMRouter:
                 if val:
                     keys.append(val)
                     break
+        if not keys and prefix in {"OMNIROUTER_KEY", "OMNIROUTER_API_KEY"}:
+            for alt_env in ("OMNIROUTER_KEY", "OMNIROUTER_API_KEY"):
+                val = os.getenv(alt_env)
+                if val:
+                    keys.append(val)
+                    break
         if not keys and prefix in {"OPENROUTER_API_KEY", "TOKENROUTER_KEY", "TOKENROUTER_API_KEY"}:
             for alt_env in ("TOKENROUTER_KEY", "TOKENROUTER_API_KEY", "OPENROUTER_API_KEY"):
                 val = os.getenv(alt_env)
@@ -592,6 +736,7 @@ class LLMRouter:
             "routesme": RoutesMeProvider,
             "cerebras": CerebrasProvider,
             "nvidia_nim": NvidiaNIMProvider,
+            "omnirouter": OmniRouterProvider,
         }
         for name, cfg in self.config.get("providers", {}).items():
             if cfg.get("enabled") and cfg.get("api_keys"):
@@ -629,30 +774,202 @@ class LLMRouter:
     def get_available_providers(self) -> List[str]:
         return list(self.providers.keys())
 
-    def get_available_models(self, provider: Optional[str] = None) -> List[Dict[str, str]]:
+    def _get_static_models(self, p: str) -> List[Dict[str, str]]:
+        if p == "openrouter":
+            return [
+                {"id": "nvidia/nemotron-3-super-120b-a12b:free", "name": "Nemotron 3 Super 120B (Free)", "provider": "OpenRouter"},
+                {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B (Free)", "provider": "OpenRouter"},
+                {"id": "qwen/qwen-2.5-72b-instruct:free", "name": "Qwen 2.5 72B (Free)", "provider": "OpenRouter"},
+                {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Free)", "provider": "OpenRouter"},
+                {"id": "mistralai/mistral-nemo:free", "name": "Mistral Nemo (Free)", "provider": "OpenRouter"},
+                {"id": "qwen/qwen3-8b:free", "name": "Qwen3 8B (Free)", "provider": "OpenRouter"},
+            ]
+        elif p == "tokenrouter":
+            return [
+                {"id": "nvidia/nemotron-3-super-120b-a12b:free", "name": "Nemotron 3 Super 120B (Free)", "provider": "TokenRouter"},
+                {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B (Free)", "provider": "TokenRouter"},
+                {"id": "qwen/qwen-2.5-72b-instruct:free", "name": "Qwen 2.5 72B (Free)", "provider": "TokenRouter"},
+                {"id": "mistralai/mistral-nemo:free", "name": "Mistral Nemo (Free)", "provider": "TokenRouter"},
+                {"id": "qwen/qwen3-8b:free", "name": "Qwen3 8B (Free)", "provider": "TokenRouter"},
+            ]
+        elif p == "routesme":
+            return [
+                {"id": "mistralai/mistral-nemo", "name": "Mistral Nemo (Free)", "provider": "RoutesMe"},
+            ]
+        elif p == "cerebras":
+            return [
+                {"id": "gpt-oss-120b", "name": "GPT-OSS 120B (Free)", "provider": "Cerebras"},
+                {"id": "qwen-3.8-27b", "name": "Qwen 3.8 27B (Free)", "provider": "Cerebras"},
+            ]
+        elif p == "nvidia_nim":
+            return [
+                {"id": "nvidia/nemotron-3-super-120b-a12b", "name": "Nemotron 3 Super 120B", "provider": "NVIDIA NIM"},
+                {"id": "meta/llama-3.2-11b-vision-instruct", "name": "Llama 3.2 11B Vision Instruct", "provider": "NVIDIA NIM"},
+                {"id": "openai/gpt-oss-20b", "name": "GPT-OSS 20B", "provider": "NVIDIA NIM"},
+            ]
+        elif p == "omnirouter":
+            return [
+                {"id": "auto", "name": "Auto (gateway failover)", "provider": "OmniRouter"},
+            ]
+        return []
+
+    # Quality ranking of free models per provider (best first). Used by
+    # select_best_free_model() to pick a sensible default when no explicit
+    # model is configured, and to choose a provider-appropriate model id
+    # during failover instead of reusing the primary's (possibly foreign) id.
+    FREE_MODEL_RANKING = {
+        "openrouter": [
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "qwen/qwen-2.5-72b-instruct:free",
+            "deepseek/deepseek-r1:free",
+            "mistralai/mistral-nemo:free",
+            "qwen/qwen3-8b:free",
+        ],
+        "tokenrouter": [
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "qwen/qwen-2.5-72b-instruct:free",
+            "mistralai/mistral-nemo:free",
+            "qwen/qwen3-8b:free",
+        ],
+        "cerebras": ["gpt-oss-120b", "qwen-3.8-27b"],
+        "nvidia_nim": [
+            "nvidia/nemotron-3-super-120b-a12b",
+            "meta/llama-3.2-11b-vision-instruct",
+            "openai/gpt-oss-20b",
+        ],
+        "routesme": ["mistralai/mistral-nemo"],
+        "omnirouter": ["auto"],
+    }
+
+    # Catalogue entries that are free but not general-purpose chat models.
+    # They should never be chosen to drive a trading decision.
+    _NON_CHAT_MARKERS = (
+        "embed", "parse", "guard", "safety", "reward", "detector", "nvclip",
+        "deplot", "riva-", "cosmos", "video", "diffusion", "calibration",
+        "starcoder", "codellama", "codegemma", "coder", "code-",
+    )
+
+    @staticmethod
+    def _model_size_b(model_id: str) -> float:
+        """Approximate parameter count in billions parsed from the id.
+
+        Deterministic quality proxy for catalogue entries that are not in the
+        curated ranking. Unknown sizes score 0.
+        """
+        import re as _re
+
+        matches = _re.findall(r"(\d+(?:\.\d+)?)\s*[bB](?![a-zA-Z])", str(model_id or ""))
+        best = 0.0
+        for raw in matches:
+            try:
+                best = max(best, float(raw))
+            except (TypeError, ValueError):
+                continue
+        return best
+
+    def _best_cached_free_model(self, provider: str, cached: List[Dict[str, Any]]) -> Optional[str]:
+        """Pick a sensible general-purpose free model from a live catalogue.
+
+        Used only when no curated ranking entry is available. Prefers
+        general-purpose chat models and, among them, the largest parameter
+        count advertised in the id (tie-break: id) so selection is
+        deterministic instead of depending on catalogue order.
+        """
+        candidates = []
+        for m in cached or []:
+            mid = str(m.get("id") or "")
+            if not mid or not self._is_free_model(mid):
+                continue
+            lower = mid.lower()
+            if any(marker in lower for marker in self._NON_CHAT_MARKERS):
+                continue
+            # A ':free' suffix is an explicit price declaration; other ids
+            # are accepted only for providers whose whole catalogue is free.
+            free_suffix = 1 if lower.endswith(":free") else 0
+            candidates.append((self._model_size_b(mid), free_suffix, mid))
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+        return candidates[0][2]
+
+    def select_best_free_model(self, provider: str) -> Optional[str]:
+        """Return the best available free model id for *provider*.
+
+        Preference order: curated quality ranking that is present in the live
+        catalogue -> largest general-purpose free catalogue entry ->
+        curated ranking default (provider may not be reachable). Returns None
+        when the provider has no known free model.
+        """
+        ranking = self.FREE_MODEL_RANKING.get(provider, [])
+        cached = getattr(self, "_catalogue_cache", {}).get(provider)
+        available_ids = {m.get("id") for m in (cached or []) if m.get("id")}
+        if available_ids:
+            for mid in ranking:
+                if mid in available_ids:
+                    return mid
+            best_cached = self._best_cached_free_model(provider, cached)
+            if best_cached:
+                return best_cached
+        if ranking:
+            return ranking[0]
+        return None
+
+    @staticmethod
+    def _is_free_model(model_id: str) -> bool:
+        """Heuristic: a model id is 'free' if it carries a ':free' suffix
+        or is a known free-tier id (nvidia_nim / cerebras / routesme)."""
+        if not model_id:
+            return False
+        if model_id.endswith(":free"):
+            return True
+        free_prefixes = (
+            "nvidia/", "meta/llama-3.2", "openai/gpt-oss", "gpt-oss",
+            "qwen-3", "llama3.1", "mistralai/mistral-nemo",
+        )
+        return model_id.startswith(free_prefixes)
+
+    def fetch_model_catalogue(self, provider: Optional[str] = None, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """Fetch live model catalogue from provider(s) via OpenAI client with caching."""
+        if not hasattr(self, "_catalogue_cache"):
+            self._catalogue_cache = {}
+            self._catalogue_cache_ts = {}
+
+        now = time.time()
+        providers = [provider] if provider else list(self.providers.keys())
+        results = []
+
+        for p in providers:
+            if not force_refresh and p in self._catalogue_cache and (now - self._catalogue_cache_ts.get(p, 0)) < 300:
+                results.extend(self._catalogue_cache[p])
+                continue
+
+            inst = self.providers.get(p)
+            fetched = []
+            if inst and hasattr(inst, "fetch_models"):
+                fetched = inst.fetch_models()
+
+            if fetched:
+                self._catalogue_cache[p] = fetched
+                self._catalogue_cache_ts[p] = now
+                results.extend(fetched)
+            else:
+                fallback = self._get_static_models(p)
+                results.extend(fallback)
+
+        return results
+
+    def get_available_models(self, provider: Optional[str] = None, dynamic: bool = False) -> List[Dict[str, str]]:
+        if dynamic:
+            return self.fetch_model_catalogue(provider=provider)
         models = []
         providers = [provider] if provider else list(self.providers.keys())
         for p in providers:
-            if p == "openrouter":
-                models.extend([
-                    {"id": "mistralai/mistral-nemo", "name": "Mistral Nemo (Free)", "provider": "OpenRouter"},
-                    {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B (Free)", "provider": "OpenRouter"},
-                    {"id": "qwen/qwen3-8b", "name": "Qwen3 8B (Free)", "provider": "OpenRouter"},
-                    {"id": "openai/gpt-4-turbo", "name": "GPT-4 Turbo (Paid)", "provider": "OpenRouter"},
-                ])
-            elif p == "routesme":
-                models.extend([
-                    {"id": "mistralai/mistral-nemo", "name": "Mistral Nemo (Free)", "provider": "RoutesMe"},
-                ])
-            elif p == "cerebras":
-                models.extend([
-                    {"id": "gpt-oss-120b", "name": "GPT-OSS 120B (billing-blocked)", "provider": "Cerebras"},
-                ])
-            elif p == "nvidia_nim":
-                models.extend([
-                    {"id": "meta/llama-3.2-11b-vision-instruct", "name": "Llama 3.2 11B Vision Instruct", "provider": "NVIDIA NIM"},
-                    {"id": "openai/gpt-oss-20b", "name": "GPT-OSS 20B", "provider": "NVIDIA NIM"},
-                ])
+            if hasattr(self, "_catalogue_cache") and p in self._catalogue_cache:
+                models.extend(self._catalogue_cache[p])
+            else:
+                models.extend(self._get_static_models(p))
         return models
 
     def configure(self, active_providers: Optional[List[str]] = None, max_keys_per_provider: int = 0, provider_models: Optional[Dict[str, str]] = None):
@@ -725,15 +1042,45 @@ class LLMRouter:
                 errors.append(
                     f"{prov}: paused until quota reset (~{remaining}s remaining); skipped")
                 continue
-            model_for_provider = provider_models.get(prov, model or agent_cfg.get("model", ""))
+            model_for_provider = provider_models.get(prov)
+            if not model_for_provider:
+                if prov == provider_name:
+                    model_for_provider = model or agent_cfg.get("model", "")
+                else:
+                    # Failover: pick a model that actually exists on the target
+                    # provider instead of reusing the primary's (possibly
+                    # foreign) model id.
+                    model_for_provider = self.select_best_free_model(prov) or (model or agent_cfg.get("model", ""))
             try:
                 result = provider.generate(messages, model_for_provider, **kwargs)
                 # Handle both message objects (new) and strings (legacy)
                 if hasattr(result, 'content'):
                     # Message object from OpenAI SDK
                     text = result.content or ""
+                    reasoning = (
+                        getattr(result, "reasoning_content", None)
+                        or getattr(result, "reasoning", None)
+                        or (getattr(result, "model_extra", {}).get("reasoning") if isinstance(getattr(result, "model_extra", None), dict) else None)
+                        or (getattr(result, "model_extra", {}).get("reasoning_content") if isinstance(getattr(result, "model_extra", None), dict) else None)
+                    )
+                    usage = getattr(result, "_usage", None)
+                    usage_dict = usage.model_dump() if hasattr(usage, "model_dump") else (dict(usage) if usage else {})
+
+                    # If text is empty/None but reasoning was generated (reasoning models)
+                    if not text and reasoning:
+                        logger.info("Provider '%s' returned reasoning only (%d chars); surfacing as content", prov, len(reasoning))
+                        text = str(reasoning)
+
                     if text:
-                        return text
+                        if reasoning:
+                            logger.info("LLM reasoning trace captured (%d chars) from %s", len(reasoning), prov)
+                        return LLMResponse(
+                            text,
+                            reasoning=reasoning,
+                            provider=prov,
+                            model=model_for_provider,
+                            usage=usage_dict,
+                        )
                     # Tool calls present but no text — return tool call info
                     if hasattr(result, 'tool_calls') and result.tool_calls:
                         import json as _json
@@ -746,7 +1093,16 @@ class LLMRouter:
                     errors.append(f"{prov}: empty response")
                 elif isinstance(result, str):
                     if result and not result.startswith("Error:"):
-                        return result
+                        reasoning = None
+                        think_match = re.search(r"<think>(.*?)</think>", result, re.DOTALL)
+                        if think_match:
+                            reasoning = think_match.group(1).strip()
+                        return LLMResponse(
+                            result,
+                            reasoning=reasoning,
+                            provider=prov,
+                            model=model_for_provider,
+                        )
                     errors.append(f"{prov}: {result}")
                 else:
                     errors.append(f"{prov}: unexpected response type")

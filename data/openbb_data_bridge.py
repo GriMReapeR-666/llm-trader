@@ -25,36 +25,72 @@ from data.openbb_provider_registry import (
     unique_endpoint_count,
 )
 
-# ── import-safe OpenBB SDK ──────────────────────────────────────────────────
-# -- import-safe OpenBB SDK -----------------------------------------------------
+# ── import-safe, lazy OpenBB SDK ────────────────────────────────────────────
+# -- import-safe + LAZY OpenBB SDK ------------------------------------------
 # `from openbb import obb` builds OpenBB's extension package index at IMPORT
 # time -- 31 extensions, printed as "Extensions to add: ..." then "Building..." --
-# before a single call is made. Under pytest that cost is pure waste and, on a
-# memory-constrained host, fatal: with `-n auto` the xdist workers exhaust RAM and
-# the run dies as MemoryError, [WinError 1455] (paging file too small), or a native
-# access violation inside torch, depending on which allocation loses the race.
+# before a single call is made. Measured on this host: **23.0 s wall and 378 MB
+# RSS** for this single import, i.e. ~91% of the whole `import mt5_trader`
+# chain (415 MB) — it dominates the boot memory bar on constrained hosts.
 #
-# Honour the same pins this repo already uses for heavyweight dependencies
-# (LLM_TRADER_YF_OFFLINE for yfinance, FAST_TEST for the 421M Laya checkpoint).
-# Production is unaffected: neither variable is set there, so the real SDK still
-# loads exactly as before and OPENBB_AVAILABLE reflects reality.
+# Two-part fix, preserving every existing semantic:
+#   * OPENBB_AVAILABLE stays a real, patchable module attribute (tests patch
+#     it). It is resolved from find_spec("openbb") — installation detection
+#     without importing — and the same offline pins as before.
+#   * The SDK object is deferred to first use via a tiny proxy, so a boot that
+#     never calls an OpenBB endpoint never pays 378 MB. Waste at boot becomes
+#     a one-time 23 s load at the first real OpenBB fetch.
+#
+# "Production is unaffected": the first real fetch imports the same real SDK,
+# OPENBB_AVAILABLE still reflects installed-ness, and the offline/test pins
+# still suppress the import entirely.
 _OPENBB_PINNED_OFFLINE = bool(
     os.environ.get("LLM_TRADER_OPENBB_OFFLINE", "")
     or os.environ.get("FAST_TEST", "")
 )
-if _OPENBB_PINNED_OFFLINE:
-    obb = None  # type: ignore[assignment]
-    OPENBB_AVAILABLE = False
-    logging.getLogger("OpenBBDataBridge").debug(
-        "OpenBB import suppressed by offline/test pin; bridge runs degraded."
+
+try:
+    import importlib.util as _importlib_util
+
+    _openbb_installed = (
+        _importlib_util.find_spec("openbb") is not None
+        and _importlib_util.find_spec("openbb_core") is not None
     )
-else:
-    try:
-        from openbb import obb  # type: ignore[import-untyped]
-        OPENBB_AVAILABLE = True
-    except Exception:
-        obb = None  # type: ignore[assignment]
-        OPENBB_AVAILABLE = False
+except Exception:
+    _openbb_installed = False
+
+
+class _LazyOpenBB:
+    """Defers `from openbb import obb` until first attribute use.
+
+    Attribute misses on an unresolved SDK become None (not AttributeError) so
+    the existing `hasattr(obb, "coverage")` style checks keep their meaning.
+    """
+
+    def __init__(self) -> None:
+        self._obj: object = None
+        self._tried = False
+
+    def _ensure(self) -> Any:
+        if not self._tried:
+            self._tried = True
+            if not _OPENBB_PINNED_OFFLINE:
+                try:
+                    from openbb import obb as _obb  # type: ignore[import-untyped]
+                    self._obj = _obb
+                except Exception:
+                    self._obj = None
+        return self._obj
+
+    def __getattr__(self, name: str) -> Any:
+        obj = self._ensure()
+        if obj is None:
+            return None
+        return getattr(obj, name, None)
+
+
+obb = _LazyOpenBB()
+OPENBB_AVAILABLE = bool(_openbb_installed) and not _OPENBB_PINNED_OFFLINE
 
 # ── import-safe MacroGraph ──────────────────────────────────────────────────
 try:
@@ -69,9 +105,11 @@ log = logging.getLogger("OpenBBDataBridge")
 
 def _resolve_obb_endpoint(router: str, endpoint: str):
     """Walk obb.<router>.<endpoint> dotted path and return the callable, or None."""
-    if obb is None:
+    if not OPENBB_AVAILABLE:
         return None
-    obj = obb
+    obj = obb._ensure()
+    if obj is None:
+        return None
     for part in router.split("."):
         obj = getattr(obj, part, None)
         if obj is None:
@@ -238,8 +276,9 @@ class OpenBBDataBridge:
 
         # Fast check: does OpenBB coverage support this provider for this endpoint?
         target_endpoint = f".{fetcher.router}.{fetcher.endpoint}"
-        if obb is not None and hasattr(obb, "coverage") and hasattr(obb.coverage, "providers"):
-            supported_cmds = obb.coverage.providers.get(provider)
+        sdk = obb._ensure()
+        if sdk is not None and hasattr(sdk, "coverage") and hasattr(sdk.coverage, "providers"):
+            supported_cmds = sdk.coverage.providers.get(provider)
             if supported_cmds is None:
                 return False, f"provider '{provider}' is not supported by installed OpenBB extensions"
             if target_endpoint not in supported_cmds:

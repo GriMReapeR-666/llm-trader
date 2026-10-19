@@ -46,7 +46,9 @@ class SqliteCheckpointSaver(BaseCheckpointSaver):
         con = sqlite3.connect(self.db_path, check_same_thread=False, timeout=10.0)
         con.row_factory = sqlite3.Row
         # Tolerate brief cross-thread lock contention instead of crashing.
-        con.execute("PRAGMA busy_timeout=10000")
+        con.execute("PRAGMA journal_mode=WAL;")
+        con.execute("PRAGMA synchronous=NORMAL;")
+        con.execute("PRAGMA busy_timeout=5000;")
         try:
             yield con
             con.commit()

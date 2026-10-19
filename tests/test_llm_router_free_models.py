@@ -1,0 +1,128 @@
+"""Tests: LLM router free-model catalogue + best-free selection."""
+from data.llm_router import LLMRouter
+
+
+def test_select_best_free_model_returns_ranked_default():
+    r = LLMRouter.__new__(LLMRouter)
+    r._catalogue_cache = {}
+    assert LLMRouter.select_best_free_model(r, "openrouter") == "nvidia/nemotron-3-super-120b-a12b:free"
+    assert LLMRouter.select_best_free_model(r, "cerebras") == "gpt-oss-120b"
+    assert LLMRouter.select_best_free_model(r, "nvidia_nim") == "nvidia/nemotron-3-super-120b-a12b"
+    assert LLMRouter.select_best_free_model(r, "omnirouter") == "auto"
+
+
+def test_select_best_free_model_prefers_cached_available():
+    r = LLMRouter.__new__(LLMRouter)
+    r._catalogue_cache = {"openrouter": [{"id": "qwen/qwen3-8b:free"}, {"id": "meta-llama/llama-3.3-70b-instruct:free"}]}
+    assert LLMRouter.select_best_free_model(r, "openrouter") == "meta-llama/llama-3.3-70b-instruct:free"
+
+
+def test_select_best_free_model_unknown_provider():
+    r = LLMRouter.__new__(LLMRouter)
+    r._catalogue_cache = {}
+    assert LLMRouter.select_best_free_model(r, "nope") is None
+
+
+def test_is_free_model():
+    assert LLMRouter._is_free_model("nvidia/nemotron-3-super-120b-a12b:free") is True
+    assert LLMRouter._is_free_model("qwen-3.8-27b") is True
+    assert LLMRouter._is_free_model("gpt-oss-120b") is True
+    assert LLMRouter._is_free_model("meta/llama-3.2-11b-vision-instruct") is True
+    assert LLMRouter._is_free_model("openai/gpt-4-turbo") is False
+    assert LLMRouter._is_free_model("") is False
+
+
+def test_static_catalogue_only_free_models():
+    r = LLMRouter.__new__(LLMRouter)
+    for p in ("openrouter", "tokenrouter", "cerebras", "nvidia_nim"):
+        models = r._get_static_models(p)
+        assert len(models) > 0, p
+        for m in models:
+            assert LLMRouter._is_free_model(m["id"]), (p, m["id"])
+
+
+def test_failover_uses_provider_appropriate_model(monkeypatch):
+    # Production .env pins a per-provider model; this test exercises the
+    # fallback selection path, so the env override is intentionally cleared.
+    monkeypatch.delenv("LLM_ROUTER_MODEL_CEREBRAS", raising=False)
+
+    class _Provider:
+        def __init__(self, result):
+            self.result = result
+            self.calls = 0
+            self.last_model = None
+
+        def generate(self, messages, model, **kwargs):
+            self.calls += 1
+            self.last_model = model
+            return self.result
+
+    router = LLMRouter.__new__(LLMRouter)
+    router.providers = {
+        "primary": _Provider("Error: primary unavailable"),
+        "cerebras": _Provider("fallback result"),
+    }
+    router.agents = {"trader": {"provider": "primary", "model": "meta/llama-3.2-11b-vision-instruct",
+                                "fallback_providers": ["cerebras"],
+                                "allow_failover": True}}
+    router._catalogue_cache = {}
+    router.FREE_MODEL_RANKING = LLMRouter.FREE_MODEL_RANKING
+    result = router.generate("trader", [{"role": "user", "content": "x"}])
+    assert result == "fallback result"
+    assert router.providers["cerebras"].calls == 1
+    assert router.providers["cerebras"].last_model == "gpt-oss-120b"
+
+
+def test_failover_respects_per_provider_env_override(monkeypatch):
+    monkeypatch.setenv("LLM_ROUTER_MODEL_CEREBRAS", "qwen-3.8-27b")
+
+    class _Provider:
+        def __init__(self, result):
+            self.result = result
+            self.last_model = None
+
+        def generate(self, messages, model, **kwargs):
+            self.last_model = model
+            return self.result
+
+    router = LLMRouter.__new__(LLMRouter)
+    router.providers = {
+        "primary": _Provider("Error: primary unavailable"),
+        "cerebras": _Provider("fallback result"),
+    }
+    router.agents = {"trader": {"provider": "primary", "model": "meta/llama-3.2-11b-vision-instruct",
+                                "fallback_providers": ["cerebras"],
+                                "allow_failover": True}}
+    router._catalogue_cache = {}
+    router.FREE_MODEL_RANKING = LLMRouter.FREE_MODEL_RANKING
+    assert router.generate("trader", [{"role": "user", "content": "x"}]) == "fallback result"
+    assert router.providers["cerebras"].last_model == "qwen-3.8-27b"
+
+def test_cached_catalogue_picks_largest_general_model_not_first():
+    r = LLMRouter.__new__(LLMRouter)
+    r._catalogue_cache = {"cerebras": [
+        {"id": "nvidia/nemotron-3-embed-1b"},
+        {"id": "acme/tiny-7b:free"},
+        {"id": "acme/chat-70b:free"},
+        {"id": "acme/chat-32b:free"},
+    ]}
+    # No curated entry present -> largest general-purpose free model wins,
+    # deterministically, regardless of catalogue order.
+    assert LLMRouter.select_best_free_model(r, "cerebras") == "acme/chat-70b:free"
+
+
+def test_cached_catalogue_skips_embeddings_and_guards():
+    r = LLMRouter.__new__(LLMRouter)
+    r._catalogue_cache = {"nvidia_nim": [
+        {"id": "nvidia/nemotron-embed-1b"},
+        {"id": "nvidia/llama-guard-4-12b"},
+        {"id": "acme/chat-8b:free"},
+    ]}
+    assert LLMRouter.select_best_free_model(r, "nvidia_nim") == "acme/chat-8b:free"
+
+
+def test_model_size_parser():
+    assert LLMRouter._model_size_b("nvidia/nemotron-3-ultra-550b-a55b") == 550.0
+    assert LLMRouter._model_size_b("qwen-3.8-27b") == 27.0
+    assert LLMRouter._model_size_b("no-size-here") == 0.0
+

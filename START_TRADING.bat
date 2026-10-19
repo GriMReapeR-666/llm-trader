@@ -6,6 +6,10 @@ title LLM Trader - Autonomous Headless Trading
 set "PROJECT_ROOT=%~dp0"
 cd /d "%PROJECT_ROOT%"
 set "DELIBERATIVE_GRAPH_SHADOW=1"
+rem Dynamic trade ladder: enforce in the paper canary so the contextual plan
+rem (news calendar / session / growth curve) actually gates sizing; the
+rem TRADE_PLANNER_MODE env var set by the operator still wins.
+if not defined TRADE_PLANNER_MODE set "TRADE_PLANNER_MODE=enforce"
 
 echo.
 echo ====================================================
@@ -39,7 +43,7 @@ if "%~1"=="" (
         )
         echo [PREFLIGHT] Compact-context probe GREEN.
     )
-    python -u mt5_trader.py llm-trade --paper --symbol EURUSD --timeframe AUTO --model meta/llama-3.2-11b-vision-instruct --risk-per-trade 1.0 --continuous
+    python -u mt5_trader.py llm-trade --paper --symbol AUTO --timeframe AUTO --model meta/llama-3.2-11b-vision-instruct --risk-per-trade 1.0 --continuous
     goto :done
 )
 

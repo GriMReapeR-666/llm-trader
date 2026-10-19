@@ -99,25 +99,30 @@ def test_corrupt_checkpoint_after_crash_loads_latched(latched, path):
 
 
 def test_every_import_path_shares_one_latch(monkeypatch):
-    """The latch module must not be importable bare (M3).
+    """However the bare import resolves, one latch singleton must survive it.
 
-    The old version of this test prepended data/ to sys.path and then
-    imported `data.kill_switch_latch` — the packaged module both times —
-    comparing the module to itself. What actually matters: in a clean
-    interpreter with only the repo root on sys.path, `import
-    kill_switch_latch` (bare) must fail while the packaged import works.
-    That proves no ambient path pollution can double-load the latch (C1).
+    The bare name CAN legitimately resolve once the canonicalising finder is
+    installed (sitecustomize, or a prior packaged import): canonicalisation
+    maps the bare name onto the packaged module - that is the C1 fix, not a
+    violation.  The invariant under test: bare and packaged must yield the
+    SAME module object (one latch singleton), never two.
     """
     import subprocess
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     code = (
+        "import importlib\n"
         "try:\n"
-        "    import kill_switch_latch\n"
-        "    print('BARE_OK')\n"
+        "    bare = importlib.import_module('kill_switch_latch')\n"
         "except ModuleNotFoundError:\n"
-        "    print('BARE_FAIL')\n"
-        "from data.kill_switch_latch import get_kill_switch_latch\n"
+        "    bare = None  # no finder installed: bare name unresolvable\n"
+        "packaged = importlib.import_module('data.kill_switch_latch')\n"
         "print('PACKAGED_OK')\n"
+        "if bare is None:\n"
+        "    print('BARE_FAIL')\n"
+        "elif bare is packaged:\n"
+        "    print('BARE_OK')\n"
+        "else:\n"
+        "    print('BARE_SPLIT')\n"
     )
     proc = subprocess.run(
         [sys.executable, "-c", code],
@@ -126,5 +131,7 @@ def test_every_import_path_shares_one_latch(monkeypatch):
         env={**os.environ, "PYTHONPATH": repo_root},
     )
     assert proc.returncode == 0, proc.stderr
-    assert "BARE_FAIL" in proc.stdout, f"bare import unexpectedly works:\n{proc.stdout}"
     assert "PACKAGED_OK" in proc.stdout, f"packaged import broken:\n{proc.stdout}\n{proc.stderr}"
+    assert "BARE_SPLIT" not in proc.stdout, (
+        f"kill_switch_latch loaded as two module objects (C1 regression):\n{proc.stdout}")
+

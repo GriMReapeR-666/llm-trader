@@ -272,9 +272,9 @@ def ingest_optional_providers(
     stamp = observed_at or utcnow()
 
     try:
-        sweep_budget = float(os.environ.get("OPENBB_SWEEP_BUDGET_S", "20"))
+        sweep_budget = float(os.environ.get("OPENBB_SWEEP_BUDGET_S", "10"))
     except (TypeError, ValueError):
-        sweep_budget = 20.0
+        sweep_budget = 10.0
     sweep_budget = max(1.0, sweep_budget)
     sweep_deadline = time.monotonic() + sweep_budget
 
@@ -298,12 +298,17 @@ def ingest_optional_providers(
                 left = _budget_left()
                 if left <= 0:
                     results.append((method, False, "skipped: sweep budget exhausted"))
-                    continue
+                    break
                 fn = getattr(openbb, method, None)
                 if callable(fn):
                     try:
                         batch = fn(time_budget_s=left) or []
                         results.extend(batch)
+                        # ponytail: if an OpenBB method timed out, subsequent batch sweeps on the same
+                        # provider bridge will also time out; break immediately to preserve the pulse deadline.
+                        if any(isinstance(item, (list, tuple)) and len(item) >= 3 and "timed out" in str(item[2]).lower() for item in batch):
+                            results.append(("openbb_sweep", False, "short-circuited: provider timeout"))
+                            break
                     except TypeError:
                         # Legacy bridge without budget support — call bare.
                         try:
@@ -315,9 +320,14 @@ def ingest_optional_providers(
                         pass
             if not results and hasattr(openbb, "fetch_and_ingest"):
                 for data_type in ("central-bank-release", "official-statistics", "exchange-data", "fixed-income", "macro-indicators", "equity-screening", "regulatory-filing", "news-sentiment"):
+                    left = _budget_left()
+                    if left <= 0:
+                        break
                     try:
-                        batch = openbb.fetch_by_type(data_type) or []
+                        batch = openbb.fetch_by_type(data_type, time_budget_s=min(left, 5.0)) or []
                         results.extend(batch)
+                        if any(isinstance(item, (list, tuple)) and len(item) >= 3 and "timed out" in str(item[2]).lower() for item in batch):
+                            break
                     except Exception:
                         pass
             ok = sum(1 for item in results if isinstance(item, (list, tuple)) and len(item) >= 2 and item[1])
@@ -408,16 +418,27 @@ def ingest_alternative_nowcast(
     journal_path: str = "",
     observed_at: str = "",
     include_stubs: bool = False,
+    max_age_s: float = 1800.0,
 ) -> Dict[str, Any]:
-    """Ingest Tier 1/2/3 alternative nowcast observations as candidate macro sources."""
+    """Ingest Tier 1/2/3 alternative nowcast observations as candidate macro sources.
+
+    Uses a 30-minute default max_age_s so that the pre-pulse tick does not burn
+    ~19s on synchronous network scrapes every cycle when daily/weekly series
+    change infrequently.
+    """
     stamp = observed_at or utcnow()
     try:
         from data.alternative_data_provider import AlternativeDataProvider
     except ImportError:
         from data.alternative_data_provider import AlternativeDataProvider
 
+    try:
+        effective_max_age = float(os.environ.get("ALTERNATIVE_NOWCAST_MAX_AGE_S", str(max_age_s)))
+    except (TypeError, ValueError):
+        effective_max_age = max_age_s
+
     provider = AlternativeDataProvider()
-    snapshot = provider.fetch_nowcast_snapshot(include_stubs=include_stubs)
+    snapshot = provider.fetch_nowcast_snapshot(include_stubs=include_stubs, max_age_s=effective_max_age)
     observations = snapshot.get("observations") or []
     source_ids: List[str] = []
     entities: List[str] = []

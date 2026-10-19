@@ -1,8 +1,5 @@
 """Durable short- and long-term trading memory.
 
-import logging
-
-logger = logging.getLogger(__name__)
 Short-term context is a small current-session playbook.  Long-term memory is
 structured SQLite journal data plus compact narratives retrieved by regime
 tags.  It intentionally avoids an online embedding dependency; a token-overlap
@@ -10,6 +7,9 @@ retriever is deterministic and can later be replaced with an approved vector
 backend without changing the calling API.
 """
 from __future__ import annotations
+import logging
+
+logger = logging.getLogger(__name__)
 
 from datetime import datetime, timezone, timedelta
 import hashlib
@@ -48,8 +48,11 @@ class TradingMemory:
         # Fail-safe under concurrent access (dual-velocity executor,
         # reflection lane, TUI): wait for locks instead of raising
         # "database is locked" mid-cycle.
-        con.execute("PRAGMA busy_timeout=10000")
-        con.execute("PRAGMA synchronous=NORMAL")
+        con.execute("PRAGMA journal_mode=WAL;")
+        con.execute("PRAGMA synchronous=NORMAL;")
+        con.execute("PRAGMA busy_timeout=5000;")
+        con.execute("PRAGMA cache_size=-16000;")
+        con.execute("PRAGMA temp_store=MEMORY;")
         return con
 
     def _init(self):
