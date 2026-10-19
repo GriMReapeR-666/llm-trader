@@ -224,6 +224,7 @@ class ContinuousBacktestPipeline:
 
         # Stage 1: Full Pipeline Backtest
         log.info("Stage 1: Full Pipeline Backtest")
+        _regime_label = ""
         try:
             from data.market_data_provider import fetch_ohlc
             # fetch_ohlc() fails closed on its own (RuntimeError when no MT5
@@ -247,10 +248,13 @@ class ContinuousBacktestPipeline:
                 cost_overrides=cost_overrides,
             )
             results["stages"]["backtest"] = backtest_res
+            _regime_label = self._regime_from_bars(bars_df)
+            results["market_regime"] = _regime_label
             log.info(
-                "Stage 1 complete: sharpe=%.3f trades=%d (data_source=%s)",
+                "Stage 1 complete: sharpe=%.3f trades=%d regime=%s (data_source=%s)",
                 backtest_res.get("sharpe", 0.0),
                 backtest_res.get("total_trades", 0),
+                _regime_label or "unknown",
                 backtest_res.get("data_source", "unknown"),
             )
             # Feed the meta-loop corpus (Loop 4) so pattern mining has data.
@@ -265,6 +269,7 @@ class ContinuousBacktestPipeline:
                     backtest_win_rate=float(backtest_res.get("win_rate", 0.0) or 0.0),
                     backtest_n_trades=int(backtest_res.get("total_trades", 0) or 0),
                     holding_horizon=str(timeframe or ""),
+                    regime=_regime_label,
                 )
             except Exception as _ml_exc:
                 log.debug("Meta-loop log_outcome skipped: %s", _ml_exc)
@@ -334,6 +339,7 @@ class ContinuousBacktestPipeline:
                                 live_sharpe=float(_wf_live_sharpe),
                                 live_n_trades=_wf_n,
                                 holding_horizon=str(timeframe or ""),
+                                regime=_regime_label,
                             )
                 except Exception as _mll_exc:
                     log.debug("Meta-loop live evidence feed skipped: %s", _mll_exc)
@@ -419,6 +425,33 @@ class ContinuousBacktestPipeline:
     # ------------------------------------------------------------------
     # Sub-stages
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _regime_from_bars(bars_df: Any) -> str:
+        """Measured market-regime label for the evidence window.
+
+        Uses the existing RegimeDetectionEngine (Hurst + ATR percentile) on the
+        exact bars the backtest consumed. Missing/short data returns "" rather
+        than a fabricated regime, so the meta-loop only groups labelled rows.
+        """
+        try:
+            if bars_df is None or len(bars_df) < 30:
+                return ""
+            closes = [float(x) for x in bars_df["close"].tolist()]
+            highs = bars_df["high"].astype(float)
+            lows = bars_df["low"].astype(float)
+            atr_series = (highs - lows).rolling(14).mean().dropna().tolist()
+            if not closes or not atr_series:
+                return ""
+            from core.hierarchical_portfolio import RegimeDetectionEngine
+            state = RegimeDetectionEngine().detect_regime(
+                closes,
+                current_atr=float(atr_series[-1]),
+                atr_history=atr_series,
+            )
+            return str(getattr(state, "primary_regime", "") or "")
+        except Exception:
+            return ""
 
     def _run_pipeline_backtest(
         self,
@@ -1148,3 +1181,4 @@ if __name__ == "__main__":
             bars=args.bars,
             interval_seconds=args.interval,
         )
+

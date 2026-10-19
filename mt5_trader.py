@@ -5907,9 +5907,22 @@ def execute_skill(**kwargs):
                     try:
                         from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
                         _pipeline = ContinuousBacktestPipeline()
+                        # Strategy-specific CPCV needs a real trade sample. The
+                        # 500-bar default yields ~5 trades and every CPCV stage
+                        # reports insufficiency; 4000 bars yields enough trades
+                        # for a genuine purged split. Env-tunable for slow boxes.
+                        _val_bars = int(os.getenv("BACKTEST_VALIDATION_BARS", "4000") or 4000)
+                        _val_sym = (
+                            current_symbol
+                            if current_symbol and str(current_symbol).upper() != "AUTO"
+                            else "EURUSD"
+                        )
+                        _val_tf = args.timeframe if args.timeframe != "AUTO" else "H1"
                         _bt_result = _pipeline.run_validation_cycle(
-                            symbol=current_symbol,
+                            symbol=_val_sym,
                             strategy_name=strategy_name if 'strategy_name' in dir() else "default",
+                            timeframe=_val_tf,
+                            bars=_val_bars,
                         )
                         if _bt_result:
                             logging.getLogger("main").info(

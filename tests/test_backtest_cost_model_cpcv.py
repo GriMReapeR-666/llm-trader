@@ -464,3 +464,70 @@ class TestResultsFanInDurability:
             history = json.load(fh)
         assert [r["symbol"] for r in history] == ["EURUSD", "GBPUSD"]
         assert not (tmp_path / "artifacts" / "backtest_results" / "pipeline_results.json.tmp").exists()
+
+
+class TestSharedBarsWindow:
+    def test_pipeline_reuses_supplied_bars_for_every_strategy(self, monkeypatch):
+        import numpy as np
+        import pandas as pd
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        n = 500
+        rng = np.random.default_rng(11)
+        close = 1.1 + np.cumsum(rng.normal(0, 0.0005, n))
+        frame = pd.DataFrame({
+            "open": close,
+            "high": close + 0.0008,
+            "low": close - 0.0008,
+            "close": close,
+            "volume": rng.integers(100, 1000, n),
+        })
+
+        def _must_not_fetch(*args, **kwargs):
+            raise AssertionError("pipeline refetched bars despite a supplied window")
+
+        monkeypatch.setattr("data.market_data_provider.fetch_ohlc", _must_not_fetch)
+
+        pipe = ContinuousBacktestPipeline()
+        result = pipe.run_full_validation(
+            symbol="EURUSD",
+            strategy_name="meanrev_bollinger",
+            timeframe="H1",
+            bars=n,
+            run_walkforward=False,
+            run_dsr=False,
+            compare_live=False,
+            bars_df=frame,
+        )
+        assert result["stages"]["backtest"]["status"] in ("COMPLETED", "completed")
+
+
+class TestRegimeLabel:
+    def test_short_or_missing_frame_is_explicitly_unknown(self):
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        assert ContinuousBacktestPipeline._regime_from_bars(None) == ""
+
+        import pandas as pd
+        short = pd.DataFrame({
+            "open": [1.0] * 10, "high": [1.01] * 10,
+            "low": [0.99] * 10, "close": [1.0] * 10,
+        })
+        assert ContinuousBacktestPipeline._regime_from_bars(short) == ""
+
+    def test_valid_frame_gets_measured_regime(self):
+        import numpy as np
+        import pandas as pd
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        n = 300
+        rng = np.random.default_rng(5)
+        close = 1.1 + np.cumsum(rng.normal(0, 0.0006, n))
+        frame = pd.DataFrame({
+            "open": close, "high": close + 0.001,
+            "low": close - 0.001, "close": close,
+        })
+        label = ContinuousBacktestPipeline._regime_from_bars(frame)
+        assert label in {
+            "LOW_VOL_TREND", "LOW_VOL_RANGE", "HIGH_VOL_TREND", "HIGH_VOL_CRISIS",
+        }

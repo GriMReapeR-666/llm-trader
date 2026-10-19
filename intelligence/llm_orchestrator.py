@@ -658,22 +658,9 @@ class LLMOrchestrator:
         except Exception as _ofg_exc:
             logging.getLogger("LLMOrchestrator").debug("OverfitGate init skipped: %s", _ofg_exc)
             self.overfit_gate = None
-        # RL policy (advisory only): load trained Q-table if RL_POLICY_ENABLED.
-        # Trained policies are used for sizing/confidence adjustment, never
-        # for overriding the LLM decision.  Fail-closed: any load failure
-        # leaves self.rl_trainer = None and the advisory is skipped.
-        self.rl_trainer = None
-        if os.getenv("RL_POLICY_ENABLED", "").strip().lower() in {"1", "true", "yes"}:
-            try:
-                from research.rl_trainer import RLTrainer
-                _rl = RLTrainer()
-                _rl.load_model()
-                self.rl_trainer = _rl
-                logging.getLogger("LLMOrchestrator").info(
-                    "RL policy loaded (RL_POLICY_ENABLED): states=%d", len(getattr(_rl, "q_table", {})))
-            except Exception as _rl_exc:
-                logging.getLogger("LLMOrchestrator").warning("RL policy load skipped: %s", _rl_exc)
-                self.rl_trainer = None
+        # RL policy (advisory only) is initialized once below from the
+        # enable_rl argument; no separate env-gated loader here (it would be
+        # overwritten and could double-load the Q-table).
         self.provider_circuit = ProviderCircuitBreaker(self.store)
         # Rule-based position management (replaces LLM suggestions)
         try:
