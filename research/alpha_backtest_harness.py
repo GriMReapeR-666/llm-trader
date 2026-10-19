@@ -163,27 +163,18 @@ def load_mt5_bars(symbol: str, timeframe: str, n_bars: int) -> pd.DataFrame:
     initialized_here = False
     try:
         if _mt5.terminal_info() is None:
-            # Successive CLI runs (shutdown -> initialize) can transiently
-            # fail while the terminal settles; retry with a short backoff.
-            _init_ok = False
-            _init_err = None
-            for _attempt in range(3):
-                _init_ok = _mt5.initialize()
-                if not _init_ok:
-                    # Bare initialize relies on the terminal's stored
-                    # session; retry with credentials from the project
-                    # .env (same convention as mt5_trader login).
-                    _init_ok = _initialize_with_env(_mt5)
-                if _init_ok:
-                    break
-                _init_err = _mt5.last_error()
-                time.sleep(5.0)
-            if not _init_ok:
-                raise RuntimeError(
-                    f"MT5 initialize() failed: {_init_err} — "
-                    "start the MetaTrader 5 terminal and retry"
-                )
+            from data.market_data_provider import _ensure_mt5_attached
+
+            if not _ensure_mt5_attached(_mt5):
+                # Bare attach failed; try credentialed login from .env if configured
+                if not _initialize_with_env(_mt5):
+                    raise RuntimeError(
+                        "MT5 initialize() failed; "
+                        "start the MetaTrader 5 terminal and retry"
+                    )
             initialized_here = True
+
+
 
         n_bars = int(n_bars)
         if n_bars <= _MT5_MAX_BARS_PER_CALL:

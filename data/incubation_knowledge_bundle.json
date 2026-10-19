@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-19T15:30:52.929096+00:00",
+  "generated_at": "2026-10-19T16:30:53.830636+00:00",
   "total_approved_causal_edges": 22,
   "causal_edges": [
     {
@@ -211,6 +211,12 @@
   ],
   "top_verified_heuristics": [
     {
+      "id": 118,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #47: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
       "id": 117,
       "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
       "lesson": "Cycle #46: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
@@ -262,12 +268,6 @@
       "id": 109,
       "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
       "lesson": "Cycle #38: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
-      "confidence": 0.98
-    },
-    {
-      "id": 108,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #37: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
       "confidence": 0.98
     }
   ],
