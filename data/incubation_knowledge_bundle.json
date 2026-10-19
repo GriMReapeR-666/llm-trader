@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-19T01:30:56.217563+00:00",
+  "generated_at": "2026-10-19T02:31:07.823891+00:00",
   "total_approved_causal_edges": 22,
   "causal_edges": [
     {
@@ -211,6 +211,12 @@
   ],
   "top_verified_heuristics": [
     {
+      "id": 104,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #33: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
       "id": 103,
       "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
       "lesson": "Cycle #32: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
@@ -262,12 +268,6 @@
       "id": 95,
       "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
       "lesson": "Cycle #29: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
-      "confidence": 0.98
-    },
-    {
-      "id": 94,
-      "summary": "Deterministic Replay Mastery: EQUILIBRIUM_LOW_VOL_RANGE_BOUND",
-      "lesson": "In EQUILIBRIUM_LOW_VOL_RANGE_BOUND, synchronized US_INITIAL_JOBLESS_CLAIMS surprise (+0.05 sigma) propagated into EURUSD SELL bias. RL executed TIGHTEN_SL under XM Ultra Low costs, returning $+6.60.",
       "confidence": 0.98
     }
   ],
