@@ -6,7 +6,11 @@ network calls and was measured at 39.2s cold against a 45s deadline -- ~87%
 utilisation, so ordinary variance tipped it over.  Because the stage fails
 open, boot continued and the only trace was one degraded marker.
 
-Two network-bound stages therefore take a measured per-stage default instead
+The news stage's pre-pulse twin (``realtime_news_ingest``) failed the same
+way at the same 45s budget (deadline misses on 2026-09-30 and 2026-10-02;
+elapsed p95 45.0s, tuning-report suggestion 67.5s).
+
+Three network-bound stages therefore take a measured per-stage default instead
 of the shared 45s, while ``BOOT_STAGE_BUDGET_S`` stays an operator override
 that always wins.
 """
@@ -37,17 +41,25 @@ def captured(monkeypatch):
 
 
 def test_network_stages_get_measured_headroom(monkeypatch, captured):
-    """The two network-bound stages must exceed the shared 45s default."""
+    """The three network-bound stages must exceed the shared 45s default."""
     monkeypatch.delenv("BOOT_STAGE_BUDGET_S", raising=False)
 
+    # Pass the shared 45s inline on purpose: the map must override it, or a
+    # call site that slips back to the shared default re-imposes the exact
+    # deadline these stages were measured to miss.
     ab._boot_stage("bootstrap_macro_seed", lambda: None, 45.0)
     ab._boot_stage("bootstrap_global_macro_bridge", lambda: None, 45.0)
+    ab._boot_stage("bootstrap_realtime_news_ingest", lambda: None, 45.0)
 
     assert captured["bootstrap_macro_seed"] == 90.0
     assert captured["bootstrap_global_macro_bridge"] == 90.0
+    assert captured["bootstrap_realtime_news_ingest"] == 90.0
     assert captured["bootstrap_macro_seed"] > 45.0, (
         "39.2s measured cold against a 45s deadline leaves no headroom; "
         "the seed will time out again")
+    assert captured["bootstrap_realtime_news_ingest"] > 45.0, (
+        "the news fan-out missed 45s deadlines (2026-09-30, 2026-10-02, "
+        "elapsed p95 45.0s); it needs headroom too")
 
 
 def test_local_stages_keep_the_shared_default(monkeypatch, captured):

@@ -148,7 +148,7 @@ provider can no longer stall the first cycle.
 
 | Env | Default | Meaning |
 |---|---|---|
-| `LLM_TRADER_BOOT_STAGE_BUDGETS` | `calendar_collect=30, bulk_calendar_ingest=30, data_source_pipeline=45, realtime_news_ingest=45` | per-stage seconds, `name=seconds` comma-separated; invalid entries are logged and dropped |
+| `LLM_TRADER_BOOT_STAGE_BUDGETS` | `calendar_collect=30, bulk_calendar_ingest=30, data_source_pipeline=45, realtime_news_ingest=90` | per-stage seconds, `name=seconds` comma-separated; invalid entries are logged and dropped. `realtime_news_ingest` was raised 45→90 after it missed the 45s deadline on 2026-09-30 and 2026-10-02 (elapsed p95 45.0s); the bootstrap twin `bootstrap_realtime_news_ingest` matches |
 
 Stage outcomes (`ok`/`timed_out`/`elapsed_s`/`budget_s` per stage) are recorded in
 `_pulse_macro_cache[symbol]["boot_stage_outcomes"]`. Tests:

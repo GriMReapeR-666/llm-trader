@@ -9,7 +9,7 @@ import json
 import random
 import logging
 import tempfile
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime
 from collections import defaultdict
 
@@ -21,10 +21,20 @@ class RLTrainer:
     """
     
     def __init__(self, learning_rate: float = 0.1, discount_factor: float = 0.95, 
-                 epsilon: float = 0.2, model_path: str = "rl_model.json"):
+                 epsilon: float = 0.2, model_path: Optional[str] = None):
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = epsilon  # Exploration rate
+        
+        # Anchor relative default model_path to project root if not in CWD
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if model_path is None:
+            model_path = os.path.join(repo_root, "rl_model.json")
+        elif not os.path.isabs(model_path):
+            if not os.path.exists(model_path):
+                candidate = os.path.join(repo_root, model_path)
+                if os.path.exists(candidate) or not os.path.exists(model_path):
+                    model_path = candidate
         self.model_path = model_path
         
         # Q-table: state_key -> {action: q_value}

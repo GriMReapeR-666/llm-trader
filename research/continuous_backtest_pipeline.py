@@ -233,6 +233,7 @@ class ContinuousBacktestPipeline:
                 symbol=symbol,
                 strategy_name=strategy_name,
                 bars_df=bars_df,
+                timeframe=timeframe,
                 cost_overrides=cost_overrides,
             )
             results["stages"]["backtest"] = backtest_res
@@ -358,6 +359,7 @@ class ContinuousBacktestPipeline:
         symbol: str,
         strategy_name: str,
         bars_df: Any,
+        timeframe: str = "H1",
         cost_overrides: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Run the indicator -> gates -> execution backtest on the supplied bars.
@@ -404,7 +406,7 @@ class ContinuousBacktestPipeline:
         res = engine.run_full_autonomous_backtest(
             symbol=symbol,
             strategy_name=strategy_id,
-            timeframe="M15",
+            timeframe=timeframe,
             count=len(bars_df) if hasattr(bars_df, "__len__") else 500,
             fast_period=12,
             slow_period=26,
@@ -412,6 +414,7 @@ class ContinuousBacktestPipeline:
             tp_pips=60.0,
             signal_builder=signal_builder,
             entry_signal_threshold=1.0,
+            bars_df=bars_df,
         )
         if not isinstance(res, dict):
             res = {"status": "OK", "result": res}
@@ -428,6 +431,17 @@ class ContinuousBacktestPipeline:
         strategy_improvement = res.get("strategy_improvement") if isinstance(res.get("strategy_improvement"), dict) else {}
         dsr_gate = strategy_improvement.get("dsr_gate") if isinstance(strategy_improvement.get("dsr_gate"), dict) else {}
         n_trials = int(dsr_gate.get("n_trials", trades) or trades)
+        _rm_raw = res.get("r_multiples") or metrics.get("trades") or metrics.get("r_multiples") or []
+        _r_mults: List[float] = []
+        for _t in _rm_raw:
+            _rm = _t.get("r_multiple") if isinstance(_t, dict) else _t
+            if _rm is None:
+                continue
+            try:
+                _r_mults.append(float(_rm))
+            except (TypeError, ValueError):
+                continue
+        r_multiples = _r_mults if _r_mults else None
         normalized = {
             "status": res.get("status", "COMPLETED"),
             "sharpe": float(metrics.get("sharpe_ratio", 0.0) or 0.0),
@@ -441,7 +455,8 @@ class ContinuousBacktestPipeline:
             "n_obs": int(bars_count or trades or 0),
             "strategy_name": strategy_id,
             "data_source": res.get("data_source", "unknown"),
-            "r_multiples": None,
+            "r_multiples": r_multiples,
+            "trades": res.get("trades") or metrics.get("trades") or [],
             "_raw": res,
         }
         return normalized
@@ -676,28 +691,19 @@ class ContinuousBacktestPipeline:
                 r_multiples = [float(r) for r in stage_stream]
             except (TypeError, ValueError):
                 r_multiples = None
-        if r_multiples is None:
-            source = "journal_trades"
-            # Same reader as walk-forward: the trades table has no
-            # `r_multiple` column, so the old select against it raised on
-            # every run and was downgraded to "no evidence" by the except
-            # below.  The pnl/risk fallback it used to reach for also
-            # *invented* +-1.0R whenever risk_amount was unusable; a real
-            # R-multiple is now read or it is absent.
-            r_multiples = _broker_reconciled_r_multiples(
-                os.path.join(self.base_dir, "trading_state.db"))
 
         if not r_multiples or len(r_multiples) < 40:
             _samples = len(r_multiples or [])
             log.info(
-                "Stage 3b CPCV not run: only %d net-of-cost %s returns available (need >= 40 for combinatorial paths)",
+                "Stage 3b CPCV not run: only %d net-of-cost %s returns available (need >= 40 for combinatorial paths; journal fallback disabled for strategy isolation)",
                 _samples, source,
             )
             return {
                 "status": "INSUFFICIENT_SAMPLES_FOR_CPCV",
                 "source": source,
                 "samples": _samples,
-                "reason": "needs >= 40 net-of-cost trade returns for combinatorial paths",
+                "reason": "needs >= 40 net-of-cost backtest trade returns for combinatorial paths (journal fallback disabled)",
+                "is_statistically_robust": False,
             }
 
         cpcv = run_combinatorial_purged_backtest(
@@ -861,13 +867,12 @@ class ContinuousBacktestPipeline:
             if wr is not None and wr < 0.45:
                 warnings.append("low_win_rate")
 
-        # Check DSR. Whichever spelling the stage uses ("OK" in the
-        # pipeline, "completed" in legacy fixtures), an explicitly rejected
-        # gate (passed is False) blocks the verdict; and a gate that was
-        # never evaluated (SKIPPED: insufficient samples) or died (FAILED:
-        # stage exception) cannot bless a strategy either — every real
-        # promotion needs a gate that actually ran. Absence of a passed
-        # flag on a completed stage never fabricates a failure.
+        # Trade count floor: a run with fewer than 30 trades cannot prove edge
+        total_trades = bt.get("total_trades", bt.get("n_trades", None))
+        if total_trades is not None and total_trades < 30:
+            blockers.append("insufficient_trades_sample")
+
+        # Check DSR (fail-closed)
         dsr = stages.get("dsr", {}) if isinstance(stages, dict) else {}
         dsr_status = str(dsr.get("status", "")).upper()
         if dsr_status == "FAILED":
@@ -877,9 +882,30 @@ class ContinuousBacktestPipeline:
         elif dsr_status in ("OK", "COMPLETED") and dsr.get("passed", None) is False:
             blockers.append("dsr_gate_failed")
 
-        # Check walk-forward
+        # Check CPCV & PBO (fail-closed)
+        cpcv = stages.get("cpcv", {}) if isinstance(stages, dict) else {}
+        cpcv_status = str(cpcv.get("status", "")).upper()
+        if cpcv_status == "FAILED":
+            blockers.append("cpcv_stage_failed")
+        elif cpcv_status in ("SKIPPED", "INSUFFICIENT_SAMPLES_FOR_CPCV"):
+            blockers.append("cpcv_stage_skipped")
+        elif cpcv_status == "OVERFITTING_RISK_DETECTED":
+            blockers.append("cpcv_overfitting_risk_detected")
+        elif cpcv_status == "CPCV_VALIDATED":
+            pbo = cpcv.get("probability_of_backtest_overfitting_pbo", 0.0)
+            if pbo > 0.25:
+                blockers.append("pbo_above_threshold")
+            if cpcv.get("is_statistically_robust") is False:
+                blockers.append("cpcv_not_statistically_robust")
+
+        # Check walk-forward (fail-closed on failure / missing evidence)
         wf = stages.get("walkforward", {}) if isinstance(stages, dict) else {}
-        if str(wf.get("status", "")).upper() in ("OK", "COMPLETED"):
+        wf_status = str(wf.get("status", "")).upper()
+        if wf_status == "FAILED":
+            blockers.append("walkforward_failed")
+        elif wf_status in ("SKIPPED", "INSUFFICIENT_JOURNAL_EVIDENCE"):
+            blockers.append("walkforward_skipped")
+        elif wf_status in ("OK", "COMPLETED"):
             if wf.get("stability_score", 0) < 0.5:
                 warnings.append("low_stability_score")
 

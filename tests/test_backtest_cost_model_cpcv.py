@@ -281,6 +281,39 @@ class TestPipelineBacktestNormalization:
         assert "_raw" in res
 
 
+class TestRMultiplierExtraction:
+    def test_extracts_r_multiples_from_trade_dicts(self, tmp_path, monkeypatch):
+        import sys
+        import pandas as pd
+        import research.mt5_backtest_engine as mbe
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        class FakeEngine:
+            def run_full_autonomous_backtest(self, **kwargs):
+                return {
+                    "status": "COMPLETED",
+                    "metrics": {
+                        "sharpe_ratio": 1.2, "win_rate": 0.6, "profit_factor": 1.5,
+                        "expectancy_r": 0.3, "max_drawdown_pct": 5.0, "total_trades": 3,
+                        "trades": [
+                            {"trade_id": 1, "r_multiple": 0.5},
+                            {"trade_id": 2, "r_multiple": -0.2},
+                            {"trade_id": 3, "r_multiple": None},
+                        ],
+                    },
+                    "strategy_improvement": {"dsr_gate": {"n_trials": 100, "dsr": 1.2, "passed": True}},
+                }
+
+        monkeypatch.setattr(mbe, "MT5BrokerBacktestEngine", FakeEngine)
+        monkeypatch.setitem(sys.modules, "mt5_backtest_engine", mbe)
+
+        pipe = ContinuousBacktestPipeline(base_dir=str(tmp_path))
+        frame = pd.DataFrame({"open": [1.0]*10, "close": [1.0]*10, "high": [1.01]*10, "low": [0.99]*10})
+        res = pipe._run_pipeline_backtest("EURUSD", "default", frame)
+        assert res["r_multiples"] == [0.5, -0.2]
+        assert res["total_trades"] == 3
+
+
 class TestDsrGate:
     def test_prefers_engine_dsr_result(self):
         from research.continuous_backtest_pipeline import ContinuousBacktestPipeline

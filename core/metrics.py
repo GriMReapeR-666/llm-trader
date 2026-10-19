@@ -165,16 +165,28 @@ def calculate_deflated_sharpe_ratio(
     skewness: float = 0.0,
     kurtosis: float = 3.0,
     benchmark_sharpe: float = 0.0,
+    annualized: bool = True,
+    periods_per_year: float = 252.0,
 ) -> float:
-    """Deflated Sharpe Ratio (Bailey & Author-C):
+    """Deflated Sharpe Ratio (Bailey & López de Prado 2014):
     Adjusts Sharpe ratio for multiple testing and selection bias.
     Returns p-value of rejecting the null hypothesis (true Sharpe <= benchmark).
+
+    Unit Consistency:
+    De-annualizes estimated_sharpe when annualized=True (the standard in backtest
+    reports where Sharpe is annualized via sqrt(252)), aligning it with per-period
+    quantities (se_null, sr_variance).
     """
     if num_trials < 1 or sample_size < 10:
         return 1.0
     
     sr = float(estimated_sharpe)
     sr_0 = float(benchmark_sharpe)
+    
+    if annualized and periods_per_year > 1.0:
+        scale = math.sqrt(periods_per_year)
+        sr = sr / scale
+        sr_0 = sr_0 / scale
     n = float(sample_size)
     k = float(num_trials)
     gamma_3 = float(skewness)

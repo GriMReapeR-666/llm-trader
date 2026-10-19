@@ -278,6 +278,10 @@ def fetch_ohlc(symbol: str, timeframe: str, count: int = 100) -> pd.DataFrame:
         )
 
     rates_frame = pd.DataFrame(rates)
+    if "tick_volume" in rates_frame.columns and "volume" not in rates_frame.columns:
+        rates_frame["volume"] = rates_frame["tick_volume"]
+    elif "real_volume" in rates_frame.columns and "volume" not in rates_frame.columns:
+        rates_frame["volume"] = rates_frame["real_volume"]
     # MT5 epochs are broker-server-time; convert to true UTC so completed-bar
     # lineage never appears in the future (server time > capture time).
     offset = _server_utc_offset_seconds(mt5_inst)

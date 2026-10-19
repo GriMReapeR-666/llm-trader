@@ -90,6 +90,8 @@ class BacktestMetrics:
             "total_friction_drag_usd": round(
                 self.total_spread_cost + self.total_slippage_cost + self.total_commission + self.total_swap, 2
             ),
+            "trades": self.trades,
+            "r_multiples": self.r_multiples,
         }
 
 
@@ -391,6 +393,7 @@ class MT5BrokerBacktestEngine:
         tp_pips: float = 60.0,
         entry_signal_scores: Optional[Sequence[float]] = None,
         entry_signal_threshold: float = 1.0,
+        strategy_name: Optional[str] = None,
     ) -> BacktestMetrics:
         """Run EMA crossover strategy with broker friction simulation.
 
@@ -431,13 +434,13 @@ class MT5BrokerBacktestEngine:
                 )
             entries_long = scores >= entry_signal_threshold
             entries_short = scores <= -entry_signal_threshold
-            ruleset_name = f"external_signal_t{entry_signal_threshold:g}"
+            ruleset_name = strategy_name if strategy_name else f"external_signal_t{entry_signal_threshold:g}"
         else:
             fast_ema = pd.Series(close).ewm(span=fast_period, adjust=False).mean().values
             slow_ema = pd.Series(close).ewm(span=slow_period, adjust=False).mean().values
             entries_long = (fast_ema > slow_ema)
             entries_short = (fast_ema < slow_ema)
-            ruleset_name = f"crossover_{fast_period}_{slow_period}"
+            ruleset_name = strategy_name if strategy_name else f"crossover_{fast_period}_{slow_period}"
 
         return self.run_strategy_backtest(
             bars_df=bars_df,
@@ -1110,6 +1113,7 @@ class MT5BrokerBacktestEngine:
         journal_path: Optional[str] = None,
         signal_builder: Optional[Callable[[pd.DataFrame], Any]] = None,
         entry_signal_threshold: float = 1.0,
+        bars_df: Optional[pd.DataFrame] = None,
     ) -> Dict[str, Any]:
         """Orchestrate the complete autonomous end-to-end backtesting pipeline:
         1. Live MT5 Broker Data & Specifications Acquisition
@@ -1127,12 +1131,27 @@ class MT5BrokerBacktestEngine:
 
         # 1. Fetch live MT5 broker specs & market data
         broker_specs = self.fetch_broker_specs(symbol)
-        bars_df = self.fetch_market_data(symbol, timeframe, count)
+        if bars_df is None or (hasattr(bars_df, "empty") and bars_df.empty):
+            bars_df = self.fetch_market_data(symbol, timeframe, count)
 
         # 2. Data Improvement
         data_improvement = self.process_data_improvement(bars_df, symbol, timeframe)
 
         # 3. Run Strategy Backtest Simulation
+        if signal_builder is None and strategy_name != "default":
+            try:
+                from research.strategy_signal_registry import build_signal, has_signal
+                if has_signal(strategy_name):
+                    def signal_builder(bdf: Any) -> Any:
+                        return build_signal(
+                            strategy_name,
+                            bdf["close"].to_numpy(dtype=np.float64),
+                            bdf["high"].to_numpy(dtype=np.float64),
+                            bdf["low"].to_numpy(dtype=np.float64),
+                        )
+            except Exception:
+                pass
+
         run_kwargs: Dict[str, Any] = {
             "bars_df": bars_df,
             "fast_period": fast_period,
@@ -1141,6 +1160,7 @@ class MT5BrokerBacktestEngine:
             "timeframe": timeframe,
             "sl_pips": sl_pips,
             "tp_pips": tp_pips,
+            "strategy_name": strategy_name,
         }
         if signal_builder is not None:
             # Per-label external-signal mode: the builder sees exactly the bars
@@ -1209,6 +1229,8 @@ class MT5BrokerBacktestEngine:
             "data_source": getattr(self, "_data_source", "unknown"),
             "broker_specs": broker_specs,
             "metrics": metrics.to_dict(),
+            "r_multiples": metrics.r_multiples,
+            "trades": metrics.trades,
             "data_improvement": data_improvement,
             "strategy_improvement": strategy_improvement,
             "journaling": journaling,

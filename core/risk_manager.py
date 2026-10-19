@@ -48,7 +48,8 @@ class RiskManager(StoreBackedState):
                  max_trades_per_hour: int = 5, max_daily_loss: float = 0.03,
                  max_consecutive_losses: int = 5, store: Any = None,
                  equity_floor_fraction: float = 0.20,
-                 state_file: str = "risk_state.json"):
+                 state_file: str = "risk_state.json",
+                 is_paper: Optional[bool] = None):
         if not self._finite(balance, positive=True):
             raise ValueError("balance must be finite and positive")
         if not self._finite(risk_per_trade, positive=True) or float(risk_per_trade) > 0.02:
@@ -75,6 +76,10 @@ class RiskManager(StoreBackedState):
         
         self.initial_balance = float(balance)
         self.equity_floor_fraction = float(equity_floor_fraction)
+        self.is_paper = is_paper if is_paper is not None else (
+            os.getenv("LLM_TRADER_TRADING_MODE", "").strip().upper() == "PAPER"
+            or os.getenv("LLM_TRADER_PAPER_MODE") == "1"
+        )
         self.daily_start_equity = balance
         self.weekly_start_equity = balance
         self.weekly_recovered_r = 0.0
@@ -136,11 +141,7 @@ class RiskManager(StoreBackedState):
         self.state_week = f"{now_dt.isocalendar()[0]}-W{now_dt.isocalendar()[1]}"
         self.weekly_circuit_step_down = False
         self.weekly_recovered_r = 0.0
-        try:
-            acc = mt5.account_info()
-            self.weekly_start_equity = float(acc.equity) if acc else self.balance
-        except Exception:
-            self.weekly_start_equity = self.balance
+        self.weekly_start_equity = self.current_equity()
         self.save_state()
 
     def reset_daily_limits(self):
@@ -153,12 +154,8 @@ class RiskManager(StoreBackedState):
         self.state_date = datetime.now(timezone.utc).date().isoformat()
         self._flatten_reason = None
         
-        # Get current equity as start point
-        try:
-            acc = mt5.account_info()
-            self.daily_start_equity = float(acc.equity) if acc else self.balance
-        except Exception:
-            self.daily_start_equity = self.balance
+        # Anchor strictly to self.current_equity() to ensure consistency with paper vs live
+        self.daily_start_equity = self.current_equity()
         
         logging.getLogger("RiskManager").info(f"🔁 Daily Limits Reset. Start Equity: ${self.daily_start_equity:.2f}")
         self.save_state()
@@ -906,15 +903,14 @@ anyone reasoning about how much drawdown the account can absorb.
     def current_equity(self) -> float:
         """The account's equity right now, best source first.
 
-        MT5 (live/demo) -> injected venue provider (paper) -> last known
-        snapshot. Always returns a positive float so callers can divide by it
-        without re-guarding; every existing ``_account_equity() or
-        self.balance`` pair in this module now routes through here so the
-        precedence rule exists in exactly one place.
+        When is_paper is True: injected venue provider (paper) -> configured balance.
+        When is_paper is False: MT5 (live/demo) -> injected venue provider -> last known snapshot.
+        Always returns a positive float so callers can divide by it without re-guarding.
         """
-        live = self._account_equity()
-        if live is not None and self._finite(live, positive=True):
-            return float(live)
+        if not getattr(self, "is_paper", False):
+            live = self._account_equity()
+            if live is not None and self._finite(live, positive=True):
+                return float(live)
 
         if self._equity_provider is not None:
             try:
@@ -923,6 +919,14 @@ anyone reasoning about how much drawdown the account can absorb.
                 supplied = None
             if supplied is not None and self._finite(supplied, positive=True):
                 return supplied
+
+        if getattr(self, "is_paper", False):
+            return float(self.balance)
+
+        # Non-paper fallback when MT5 returned None
+        live = self._account_equity()
+        if live is not None and self._finite(live, positive=True):
+            return float(live)
 
         return float(self.balance)
 

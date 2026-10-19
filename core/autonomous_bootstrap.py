@@ -142,17 +142,20 @@ def _stage_budget(default_s: float) -> float:
 
 
 #: Per-stage PREPARE budgets (seconds) for the stages that fan out to network
-#: providers.  The shared 45s default suits the local stages, but two of these
-#: do real network I/O and were measured with no headroom left:
+#: providers.  The shared 45s default suits the local stages, but the three
+#: here do real network I/O and were measured with no headroom left:
 #:
-#: Per-stage PREPARE budgets (seconds) for the stages that fan out to network
-#: providers.  The shared 90s default suits the two network-bound stages here,
-#: but the earlier 45s default was measured with no headroom left:
-#:
-#:   bootstrap_macro_seed          39.2s cold (2026-10-16 10:59:19.410 ->
-#:                                  10:59:58.596), 0.1s once the alternative
-#:                                  nowcast cache is warm
-#:   bootstrap_global_macro_bridge 39.9s (boot datasheet)
+#:   bootstrap_macro_seed            39.2s cold (2026-10-16 10:59:19.410 ->
+#:                                    10:59:58.596), 0.1s once the alternative
+#:                                    nowcast cache is warm
+#:   bootstrap_global_macro_bridge   39.9s (boot datasheet)
+#:   bootstrap_realtime_news_ingest  pre-pulse twin of this stage
+#:                                    (``realtime_news_ingest``) missed its 45s
+#:                                    deadline on 2026-09-30 and 2026-10-02
+#:                                    (elapsed p95 45.0s; the tuning report
+#:                                    suggests 67.5s).  It fans out per feed to
+#:                                    RSS + NewsAPI/SeekingAlpha, so one slow
+#:                                    feed used to burn the whole 45s.
 #:
 #: At ~87% budget utilisation on a network-dependent fetch, ordinary variance
 #: tipped the seed over its deadline and the causal graph silently failed to
@@ -161,9 +164,15 @@ def _stage_budget(default_s: float) -> float:
 #: shape as the rest of this class: the work is legitimate and completes; the
 #: deadline was simply too tight to let it.  90s still bounds a genuine hang
 #: while leaving room for the fetch to finish.
+#:
+#: The map -- not the call site's inline literal -- is what holds these values:
+#: a call site that slips back to the shared 45s still gets the measured
+#: budget here (``_boot_stage`` consults this map whenever the operator has
+#: not pinned ``BOOT_STAGE_BUDGET_S``).
 _BOOT_STAGE_NETWORK_BUDGETS: Dict[str, float] = {
     "bootstrap_macro_seed": 90.0,
     "bootstrap_global_macro_bridge": 90.0,
+    "bootstrap_realtime_news_ingest": 90.0,
 }
 
 

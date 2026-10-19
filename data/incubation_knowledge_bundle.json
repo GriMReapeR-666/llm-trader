@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-19T04:31:04.607125+00:00",
+  "generated_at": "2026-10-19T06:31:09.843569+00:00",
   "total_approved_causal_edges": 22,
   "causal_edges": [
     {
@@ -211,6 +211,18 @@
   ],
   "top_verified_heuristics": [
     {
+      "id": 108,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #37: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
+      "id": 107,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #36: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
       "id": 106,
       "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
       "lesson": "Cycle #35: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
@@ -256,18 +268,6 @@
       "id": 99,
       "summary": "Deterministic Replay Mastery: INTERBANK_LIQUIDITY_BANKING_STRESS",
       "lesson": "In INTERBANK_LIQUIDITY_BANKING_STRESS, synchronized FED_DISCOUNT_WINDOW_SURGE surprise (+3.40 sigma) propagated into USDJPY SELL bias. RL executed FULL_EXIT under XM Ultra Low costs, returning $+11.90.",
-      "confidence": 0.98
-    },
-    {
-      "id": 98,
-      "summary": "Deterministic Replay Mastery: GEOPOLITICAL_ENERGY_SUPPLY_SHOCK",
-      "lesson": "In GEOPOLITICAL_ENERGY_SUPPLY_SHOCK, synchronized CRUDE_OIL_SUPPLY_OUTAGE surprise (+3.10 sigma) propagated into XAUUSD BUY bias. RL executed PARTIAL_CLOSE under XM Ultra Low costs, returning $+10.30.",
-      "confidence": 0.98
-    },
-    {
-      "id": 97,
-      "summary": "Deterministic Replay Mastery: DISINFLATIONARY_GROWTH_EXPANSION",
-      "lesson": "In DISINFLATIONARY_GROWTH_EXPANSION, synchronized US_CORE_PCE_MOM surprise (-1.80 sigma) propagated into GBPUSD BUY bias. RL executed TIGHTEN_SL under XM Ultra Low costs, returning $+9.70.",
       "confidence": 0.98
     }
   ],

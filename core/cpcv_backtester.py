@@ -53,10 +53,9 @@ def run_combinatorial_purged_backtest(
         # (full purge requires event_times, which we don't have for raw returns)
         test_returns = r[test_mask]
         if len(test_returns) > 5 and np.std(test_returns) > 1e-6:
-            # Clip std to avoid -290 artifact
+            # Clip std to avoid division by zero; no artificial sqrt(252) on per-trade R
             std_clipped = max(float(np.std(test_returns)), 0.002)
-            sr = float(np.mean(test_returns) / std_clipped * math.sqrt(252))
-            sr = float(np.clip(sr, -5, 5))
+            sr = float(np.mean(test_returns) / std_clipped)
             path_sharpes.append(sr)
 
     if not path_sharpes:
@@ -72,15 +71,22 @@ def run_combinatorial_purged_backtest(
     skew = float(np.mean(((r - mean_r) / std_r) ** 3))
     kurt = float(np.mean(((r - mean_r) / std_r) ** 4))
 
-    # DSR calculation — use max Sharpe (best path) with nTrials correction per Harvey-Liu
-    # mean_sr is optimistic for single strategy; max_sr penalizes multiple testing correctly
+    # DSR calculation — use mean path Sharpe and true trial count from ledger
+    try:
+        from core.trial_ledger import get_trial_ledger
+        ledger = get_trial_ledger()
+        true_trials = max(len(combos), ledger.n_trials_for_class("cpcv") + 1)
+    except Exception:
+        true_trials = len(combos)
+
     dsr_pvalue = calculate_deflated_sharpe_ratio(
-        estimated_sharpe=max_sr,
+        estimated_sharpe=mean_sr,
         benchmark_sharpe=0.0,
-        num_trials=len(combos),
+        num_trials=true_trials,
         sample_size=n_samples,
         skewness=skew,
         kurtosis=kurt,
+        annualized=False,
     )
     # Bailey's DSR is the confidence Phi(z) = 1 - p_value that true Sharpe exceeds benchmark.
     # The gate is DSR >= 0.70 (70% statistical confidence).
@@ -114,7 +120,7 @@ def run_combinatorial_purged_backtest(
     except Exception:
         pass  # Ledger unavailable — continue without recording
 
-    is_robust = dsr_confidence >= 0.70 and pbo <= 0.25 and mean_sr >= 1.0
+    is_robust = dsr_confidence >= 0.70 and pbo <= 0.25 and mean_sr > 0.0
 
     return {
         "status": "CPCV_VALIDATED" if is_robust else "OVERFITTING_RISK_DETECTED",

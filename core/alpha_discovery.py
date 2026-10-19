@@ -364,15 +364,28 @@ class SealedSandboxEvaluator:
         alpha_vals = alpha_series[valid_mask].values
         ret_vals = fwd_ret[valid_mask].values
 
-        for i in range(window, len(alpha_vals)):
+        # Compute IC on non-overlapping windows to avoid deflating ic_std via autocorrelation
+        step = window
+        for i in range(window, len(alpha_vals) + 1, step):
             a = alpha_vals[i - window:i]
             r = ret_vals[i - window:i]
-            if np.std(a) > 0 and np.std(r) > 0:
+            if np.std(a) > 1e-8 and np.std(r) > 1e-8:
                 corr, _ = sp_stats.spearmanr(a, r)
                 if np.isfinite(corr):
                     ic_values.append(corr)
 
-        if len(ic_values) < 10:
+        # Fallback to sliding window if sample size yields fewer than 4 non-overlapping blocks
+        if len(ic_values) < 4:
+            ic_values = []
+            for i in range(window, len(alpha_vals)):
+                a = alpha_vals[i - window:i]
+                r = ret_vals[i - window:i]
+                if np.std(a) > 1e-8 and np.std(r) > 1e-8:
+                    corr, _ = sp_stats.spearmanr(a, r)
+                    if np.isfinite(corr):
+                        ic_values.append(corr)
+
+        if len(ic_values) < 5:
             candidate.status = "REJECTED"
             candidate.rejection_reason = f"Too few IC values: {len(ic_values)}"
             return candidate
@@ -401,17 +414,32 @@ class SealedSandboxEvaluator:
                 test_ic_values = []
                 t_alpha = test_alpha[test_valid].values
                 t_ret = test_fwd[test_valid].values
-                for i in range(window, len(t_alpha)):
+                for i in range(window, len(t_alpha) + 1, step):
                     a = t_alpha[i - window:i]
                     r = t_ret[i - window:i]
-                    if np.std(a) > 0 and np.std(r) > 0:
+                    if np.std(a) > 1e-8 and np.std(r) > 1e-8:
                         corr, _ = sp_stats.spearmanr(a, r)
                         if np.isfinite(corr):
                             test_ic_values.append(corr)
+                if len(test_ic_values) < 2:
+                    for i in range(window, len(t_alpha)):
+                        a = t_alpha[i - window:i]
+                        r = t_ret[i - window:i]
+                        if np.std(a) > 1e-8 and np.std(r) > 1e-8:
+                            corr, _ = sp_stats.spearmanr(a, r)
+                            if np.isfinite(corr):
+                                test_ic_values.append(corr)
                 if test_ic_values:
-                    test_ic_mean = np.mean(test_ic_values)
-                    # Penalize if test IC is much lower than train IC (overfitting)
-                    if test_ic_mean < candidate.ic_mean * 0.3:
+                    test_ic_mean = float(np.mean(test_ic_values))
+                    # Sign-aware overfit check:
+                    if np.sign(test_ic_mean) != np.sign(candidate.ic_mean):
+                        candidate.status = "REJECTED"
+                        candidate.rejection_reason = (
+                            f"Overfitting sign reversal: train IC={candidate.ic_mean:.4f}, "
+                            f"test IC={test_ic_mean:.4f}"
+                        )
+                        return candidate
+                    if abs(test_ic_mean) < abs(candidate.ic_mean) * 0.3:
                         candidate.status = "REJECTED"
                         candidate.rejection_reason = (
                             f"Overfitting: train IC={candidate.ic_mean:.4f}, "
@@ -819,12 +847,17 @@ delta(ts_rank(close, 20), 1) * ts_rank(volume, 20) | volume_price | Volume-ranke
                                 candidate.expression[:50],
                             )
                             continue
-                        # APPROVED or SANDBOX_FAILED — log and continue
+                        if review.verdict == SafetyVerdict.SANDBOX_FAILED:
+                            candidate.status = "REJECTED"
+                            candidate.rejection_reason = "ζ SANDBOX EXECUTION FAILED: verification failed"
+                            self.memory.record_rejected(candidate)
+                            logger.warning("Rejected (ζ sandbox failed): %s", candidate.name)
+                            continue
                         if review.verdict != SafetyVerdict.APPROVED:
-                            logger.info(
-                                "ζ verdict=%s for %s (proceeding)",
-                                review.verdict.value, candidate.name,
-                            )
+                            candidate.status = "REJECTED"
+                            candidate.rejection_reason = f"ζ review not approved (verdict={review.verdict.value})"
+                            self.memory.record_rejected(candidate)
+                            continue
                     except Exception as e:
                         logger.warning("ζ review failed (proceeding): %s", e)
 
