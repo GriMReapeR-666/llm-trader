@@ -46,6 +46,17 @@ class TestSafeAlphaEvaluator:
         result = evaluator.evaluate("delta(close, 5) * scale(volume, 1.0)", df)
         assert result is not None
 
+    def test_volume_tick_volume_fallback(self):
+        from core.alpha_discovery import SafeAlphaEvaluator
+        evaluator = SafeAlphaEvaluator()
+        df = _make_ohlcv(100)
+        df_fx = df.rename(columns={"volume": "tick_volume"})
+        assert "volume" not in df_fx.columns
+        result = evaluator.evaluate("delta(close, 1) * scale(volume, 1.0)", df_fx)
+        assert result is not None
+        assert isinstance(result, pd.Series)
+        assert len(result) == 100
+
     def test_blocks_import(self):
         from core.alpha_discovery import SafeAlphaEvaluator
         evaluator = SafeAlphaEvaluator()

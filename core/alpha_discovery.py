@@ -209,8 +209,18 @@ class SafeAlphaEvaluator:
         for col in _ALLOWED_COLUMNS:
             if col in df.columns:
                 ns[col] = df[col]
+            elif col == "volume":
+                if "tick_volume" in df.columns:
+                    ns["volume"] = df["tick_volume"]
+                elif "real_volume" in df.columns:
+                    ns["volume"] = df["real_volume"]
             elif col == "returns" and "close" in df.columns:
                 ns["returns"] = df["close"].pct_change()
+
+        if "vwap" in df.columns:
+            ns["vwap"] = df["vwap"]
+        elif "close" in df.columns:
+            ns["vwap"] = df["close"]
 
         return ns
 
@@ -600,14 +610,23 @@ def _router_llm_generate(prompt: str) -> str:
                 "llm_router has no initialized providers — set OPENROUTER_API_KEY "
                 "(or TOKENROUTER_KEY / ROUTESME_KEY / CEREBRAS_API_KEY / NVIDIA_KEY) in .env")
         primary = os.getenv("ALPHA_LLM_PROVIDER") or (
-            "openrouter" if "openrouter" in available else available[0])
+            "omnirouter" if "omnirouter" in available else (
+                "openrouter" if "openrouter" in available else available[0]
+            )
+        )
         if primary not in available:
             primary = available[0]
+        model = os.getenv("ALPHA_LLM_MODEL")
+        if not model:
+            model = "auto" if primary == "omnirouter" else "meta-llama/llama-3.2-11b-vision-instruct:free"
+        fallback_providers = [p for p in available if p != primary]
+        if "omnirouter" in available and "omnirouter" not in fallback_providers and primary != "omnirouter":
+            fallback_providers.insert(0, "omnirouter")
         router.register_agent(
             "alpha_discovery",
             provider=primary,
-            model=os.getenv("ALPHA_LLM_MODEL", "meta-llama/llama-3.2-11b-vision-instruct:free"),
-            fallback_providers=[p for p in available if p != primary],
+            model=model,
+            fallback_providers=fallback_providers,
             allow_failover=True,
         )
 

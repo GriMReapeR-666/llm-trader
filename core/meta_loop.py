@@ -308,9 +308,20 @@ class MetaCorpus:
                 (limit,),
             ).fetchall()
         entries = []
+        valid_fields = set(CorpusEntry.__dataclass_fields__.keys()) if hasattr(CorpusEntry, "__dataclass_fields__") else set()
         for row in rows:
-            d = json.loads(row["entry_json"])
-            entries.append(CorpusEntry(**d))
+            try:
+                d = json.loads(row["entry_json"])
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if not isinstance(d, dict):
+                continue
+            if valid_fields:
+                d = {k: v for k, v in d.items() if k in valid_fields}
+            try:
+                entries.append(CorpusEntry(**d))
+            except (TypeError, ValueError):
+                continue
         return entries
 
     def get_entry_count(self) -> int:

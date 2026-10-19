@@ -650,9 +650,19 @@ class LLMRouter:
                 # Self-hosted gateway for simple/small-subagent work only.
                 # Opt-in per agent; never a silent fallback for the reasoning chain.
                 "omnirouter": {
-                    "api_keys": self._get_env_keys("OMNIROUTER_KEY"),
+                    "api_keys": self._get_env_keys("OMNIROUTER_KEY") or (
+                        ["sk-omnirouter-local"] if (
+                            os.getenv("OMNIROUTER_ENABLED", "").lower() in {"1", "true", "yes"}
+                            or os.getenv("OMNIROUTER_AUTONOMOUS", "").lower() in {"1", "true", "yes"}
+                        ) else []
+                    ),
                     "rpm": int(os.getenv("OMNIROUTER_RPM", "60")),
-                    "enabled": bool(os.getenv("OMNIROUTER_KEY") or os.getenv("OMNIROUTER_API_KEY")),
+                    "enabled": bool(
+                        os.getenv("OMNIROUTER_KEY")
+                        or os.getenv("OMNIROUTER_API_KEY")
+                        or (os.getenv("OMNIROUTER_ENABLED", "").lower() in {"1", "true", "yes"}
+                            or os.getenv("OMNIROUTER_AUTONOMOUS", "").lower() in {"1", "true", "yes"})
+                    ),
                 },
             },
             "agents": {

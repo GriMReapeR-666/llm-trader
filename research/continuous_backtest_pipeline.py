@@ -243,6 +243,20 @@ class ContinuousBacktestPipeline:
                 backtest_res.get("total_trades", 0),
                 backtest_res.get("data_source", "unknown"),
             )
+            # Feed the meta-loop corpus (Loop 4) so pattern mining has data.
+            try:
+                from core.meta_loop import get_meta_loop
+                _ml = get_meta_loop()
+                _ml.log_outcome(
+                    hypothesis_id=str(strategy_name),
+                    hypothesis_source="continuous_backtest_pipeline",
+                    backtest_sharpe=float(backtest_res.get("sharpe", 0.0) or 0.0),
+                    backtest_max_dd=float(backtest_res.get("max_drawdown", 0.0) or 0.0),
+                    backtest_win_rate=float(backtest_res.get("win_rate", 0.0) or 0.0),
+                    backtest_n_trades=int(backtest_res.get("total_trades", 0) or 0),
+                )
+            except Exception as _ml_exc:
+                log.debug("Meta-loop log_outcome skipped: %s", _ml_exc)
         except Exception as exc:
             log.exception("Stage 1 failed: %s", exc)
             results["stages"]["backtest"] = {
