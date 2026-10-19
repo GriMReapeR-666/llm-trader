@@ -829,44 +829,39 @@ class ContinuousBacktestPipeline:
         symbol: str,
         backtest_results: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Compare live/demo performance against backtest expectations."""
+        """Compare live/demo performance against backtest expectations.
+
+        Admission is delegated to ``labelled_dataset``: the same independent
+        broker evidence *and* synthetic/fixture exclusion that gates
+        walk-forward and CPCV.  A direct SQL read here previously admitted the
+        50 backtest-fixture rows (payload.source="backtest") as live trades
+        and reported a divergence verdict from them.
+        """
         try:
-            import sqlite3
             db_path = os.path.join(self.base_dir, "trading_state.db")
             if not os.path.exists(db_path):
                 return {"status": "skipped", "reason": "no_trading_db"}
 
-            con = sqlite3.connect(db_path, timeout=2)
-            con.row_factory = sqlite3.Row
+            try:
+                from research.research_validation import labelled_dataset
+            except ImportError:
+                from research_validation import labelled_dataset
+            dataset = labelled_dataset(db_path)
+            rows = [
+                r for r in dataset.get("rows", [])
+                if str(r.get("symbol") or "").upper() == str(symbol or "").upper()
+            ][-50:]
 
-            # Only broker-reconciled closes count as live performance; a
-            # fixture row asserting source="broker" must not offset a
-            # backtest-divergence verdict.
-            tickets = _broker_confirmed_tickets(db_path)
-            if not tickets:
-                con.close()
-                return {"status": "skipped", "reason": "no_broker_reconciled_trades", "count": 0}
+            if len(rows) < 10:
+                return {
+                    "status": "skipped",
+                    "reason": "insufficient_live_trades",
+                    "count": len(rows),
+                    "excluded": dataset.get("excluded", {}),
+                }
 
-            # Get recent trades for this symbol
-            marks = ",".join("?" for _ in tickets)
-            trades = con.execute(
-                "SELECT gross_pnl, risk_amount, side, opened_at, closed_at "
-                "FROM trades WHERE symbol=? AND closed_at IS NOT NULL "
-                f"AND ticket IN ({marks}) "
-                "ORDER BY closed_at DESC LIMIT 50",
-                (symbol, *tickets)
-            ).fetchall()
-            con.close()
-
-            if len(trades) < 10:
-                return {"status": "skipped", "reason": "insufficient_live_trades", "count": len(trades)}
-
-            # Compute live metrics
-            live_pnl = sum(t["gross_pnl"] or 0 for t in trades)
-            live_r_multiples = [
-                (t["gross_pnl"] or 0) / max(t["risk_amount"] or 1, 0.01)
-                for t in trades
-            ]
+            # Compute live metrics from admitted, broker-reconciled R-multiples.
+            live_r_multiples = [float(r["r_multiple"]) for r in rows]
             live_win_rate = sum(1 for r in live_r_multiples if r > 0) / len(live_r_multiples)
             live_avg_r = sum(live_r_multiples) / len(live_r_multiples)
 
@@ -883,7 +878,7 @@ class ContinuousBacktestPipeline:
 
             return {
                 "status": "completed",
-                "live_trades": len(trades),
+                "live_trades": len(rows),
                 "live_win_rate": round(live_win_rate, 4),
                 "live_avg_r": round(live_avg_r, 4),
                 "backtest_win_rate": bt_win_rate,
