@@ -184,6 +184,24 @@ def _server_utc_offset_seconds(mt5_inst: Any, probe_symbols: Tuple[str, ...] = (
         return 0
 
 
+#: Bounded retry ladder for the lazy MT5 attach.  A cold terminal — or one
+#: still booting when the continuous backtest pipeline starts — commonly
+#: refuses the FIRST bare ``initialize()`` and accepts it a second later.  Both
+#: attach call sites used to be single-shot, so one transient miss turned a
+#: reachable terminal into a whole failed validation run (or silently degraded
+#: broker specs to DEFAULT_CONFIG).  Three attempts over ~1.5s converts that
+#: miss; a genuinely absent terminal still fails closed almost immediately.
+#:
+#: ponytail: fixed sleep ladder, no jitter — ceiling: attach contention across
+#: parallel validation processes; upgrade path: jittered backoff or a
+#: file-lock around the attach.
+_ATTACH_MAX_ATTEMPTS = 3
+_ATTACH_BACKOFF_S = (0.5, 1.0)
+#: Module-level alias so tests can patch the sleep without patching time.sleep
+#: globally.
+_ATTACH_SLEEP = time.sleep
+
+
 def _ensure_mt5_attached(mt5_inst: Any) -> bool:
     """Lazily attach this process to the MT5 terminal for data-only consumers.
 
@@ -199,8 +217,13 @@ def _ensure_mt5_attached(mt5_inst: Any) -> bool:
     The bare attach is the same data-plane session mt5_trader.py already
     sanctions for paper market data: it returns real broker OHLC, never
     synthetic or external fallback, so the fail-closed doctrine is intact.
-    Objects without an ``initialize`` attribute (test fakes, exotic shims)
-    keep the prior behavior exactly.
+    The attach is retried up to ``_ATTACH_MAX_ATTEMPTS`` times with the
+    ``_ATTACH_BACKOFF_S`` ladder because a booting terminal refuses the first
+    ``initialize()``; only the transient False/None outcomes are retried — a
+    raising ``terminal_info()``/``initialize()`` still fails fast (a broken
+    shim is not a booting terminal).  Objects without an ``initialize``
+    attribute (test fakes, exotic shims) keep the prior behavior exactly:
+    False immediately, no retries, no sleeping.
     """
     try:
         if mt5_inst.terminal_info() is not None:
@@ -210,16 +233,22 @@ def _ensure_mt5_attached(mt5_inst: Any) -> bool:
     init = getattr(mt5_inst, "initialize", None)
     if init is None:
         return False
-    try:
-        attached = bool(init())
-    except Exception:
-        return False
-    if not attached:
-        return False
-    try:
-        return mt5_inst.terminal_info() is not None
-    except Exception:
-        return False
+    for attempt in range(_ATTACH_MAX_ATTEMPTS):
+        if attempt:
+            _ATTACH_SLEEP(_ATTACH_BACKOFF_S[min(attempt - 1,
+                                                len(_ATTACH_BACKOFF_S) - 1)])
+        try:
+            attached = bool(init())
+        except Exception:
+            return False
+        if not attached:
+            continue
+        try:
+            if mt5_inst.terminal_info() is not None:
+                return True
+        except Exception:
+            return False
+    return False
 
 
 def fetch_ohlc(symbol: str, timeframe: str, count: int = 100) -> pd.DataFrame:

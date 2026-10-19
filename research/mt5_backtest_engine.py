@@ -243,8 +243,10 @@ class MT5BrokerBacktestEngine:
 
         try:
             mt5_inst = None
+            attach_fn = None
             try:
-                from data.market_data_provider import _get_mt5
+                from data.market_data_provider import (
+                    _get_mt5, _ensure_mt5_attached as attach_fn)
                 mt5_inst = _get_mt5()
             except Exception:
                 try:
@@ -261,8 +263,19 @@ class MT5BrokerBacktestEngine:
 
                 if term_info is None and hasattr(mt5_inst, "initialize"):
                     try:
-                        mt5_inst.initialize()
-                        term_info = mt5_inst.terminal_info()
+                        # Reuse the provider's bounded-retry attach: a cold or
+                        # booting terminal commonly refuses the FIRST bare
+                        # initialize(), and this call site's single-shot
+                        # attempt turned that transient miss into
+                        # DEFAULT_CONFIG friction for the whole run.  Falls
+                        # back to the old one-shot when the provider module is
+                        # unavailable (flat-layout invocations).
+                        if attach_fn is not None:
+                            attached = attach_fn(mt5_inst)
+                        else:
+                            attached = bool(mt5_inst.initialize())
+                        if attached:
+                            term_info = mt5_inst.terminal_info()
                     except Exception:
                         pass
 
