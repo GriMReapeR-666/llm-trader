@@ -843,12 +843,64 @@ class LLMRouter:
         "omnirouter": ["auto"],
     }
 
+    # Catalogue entries that are free but not general-purpose chat models.
+    # They should never be chosen to drive a trading decision.
+    _NON_CHAT_MARKERS = (
+        "embed", "parse", "guard", "safety", "reward", "detector", "nvclip",
+        "deplot", "riva-", "cosmos", "video", "diffusion", "calibration",
+        "starcoder", "codellama", "codegemma", "coder", "code-",
+    )
+
+    @staticmethod
+    def _model_size_b(model_id: str) -> float:
+        """Approximate parameter count in billions parsed from the id.
+
+        Deterministic quality proxy for catalogue entries that are not in the
+        curated ranking. Unknown sizes score 0.
+        """
+        import re as _re
+
+        matches = _re.findall(r"(\d+(?:\.\d+)?)\s*[bB](?![a-zA-Z])", str(model_id or ""))
+        best = 0.0
+        for raw in matches:
+            try:
+                best = max(best, float(raw))
+            except (TypeError, ValueError):
+                continue
+        return best
+
+    def _best_cached_free_model(self, provider: str, cached: List[Dict[str, Any]]) -> Optional[str]:
+        """Pick a sensible general-purpose free model from a live catalogue.
+
+        Used only when no curated ranking entry is available. Prefers
+        general-purpose chat models and, among them, the largest parameter
+        count advertised in the id (tie-break: id) so selection is
+        deterministic instead of depending on catalogue order.
+        """
+        candidates = []
+        for m in cached or []:
+            mid = str(m.get("id") or "")
+            if not mid or not self._is_free_model(mid):
+                continue
+            lower = mid.lower()
+            if any(marker in lower for marker in self._NON_CHAT_MARKERS):
+                continue
+            # A ':free' suffix is an explicit price declaration; other ids
+            # are accepted only for providers whose whole catalogue is free.
+            free_suffix = 1 if lower.endswith(":free") else 0
+            candidates.append((self._model_size_b(mid), free_suffix, mid))
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+        return candidates[0][2]
+
     def select_best_free_model(self, provider: str) -> Optional[str]:
         """Return the best available free model id for *provider*.
 
-        Prefers a live catalogue entry when one is cached; otherwise falls
-        back to the static ranking.  Returns None when the provider has no
-        known free model.
+        Preference order: curated quality ranking that is present in the live
+        catalogue -> largest general-purpose free catalogue entry ->
+        curated ranking default (provider may not be reachable). Returns None
+        when the provider has no known free model.
         """
         ranking = self.FREE_MODEL_RANKING.get(provider, [])
         cached = getattr(self, "_catalogue_cache", {}).get(provider)
@@ -857,11 +909,9 @@ class LLMRouter:
             for mid in ranking:
                 if mid in available_ids:
                     return mid
-            # No ranked model in catalogue: pick first cached entry
-            for m in (cached or []):
-                mid = m.get("id")
-                if mid:
-                    return mid
+            best_cached = self._best_cached_free_model(provider, cached)
+            if best_cached:
+                return best_cached
         if ranking:
             return ranking[0]
         return None

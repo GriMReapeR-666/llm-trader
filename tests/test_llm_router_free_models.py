@@ -97,3 +97,32 @@ def test_failover_respects_per_provider_env_override(monkeypatch):
     router.FREE_MODEL_RANKING = LLMRouter.FREE_MODEL_RANKING
     assert router.generate("trader", [{"role": "user", "content": "x"}]) == "fallback result"
     assert router.providers["cerebras"].last_model == "qwen-3.8-27b"
+
+def test_cached_catalogue_picks_largest_general_model_not_first():
+    r = LLMRouter.__new__(LLMRouter)
+    r._catalogue_cache = {"cerebras": [
+        {"id": "nvidia/nemotron-3-embed-1b"},
+        {"id": "acme/tiny-7b:free"},
+        {"id": "acme/chat-70b:free"},
+        {"id": "acme/chat-32b:free"},
+    ]}
+    # No curated entry present -> largest general-purpose free model wins,
+    # deterministically, regardless of catalogue order.
+    assert LLMRouter.select_best_free_model(r, "cerebras") == "acme/chat-70b:free"
+
+
+def test_cached_catalogue_skips_embeddings_and_guards():
+    r = LLMRouter.__new__(LLMRouter)
+    r._catalogue_cache = {"nvidia_nim": [
+        {"id": "nvidia/nemotron-embed-1b"},
+        {"id": "nvidia/llama-guard-4-12b"},
+        {"id": "acme/chat-8b:free"},
+    ]}
+    assert LLMRouter.select_best_free_model(r, "nvidia_nim") == "acme/chat-8b:free"
+
+
+def test_model_size_parser():
+    assert LLMRouter._model_size_b("nvidia/nemotron-3-ultra-550b-a55b") == 550.0
+    assert LLMRouter._model_size_b("qwen-3.8-27b") == 27.0
+    assert LLMRouter._model_size_b("no-size-here") == 0.0
+
