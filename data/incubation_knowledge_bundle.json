@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-18T23:31:25.009127+00:00",
+  "generated_at": "2026-10-19T00:31:13.143568+00:00",
   "total_approved_causal_edges": 22,
   "causal_edges": [
     {
@@ -211,6 +211,12 @@
   ],
   "top_verified_heuristics": [
     {
+      "id": 102,
+      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
+      "lesson": "Cycle #31: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "confidence": 0.98
+    },
+    {
       "id": 101,
       "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
       "lesson": "Cycle #30: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
@@ -262,12 +268,6 @@
       "id": 93,
       "summary": "Deterministic Replay Mastery: INTERBANK_LIQUIDITY_BANKING_STRESS",
       "lesson": "In INTERBANK_LIQUIDITY_BANKING_STRESS, synchronized FED_DISCOUNT_WINDOW_SURGE surprise (+3.40 sigma) propagated into USDJPY SELL bias. RL executed FULL_EXIT under XM Ultra Low costs, returning $+11.90.",
-      "confidence": 0.98
-    },
-    {
-      "id": 92,
-      "summary": "Deterministic Replay Mastery: GEOPOLITICAL_ENERGY_SUPPLY_SHOCK",
-      "lesson": "In GEOPOLITICAL_ENERGY_SUPPLY_SHOCK, synchronized CRUDE_OIL_SUPPLY_OUTAGE surprise (+3.10 sigma) propagated into XAUUSD BUY bias. RL executed PARTIAL_CLOSE under XM Ultra Low costs, returning $+10.30.",
       "confidence": 0.98
     }
   ],

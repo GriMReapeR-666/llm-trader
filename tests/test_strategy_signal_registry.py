@@ -138,11 +138,12 @@ def test_labeled_run_travels_as_own_hypothesis_not_generic_ruleset():
     """End-to-end half of PU-0156 §8.1: a registered label is not silently
     re-scored under the generic deterministic_signal ruleset.
 
-    The per-label causal signal builders and their distinctness are covered by
-    the other tests in this file. This test asserts the integration contract using
-    the shape each validation stage actually returns in this environment: the
-    stage-1 backtest payload, the journal-stage sampling floor, and the divergence
-    monitor fan-in file.
+    Asserts only on OBSERVABLE, STABLE payload fields — the flat stage-1
+    backtest the engine normalization writes, the verdict envelope the
+    mt5_trader background loop consumes, and the divergence monitor fan-in
+    file. Journal-backed stage shapes (walkforward/CPCV sample floors) are
+    environment-dependent and are checked only for the one invariant that
+    must hold everywhere: a journal-aware stage never fabricates a pass.
     """
     import json
     import shutil
@@ -169,40 +170,77 @@ def test_labeled_run_travels_as_own_hypothesis_not_generic_ruleset():
                 bars=len(bars), run_walkforward=False, run_dsr=False,
                 compare_live=False)
 
-        # 1. Divergence monitor fan-in writes the stage backtest to disk for both
-        #    runs. The labeled fan-in must carry the registry label's strategy name and
-        #    must differ from the generic default on the same bars.
+        # -------------------------------------------------------------
+        # 1. STABLE CONTRACT — stage-1 backtest payload.
+        # The engine normalization writes a flat dict whose fields are
+        # guaranteed by construction (symbol→label routing, status, numeric
+        # headline metrics) on every path that reaches this stage, so the
+        # assertions below never depend on environment state.
+        # -------------------------------------------------------------
+        for name, run in (("default", res_default), ("meanrev_bollinger", res_labeled)):
+            bt = run["stages"]["backtest"]
+            assert bt.get("strategy_name") == name, bt.get("strategy_name")
+            assert bt.get("status") in {"OK", "COMPLETED"}, bt
+            assert isinstance(bt.get("sharpe"), (int, float)), bt
+            assert isinstance(bt.get("total_trades"), int) and bt["total_trades"] >= 0, bt
+            assert isinstance(bt.get("n_obs"), int) and bt["n_obs"] >= 0, bt
+            # The aggregate verdict envelope the background loop consumes:
+            # shape is stable, its PASS/FAIL value is properly left to the
+            # gates and not asserted here.
+            verdict = run.get("verdict") or {}
+            assert verdict.get("status") in {"PASSED", "FAILED"}, verdict
+            assert isinstance(verdict.get("passed"), bool), verdict
+            assert isinstance(verdict.get("blockers"), list), verdict
+
+        # The labeled run is attributed to its own strategy hypothesis, not
+        # the generic deterministic_signal ruleset.
+        assert res_labeled["stages"]["backtest"].get("strategy_name") == "meanrev_bollinger"
+        assert res_default["stages"]["backtest"].get("strategy_name") == "default"
+        # Per-label routing (PU-0156 §8.1): the labeled run goes through its
+        # own registry signal in the engine's external-signal mode, so its
+        # headline metrics must describe that hypothesis and differ from the
+        # generic default run on the same fixture bars — the old bug scored
+        # every label under the identical EMA-crossover ruleset.
+        def _headline(bt):
+            return (bt.get("sharpe"), bt.get("win_rate"), bt.get("total_trades"))
+        _labeled_head = _headline(res_labeled["stages"]["backtest"])
+        _default_head = _headline(res_default["stages"]["backtest"])
+        assert _labeled_head != _default_head, (_labeled_head, _default_head)
+
+        # -------------------------------------------------------------
+        # 2. STABLE CONTRACT — the fan-in file on disk.
+        # Divergence monitor pipeline_results.json records one entry per run;
+        # the fan-in mirrors the stage payload at this top level, so the
+        # fan-in MUST carry the same flat fields the loops above read.
+        # -------------------------------------------------------------
         fanin = tmp_path / "artifacts" / "backtest_results" / "pipeline_results.json"
         history = json.loads(fanin.read_text())
-        labeled_run = next(r for r in history if r.get("strategy_name") == "meanrev_bollinger")
-        default_run = next(r for r in history if r.get("strategy_name") == "default")
-        labeled_bt = labeled_run["stages"]["backtest"]
-        default_bt = default_run["stages"]["backtest"]
+        labeled_runs = [r for r in history if r.get("strategy_name") == "meanrev_bollinger"]
+        default_runs = [r for r in history if r.get("strategy_name") == "default"]
+        assert len(labeled_runs) == 1 and len(default_runs) == 1, history
+        labeled_bt = labeled_runs[0]["stages"]["backtest"]
+        default_bt = default_runs[0]["stages"]["backtest"]
         # The fan-in writes the engine's flat normalized stage payload
         # (status, sharpe, win_rate, ..., strategy_name) at this level; no
         # unwrapping is needed, and descending into a nested ``_raw``
         # envelope would discard exactly the fields asserted below.
-
-        # The labeled run is attributed to its own strategy hypothesis, not the generic
-        # deterministic_signal ruleset.
-        assert labeled_bt.get("strategy_name") == "meanrev_bollinger", labeled_bt.get("strategy_name")
-        # Per-label routing (PU-0156 §8.1): the labeled run goes through its own
-        # registry signal in the engine's external-signal mode, so its headline
-        # metrics must describe that hypothesis and differ from the generic
-        # default run on the same fixture bars — the old bug scored every label
-        # under the identical EMA-crossover ruleset.
-        assert default_bt.get("strategy_name") == "default", default_bt.get("strategy_name")
         assert labeled_bt.get("strategy_name") == "meanrev_bollinger"
-        assert labeled_bt is not default_bt
-        _labeled_head = (labeled_bt.get("sharpe"), labeled_bt.get("win_rate"), labeled_bt.get("total_trades"))
-        _default_head = (default_bt.get("sharpe"), default_bt.get("win_rate"), default_bt.get("total_trades"))
-        assert _labeled_head != _default_head, (_labeled_head, _default_head)
+        assert default_bt.get("strategy_name") == "default"
+        assert _headline(labeled_bt) == _labeled_head, (labeled_bt, _labeled_head)
+        assert _headline(default_bt) == _default_head, (default_bt, _default_head)
 
-        # 2. Samplefloor regression: the journal stage must not silently invent evidence.
-        #    With no real broker-reconciled journal in this sandbox, the labeled run's
-        #    journal-aware stage — if present — must still be either OK (with a real floor)
-        #    or explicitly insufficient/failed/alternatively-completed, never a fabricated
-        #    pass. In some engine paths this stage is not emitted at all.
+        # -------------------------------------------------------------
+        # 3. ENVIRONMENT-TOLERANT CONTRACT — journal-backed sample floors.
+        # The walkforward/CPCV stage shapes (status vocabulary, floor_20
+        # counts, broker-reconciled R-multiple richness) depend on this
+        # sandbox's journal state and may not even be emitted (walkforward
+        # and DSR are disabled for this run; CPCV can be ERROR when its
+        # journal fallback target is absent). What is asserted here is only
+        # the invariant that must hold in EVERY environment: a journal-aware
+        # stage never fabricates a "pass" — either it ran (OK, with a real
+        # floor on real broker-reconciled evidence) or it reports a concrete
+        # insufficiency / failure / alternative-completion.
+        # -------------------------------------------------------------
         wf = res_labeled["stages"].get("walkforward") or res_labeled["stages"].get("cpcv")
         if wf is not None:
             wf_status = wf.get("status")
@@ -211,11 +249,11 @@ def test_labeled_run_travels_as_own_hypothesis_not_generic_ruleset():
                 assert wf.get("floor_20", {}).get("met") in {True, False}
                 assert isinstance(wf.get("r_multiples"), int)
 
-        # 3. The labeled backtest must carry a non-empty r_multiple stream so the CPCV/
-        #    walk-forward readers downstream have something honest to score (even if it is
-        #    the deterministic_signal stream until the engine routes the labeled signal
-        #    through its external-signal path).
-        lm = labeled_bt.get("r_multiples") or labeled_bt.get("metrics", {}).get("r_multiples") or []
-        assert isinstance(lm, list) and len(lm) >= 0, lm
+        # 4. STABLE CONTRACT — the labeled backtest's R-multiple stream:
+        # present-or-None by normalization (the CPCV/walk-forward readers
+        # pick the journal stream when the backtest doesn't carry one); a
+        # list, never a silently re-routed non-list scalar.
+        lm = res_labeled["stages"]["backtest"].get("r_multiples")
+        assert lm is None or isinstance(lm, list), lm
     finally:
         shutil.rmtree(str(tmp_path), ignore_errors=True)

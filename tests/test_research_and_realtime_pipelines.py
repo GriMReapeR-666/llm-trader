@@ -204,7 +204,7 @@ def test_continuous_backtest_pipeline_verdict_logic(tmp_path):
     }
     v_pass = pipeline._compute_verdict(passing_stages)
     assert v_pass["passed"] is True
-    assert v_pass["status"] == "PASS"
+    assert v_pass["status"] == "PASSED"
     assert len(v_pass["blockers"]) == 0
 
     # Failing stages (low Sharpe, low profit factor, failed DSR, live divergence)
@@ -222,7 +222,7 @@ def test_continuous_backtest_pipeline_verdict_logic(tmp_path):
     }
     v_fail = pipeline._compute_verdict(failing_stages)
     assert v_fail["passed"] is False
-    assert v_fail["status"] == "FAIL"
+    assert v_fail["status"] == "FAILED"
     assert "sharpe_below_1" in v_fail["blockers"]
     assert "profit_factor_below_1.2" in v_fail["blockers"]
     assert "negative_expectancy" in v_fail["blockers"]
