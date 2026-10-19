@@ -314,6 +314,39 @@ class TestRMultiplierExtraction:
         assert res["total_trades"] == 3
 
 
+class TestLiveValidationGateStage:
+    def test_stage_runs_and_returns_passed_flag(self, tmp_path, monkeypatch):
+        import sys
+        import pandas as pd
+        import research.mt5_backtest_engine as mbe
+        from research.continuous_backtest_pipeline import ContinuousBacktestPipeline
+
+        class FakeEngine:
+            def run_full_autonomous_backtest(self, **kwargs):
+                return {
+                    "status": "COMPLETED",
+                    "metrics": {
+                        "sharpe_ratio": 1.5, "win_rate": 55.0, "profit_factor": 2.0,
+                        "expectancy_r": 0.5, "max_drawdown_pct": 8.0, "total_trades": 5,
+                        "trades": [{"r_multiple": 0.5}, {"r_multiple": 0.3}],
+                    },
+                    "strategy_improvement": {"dsr_gate": {"n_trials": 100, "dsr": 1.5, "passed": True}},
+                }
+
+        monkeypatch.setattr(mbe, "MT5BrokerBacktestEngine", FakeEngine)
+        monkeypatch.setitem(sys.modules, "mt5_backtest_engine", mbe)
+
+        pipe = ContinuousBacktestPipeline(base_dir=str(tmp_path))
+        frame = pd.DataFrame({"open": [1.0]*10, "close": [1.0]*10, "high": [1.01]*10, "low": [0.99]*10})
+        res = pipe.run_full_validation("EURUSD", "default", timeframe="H1", bars=10,
+                                       run_walkforward=False, run_dsr=False, compare_live=False)
+        assert "live_validation" in res["stages"]
+        lv = res["stages"]["live_validation"]
+        assert isinstance(lv, dict)
+        assert "passed" in lv
+        assert "gates" in lv
+
+
 class TestDsrGate:
     def test_prefers_engine_dsr_result(self):
         from research.continuous_backtest_pipeline import ContinuousBacktestPipeline

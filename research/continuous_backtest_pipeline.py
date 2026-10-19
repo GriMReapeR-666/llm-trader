@@ -327,6 +327,24 @@ class ContinuousBacktestPipeline:
                     "error": str(exc),
                 }
 
+        # Stage 5: Live Validation Gate (composite: WFE + overfit + drawdown + win rate)
+        log.info("Stage 5: Live Validation Gate")
+        try:
+            _bt = results.get("stages", {}).get("backtest", {})
+            _wf = results.get("stages", {}).get("walkforward", {})
+            _returns = _bt.get("r_multiples") or []
+            _metrics = {
+                "max_drawdown_pct": _bt.get("max_drawdown", 0.0),
+                "win_rate": _bt.get("win_rate", 0.0),
+            }
+            lv_stage = self._run_live_validation_gate(
+                strategy_id=strategy_name, returns=_returns, metrics=_metrics,
+            )
+            results["stages"]["live_validation"] = lv_stage
+        except Exception as exc:
+            log.exception("Stage 5 (live validation gate) failed: %s", exc)
+            results["stages"]["live_validation"] = {"status": "FAILED", "error": str(exc)}
+
         elapsed = time.time() - start_time
         results["completed_at"] = datetime.now(timezone.utc).isoformat()
         results["duration_seconds"] = round(elapsed, 3)
@@ -809,6 +827,25 @@ class ContinuousBacktestPipeline:
 
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
+
+    def _run_live_validation_gate(
+        self,
+        strategy_id: str,
+        returns: List[float],
+        metrics: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Composite live-deployment gate (WFE + overfit + drawdown + win rate).
+
+        Wraps core.live_training_infrastructure.LiveValidationGate so the
+        pipeline has a single pass/fail verdict on whether a strategy is
+        safe to deploy live.  Fail-closed: missing returns -> NOT_VALIDATED.
+        """
+        try:
+            from core.live_training_infrastructure import LiveValidationGate
+        except Exception as exc:
+            return {"status": "SKIPPED", "reason": "LiveValidationGate unavailable: %s" % exc}
+        gate = LiveValidationGate(store=None)
+        return gate.validate(strategy_id=strategy_id, returns=returns or [], metrics=metrics or {})
 
     def _compare_live(
         self,
