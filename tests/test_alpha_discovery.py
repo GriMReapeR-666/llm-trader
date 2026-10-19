@@ -477,3 +477,76 @@ class TestRouterGenerationPath:
         assert text.startswith("delta(close, 2)")
         assert "alpha_discovery" in router.agents, "agent was not auto-registered"
         assert router.agents["alpha_discovery"]["provider"] == "fakeprov"
+
+
+# ===========================================================================
+# 5. IC significance & trial deflation
+# ===========================================================================
+
+class TestICSignificance:
+    """Mean-IC t-test with Bonferroni deflation over campaign trials."""
+
+    def test_zero_dispersion_is_unmeasurable(self):
+        from core.alpha_discovery import ic_significance
+
+        t, p, threshold = ic_significance([0.2] * 25, n_trials=1)
+        assert t == 0.0
+        assert p == 1.0
+        assert threshold == pytest.approx(0.05)
+
+    def test_deflation_rejects_a_marginal_t(self):
+        from core.alpha_discovery import ic_significance
+
+        # Non-overlapping blocks with mean 0.05, std ~0.083 -> t ~ 2.4.
+        values = [0.13, -0.03] * 8
+        t1, p1, th1 = ic_significance(values, n_trials=1)
+        assert t1 > 2.0
+        assert p1 <= th1  # significant under a single hypothesis
+        _, p2, th2 = ic_significance(values, n_trials=10_000)
+        assert p2 == p1  # identical evidence ...
+        assert th2 == pytest.approx(0.05 / 10_000)
+        assert p2 > th2  # ... but the campaign deflation rejects it
+
+    def test_too_few_blocks_is_unmeasurable(self):
+        from core.alpha_discovery import ic_significance
+
+        assert ic_significance([0.4, 0.1, 0.2], n_trials=1)[1] == 1.0
+
+    def test_evaluator_applies_deflation(self):
+        import numpy as np
+        import pandas as pd
+        from core.alpha_discovery import AlphaCandidate, SealedSandboxEvaluator
+
+        # Strong, stable momentum: AR(1) increments so delta(close, 1) predicts
+        # the next return with a large, consistent IC.
+        rng = np.random.default_rng(7)
+        n = 1200
+        eps = rng.normal(0, 0.001, n)
+        inc = np.zeros(n)
+        for i in range(1, n):
+            inc[i] = 0.85 * inc[i - 1] + eps[i]
+        close = 1.08 + np.cumsum(inc)
+        df = pd.DataFrame({
+            "open": close,
+            "high": close + 0.001,
+            "low": close - 0.001,
+            "close": close,
+            "volume": np.full(n, 1e5),
+        })
+        train, test = df.iloc[:800], df.iloc[800:]
+
+        candidate = AlphaCandidate(
+            expression="delta(close, 1)", name="deflated", category="momentum"
+        )
+        ok = SealedSandboxEvaluator().evaluate_candidate(candidate, train, test, n_trials=1)
+        assert ok.status == "VALIDATED"
+        assert ok.ic_pvalue < 0.05
+
+        candidate = AlphaCandidate(
+            expression="delta(close, 1)", name="deflated", category="momentum"
+        )
+        killed = SealedSandboxEvaluator().evaluate_candidate(
+            candidate, train, test, n_trials=10 ** 30
+        )
+        assert killed.status == "REJECTED"
+        assert "trial deflation" in killed.rejection_reason

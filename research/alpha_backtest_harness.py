@@ -151,8 +151,10 @@ def load_mt5_bars(symbol: str, timeframe: str, n_bars: int) -> pd.DataFrame:
     unknown to the broker.
 
     Standalone callers (CLI) may not have the terminal IPC session open yet,
-    so this explicitly initializes MetaTrader5 when needed and tears it down
-    afterwards; if a session already exists it is left untouched.
+    so this explicitly initializes MetaTrader5 when needed and leaves the
+    process-global session attached (the engine loop and other research
+    pipelines share one session per process; tearing it down here would
+    kill their live connection). The OS closes the socket on exit.
 
     Returns a frame matching the harness contract:
         columns time/open/high/low/close/volume, sorted ascending by time.
@@ -160,89 +162,82 @@ def load_mt5_bars(symbol: str, timeframe: str, n_bars: int) -> pd.DataFrame:
     import MetaTrader5 as _mt5
     from data.market_data_provider import fetch_ohlc
 
-    initialized_here = False
-    try:
-        if _mt5.terminal_info() is None:
-            from data.market_data_provider import (
-                _ATTACH_MAX_ATTEMPTS,
-                _ATTACH_BACKOFF_S,
-                _ATTACH_SLEEP,
+    if _mt5.terminal_info() is None:
+        from data.market_data_provider import (
+            _ATTACH_MAX_ATTEMPTS,
+            _ATTACH_BACKOFF_S,
+            _ATTACH_SLEEP,
+        )
+
+        init = getattr(_mt5, "initialize", None)
+        if init is None:
+            raise RuntimeError(
+                "MetaTrader5.initialize is unavailable; "
+                "start the MetaTrader 5 terminal and retry"
             )
 
-            init = getattr(_mt5, "initialize", None)
-            if init is None:
-                raise RuntimeError(
-                    "MetaTrader5.initialize is unavailable; "
-                    "start the MetaTrader 5 terminal and retry"
+        attached = False
+        for attempt in range(_ATTACH_MAX_ATTEMPTS):
+            if attempt:
+                _ATTACH_SLEEP(_ATTACH_BACKOFF_S[min(attempt - 1,
+                                                    len(_ATTACH_BACKOFF_S) - 1)])
+            try:
+                attached = bool(init())
+            except Exception as exc:
+                logger.warning(
+                    "MT5 init attempt %d/%d failed with exception; failing closed: %s",
+                    attempt + 1, _ATTACH_MAX_ATTEMPTS, exc,
                 )
-
-            attached = False
-            for attempt in range(_ATTACH_MAX_ATTEMPTS):
-                if attempt:
-                    _ATTACH_SLEEP(_ATTACH_BACKOFF_S[min(attempt - 1,
-                                                        len(_ATTACH_BACKOFF_S) - 1)])
-                try:
-                    attached = bool(init())
-                except Exception as exc:
-                    logger.warning(
-                        "MT5 init attempt %d/%d failed with exception; failing closed: %s",
-                        attempt + 1, _ATTACH_MAX_ATTEMPTS, exc,
-                    )
-                    raise RuntimeError(
-                        "MT5 initialize() failed: %s — "
-                        "start the MetaTrader 5 terminal and retry"
-                        % (exc,)
-                    ) from exc
-                if not attached:
-                    logger.warning(
-                        "MT5 init attempt %d/%d refused by terminal; retrying in %.2fs",
-                        attempt + 1, _ATTACH_MAX_ATTEMPTS,
-                        _ATTACH_BACKOFF_S[min(attempt, len(_ATTACH_BACKOFF_S) - 1)],
-                    )
-                    continue
-                attached = True
-                break
-            else:
                 raise RuntimeError(
-                    "MT5 initialize() failed after %d attempts; "
+                    "MT5 initialize() failed: %s — "
                     "start the MetaTrader 5 terminal and retry"
-                    % _ATTACH_MAX_ATTEMPTS
+                    % (exc,)
+                ) from exc
+            if not attached:
+                logger.warning(
+                    "MT5 init attempt %d/%d refused by terminal; retrying in %.2fs",
+                    attempt + 1, _ATTACH_MAX_ATTEMPTS,
+                    _ATTACH_BACKOFF_S[min(attempt, len(_ATTACH_BACKOFF_S) - 1)],
                 )
-
-            initialized_here = True
-
-        if n_bars <= _MT5_MAX_BARS_PER_CALL:
-            raw = fetch_ohlc(symbol, timeframe, count=n_bars)
+                continue
+            attached = True
+            break
         else:
-            # copy_rates_from_pos rejects very large counts per call — page
-            # backward in 50k-bar chunks (oldest pages last) and stitch.
-            import MetaTrader5 as mt5_direct
-            from data.market_data_provider import tf_const as _tf_const
+            raise RuntimeError(
+                "MT5 initialize() failed after %d attempts; "
+                "start the MetaTrader 5 terminal and retry"
+                % _ATTACH_MAX_ATTEMPTS
+            )
 
-            tf = _tf_const(timeframe)
-            frames = []
-            start = 0
-            while len(frames) * _MT5_MAX_BARS_PER_CALL < n_bars:
-                rates = mt5_direct.copy_rates_from_pos(symbol, tf, start, _MT5_MAX_BARS_PER_CALL)
-                if rates is None or len(rates) == 0:
-                    break  # history exhausted or terminal hiccup — use what we have
-                page = pd.DataFrame(rates)
-                # raw rates carry time as epoch seconds (fetch_ohlc normally
-                # does this conversion for the single-call path)
-                page["time"] = pd.to_datetime(page["time"], unit="s")
-                frames.append(page)
-                if len(rates) < _MT5_MAX_BARS_PER_CALL:
-                    break  # short page = oldest reachable bar reached
-                start += _MT5_MAX_BARS_PER_CALL
-            if not frames:
-                raise RuntimeError(
-                    f"MT5 returned no bars for {symbol}/{timeframe} across paged "
-                    "requests; refusing external or synthetic fallback"
-                )
-            raw = pd.concat(frames).drop_duplicates(subset="time").sort_values("time")
-    finally:
-        if initialized_here:
-            _mt5.shutdown()
+    if n_bars <= _MT5_MAX_BARS_PER_CALL:
+        raw = fetch_ohlc(symbol, timeframe, count=n_bars)
+    else:
+        # copy_rates_from_pos rejects very large counts per call — page
+        # backward in 50k-bar chunks (oldest pages last) and stitch.
+        import MetaTrader5 as mt5_direct
+        from data.market_data_provider import tf_const as _tf_const
+
+        tf = _tf_const(timeframe)
+        frames = []
+        start = 0
+        while len(frames) * _MT5_MAX_BARS_PER_CALL < n_bars:
+            rates = mt5_direct.copy_rates_from_pos(symbol, tf, start, _MT5_MAX_BARS_PER_CALL)
+            if rates is None or len(rates) == 0:
+                break  # history exhausted or terminal hiccup — use what we have
+            page = pd.DataFrame(rates)
+            # raw rates carry time as epoch seconds (fetch_ohlc normally
+            # does this conversion for the single-call path)
+            page["time"] = pd.to_datetime(page["time"], unit="s")
+            frames.append(page)
+            if len(rates) < _MT5_MAX_BARS_PER_CALL:
+                break  # short page = oldest reachable bar reached
+            start += _MT5_MAX_BARS_PER_CALL
+        if not frames:
+            raise RuntimeError(
+                f"MT5 returned no bars for {symbol}/{timeframe} across paged "
+                "requests; refusing external or synthetic fallback"
+            )
+        raw = pd.concat(frames).drop_duplicates(subset="time").sort_values("time")
     if raw is None or len(raw) == 0:
         raise RuntimeError(f"MT5 returned no bars for {symbol} {timeframe}")
 

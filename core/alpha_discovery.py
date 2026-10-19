@@ -339,7 +339,7 @@ def ic_significance(
     trials = max(1, int(n_trials))
     threshold = float(alpha) / trials
     n = len(ic_values)
-    if n < 2:
+    if n < 4:
         return 0.0, 1.0, threshold
     mean = float(np.mean(ic_values))
     std = float(np.std(ic_values, ddof=1))

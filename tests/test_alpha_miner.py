@@ -434,6 +434,46 @@ def test_optimal_strategy():
     print("  [PASS] Passed")
 
 
+class TestICSignificanceDeflation:
+    """GA frontier significance is deflated by the true trial count and the
+    rolling IC series is subsampled so only independent windows are tested."""
+
+    def test_overlapping_windows_are_not_counted_as_independent(self):
+        from research.alpha_miner.ga_engine import ic_significance
+
+        # Each independent IC value repeated across its 20-bar window; only
+        # every 20th observation may enter the test.
+        samples = np.array(
+            [0.13, -0.03, 0.08, 0.05, 0.02, 0.11, -0.01, 0.07, 0.03, 0.09] * 2
+        )
+        series = pd.Series(np.repeat(samples, 20))
+        _, p1, th1 = ic_significance(series, n_trials=1)
+        assert p1 <= th1 and p1 < 0.05
+        _, p2, th2 = ic_significance(series, n_trials=10 ** 6)
+        assert p2 == p1
+        assert p2 > th2  # same IC, but a 10^6-hypothesis campaign fails
+
+    def test_zero_dispersion_fails_closed(self):
+        from research.alpha_miner.ga_engine import ic_significance
+
+        t, p, _ = ic_significance(pd.Series([0.2] * 400), n_trials=1)
+        assert t == 0.0
+        assert p == 1.0
+
+    def test_ga_result_reports_trials_and_significance(self):
+        from research.alpha_miner.ga_engine import GAEngine, GAConfig
+
+        df = generate_test_data(300)
+        engine = GAEngine(config=GAConfig(population_size=12, generations=1))
+        result = engine.evolve(df, verbose=False)
+
+        assert result.n_trials == 12 * (1 + 1)
+        assert len(result.ic_pvalues) == len(result.best_expressions)
+        assert result.n_significant == len(result.significant_indices)
+        assert len(result.significant_ics) == result.n_significant
+        assert result.to_dict()["n_trials"] == result.n_trials
+
+
 if __name__ == "__main__":
     success = run_all_tests()
     sys.exit(0 if success else 1)
