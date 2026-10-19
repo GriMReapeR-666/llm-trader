@@ -6605,7 +6605,6 @@ class LLMOrchestrator:
         # alert_dispatch / incident_sweep (operator-critical latency) and
         # position_reconcile / market_health (risk & observability floors).
         "sieve_poll": 900,              # 60s -> 15 min while closed
-        "bar_synchronized_auction": 300,  # 60s -> 5 min; auctions live with bars
     }
 
     def _market_closed_now(self) -> bool:

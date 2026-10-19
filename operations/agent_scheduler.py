@@ -42,6 +42,11 @@ SCHEDULES: List[Dict[str, Any]] = [
     # (recover expired leases -> claim -> emit -> acknowledge).
     {"name": "alert_dispatch", "agent": "IncidentAgent", "interval": 60,
      "payload": {"kind": "alert_dispatch"}},
+    # P6.4: refresh the Prometheus textfile (handled by the metrics_export
+    # executor). The executor existed with no schedule, so the file was only
+    # refreshed opportunistically by the orchestrator.
+    {"name": "metrics_export", "agent": "IncidentAgent", "interval": 300,
+     "payload": {"kind": "metrics_export"}},
     # Journal maintenance: WAL checkpoint + integrity verify hourly; the
     # executor alternates with a daily full volatile-telemetry prune.
     {"name": "journal_maintenance", "agent": "MaintenanceAgent", "interval": 3600,
@@ -67,10 +72,6 @@ SCHEDULES: List[Dict[str, Any]] = [
     # neural_kronos, macro_event_alpha, retail_quant) every 5 minutes.
     {"name": "quant_workflow_sweep", "agent": "TechnicalNet", "interval": 300,
      "payload": {"kind": "workflow_sweep"}},
-    # Bar Synchronized Opportunity Auction (TechnicalNet): evaluates quant plugins
-    # at bar boundaries, routing SCALP to Fast Lane and SWING/LONG_TERM through Graph Engine.
-    {"name": "bar_synchronized_auction", "agent": "TechnicalNet", "interval": 60,
-     "payload": {"kind": "bar_synchronized_auction"}},
 ]
 
 
