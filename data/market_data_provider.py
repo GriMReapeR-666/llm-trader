@@ -239,15 +239,28 @@ def _ensure_mt5_attached(mt5_inst: Any) -> bool:
                                                 len(_ATTACH_BACKOFF_S) - 1)])
         try:
             attached = bool(init())
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "MT5 attach attempt %d/%d failed with exception; failing closed: %s",
+                attempt + 1, _ATTACH_MAX_ATTEMPTS, exc,
+            )
             return False
         if not attached:
+            logger.warning(
+                "MT5 attach attempt %d/%d refused by terminal; retrying in %.2fs",
+                attempt + 1, _ATTACH_MAX_ATTEMPTS,
+                _ATTACH_BACKOFF_S[min(attempt, len(_ATTACH_BACKOFF_S) - 1)],
+            )
             continue
         try:
             if mt5_inst.terminal_info() is not None:
                 return True
         except Exception:
             return False
+    logger.warning(
+        "MT5 attach failed after %d attempts; terminal not reachable in this process",
+        _ATTACH_MAX_ATTEMPTS,
+    )
     return False
 
 
