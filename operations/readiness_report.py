@@ -120,7 +120,7 @@ def _safe_source(name: str, fn: Callable[[], Dict[str, Any]]) -> Dict[str, Any]:
 # reported as PENDING_BACKGROUND — fail-closed (it can never look like a pass),
 # while the daemon thread finishes and warms the audit's cross-process disk
 # cache so subsequent boots resolve instantly.
-_SECURITY_WAIT_SECONDS = 8.0
+_SECURITY_WAIT_SECONDS = 60.0
 
 
 def _sa_module() -> Any:
