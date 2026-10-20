@@ -276,6 +276,31 @@ class TestBootParity:
         assert ENGINE_ENV_DEFAULTS["DELIBERATIVE_GRAPH_SHADOW"] == "1"
         assert ENGINE_ENV_DEFAULTS["TRADE_PLANNER_MODE"] == "enforce"
 
+    def test_spawn_engine_wires_the_operator_boot(self, tmp_path, monkeypatch):
+        import operations.keepalive_watchdog as kw
+
+        recorded = {}
+
+        class FakePopen:
+            def __init__(self, args, **kwargs):
+                recorded["args"] = args
+                recorded["kwargs"] = kwargs
+
+        monkeypatch.setattr(kw.subprocess, "Popen", FakePopen)
+        for key in ("TRADE_PLANNER_MODE", "DELIBERATIVE_GRAPH_SHADOW", "HEADLESS"):
+            monkeypatch.delenv(key, raising=False)
+
+        wd = _watchdog(tmp_path, None, FakeClock())
+        assert wd.spawn_engine() is True
+        assert recorded["args"][0] == sys.executable
+        assert recorded["args"][1].endswith("mt5_trader.py")
+        assert recorded["args"][2:] == list(ENGINE_ARGV)
+        env = recorded["kwargs"]["env"]
+        assert env["TRADE_PLANNER_MODE"] == "enforce"
+        assert env["DELIBERATIVE_GRAPH_SHADOW"] == "1"
+        assert env["HEADLESS"] == "1"
+        assert recorded["kwargs"]["cwd"] == kw._REPO_ROOT
+
 
 def _spawn_dummy(extra_argv):
     """A real process whose command line can impersonate the engine."""
