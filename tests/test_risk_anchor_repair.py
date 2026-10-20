@@ -224,7 +224,9 @@ class TestPaperModeScale:
         monkeypatch.setattr(rm_mod, "mt5", _MT5, raising=False)
         rm, _ = _make_rm(10000.0, tmp_path, _state(
             start_equity=100035.4, weekly_start_equity=10000.0,
-            peak_equity=100039.85, initial_balance=100035.06), is_paper=True)
+            peak_equity=100039.85, initial_balance=100035.06,
+            weekly_recovered_r=1.5, consecutive_wins=2,
+            trade_r_history=[2.0, -1.0]), is_paper=True)
 
         assert rm.initial_balance == pytest.approx(10000.0)
         assert rm.daily_start_equity == pytest.approx(10000.0)
@@ -232,3 +234,21 @@ class TestPaperModeScale:
         assert rm.peak_equity == pytest.approx(10000.0)
         assert rm.weekly_circuit_step_down is False
         assert rm.current_equity() == pytest.approx(10000.0)
+        # Foreign-scale wins must not size the paper book up; losses stay.
+        assert rm.consecutive_wins == 0
+        assert rm.trade_r_history == [-1.0]
+        assert rm.weekly_recovered_r == 0.0
+        assert rm.get_streak_multiplier() == pytest.approx(1.0)
+
+    def test_live_mode_keeps_wins_when_anchors_are_repaired(self, tmp_path, monkeypatch):
+        """The paper-only win scrub must not touch live/demo risk state."""
+        import core.risk_manager as rm_mod
+
+        monkeypatch.setattr(rm_mod, "mt5", None, raising=False)
+        rm, _ = _make_rm(10000.0, tmp_path, _state(
+            weekly_start_equity=100000.0, peak_equity=100000.0,
+            consecutive_wins=2, trade_r_history=[2.0]), is_paper=False)
+
+        assert rm.weekly_start_equity == pytest.approx(10000.0)
+        assert rm.consecutive_wins == 2
+        assert rm.trade_r_history == [2.0]

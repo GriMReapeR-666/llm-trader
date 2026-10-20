@@ -346,6 +346,26 @@ class RiskManager(StoreBackedState):
                 # clobbered by the persisted loads above.
                 _anchors_repaired = self._repair_foreign_scale_anchors(data)
                 if _anchors_repaired:
+                    if self.is_paper:
+                        # The anchors were just proven foreign-scale. Positive
+                        # streak/history from that same state cannot be
+                        # attributed to this paper book, and
+                        # consecutive_wins >= 2 multiplies size (up to 1.8x).
+                        # Drop the wins; keep losses and the engaged step-down
+                        # (conservative), so unverifiable evidence can never
+                        # size the paper account up.
+                        _positive = sum(1 for r in self.trade_r_history if r > 0.0)
+                        if self.consecutive_wins or _positive:
+                            logging.getLogger("RiskManager").warning(
+                                "Paper state was re-anchored from a foreign scale: "
+                                "cleared %d win(s) and %d positive R sample(s) so "
+                                "unverifiable evidence cannot size this book up; "
+                                "losses and any engaged step-down kept.",
+                                self.consecutive_wins, _positive,
+                            )
+                        self.consecutive_wins = 0
+                        self.trade_r_history = [r for r in self.trade_r_history if r <= 0.0]
+                        self.weekly_recovered_r = 0.0
                     # Persist the repair, not just the in-memory value: the
                     # audit metric is `risk_state.json weekly anchor == actual
                     # equity`, and an unrepaired file re-corrupts the breakers
