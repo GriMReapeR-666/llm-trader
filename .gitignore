@@ -141,3 +141,12 @@ docs/SYSTEM_SOURCE_OF_TRUTH_PRD.html
 
 # Extracted knowledge corpus: 2.4MB derived artifact, zero code references
 docs/knowledge/extracted_knowledge_base.md
+
+# ==============================================================================
+# ENGINE RUNTIME STATE (never commit leases, locks, or operator flags)
+# ==============================================================================
+engine.pid
+engine.lock
+engine_watchdog.json
+stop.flag
+

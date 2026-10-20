@@ -26,7 +26,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from operations.keepalive_watchdog import KeepAliveWatchdog  # noqa: E402
+from operations.keepalive_watchdog import (  # noqa: E402
+    ENGINE_ARGV,
+    ENGINE_ENV_DEFAULTS,
+    KeepAliveWatchdog,
+)
 from operations.live_state_probe import write_pid_lease  # noqa: E402
 
 
@@ -54,6 +58,7 @@ class SpawnRecorder:
 
 
 def _watchdog(tmp_path, spawn, clock, **kwargs):
+    kwargs.setdefault("stop_flag_path", str(tmp_path / "stop.flag"))
     return KeepAliveWatchdog(
         pid_path=str(tmp_path / "engine.pid"),
         state_path=str(tmp_path / "engine_watchdog.json"),
@@ -255,3 +260,154 @@ class TestDryRunAndCliSafety:
         (tmp_path / "engine_watchdog.json").write_text("{not json")
         wd = _watchdog(tmp_path, SpawnRecorder(), FakeClock())
         assert wd.check()["action"] == "disarmed"
+
+# ---------------------------------------------------------------------------
+# Boot parity, stale-hang recovery, RAM bar, stop flag
+# ---------------------------------------------------------------------------
+
+class TestBootParity:
+    def test_restart_argv_matches_operator_auto_boot(self):
+        # llm-trade has no --no-tui flag; the old argv died on argparse.
+        assert "--no-tui" not in ENGINE_ARGV
+        assert ENGINE_ARGV[ENGINE_ARGV.index("--symbol") + 1] == "AUTO"
+        assert ENGINE_ARGV[ENGINE_ARGV.index("--timeframe") + 1] == "AUTO"
+        assert "--paper" in ENGINE_ARGV
+        assert "--continuous" in ENGINE_ARGV
+        assert ENGINE_ENV_DEFAULTS["DELIBERATIVE_GRAPH_SHADOW"] == "1"
+        assert ENGINE_ENV_DEFAULTS["TRADE_PLANNER_MODE"] == "enforce"
+
+
+def _spawn_dummy(extra_argv):
+    """A real process whose command line can impersonate the engine."""
+    return subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"] + list(extra_argv))
+
+
+def _write_stale_lease(tmp_path, pid, clock):
+    (tmp_path / "engine.pid").write_text(json.dumps({
+        "pid": pid, "created_at": 0.0, "stamped_at": clock() - 3600.0}))
+
+
+class TestStaleHangRecovery:
+    def test_stale_hung_engine_is_killed_before_restart(self, tmp_path):
+        clock = FakeClock()
+        spawn = SpawnRecorder()
+        holder = _spawn_dummy(["mt5_trader.py", "llm-trade"])
+        try:
+            _write_stale_lease(tmp_path, holder.pid, clock)
+            wd = _watchdog(tmp_path, spawn, clock, kill_stale=True)
+            wd.arm(True)
+            result = wd.check()
+            assert result["action"] == "restarted"
+            assert result["kill"]["killed"] is True
+            assert result["kill"]["pid"] == holder.pid
+            assert spawn.calls == 1
+            holder.wait(timeout=10)
+            assert holder.poll() is not None
+        finally:
+            if holder.poll() is None:
+                holder.kill()
+                holder.wait(timeout=10)
+
+    def test_stale_foreign_pid_is_never_killed(self, tmp_path):
+        """A recycled PID is not ours just because the lease names it."""
+        clock = FakeClock()
+        spawn = SpawnRecorder()
+        holder = _spawn_dummy([])
+        try:
+            _write_stale_lease(tmp_path, holder.pid, clock)
+            wd = _watchdog(tmp_path, spawn, clock, kill_stale=True)
+            wd.arm(True)
+            result = wd.check()
+            assert result["action"] == "kill_failed"
+            assert result["kill"]["reason"] == "identity_mismatch"
+            assert spawn.calls == 0
+            assert holder.poll() is None
+        finally:
+            if holder.poll() is None:
+                holder.kill()
+                holder.wait(timeout=10)
+
+    def test_dry_run_does_not_kill(self, tmp_path):
+        clock = FakeClock()
+        spawn = SpawnRecorder()
+        holder = _spawn_dummy(["mt5_trader.py", "llm-trade"])
+        try:
+            _write_stale_lease(tmp_path, holder.pid, clock)
+            wd = _watchdog(tmp_path, spawn, clock, kill_stale=True)
+            wd.arm(True)
+            result = wd.check(dry_run=True)
+            assert result["action"] == "would_restart"
+            assert result["would_kill"] is True
+            assert spawn.calls == 0
+            assert holder.poll() is None
+        finally:
+            if holder.poll() is None:
+                holder.kill()
+                holder.wait(timeout=10)
+
+
+class TestRamBar:
+    def test_ram_bar_blocks_spawn_but_still_kills_stale(self, tmp_path):
+        clock = FakeClock()
+        spawn = SpawnRecorder()
+        holder = _spawn_dummy(["mt5_trader.py", "llm-trade"])
+        ram = {"gb": 0.7}
+        try:
+            _write_stale_lease(tmp_path, holder.pid, clock)
+            wd = _watchdog(tmp_path, spawn, clock, kill_stale=True,
+                           min_free_ram_gb=1.5, ram_reader=lambda: ram["gb"])
+            wd.arm(True)
+            result = wd.check()
+            assert result["action"] == "ram_blocked"
+            assert result["free_gb"] == 0.7
+            assert result["kill"]["killed"] is True
+            assert spawn.calls == 0
+            assert wd._load()["attempts"] == 0
+            holder.wait(timeout=10)
+
+            ram["gb"] = 1.6
+            result = wd.check()
+            assert result["action"] == "restarted"
+            assert spawn.calls == 1
+            assert wd._load()["attempts"] == 1
+        finally:
+            if holder.poll() is None:
+                holder.kill()
+                holder.wait(timeout=10)
+
+    def test_unreadable_ram_fails_closed(self, tmp_path):
+        def boom():
+            raise RuntimeError("no psutil")
+
+        clock = FakeClock()
+        spawn = SpawnRecorder()
+        wd = _watchdog(tmp_path, spawn, clock, min_free_ram_gb=1.5,
+                       ram_reader=boom)
+        wd.arm(True)
+        assert wd.check()["action"] == "ram_blocked"
+        assert spawn.calls == 0
+
+    def test_dry_run_reports_ram_block_without_spawning(self, tmp_path):
+        clock = FakeClock()
+        spawn = SpawnRecorder()
+        wd = _watchdog(tmp_path, spawn, clock, min_free_ram_gb=1.5,
+                       ram_reader=lambda: 0.5)
+        wd.arm(True)
+        result = wd.check(dry_run=True)
+        assert result["action"] == "would_restart"
+        assert result["ram_ok"] is False
+        assert result["free_gb"] == 0.5
+        assert spawn.calls == 0
+
+
+class TestStopFlag:
+    def test_stop_flag_vetoes_every_spawn(self, tmp_path):
+        clock = FakeClock()
+        spawn = SpawnRecorder()
+        (tmp_path / "stop.flag").write_text("stop")
+        wd = _watchdog(tmp_path, spawn, clock)
+        wd.arm(True)
+        result = wd.check()
+        assert result["action"] == "stop_flag"
+        assert spawn.calls == 0
