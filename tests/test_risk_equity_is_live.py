@@ -72,6 +72,16 @@ class TestPrecedence:
         rm.set_equity_provider(lambda: 12345.0)
         assert rm.current_equity() == pytest.approx(12345.0)
 
+    def test_paper_mode_ignores_mt5_and_uses_provider(self, tmp_path, fake_mt5):
+        """Paper mode must not adopt the attached data terminal's demo equity."""
+        rm = _rm(tmp_path, is_paper=True)
+        rm.set_equity_provider(lambda: 12345.0)
+        assert rm.current_equity() == pytest.approx(12345.0)
+
+    def test_paper_mode_without_provider_uses_balance_not_mt5(self, tmp_path, fake_mt5):
+        rm = _rm(tmp_path, is_paper=True)
+        assert rm.current_equity() == pytest.approx(SEED)
+
     def test_snapshot_is_the_last_resort(self, tmp_path, no_mt5):
         rm = _rm(tmp_path)
         assert rm.current_equity() == pytest.approx(SEED)

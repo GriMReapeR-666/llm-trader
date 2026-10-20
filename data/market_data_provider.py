@@ -1522,13 +1522,14 @@ class MarketDataProvider:
                 acc_info = self.client.get_account_info()
             except Exception as exc:
                 logger.debug("file close failed: %s", exc)
-        # Paper backstop: enabled only for PAPER journal sessions (no
-        # authenticated MT5 login -> account evidence is legitimately
-        # absent). Surface the seeded risk state instead of an empty object
-        # so the decision protocol does not deadlock on missing account
-        # evidence. Live/demo never enable the flag and keep failing closed
-        # with an empty object.
-        if not acc_info and self.paper_account_evidence:
+        # Paper backstop: enabled only for PAPER journal sessions. A paper
+        # session may still hold a data-only MT5 connection, so broker account
+        # info can be present even though the paper broker is the book that
+        # actually trades. Always report the PAPER_SIMULATED state in that
+        # case: mixing demo broker equity with an empty paper position list is
+        # a malformed account and forces every decision to HOLD. Live/demo
+        # never enable the flag and keep failing closed with empty broker data.
+        if self.paper_account_evidence:
             _bal = float(getattr(self.risk, "balance", 0.0) or 0.0)
             # RiskManager has no ``equity`` attribute (only equity_floor_fraction),
             # so the old getattr(self.risk, "equity", _bal) always fell back to

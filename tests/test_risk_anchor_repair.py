@@ -19,14 +19,16 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 
-def _make_rm(balance: float, tmp_path, state_payload: dict | None = None):
+def _make_rm(balance: float, tmp_path, state_payload: dict | None = None,
+             is_paper: bool | None = None):
     """Build a RiskManager whose state file lives in tmp_path."""
     from core.risk_manager import RiskManager
 
     state_file = tmp_path / "risk_state.json"
     if state_payload is not None:
         state_file.write_text(json.dumps(state_payload), encoding="utf-8")
-    return RiskManager(balance=balance, state_file=str(state_file)), state_file
+    return RiskManager(balance=balance, state_file=str(state_file),
+                       is_paper=is_paper), state_file
 
 
 def _now():
@@ -197,3 +199,36 @@ class TestLegitimateStateIsLeftAlone:
         assert rm.weekly_start_equity == 10000.0
         assert rm.daily_start_equity == 10000.0
         assert rm.peak_equity == 10000.0
+
+
+class TestPaperModeScale:
+    def test_demo_scale_anchors_are_repaired_against_the_paper_book(self, tmp_path, monkeypatch):
+        """A data-only demo terminal must not veto paper anchor repair.
+
+        Regression: is_paper was False in the paper profile, so _account_equity()
+        returned the demo equity (~100k) while the paper seed was 10k. The repair
+        guard treated the demo scale as ground truth, left the demo-scale daily
+        and peak anchors in place, and the paper account stayed malformed.
+        """
+        import core.risk_manager as rm_mod
+
+        class _Acc:
+            equity = 100035.06
+            balance = 10000.0
+
+        class _MT5:
+            @staticmethod
+            def account_info():
+                return _Acc()
+
+        monkeypatch.setattr(rm_mod, "mt5", _MT5, raising=False)
+        rm, _ = _make_rm(10000.0, tmp_path, _state(
+            start_equity=100035.4, weekly_start_equity=10000.0,
+            peak_equity=100039.85, initial_balance=100035.06), is_paper=True)
+
+        assert rm.initial_balance == pytest.approx(10000.0)
+        assert rm.daily_start_equity == pytest.approx(10000.0)
+        assert rm.weekly_start_equity == pytest.approx(10000.0)
+        assert rm.peak_equity == pytest.approx(10000.0)
+        assert rm.weekly_circuit_step_down is False
+        assert rm.current_equity() == pytest.approx(10000.0)

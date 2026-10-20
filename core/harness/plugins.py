@@ -21,10 +21,17 @@ class RiskManagementPlugin(HarnessPlugin):
     version = "1.0.0"
     dependencies = []
 
-    def __init__(self, db_path: str = "trading_state.db", balance: float = 10000.0, max_risk_pct: float = 0.01):
+    def __init__(self, db_path: str = "trading_state.db", balance: float = 10000.0,
+                 max_risk_pct: float = 0.01, paper_mode: bool = False):
         self.db_path = db_path
         self.balance = balance
         self.max_risk_pct = max_risk_pct
+        # Paper sessions must never read the attached demo/live MT5 equity as
+        # their own: the data terminal is not the paper book. Without this the
+        # RiskManager reported demo equity (e.g. $100k) against the $10k paper
+        # balance and every decision saw a malformed account (balance != equity
+        # with no paper positions) and held.
+        self.paper_mode = bool(paper_mode)
 
     def apply(self, ctx: TradingContext) -> None:
         import os
@@ -49,13 +56,16 @@ class RiskManagementPlugin(HarnessPlugin):
             if effective_balance <= 0.0:
                 effective_balance = 10000.0
         self.balance = effective_balance
-        risk_mgr = RiskManager(balance=self.balance, risk_per_trade=min(self.max_risk_pct, 0.01), store=store)
+        risk_mgr = RiskManager(balance=self.balance, risk_per_trade=min(self.max_risk_pct, 0.01),
+                               store=store, is_paper=self.paper_mode)
         validator = DeterministicValidator(store=store)
 
         ctx.provide("trading_store", store)
         ctx.provide("risk_manager", risk_mgr)
         ctx.provide("deterministic_validator", validator)
-        logger.info("RiskManagementPlugin initialized with balance %.2f, max risk %.2f%%", self.balance, self.max_risk_pct * 100.0)
+        logger.info("RiskManagementPlugin initialized with balance %.2f, max risk %.2f%% (mode=%s)",
+                    self.balance, self.max_risk_pct * 100.0,
+                    "PAPER" if self.paper_mode else "LIVE")
 
 
 class TradingMemoryPlugin(HarnessPlugin):

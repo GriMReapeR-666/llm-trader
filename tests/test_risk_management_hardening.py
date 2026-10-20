@@ -164,6 +164,22 @@ class TestRiskManagementHardening:
         p3.apply(ctx3)
         assert ctx3.get("risk_manager").balance == 25000.0
 
+    def test_paper_profile_marks_risk_manager_as_paper(self, tmp_path):
+        from core.harness.kernel import TradingContext
+        from core.harness.plugins import RiskManagementPlugin
+
+        ctx = TradingContext(name="paper_mode_ctx")
+        RiskManagementPlugin(db_path=str(tmp_path / "paper_mode.db"),
+                             balance=10000.0, paper_mode=True).apply(ctx)
+        assert ctx.get("risk_manager").is_paper is True
+
+    def test_paper_profile_passes_paper_mode_to_risk_plugin(self):
+        from core.harness.quant_models_plugins import PROFILE_DEFINITIONS
+
+        kwargs = next(k for cls, k in PROFILE_DEFINITIONS["paper"]["plugins"]
+                      if cls.endswith(":RiskManagementPlugin"))
+        assert kwargs.get("paper_mode") is True
+
     def test_paper_heat_provider_and_fail_closed(self):
         """Verify paper heat provider integration and fail-closed heat cap."""
         rm = RiskManager(balance=10000.0, state_file=None)

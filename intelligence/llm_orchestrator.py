@@ -1002,9 +1002,15 @@ class LLMOrchestrator:
             floating = 0.0
 
         try:
-            base = float(self.risk.current_equity())
-        except Exception:
+            # Base is the seed/cash balance. Do NOT call current_equity()
+            # here: in paper mode current_equity() delegates to this provider,
+            # so that would recurse (RecursionError caught as a silent fallback)
+            # on every sizing read. update_account keeps ``balance`` at the
+            # cash seed, so adding realised/floating below is not double
+            # counting.
             base = float(getattr(self.risk, "balance", 0.0) or 0.0)
+        except Exception:
+            base = 0.0
         if base <= 0:
             return None
 

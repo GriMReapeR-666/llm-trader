@@ -207,7 +207,11 @@ class RiskManager(StoreBackedState):
         rather than inferred.
         """
         log = logging.getLogger("RiskManager")
-        live = self._account_equity()
+        # Effective account scale: the paper book in paper mode, MT5 in
+        # live/demo. _account_equity() would read the attached data terminal's
+        # demo equity even for a paper session, veto the repair of demo-scale
+        # anchors, and leave the paper account permanently malformed.
+        live = self.current_equity()
         if not self._finite(live, positive=True):
             live = self.balance          # paper/no-MT5: balance is the equity
         reference = max(float(live), float(self.initial_balance))

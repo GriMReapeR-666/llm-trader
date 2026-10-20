@@ -145,6 +145,50 @@ def test_no_flag_keeps_fail_closed_empty_account(monkeypatch):
     assert toon["account"] == {}
 
 
+def test_paper_flag_overrides_demo_account_info(monkeypatch):
+    """A data-only MT5 login must not leak demo equity into the paper book.
+
+    Regression: the paper session held a data connection whose demo account
+    reported balance $10k / equity $100k with no *paper* positions. The LLM
+    correctly called that malformed and held every cycle. PAPER_SIMULATED must
+    win whenever the paper flag is on, even if broker account info exists.
+    """
+    provider = _provider(_risk())
+    provider.client.get_account_info.return_value = {
+        "balance": 10000.0, "equity": 100035.06, "margin": 0.0,
+        "margin_free": 100035.06, "server": "MetaQuotes-Demo",
+    }
+    provider.enable_paper_account_evidence()
+
+    toon = _fetch_toon(monkeypatch, provider)
+
+    acc = toon["account"]
+    assert acc["mode"] == "PAPER_SIMULATED"
+    assert acc["server"] == "PAPER_SIMULATED"
+    assert acc["balance"] == 10000.0
+    assert acc["equity"] == 10045.5
+
+
+def test_paper_equity_provider_does_not_recurse_through_current_equity():
+    """_calc_paper_equity is the provider current_equity() delegates to.
+
+    Calling current_equity() from inside it recurses; the old try/except
+    silently swallowed the RecursionError and fell back to balance. Pin both
+    the value and the absence of the re-entrant call.
+    """
+    orch = LLMOrchestrator.__new__(LLMOrchestrator)
+    orch.paper_broker = SimpleNamespace(
+        realised_pnl=50.0,
+        positions={"1": {"profit": 10.0}},
+    )
+    calls = []
+    orch.risk = SimpleNamespace(balance=10000.0)
+    orch.risk.current_equity = lambda: calls.append(1) or 10000.0
+
+    assert orch._calc_paper_equity() == 10060.0
+    assert calls == []
+
+
 def test_zero_seed_invents_nothing(monkeypatch):
     """Nothing seeded: keep the empty object so decisions still fail closed."""
     provider = _provider(_risk(balance=0.0, equity=0.0))

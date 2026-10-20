@@ -61,7 +61,7 @@ PROFILE_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     "paper": {
         "description": "Paper trading — all plugins, simulated execution, no real money at risk.",
         "plugins": [
-            ("core.harness.plugins:RiskManagementPlugin", {"balance": 10000.0, "max_risk_pct": 0.01}),
+            ("core.harness.plugins:RiskManagementPlugin", {"balance": 10000.0, "max_risk_pct": 0.01, "paper_mode": True}),
             ("core.harness.plugins:TradingMemoryPlugin", {}),
             ("core.harness.plugins:BrokerPlugin", {"paper_mode": True}),
             ("core.harness.plugins:DataHubPlugin", {}),
