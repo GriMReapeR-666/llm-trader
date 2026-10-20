@@ -315,9 +315,15 @@ def test_load_mt5_bars_leaves_shared_session_attached(monkeypatch):
     import research.alpha_backtest_harness as harness
 
     shutdowns = []
+    _state = {"init": False}
+
+    def _init(*a, **k):
+        _state["init"] = True
+        return True
+
     fake_mt5 = types.SimpleNamespace(
-        terminal_info=lambda: None,          # no session yet -> attach path
-        initialize=lambda *a, **k: True,     # attach succeeds first try
+        terminal_info=lambda: types.SimpleNamespace(connected=True) if _state["init"] else None,
+        initialize=_init,
         shutdown=lambda: shutdowns.append("shutdown"),
     )
     monkeypatch.setitem(sys.modules, "MetaTrader5", fake_mt5)

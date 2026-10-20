@@ -169,3 +169,54 @@ def test_structured_audit_logging():
         assert "proposer" in record
         assert "llm_veto" in record
         assert "shield_execution" in record
+
+def test_forex_lot_contract_size_notional_scaling():
+    """Verify that Forex lots are properly scaled by contract size (100,000) for notional checks."""
+    shield = RiskShield(budget=SizingRiskBudget(
+        max_position_pct=0.10,      # 10% of equity max position
+        min_trade_notional=100.0,   # $100 min trade
+        cash_buffer_pct=0.95
+    ))
+
+    # Account with $50,000 equity -> Max position notional = $5,000
+    portfolio = PortfolioState(cash=50000.0, equity=50000.0, holdings={})
+
+    # EURUSD entry at 1.0850.
+    # 0.01 lots = 1,000 EUR = $1,085 notional.
+    cand_small = CandidateOrder(
+        action="BUY",
+        quantity=0.01,
+        symbol="EURUSD",
+        entry_price=1.0850,
+        stop_loss=1.0800,
+        take_profit=1.0950,
+        score=0.8,
+        features={},
+    )
+    dec_small = shield.enforce(cand_small, portfolio)
+    assert dec_small.action == "BUY"
+    assert dec_small.risk_approved is True
+    # Notional must be ~$1,085, NOT $0.01085
+    assert 1080.0 <= dec_small.executed_notional <= 1090.0
+    assert abs(dec_small.quantity - 0.01) < 1e-4
+
+    # Large order: 0.10 lots = 10,000 EUR = $10,850 notional.
+    # Must be capped to max_position ($5,000), resulting in ~0.046 lots.
+    cand_large = CandidateOrder(
+        action="BUY",
+        quantity=0.10,
+        symbol="EURUSD",
+        entry_price=1.0850,
+        stop_loss=1.0800,
+        take_profit=1.0950,
+        score=0.8,
+        features={},
+    )
+    dec_large = shield.enforce(cand_large, portfolio)
+    assert dec_large.action == "BUY"
+    assert dec_large.risk_approved is True
+    assert dec_large.executed_notional <= 5000.01
+    assert dec_large.quantity < 0.10
+    # ~0.046 lots
+    assert 0.045 <= dec_large.quantity <= 0.047
+

@@ -219,6 +219,11 @@ def load_mt5_bars(symbol: str, timeframe: str, n_bars: int) -> pd.DataFrame:
                     break
             except Exception:
                 pass  # can't confirm reachability; treat the init() True as pending a retry
+            logger.warning(
+                "MT5 init attempt %d/%d terminal_info unreachable; retrying in %.2fs",
+                attempt + 1, _ATTACH_MAX_ATTEMPTS,
+                _ATTACH_BACKOFF_S[min(attempt, len(_ATTACH_BACKOFF_S) - 1)],
+            )
             attached = False
         else:
             raise RuntimeError(

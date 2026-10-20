@@ -77,6 +77,7 @@ class SizingRiskBudget:
     max_gross_exposure_pct: float = 0.50  # \tau_{gross}: max total portfolio gross exposure (Eq 2)
     min_trade_notional: float = 10.0  # minimum notional trade size ($)
     cash_buffer_pct: float = 0.95  # 0.95 * cash maximum spendable
+    contract_sizes: Dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -381,6 +382,20 @@ class RiskShield:
         self.budget = budget or SizingRiskBudget()
         self.validator = deterministic_validator
 
+    def _get_contract_size(self, symbol: str) -> float:
+        """Resolve contract size for instrument (100,000 for standard FX, 100 for Gold, 1.0 for crypto/stocks)."""
+        if self.budget.contract_sizes and symbol in self.budget.contract_sizes:
+            return float(self.budget.contract_sizes[symbol])
+        clean = (symbol or "").replace("/", "").split(".")[0].upper()
+        fx_currencies = ("USD", "EUR", "GBP", "JPY", "AUD", "NZD", "CAD", "CHF")
+        if len(clean) == 6 and any(clean.startswith(c) for c in fx_currencies) and any(clean.endswith(c) for c in fx_currencies):
+            return 100_000.0
+        if clean in ("XAUUSD", "GOLD"):
+            return 100.0
+        if clean in ("XAGUSD", "SILVER"):
+            return 5000.0
+        return 1.0
+
     def enforce(
         self,
         candidate: CandidateOrder,
@@ -421,10 +436,11 @@ class RiskShield:
                 rejection_reasons=["Invalid entry price <= 0"],
             )
 
+        contract_size = self._get_contract_size(candidate.symbol)
         current_holding_units = abs(float(portfolio.holdings.get(candidate.symbol, 0.0)))
-        current_holding_notional = current_holding_units * p
+        current_holding_notional = current_holding_units * contract_size * p
 
-        # B_{i,t} = \tau_{pos} * e_t - |h_{i,t}| * p_{i,t} (NZE Eq 1)
+        # B_{i,t} = \tau_{pos} * e_t - |h_{i,t}| * p_{i,t} * contract_size (NZE Eq 1)
         max_notional_allowed = self.budget.max_position_pct * portfolio.equity
         b_it = max_notional_allowed - current_holding_notional
 
@@ -456,10 +472,11 @@ class RiskShield:
             )
 
         # Candidate desired notional
-        cand_notional = candidate.quantity * p
+        cand_notional = candidate.quantity * contract_size * p
         # Cap notional to min(B_{i,t}, 0.95 * c_t)
         allowed_notional = min(cand_notional, b_it, max_cash_spend)
-        allowed_qty = allowed_notional / p
+        unit_val = p * contract_size
+        allowed_qty = allowed_notional / unit_val if unit_val > 0 else 0.0
 
         # Check with DeterministicValidator if integrated
         if self.validator is not None:

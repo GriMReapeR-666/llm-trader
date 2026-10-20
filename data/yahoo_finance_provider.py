@@ -235,6 +235,8 @@ class YahooFinanceProvider:
         for idx, row in hist.iterrows():
             try:
                 ts = idx.timestamp() if hasattr(idx, 'timestamp') else datetime.now().timestamp()
+                # Realistic conservative spread in MT5 points (15 points for standard FX, 25 for Gold)
+                _default_spread = 25 if any(g in yahoo_symbol.upper() for g in ("XAU", "GOLD", "GC=F")) else 15
                 data.append({
                     "time": int(ts),
                     "open": float(row["Open"]),
@@ -242,7 +244,7 @@ class YahooFinanceProvider:
                     "low": float(row["Low"]),
                     "close": float(row["Close"]),
                     "tick_volume": int(row["Volume"]),
-                    "spread": 0,
+                    "spread": _default_spread,
                     "real_volume": int(row["Volume"])
                 })
             except Exception:

@@ -216,9 +216,10 @@ except ImportError:
 
 # ── Blind spot modules (wired in from audit) ─────────────────────────────────
 try:
-    from core.distributed_lock import get_trade_lock
+    from core.distributed_lock import get_trade_lock, TradeLock
 except ImportError:
     get_trade_lock = None
+    TradeLock = None
 
 try:
     from core.model_staleness_tracker import ModelStalenessTracker
@@ -229,6 +230,10 @@ try:
     from core.adv_tracker import ADVTracker as _ADVTracker
 except ImportError:
     _ADVTracker = None
+
+# Active session instances
+adv_tracker = _ADVTracker() if _ADVTracker is not None else None
+model_staleness_tracker = ModelStalenessTracker() if ModelStalenessTracker is not None else None
 
 # ── Demo trading infrastructure (live training pipeline) ────────────────────
 try:
@@ -5178,15 +5183,29 @@ def execute_skill(**kwargs):
                             _entry = orch.execute_cycle
                             if _v2_enabled and hasattr(orch, "execute_cycle_v2"):
                                 _entry = orch.execute_cycle_v2
-                            _res = _entry(
-                                symbol=current_symbol,
-                                timeframe=_stf,
-                                cycle_num=cycle_count,
-                                total_cycles=args.loops if not args.continuous else 9999,
-                                paper_mode=args.paper,
-                                display_instance=display,
-                                strategy=_sname,
-                            )
+                            if TradeLock is not None:
+                                with TradeLock("mt5_cycle_execution", timeout=15.0):
+                                    _res = _entry(
+                                        symbol=current_symbol,
+                                        timeframe=_stf,
+                                        cycle_num=cycle_count,
+                                        total_cycles=args.loops if not args.continuous else 9999,
+                                        paper_mode=args.paper,
+                                        display_instance=display,
+                                        strategy=_sname,
+                                    )
+                            else:
+                                _res = _entry(
+                                    symbol=current_symbol,
+                                    timeframe=_stf,
+                                    cycle_num=cycle_count,
+                                    total_cycles=args.loops if not args.continuous else 9999,
+                                    paper_mode=args.paper,
+                                    display_instance=display,
+                                    strategy=_sname,
+                                )
+                            if model_staleness_tracker is not None:
+                                model_staleness_tracker.record_usage(_sname)
                             _dec = _res[0] if isinstance(_res, (tuple, list)) and _res else _res
                             if isinstance(_dec, dict):
                                 _action = _dec.get("action", "HOLD")
@@ -5430,8 +5449,11 @@ def execute_skill(**kwargs):
                                 except Exception:
                                     pass
                             _existing.update(_rl_metrics)
-                            with open(_state_path, "w") as f:
-                                json.dump(_existing, f, indent=2, default=str)
+                            import tempfile as _tmpfile
+                            _fd, _tmp = _tmpfile.mkstemp(dir=os.path.dirname(_state_path), suffix=".tmp")
+                            with os.fdopen(_fd, "w", encoding="utf-8") as _f:
+                                json.dump(_existing, _f, indent=2, default=str)
+                            os.replace(_tmp, _state_path)
                     except Exception as _rl_bridge_exc:
                         logging.getLogger("main").debug("RL metrics bridge skipped: %s", _rl_bridge_exc)
 

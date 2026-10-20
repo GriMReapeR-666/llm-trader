@@ -187,15 +187,9 @@ async function syncFast(): Promise<void> {
   }
 
   // ── positions + orders ──────────────────────────────────────────────
-  const posRes = await callTool<any>("mt5_positions_get", { symbol: undefined, group: undefined, ticket: undefined } as any, "positions *")
-  // FastMCP validates extra="forbid" — empty dict is safest for all positions
-  // so we retry with {} if the first call failed due to schema
-  let positionsRaw: any[] | null = null
-  if (posRes.ok && Array.isArray(posRes.data)) positionsRaw = posRes.data
-  else {
-    const retry = await callTool<any>("mt5_positions_get", {}, "positions {}")
-    if (retry.ok && Array.isArray(retry.data)) positionsRaw = retry.data
-  }
+  // FastMCP validates extra="forbid" — pass empty dict directly for all positions
+  const posRes = await callTool<any>("mt5_positions_get", {}, "positions *")
+  const positionsRaw: any[] | null = (posRes.ok && Array.isArray(posRes.data)) ? posRes.data : null
   if (positionsRaw) {
     // Map MT5 positions to deck Position[] (blotter)
     // MT5 position dict fields: ticket, symbol, type (0 buy 1 sell), volume, price_open, sl, tp, profit, swap, ...
@@ -456,13 +450,9 @@ async function syncSlow(): Promise<void> {
 
   // ── symbols catalog (once, cache) ───────────────────────────────────
   if (!initDone) {
-    const syms = await callTool<any>("mt5_symbols_get", { group: undefined } as any, "symbols_get *")
-    let list: any[] = []
-    if (syms.ok && Array.isArray(syms.data)) list = syms.data
-    else {
-      const r2 = await callTool<any>("mt5_symbols_get", {}, "symbols_get {}")
-      if (r2.ok && Array.isArray(r2.data)) list = r2.data
-    }
+    // FastMCP validates extra="forbid" — pass empty dict directly
+    const syms = await callTool<any>("mt5_symbols_get", {}, "symbols_get *")
+    const list: any[] = (syms.ok && Array.isArray(syms.data)) ? syms.data : []
     if (list.length > 0) {
       const specs = list.slice(0, 180).map((x: any) => ({
         symbol: String(x.name ?? x.symbol ?? ""),
