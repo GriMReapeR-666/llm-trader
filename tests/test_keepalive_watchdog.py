@@ -402,12 +402,42 @@ class TestRamBar:
 
 
 class TestStopFlag:
-    def test_stop_flag_vetoes_every_spawn(self, tmp_path):
+    def test_stop_flag_disarms_and_vetoes_every_spawn(self, tmp_path):
         clock = FakeClock()
         spawn = SpawnRecorder()
         (tmp_path / "stop.flag").write_text("stop")
         wd = _watchdog(tmp_path, spawn, clock)
         wd.arm(True)
         result = wd.check()
-        assert result["action"] == "stop_flag"
+        assert result["action"] == "stop_flag_disarmed"
+        assert result["stop_flag"] == str(tmp_path / "stop.flag")
+        assert wd._load()["desired"] is False
+        assert spawn.calls == 0
+        # The engine retires stop.flag to .consumed; the watchdog stays off.
+        (tmp_path / "stop.flag").rename(tmp_path / "stop.flag.consumed")
+        assert wd.check()["action"] == "disarmed"
+        assert spawn.calls == 0
+
+    def test_trader_stop_flag_fallback_also_disarms(self, tmp_path):
+        clock = FakeClock()
+        spawn = SpawnRecorder()
+        (tmp_path / "trader_stop.flag").write_text("stop")
+        wd = _watchdog(tmp_path, spawn, clock)
+        wd.arm(True)
+        result = wd.check()
+        assert result["action"] == "stop_flag_disarmed"
+        assert result["stop_flag"] == str(tmp_path / "trader_stop.flag")
+        assert spawn.calls == 0
+
+    def test_stop_file_env_override_also_disarms(self, tmp_path, monkeypatch):
+        custom = tmp_path / "custom_stop.flag"
+        custom.write_text("stop")
+        monkeypatch.setenv("MT5_TRADER_STOP_FILE", str(custom))
+        clock = FakeClock()
+        spawn = SpawnRecorder()
+        wd = _watchdog(tmp_path, spawn, clock)
+        wd.arm(True)
+        result = wd.check()
+        assert result["action"] == "stop_flag_disarmed"
+        assert result["stop_flag"] == str(custom)
         assert spawn.calls == 0

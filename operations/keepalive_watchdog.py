@@ -21,7 +21,10 @@ Safety properties (each one is a rule, not an accident):
       still owns ``engine.lock`` and would make every fresh engine exit rc 3.
       A fresh lease is never touched.
     - It never spawns below the measured free-RAM bar (default 1.5 GB), and a
-      ``stop.flag`` vetoes every spawn. Killing a stale holder is still allowed
+      stop flag (including the engine's ``MT5_TRADER_STOP_FILE`` override and
+      ``trader_stop.flag`` fallback) disarms it. The engine retires
+      ``stop.flag`` to ``.consumed``, so a veto-only tick would restart the
+      engine the operator just stopped. Killing a stale holder is still allowed
       while RAM is low because that frees the lock; the boot waits.
     - It never writes ``engine.pid``. The lease belongs to the engine; a
       watchdog-written lease would fake exactly the liveness this exists to
@@ -134,9 +137,28 @@ class KeepAliveWatchdog:
         self.min_free_ram_gb = max(0.0, float(min_free_ram_gb))
         self.kill_stale = bool(kill_stale)
         self.stop_flag_path = stop_flag_path or os.path.join(_REPO_ROOT, "stop.flag")
+        self.stop_flag_paths = self._resolve_stop_flag_paths()
         self._ram_reader = ram_reader
         self.kill_grace_s = max(1.0, float(kill_grace_s))
         self.kill_timeout_s = max(1.0, float(kill_timeout_s))
+
+    def _resolve_stop_flag_paths(self) -> List[str]:
+        """Mirror ``mt5_trader._stop_file_path`` exactly.
+
+        The engine honours ``MT5_TRADER_STOP_FILE`` first and otherwise falls
+        back to ``trader_stop.flag`` when ``stop.flag`` is absent. A watchdog
+        that watched only ``stop.flag`` could fight a stop issued through the
+        override or the fallback.
+        """
+        override = os.environ.get("MT5_TRADER_STOP_FILE", "").strip()
+        if override:
+            path = override if os.path.isabs(override) else os.path.join(_REPO_ROOT, override)
+            return [path]
+        paths = [self.stop_flag_path]
+        fallback = os.path.join(os.path.dirname(self.stop_flag_path), "trader_stop.flag")
+        if fallback != self.stop_flag_path:
+            paths.append(fallback)
+        return paths
 
     # ------------------------------------------------------------------
     # durable restart budget
@@ -299,11 +321,19 @@ class KeepAliveWatchdog:
             self._save(state)
             return result
 
-        if os.path.exists(self.stop_flag_path):
-            result = {"action": "stop_flag", "engine": None,
+        stop_hit = next((p for p in self.stop_flag_paths if os.path.exists(p)), None)
+        if stop_hit:
+            # A stop request is operator intent. Disarm durably: the engine
+            # retires stop.flag to .consumed, so a veto-only tick would let the
+            # very next tick restart the engine the operator just stopped.
+            state["desired"] = False
+            result = {"action": "stop_flag_disarmed", "engine": None,
+                      "stop_flag": stop_hit,
                       "attempts": state.get("attempts", 0)}
             state["last_action"] = result["action"]
             self._save(state)
+            logger.warning("stop flag %s present; watchdog disarmed "
+                           "(re-arm explicitly to resume)", stop_hit)
             return result
 
         verdict = engine_dead(self.pid_path, now)
