@@ -6,7 +6,7 @@ This repository enforces a strict modern quant development standard combining **
 
 ## 1. RTK (Rust Token Killer) â€” Token Optimization
 
-- **Òule:** Always prefix verbose terminal and test commands with `rtk` (e.g. `rtk bun run selftest`, `rtk pytest`, `rtk git status`).
+- **Rule:** Always prefix verbose terminal and test commands with `rtk` (e.g. `rtk bun run selftest`, `rtk pytest`, `rtk git status`).
 - **Goal:** Filters boilerplate outputs, saving up to 90% of context tokens during agentic workflows and developer interactions.
 - **Commands:**
   - `rtk gain`: Review token savings scoreboard.
