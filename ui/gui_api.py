@@ -823,7 +823,7 @@ def start_trading(config: dict):
     # Single-instance guard: the engine publishes its PID to engine.pid at boot.
     # Refuse to spawn a second engine when one is already alive — duplicate
     # engines thrash the journal DB and race MT5 (observed as 2GB twin processes).
-    _pid_file = os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
+    _pid_file = os.environ.get("LLM_TRADER_PID_PATH", "").strip() or os.path.join(os.path.dirname(BASE_DIR), "engine.pid")
     # engine.pid is a JSON lease ({pid, created_at, stamped_at}) since the P0-3
     # lease work, with legacy plain-int files still tolerated by the reader.
     # Parsing it as a bare int raised ValueError, and the old `except: pass`

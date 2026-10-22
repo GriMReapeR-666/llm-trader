@@ -41,6 +41,20 @@ _DURATION = re.compile(
     r"^(\d+\.\d{2})s\s+(?:(call|setup|teardown)\s+)?(\S+)")
 
 
+CORE_TARGETS = (
+    "tests/safety/",
+    "tests/test_provenance_write_constraints.py",
+    "tests/test_provenance_quarantine.py",
+    "tests/test_hypothesis_class_scoping.py",
+    "tests/test_dsr_calibration.py",
+    "tests/test_demo_evidence_collector.py",
+    "tests/test_artifact_portability.py",
+    "tests/test_ohlc_resolver_single_source.py",
+    "tests/test_ambient_state_sandbox.py",
+    "tests/test_bar_synchronized_auction.py",
+)
+
+
 def _slowest_tests(output: str, limit: int = 25) -> list:
     """The slowest tests in pytest's --durations output."""
     rows = []
@@ -65,6 +79,8 @@ def main(argv=None) -> int:
                         help="pytest-xdist workers (0 = pytest.ini default)")
     parser.add_argument("--durations", type=int, default=25,
                         help="how many slow tests to report (0 = none)")
+    parser.add_argument("--all-tests", action="store_true",
+                        help="crawl the entire tests/ directory instead of core contract targets")
     parser.add_argument("pytest_args", nargs="*",
                         help="extra arguments forwarded to pytest")
     args = parser.parse_args(argv)
@@ -75,6 +91,10 @@ def main(argv=None) -> int:
         command += ["--durations=%d" % args.durations]
     if args.workers:
         command += ["-n", str(args.workers)]
+    else:
+        command += ["-o", "addopts="]
+    if not args.all_tests and not any(str(a).startswith("tests") for a in args.pytest_args):
+        command.extend(CORE_TARGETS)
     command += args.pytest_args
 
     print("fast gate: %s" % " ".join(command), flush=True)

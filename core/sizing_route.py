@@ -46,6 +46,9 @@ DEFAULT_MIN_RECONCILED_FILLS = 200
 DEFAULT_MIN_ADMISSIBLE_ROWS = 200
 DEFAULT_MAX_SNAPSHOT_AGE_SECONDS = 3600.0
 
+PAPER_PROVENANCE = "paper_broker"
+"""The provenance token the evidence collector writes (contract element 10)."""
+
 _ABSOLUTE_PATH = re.compile(r"[A-Za-z]:[\\/]Users[\\/]")
 
 _TEXT_SUFFIXES = (".json", ".txt", ".md", ".csv", ".log")
@@ -188,6 +191,56 @@ def _null_provenance_rows(journal_path: str) -> int:
     return int(row[0]) if row else 1
 
 
+def _read_only_track_record(
+    journal_path: str,
+    target_trades: int = DEFAULT_MIN_ADMISSIBLE_ROWS,
+) -> Dict[str, Any]:
+    """The track record, measured without writing to the journal.
+
+    The evidence collector's own report enriches rows it wrote — a write.
+    A scheduled measurement must not do that, so the same numbers are
+    derived here from read-only queries.
+    """
+    from research.research_validation import broker_reconciled_tickets, labelled_dataset
+
+    brokered = broker_reconciled_tickets(journal_path) or set()
+    dataset = labelled_dataset(journal_path) or {}
+    rows = dataset.get("rows") or []
+    admissible = [r for r in rows if str(r.get("provenance") or "") == PAPER_PROVENANCE]
+
+    closed: list = []
+    if os.path.exists(journal_path):
+        try:
+            with sqlite3.connect(journal_path, timeout=5.0) as con:
+                closed = [int(r[0]) for r in con.execute(
+                    "SELECT ticket FROM trades WHERE closed_at IS NOT NULL "
+                    "AND pnl IS NOT NULL AND provenance=?", (PAPER_PROVENANCE,)
+                ).fetchall()]
+        except sqlite3.Error:
+            closed = []
+    reconciled = [ticket for ticket in closed if ticket in brokered]
+    return {
+        "closed_fills": len(closed),
+        "broker_reconciled_fills": len(reconciled),
+        "admissible_rows": len(admissible),
+        "target_trades": int(target_trades),
+        "remaining": max(0, int(target_trades) - len(admissible)),
+        "ready": len(admissible) >= int(target_trades),
+        "excluded": dataset.get("excluded", {}),
+    }
+
+
+def _execution_authority(artifacts_root: str = "artifacts") -> bool:
+    """Live authority is earned in the bootstrap state, never assumed."""
+    path = os.path.join(artifacts_root, "bootstrap_state.json")
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return False
+    return bool(isinstance(data, dict) and data.get("execution_authority", False))
+
+
 def _absolute_path_artifacts(root: str = "artifacts") -> int:
     """Artifacts that still contain an operator path (contract Phase 1)."""
     count = 0
@@ -213,20 +266,23 @@ def refresh_route_snapshot(
     *,
     artifacts_root: str = "artifacts",
     path: str = SNAPSHOT_PATH,
+    target_trades: int = DEFAULT_MIN_ADMISSIBLE_ROWS,
 ) -> Dict[str, Any]:
-    """Gather the evidence and write the snapshot. An operator/scheduled call.
+    """Gather the evidence and write the snapshot. A scheduled/operator call.
 
-    Read-only with respect to the journal: it reports what the evidence
-    collector and the rollout gate already know.
+    Read-only with respect to the journal: the track record is measured with
+    SELECTs only, and nothing is enriched or rewritten. The one write that
+    can still happen is the rollout gate invalidating an approval whose
+    evidence has drifted — that is the gate doing its job, not a side effect
+    of measuring.
     """
     track: Dict[str, Any] = {}
     rollout: Dict[str, Any] = {}
     errors = []
 
     try:
-        from operations.demo_evidence_collector import demo_track_record
-
-        track = demo_track_record(journal_path) or {}
+        track = _read_only_track_record(journal_path, target_trades)
+        track["execution_authority"] = _execution_authority(artifacts_root)
     except Exception as exc:  # noqa: BLE001 - the decision must not raise
         errors.append(f"track record unavailable: {exc}")
 

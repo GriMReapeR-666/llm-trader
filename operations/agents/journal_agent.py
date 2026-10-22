@@ -96,3 +96,53 @@ def handle_journal_maintenance(payload: Dict[str, Any],
     logger.info("journal maintenance (%s): %s",
                 kind, {k: v for k, v in result.items() if k != "tables"})
     return result
+
+
+def handle_sizing_route_refresh(payload: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
+    """Refresh the evidence snapshot that decides the sizing route.
+
+    Scheduled by the MaintenanceAgent. It measures the contract's Phase 2
+    exit criteria (broker-reconciled demo fills, an honest evidence spine, a
+    granted rollout approval) and writes ``artifacts/sizing_route.json``.
+
+    It never trades, never changes the route itself, and never writes to the
+    journal's evidence rows: the measurement is SELECT-only. The route is
+    decided from the snapshot, fail-closed.
+    """
+    journal_path = (
+        (payload or {}).get("journal_path")
+        or getattr(getattr(context, "operations", None), "db_path", None)
+        or getattr(getattr(context, "store", None), "path", None)
+        or getattr(context, "journal_path", None)
+        or "trading_state.db"
+    )
+    artifacts_root = str((payload or {}).get("artifacts_root") or "artifacts")
+
+    from core.sizing_route import refresh_route_snapshot, reset_cache, select_route
+
+    try:
+        snapshot = refresh_route_snapshot(journal_path, artifacts_root=artifacts_root)
+        decision = select_route(snapshot)
+        reset_cache()
+    except Exception as exc:
+        logger.warning("sizing route refresh failed: %s", exc)
+        return {"route": "legacy", "error": str(exc)[:200]}
+
+    result = {
+        "route": decision.route,
+        "reasons": list(decision.reasons),
+        "evidence": decision.evidence,
+        "errors": list(snapshot.get("errors") or []),
+    }
+    try:
+        from operations import event_bridge
+
+        event_bridge.emit("SIZING_ROUTE_REFRESHED", {
+            "route": decision.route,
+            "reasons": list(decision.reasons)[:5],
+        }, actor="MaintenanceAgent")
+    except Exception as exc:
+        logger.debug("sizing route event emission failed: %s", exc)
+    logger.info("sizing route refresh: %s (%s)", decision.route,
+                "; ".join(decision.reasons[:3]) or "evidence complete")
+    return result

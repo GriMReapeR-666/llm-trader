@@ -76,6 +76,11 @@ SCHEDULES: List[Dict[str, Any]] = [
     # at bar boundaries, routing SCALP to Fast Lane and SWING/LONG_TERM through Graph Engine.
     {"name": "bar_synchronized_auction", "agent": "TechnicalNet", "interval": 60,
      "payload": {"kind": "bar_synchronized_auction"}},
+    # Sizing-route evidence refresh (MaintenanceAgent): refreshes the snapshot
+    # the sizing route is decided from. A stale snapshot cannot authorise the
+    # switch, so this cadence is a freshness guarantee, not a trigger.
+    {"name": "sizing_route_refresh", "agent": "MaintenanceAgent", "interval": 900,
+     "payload": {"kind": "sizing_route_refresh"}},
 ]
 
 

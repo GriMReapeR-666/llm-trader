@@ -39,14 +39,14 @@
 </head>
 <body>
 <h1>▣ Compliance Dashboard</h1>
-<p class='subtitle'>Generated: 2026-10-20 14:01:34 UTC | Period: 24h</p>
+<p class='subtitle'>Generated: 2026-10-22 11:49:36 UTC | Period: 24h</p>
 
 <div class='cards'>
 <div class='card'><div class='num'>↻ 0</div><div class='label'>Total Events</div></div>
 <div class='card'><div class='num'>▣ ✔</div><div class='label'>Chain Valid</div></div>
 <div class='card'><div class='num'>⚠ 0</div><div class='label'>Alerts</div></div>
 <div class='card'><div class='num'>≡ 0</div><div class='label'>S.Q Tasks</div></div>
-<div class='card'><div class='num'>⚠ 62</div><div class='label'>Schedule Starvation</div></div>
+<div class='card'><div class='num'>⚠ 2</div><div class='label'>Schedule Starvation</div></div>
 <div class='card'><div class='num'>≡ unknown</div><div class='label'>AlphaDiscovery</div></div>
 </div>
 
@@ -63,69 +63,47 @@
 <h2>✉ Operator Alert Outbox</h2>
 <table>
 <tr><th>Metric</th><th>Value</th></tr>
-<tr><td>Status</td><td><span class='badge badge-ok'>OK</span></td></tr>
-<tr><td>PENDING</td><td>2</td></tr>
+<tr><td>Status</td><td><span class='badge badge-warn'>WARN</span></td></tr>
+<tr><td>PENDING</td><td>105</td></tr>
 <tr><td>CLAIMED</td><td>0</td></tr>
-<tr><td>SENT</td><td>107</td></tr>
+<tr><td>SENT</td><td>109</td></tr>
 <tr><td>EXPIRED</td><td>62</td></tr>
-<tr><td>Oldest pending</td><td>2026-10-20T13:46:55.535792+00:00</td></tr>
-<tr><td>Report captured at</td><td>2026-10-20T13:52:07.580253+00:00</td></tr>
+<tr><td>Oldest pending</td><td>2026-10-20T16:54:52.357767+00:00</td></tr>
+<tr><td>Report captured at</td><td>2026-10-22T11:46:28.560709+00:00</td></tr>
 </table>
 </div>
 
 <div class='section'>
 <h2>◷ Schedule Starvation</h2>
-<p>Status: <span class='badge badge-warn'>WARN</span> <span class='muted'>| window 24h | 1641 scheduled dispatches</span></p>
+<p>Status: <span class='badge badge-warn'>WARN</span> <span class='muted'>| window 24h | 18 scheduled dispatches</span></p>
 <table>
-<tr><th>Schedule</th><th>Session-skip episode</th><th>Silence</th><th>Threshold</th><th>Last event</th></tr>
-<tr><td>event_monitor</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-20T13:46:12</td></tr>
-<tr><td>bar_synchronized_auction</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-20T13:46:12</td></tr>
-<tr><td>sieve_poll</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-20T13:46:12</td></tr>
-<tr><td>alert_dispatch</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-20T13:46:12</td></tr>
-<tr><td>event_triage</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-20T13:46:11</td></tr>
-<tr><td>position_reconcile</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-20T13:46:11</td></tr>
-<tr><td>incident_sweep</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-20T13:46:11</td></tr>
-<tr><td>market_health</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-20T13:46:11</td></tr>
-<tr><td>metrics_export</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-19T20:59:19</td></tr>
-<tr><td>quant_workflow_sweep</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-19T20:59:18</td></tr>
-<tr><td>alloc_rebalance</td><td class='ok'>RECOVERED</td><td>—s</td><td>—s</td><td>2026-10-19T20:59:18</td></tr>
 <tr><th>Schedule</th><th>Handler overruns</th><th>Worst elapsed</th><th>Worst over-by</th><th>p50</th><th>p95</th><th>Last overrun</th></tr>
-<tr><td>event_monitor</td><td>22</td><td>315.5s</td><td>255.5s</td><td>107.7s</td><td>259.8s</td><td>2026-10-20T13:09:56</td></tr>
-<tr><td>catalog_measurement_pass</td><td>15</td><td>1041.6s</td><td>1021.6s</td><td>127.0s</td><td>258.0s</td><td>2026-10-20T13:56:31</td></tr>
-<tr><td>causal_edge_validate</td><td>14</td><td>318.9s</td><td>240.5s</td><td>156.1s</td><td>292.2s</td><td>2026-10-20T13:50:36</td></tr>
-<tr><td>journal_maintenance</td><td>10</td><td>398.4s</td><td>353.4s</td><td>98.5s</td><td>398.4s</td><td>2026-10-20T12:20:31</td></tr>
-<tr><td>sieve_poll</td><td>1</td><td>49.0s</td><td>4.0s</td><td>49.0s</td><td>49.0s</td><td>2026-10-19T20:05:46</td></tr>
+<tr><td>catalog_measurement_pass</td><td>1</td><td>24.3s</td><td>4.3s</td><td>24.3s</td><td>24.3s</td><td>2026-10-22T11:48:46</td></tr>
+<tr><td>event_monitor</td><td>1</td><td>74.5s</td><td>14.5s</td><td>74.5s</td><td>74.5s</td><td>2026-10-22T11:47:47</td></tr>
 </table>
 <h2>◷ Schedule Duty Cycle</h2>
 <table>
 <tr><th>Schedule</th><th>Claims</th><th>Span</th><th>Interval</th><th>Expected</th><th>Duty</th><th>Verdict</th></tr>
-<tr><td>market_health</td><td>266</td><td>23.8h</td><td>30s</td><td>2860.7</td><td class='crit'>9%</td><td class='crit'>STARVED</td></tr>
-<tr><td>alert_dispatch</td><td>159</td><td>23.8h</td><td>60s</td><td>1429.8</td><td class='crit'>11%</td><td class='crit'>STARVED</td></tr>
-<tr><td>event_monitor</td><td>159</td><td>23.8h</td><td>60s</td><td>1429.8</td><td class='crit'>11%</td><td class='crit'>STARVED</td></tr>
-<tr><td>event_triage</td><td>159</td><td>23.8h</td><td>60s</td><td>1429.8</td><td class='crit'>11%</td><td class='crit'>STARVED</td></tr>
-<tr><td>incident_sweep</td><td>159</td><td>23.8h</td><td>60s</td><td>1429.8</td><td class='crit'>11%</td><td class='crit'>STARVED</td></tr>
-<tr><td>position_reconcile</td><td>159</td><td>23.8h</td><td>60s</td><td>1429.8</td><td class='crit'>11%</td><td class='crit'>STARVED</td></tr>
-<tr><td>sieve_poll</td><td>159</td><td>23.8h</td><td>60s</td><td>1429.8</td><td class='crit'>11%</td><td class='crit'>STARVED</td></tr>
-<tr><td>metrics_export</td><td>28</td><td>17.7h</td><td>300s</td><td>212.7</td><td class='crit'>13%</td><td class='crit'>STARVED</td></tr>
-<tr><td>alloc_rebalance</td><td>55</td><td>23.8h</td><td>300s</td><td>285.1</td><td class='crit'>19%</td><td class='crit'>STARVED</td></tr>
-<tr><td>quant_workflow_sweep</td><td>55</td><td>23.8h</td><td>300s</td><td>285.1</td><td class='crit'>19%</td><td class='crit'>STARVED</td></tr>
-<tr><td>causal_edge_validate</td><td>32</td><td>23.6h</td><td>900s</td><td>94.2</td><td class='crit'>34%</td><td class='crit'>STARVED</td></tr>
-<tr><td>macro_event_evidence</td><td>32</td><td>23.6h</td><td>900s</td><td>94.2</td><td class='crit'>34%</td><td class='crit'>STARVED</td></tr>
-<tr><td>journal_maintenance</td><td>10</td><td>22.1h</td><td>3600s</td><td>22.1</td><td class='crit'>45%</td><td class='crit'>STARVED</td></tr>
-<tr><td>lifecycle_evaluation</td><td>10</td><td>22.1h</td><td>3600s</td><td>22.1</td><td class='crit'>45%</td><td class='crit'>STARVED</td></tr>
-<tr><td>macro_post_event_review</td><td>10</td><td>22.1h</td><td>3600s</td><td>22.1</td><td class='crit'>45%</td><td class='crit'>STARVED</td></tr>
-<tr><td>session_review</td><td>10</td><td>22.1h</td><td>3600s</td><td>22.1</td><td class='crit'>45%</td><td class='crit'>STARVED</td></tr>
-<tr><td>catalog_measurement_pass</td><td>22</td><td>23.6h</td><td>1800s</td><td>47.3</td><td class='crit'>46%</td><td class='crit'>STARVED</td></tr>
-<tr><td>bar_synchronized_auction</td><td>151</td><td>23.8h</td><td>—</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
-<tr><td>daily_review</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
-<tr><td>economic_dynamics_seed</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
-<tr><td>historical_regime_research</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
-<tr><td>ledger_housekeeping</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
-<tr><td>outbox_archive</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
-<tr><td>self_improvement</td><td>1</td><td>0h</td><td>86400s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>alert_dispatch</td><td>1</td><td>0h</td><td>60s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>alloc_rebalance</td><td>1</td><td>0h</td><td>300s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>bar_synchronized_auction</td><td>1</td><td>0h</td><td>60s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>catalog_measurement_pass</td><td>1</td><td>0h</td><td>1800s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>causal_edge_validate</td><td>1</td><td>0h</td><td>900s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>event_monitor</td><td>1</td><td>0h</td><td>60s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>event_triage</td><td>1</td><td>0h</td><td>60s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>incident_sweep</td><td>1</td><td>0h</td><td>60s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>journal_maintenance</td><td>1</td><td>0h</td><td>3600s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>lifecycle_evaluation</td><td>1</td><td>0h</td><td>3600s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>macro_event_evidence</td><td>1</td><td>0h</td><td>900s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>macro_post_event_review</td><td>1</td><td>0h</td><td>3600s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>market_health</td><td>1</td><td>0h</td><td>30s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>metrics_export</td><td>1</td><td>0h</td><td>300s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>position_reconcile</td><td>1</td><td>0h</td><td>60s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>quant_workflow_sweep</td><td>1</td><td>0h</td><td>300s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>session_review</td><td>1</td><td>0h</td><td>3600s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
+<tr><td>sieve_poll</td><td>1</td><td>0h</td><td>60s</td><td>—</td><td class='muted'>—</td><td class='muted'>span too short</td></tr>
 </table>
 <p class='muted'>Duty = claims vs cadence-expected over the claims' own span (scheduler tuning report computation); spans under 2h render without a ratio. All-time spans include trader-down hours, so ratios lower-bound real duty.</p>
-<p class='warn'>20 abandoned batch(es) in window (last 2026-10-20T13:56:31) — deferral reasons: wave_deadline x20; released claims keep their cadence turn (claims never advance it).</p>
 </div>
 
 <div class='section'>
@@ -157,82 +135,65 @@
 <h2>≡ Recent Audit Events</h2>
 <table>
 <tr><th>Time</th><th>Type</th><th>Agent</th><th>Symbol</th><th>Details</th></tr>
-<tr><td>2026-10-20T14:01:34.349921+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T13:26:29.517034+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T12:53:02.879136+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T12:48:04.439318+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T12:48:04.205261+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T12:46:34.229766+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T12:46:32.591240+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T12:46:11.279993+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T12:46:11.217697+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-20T12:23:35.845416+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T12:18:45.172705+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T12:18:44.930494+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T12:18:07.655148+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T12:18:07.061450+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T12:17:53.044858+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-20T12:17:53.001041+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T11:58:17.383844+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T11:50:29.501576+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T11:50:23.282609+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T11:50:23.221901+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T11:50:14.261558+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-20T11:33:39.801131+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T11:23:07.061142+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T11:23:05.093015+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T11:22:40.849140+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-20T11:22:40.812871+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T11:04:25.120995+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T10:54:01.250378+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T10:54:00.860793+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-20T10:53:53.038950+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T10:53:45.887350+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T10:29:08.636911+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T10:20:19.163802+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T10:20:19.008655+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-20T10:20:15.888568+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T10:20:10.183641+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T09:57:35.881702+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T09:49:36.986725+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T09:49:36.734898+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T09:48:45.569614+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T09:48:45.397696+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-20T09:48:37.464723+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T09:48:31.541028+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T09:15:50.085548+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T09:06:50.698583+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T09:06:40.453244+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T08:41:29.452221+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T08:16:36.678293+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T08:16:33.071598+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T08:15:53.930659+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-20T08:14:45.346179+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T07:29:54.256453+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T07:23:33.545203+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Account: simulated, balance 10k, equity 10k, no margin usage -&gt; healthy. Open positions: none. Multi-timeframe: D1 BE</td></tr>
-<tr><td>2026-10-20T07:22:35.975028+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T07:21:31.425349+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Selected model meta/llama-3.2-11b-vision-instruct failed after retries; no model failover is permitted for an active </td></tr>
-<tr><td>2026-10-20T07:15:25.878221+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-20T05:54:22.926244+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-20T05:43:47.082094+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Selected model meta/llama-3.2-11b-vision-instruct failed after retries; no model failover is permitted for an active </td></tr>
-<tr><td>2026-10-20T05:37:32.381612+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-19T22:13:32.422496+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>USDJPY</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-19T22:09:47.516962+00:00</td><td> LLM_DECISION</td><td>ω</td><td>USDJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-19T22:08:45.517365+00:00</td><td> LLM_CALL</td><td>ω</td><td>USDJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-19T21:55:08.138324+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-19T21:50:41.497920+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;The account equity does not balance with no open positions, suggesting data corruption or simulation error. Without r</td></tr>
-<tr><td>2026-10-19T21:50:18.418094+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-19T21:35:34.734995+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>USDJPY</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-19T21:27:23.916609+00:00</td><td> LLM_DECISION</td><td>ω</td><td>USDJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-19T21:26:20.937628+00:00</td><td> LLM_CALL</td><td>ω</td><td>USDJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-19T21:09:32.884697+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-19T21:00:12.498178+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;Deterministic HOLD fallback: all LLM providers failed for agent &#x27;trader&#x27;. No new risk may be taken until a provider r</td></tr>
-<tr><td>2026-10-19T20:59:11.988442+00:00</td><td> LLM_DECISION</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;The account equity does not balance with no open positions, suggesting data corruption or simulation error. Without r</td></tr>
-<tr><td>2026-10-19T20:58:45.245625+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
-<tr><td>2026-10-19T20:58:45.130807+00:00</td><td> LLM_CALL</td><td>ω</td><td>GBPJPY</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;swing&quot;}</td></tr>
-<tr><td>2026-10-19T20:18:12.678332+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>AUDUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
-<tr><td>2026-10-19T20:10:47.753067+00:00</td><td> LLM_DECISION</td><td>ω</td><td>AUDUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;The account shows balance: 10000.0, equity: 100039.75, margin: 0.0, margin_free: 100039.75. With no open positions (o</td></tr>
-<tr><td>2026-10-19T20:09:22.303105+00:00</td><td> LLM_CALL</td><td>ω</td><td>AUDUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;scalp&quot;}</td></tr>
+<tr><td>2026-10-22T11:49:36.248468+00:00</td><td>↻ STATE_TRANSITION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;transition&quot;: &quot;cycle_complete&quot;, &quot;strategy&quot;: &quot;&quot;, &quot;duration_ms&quot;: 0}</td></tr>
+<tr><td>2026-10-22T06:17:44.855482+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T06:17:44.442076+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T05:17:05.617974+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T05:17:05.337979+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T05:15:43.419425+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T05:15:43.092952+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T05:12:46.579631+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T05:12:46.339480+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T04:57:04.191087+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T04:57:03.927580+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T04:55:47.482145+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T04:55:47.155410+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T04:54:02.445601+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T04:54:02.205252+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T04:52:44.718157+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T04:52:44.482527+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T04:51:28.575230+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T04:51:27.433782+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T03:40:52.754136+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T03:40:52.521154+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T03:39:45.323767+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T03:39:45.071802+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T03:37:28.711553+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T03:37:28.544501+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T02:06:19.171455+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T02:06:18.933288+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T02:05:12.365337+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T02:05:12.107855+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T02:03:35.894117+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T02:03:35.646055+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T02:02:33.070266+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T02:02:32.824840+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:54:43.873337+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:54:43.631494+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:53:38.129032+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:53:37.161167+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:49:30.757377+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:49:30.608240+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:40:49.020660+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:40:48.876771+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:32:16.647778+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:32:16.390607+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:31:10.185003+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:31:10.043486+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:26:33.120581+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:26:32.895828+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:12:31.069997+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:12:30.840574+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:11:11.844427+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:11:11.709509+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:04:24.478330+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T01:04:24.227401+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T00:57:24.909263+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T00:57:24.774018+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T00:52:10.540496+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-22T00:52:10.381099+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-21T22:01:45.151143+00:00</td><td> LLM_DECISION</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;action&quot;: &quot;HOLD&quot;, &quot;reasoning&quot;: &quot;LLM returned valid JSON but missing &#x27;reasoning&#x27; field.&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
+<tr><td>2026-10-21T22:01:44.895165+00:00</td><td> LLM_CALL</td><td>ω</td><td>EURUSD</td><td class='truncate'>{&quot;phase&quot;: &quot;decision_request&quot;, &quot;strategy&quot;: &quot;parametric&quot;}</td></tr>
 </table>
 </div>
 

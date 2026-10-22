@@ -102,6 +102,7 @@ def test_api_start_when_lock_held_returns_409(tmp_path, monkeypatch):
     """API start endpoint returns 409 Conflict when engine.lock is held."""
     lock_file = str(tmp_path / "engine.lock")
     monkeypatch.setenv("LLM_TRADER_LOCK_PATH", lock_file)
+    monkeypatch.setenv("LLM_TRADER_PID_PATH", str(tmp_path / "engine.pid"))
     token = "test-token-lifecycle"
     monkeypatch.setenv("GUI_API_TOKEN", token)
 
@@ -128,6 +129,7 @@ def test_api_stop_when_idle_returns_not_running(tmp_path, monkeypatch):
     """API stop returns ok=False when no engine holds the lock."""
     lock_file = str(tmp_path / "engine.lock")
     monkeypatch.setenv("LLM_TRADER_LOCK_PATH", lock_file)
+    monkeypatch.setenv("LLM_TRADER_PID_PATH", str(tmp_path / "engine.pid"))
     token = "test-token-lifecycle"
     monkeypatch.setenv("GUI_API_TOKEN", token)
 
@@ -146,6 +148,7 @@ def test_api_stop_graceful_drain_via_stop_flag(tmp_path, monkeypatch):
     stop_file = str(tmp_path / "stop.flag")
 
     monkeypatch.setenv("LLM_TRADER_LOCK_PATH", lock_file)
+    monkeypatch.setenv("LLM_TRADER_PID_PATH", str(tmp_path / "engine.pid"))
     monkeypatch.setenv("MT5_TRADER_STOP_FILE", stop_file)
     token = "test-token-lifecycle"
     monkeypatch.setenv("GUI_API_TOKEN", token)

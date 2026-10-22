@@ -74,6 +74,12 @@ REGISTRY: Dict[str, ExecutorSpec] = {
     # Bar Synchronized Opportunity Auction (TechnicalNet)
     "bar_synchronized_auction": ExecutorSpec("bar_synchronized_auction", "TechnicalNet",
                                              "operations.agents.workflow_agent:handle_bar_synchronized_auction", 60),
+    # Sizing-route evidence refresh (MaintenanceAgent): measures the contract's
+    # Phase 2 exit criteria and writes the snapshot the sizing route is decided
+    # from. The decision itself is fail-closed, and the new route can only
+    # shrink a position.
+    "sizing_route_refresh": ExecutorSpec("sizing_route_refresh", "MaintenanceAgent",
+                                          "operations.agents.journal_agent:handle_sizing_route_refresh", 900),
 }
 
 
