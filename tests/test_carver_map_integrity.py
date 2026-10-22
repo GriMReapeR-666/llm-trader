@@ -62,6 +62,50 @@ def test_every_cited_line_is_inside_the_file():
     assert not failures, failures
 
 
+def test_cited_lines_contain_what_the_map_claims():
+    """A citation that points at the wrong line is a stale claim, not a typo."""
+    failures = []
+    by_doc_line = {}
+    for doc_line, path, number in _citations():
+        by_doc_line.setdefault(doc_line, []).append((path, number))
+
+    for doc_line, citations in by_doc_line.items():
+        identifiers = _identifiers_on_doc_line(doc_line)
+        if not identifiers:
+            continue
+        cited_text = []
+        for path, number in citations:
+            target = REPO / path
+            if not target.exists():
+                continue
+            lines = target.read_text(encoding="utf-8", errors="ignore").splitlines()
+            if number <= len(lines):
+                cited_text.append(lines[number - 1])
+        if not cited_text:
+            continue
+        joined = "\n".join(cited_text)
+        for ident in sorted(identifiers):
+            if ident not in joined:
+                failures.append(
+                    f"doc line {doc_line}: {ident} is not at the cited line(s) "
+                    f"{[(p, n) for p, n in citations]}"
+                )
+    assert not failures, failures
+
+
+def _identifiers_on_doc_line(doc_line: int) -> set:
+    """Backticked snake_case names on a doc line (not file paths, not prose)."""
+    line = _doc_text().splitlines()[doc_line - 1]
+    found = set()
+    for token in TOKEN.findall(line):
+        if token.endswith(".py") or token.startswith(":"):
+            continue
+        if not re.fullmatch(r"[a-z][a-z0-9_]*_[a-z0-9_]+", token):
+            continue
+        found.add(token)
+    return found
+
+
 def test_map_stays_portable():
     text = _doc_text()
     assert "C:\\" not in text

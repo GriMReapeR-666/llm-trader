@@ -157,11 +157,17 @@ Two new modules, both opt-in and unreferenced by the live path:
 - **`core/sizing_spine.py`** — the consolidation target: one order of
   operations for a signal to become a position. Absolute size first (the
   Carver chain), then the bounded confidence and regime multipliers, then
-  the risk cap. Nothing in the live path calls it yet.
-  See `tests/test_sizing_spine.py`.
+  the risk cap. Reached from the live path only through the evidence gate
+  below. See `tests/test_sizing_spine.py`.
 
-All three are deliberately *not* wired into the trading path: turning any of
-them on changes live sizing, which is a product decision, not a refactor.
+- **`core/sizing_route.py`** — the authority layer: the autonomous decision
+  of which sizing route is in force, made from the contract's own Phase 2
+  exit criteria rather than from preference. See
+  `tests/test_sizing_route.py` and `tests/test_risk_manager_sizing_route.py`.
+
+The first three are not wired into the trading path: turning any of them on
+changes live sizing, which is a product decision, not a refactor. The fourth
+is different — it is the mechanism that makes that decision without a human.
 
 ---
 
@@ -190,19 +196,47 @@ What is **not** done, deliberately:
 
 - The consolidation above is a *policy* recommendation, and the target route
   now exists (`core/sizing_spine.py`), but the live route still sizes by
-  risk-per-trade: `data/market_data_provider.py:1577` feeds
-  `risk_per_trade` into the live path, and `core/trading_safety.py` still
-  owns the 1% cap. Switching the live sizing route while the track record
-  is empty would be exactly the "new capability" the contract forbids, so
-  the switch needs a written amendment to
-  `docs/PROJECT_SUCCESS_CONTRACT.md` with a dated rationale — the same rule
-  the project applies to its own trading gates.
+  risk-per-trade: `data/market_data_provider.py:1603` feeds `risk_per_trade`
+  into the live path, and `core/trading_safety.py` still owns the 1% cap.
 - No FLUEY pattern has been measured on real prices, so no pattern can be
   promoted. The fitness harness needs a real OHLCV series and a stated cost
   assumption before its first verdict means anything.
 - `core/forecast_sizing.py` computes positions; it does not place orders. Any
   future use must go through the single order door and the deterministic
   validator, with the 1% risk cap left where it is.
+
+### The authority decision is autonomous
+
+The switch between the legacy route and the forecast-driven route is not a
+person's judgement and does not need a contract amendment, because **no
+contract criterion is relaxed by it** — the new route is capped at the same
+1% limit, cannot raise risk, and cannot place an order. What the switch
+needs is *evidence*, and the contract already says what that evidence is:
+200+ broker-reconciled demo fills on a frozen symbol, an honest evidence
+spine, and a granted rollout approval.
+
+`core/sizing_route.py` is that sentence as a machine check:
+
+| Precondition (contract) | Source |
+|---|---|
+| 200+ broker-reconciled demo fills, admissible rows at the floor | the demo track record |
+| the journal grants execution authority | the same report |
+| the rollout approval is in force and its evidence has not drifted | the live rollout gate |
+| no journal row without provenance | the authoritative journal |
+| no artifact carrying an operator path | the artifacts tree |
+
+All five must hold. If any is missing, stale, unreadable or unproven, the
+route stays legacy — fail-closed, never a guess, never an exception in the
+hot path. The evidence is read from a small snapshot
+(`artifacts/sizing_route.json`) written by `refresh_route_snapshot`, so a
+trade never pays for a directory scan and a stale snapshot cannot authorise
+anything.
+
+The live path reaches the new route through
+`_apply_autonomous_sizing_route` (`core/risk_manager.py:1588`), and only as a
+**reducer**: when the route is the forecast-driven one, the smaller of the two
+risk amounts is used. So the switch can only ever make the book smaller, never
+larger — the property that makes an autonomous switch safe.
 
 ---
 

@@ -1198,6 +1198,69 @@ anyone reasoning about how much drawdown the account can absorb.
             return True
         return (heat + units) <= self.max_portfolio_heat_r
 
+    def _apply_autonomous_sizing_route(self, risk_amt: float, *, symbol: str, entry: float,
+                                        sl: float, equity: float, alpha_composite: float,
+                                        atr: Optional[float]) -> float:
+        """Let the evidence choose the sizing route; the new route may only shrink risk.
+
+        The route decision is autonomous (``core/sizing_route.py``): it reads the
+        contract's own Phase 2 exit criteria and flips to the forecast-driven
+        route when, and only when, the evidence justifies it. When it does, the
+        forecast-driven risk amount is computed and the SMALLER of the two is
+        used, so enabling the route can never raise risk above the rule that is
+        in production today. A missing input simply leaves the legacy size
+        untouched.
+        """
+        try:
+            from core.sizing_route import current_route
+
+            decision = current_route()
+        except Exception as exc:  # noqa: BLE001 - an unknown state keeps today's route
+            logging.getLogger("RiskManager").debug("Sizing route unavailable: %s", exc)
+            return risk_amt
+        if not decision.is_carver:
+            return risk_amt
+
+        # The forecast is the alpha composite on the 10-unit scale Carver uses
+        # (a composite of +-2 is a forecast of +-10). Without a forecast there
+        # is nothing for the route to size, so the legacy size stands.
+        forecast = float(alpha_composite or 0.0) * 5.0
+        if abs(forecast) <= 0.0:
+            return risk_amt
+        spec = self._symbol_spec(symbol)
+        if spec is None:
+            return risk_amt
+        try:
+            contract_size = float(getattr(spec, "trade_contract_size", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            return risk_amt
+        if contract_size <= 0.0 or not entry or not atr:
+            return risk_amt
+        price_vol = float(atr) / float(entry)
+        risk_per_block = abs(float(entry) - float(sl)) * contract_size
+        if price_vol <= 0.0 or risk_per_block <= 0.0:
+            return risk_amt
+        try:
+            from core.sizing_spine import SizingInputs, size_position
+
+            result = size_position(SizingInputs(
+                combined_forecast=forecast,
+                equity=equity,
+                price_vol=price_vol,
+                block_value=contract_size,
+                risk_per_block=risk_per_block,
+            ))
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger("RiskManager").debug("Carver sizing route skipped: %s", exc)
+            return risk_amt
+        if result.capped_risk_amount < risk_amt:
+            logging.getLogger("RiskManager").info(
+                "Sizing route (evidence-gated): risk %.2f -> %.2f (forecast %.1f, vol %.4f)",
+                risk_amt, result.capped_risk_amount, forecast, price_vol,
+            )
+            return result.capped_risk_amount
+        return risk_amt
+
     def calc_position_size(self, symbol: str, entry: float, sl: float, confidence: float = 1.0,
                            *, atr: Optional[float] = None,
                            atr_target: Optional[float] = None,
@@ -1517,6 +1580,15 @@ anyone reasoning about how much drawdown the account can absorb.
         if risk_amt > remaining_daily_risk:
             logging.warning(f"Risk {risk_amt:.2f} capped to {remaining_daily_risk:.2f} (Daily Limit)")
             risk_amt = max(0.0, remaining_daily_risk)
+
+        # --- Autonomous sizing route (evidence-gated) ---
+        # The route is decided by the evidence, not by preference. It can only
+        # reduce the risk amount, so it can never raise risk above the rule
+        # that is in production today.
+        risk_amt = self._apply_autonomous_sizing_route(
+            risk_amt, symbol=symbol, entry=entry, sl=sl, equity=equity,
+            alpha_composite=alpha_composite, atr=atr,
+        )
             
         if risk_amt <= 0.01: 
             return 0.0
