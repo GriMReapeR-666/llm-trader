@@ -11,6 +11,7 @@ import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numba as nb
 import numpy as np
+import polars as pl
 
 
 
@@ -247,4 +248,108 @@ def calculate_fast_metrics_numba(
     profit_factor = (sum_pos / sum_neg) if sum_neg > 1e-8 else (10.0 if sum_pos > 0 else 0.0)
 
     return sharpe, sortino, calmar, win_rate, profit_factor, max_dd
+
+
+# ============================================================================
+# Polars Data Ingestion & Universe Generation Engine
+# ============================================================================
+
+def load_market_dataset_polars(data_dict: Dict[str, Any]) -> pl.DataFrame:
+    """Ingest market dictionary or raw columns into a Polars DataFrame with float casting."""
+    df = pl.DataFrame(data_dict)
+    if "close" in df.columns:
+        df = df.with_columns(pl.col("close").cast(pl.Float64))
+    return df
+
+
+class StrategyUniverseGenerator:
+    """Generates strategy specifications across the 15x12 universe matrix."""
+
+    def __init__(self, seed: int = 42):
+        self.seed = seed
+
+    def generate_matrix(
+        self,
+        symbols: Optional[List[str]] = None,
+        timeframes: Optional[List[str]] = None,
+        scales: Optional[List[CapitalScale]] = None,
+    ) -> List[StrategySpec]:
+        target_symbols = symbols or ["EURUSD", "GBPUSD", "XAUUSD", "BTCUSD"]
+        target_tfs = timeframes or ["M15", "H1", "D1"]
+        target_scales = scales or [CapitalScale.SMALL]
+
+        matrix: List[StrategySpec] = []
+        for style in StrategyStyle:
+            # Map style to primary compatible trading types
+            compatible_types = [TradingType.LONG_SHORT, TradingType.DIRECTIONAL]
+            if style == StrategyStyle.STATISTICAL_ARBITRAGE:
+                compatible_types = [TradingType.PAIRS_SPREAD, TradingType.HEDGED_PORTFOLIO]
+            elif style == StrategyStyle.MARKET_NEUTRAL:
+                compatible_types = [TradingType.HEDGED_PORTFOLIO, TradingType.LONG_SHORT]
+            elif style == StrategyStyle.CARRY:
+                compatible_types = [TradingType.LONG_ONLY, TradingType.MULTI_ASSET_ALLOCATION]
+            elif style == StrategyStyle.INTRADAY_SCALPING:
+                compatible_types = [TradingType.EXECUTION_ALGO, TradingType.LONG_SHORT]
+
+            for t_type in compatible_types:
+                strat_id = f"{style.value.lower()}_{t_type.value.lower()}_{target_symbols[0].lower()}"
+                spec = StrategySpec(
+                    strategy_id=strat_id,
+                    name=f"{style.value.replace('_', ' ').title()} - {t_type.value.replace('_', ' ').title()}",
+                    style=style,
+                    trading_type=t_type,
+                    regime_suitability=[
+                        MarketRegime.BULL_TREND if "TREND" in style.value else MarketRegime.SIDEWAYS_CONSOLIDATION,
+                        MarketRegime.HIGH_VOL_EXPANSION if "VOL" in style.value else MarketRegime.LOW_VOL_COMPRESSION,
+                    ],
+                    target_symbols=target_symbols,
+                    timeframes=target_tfs,
+                    capital_scale=target_scales[0],
+                    parameters={"fast_period": 10, "slow_period": 30, "threshold": 2.0},
+                )
+                matrix.append(spec)
+        return matrix
+
+    def generate_baseline_signals(self, spec: StrategySpec, df: pl.DataFrame) -> np.ndarray:
+        """Compute deterministic baseline signals using Numba kernels on Polars columns."""
+        prices = df["close"].to_numpy()
+        n = len(prices)
+        signals = np.zeros(n, dtype=np.int32)
+        if n == 0:
+            return signals
+
+        if spec.style == StrategyStyle.TREND_FOLLOWING:
+            fast_p = int(spec.parameters.get("fast_period", 10))
+            slow_p = int(spec.parameters.get("slow_period", 30))
+            fast = compute_ema_numba(prices, fast_p)
+            slow = compute_ema_numba(prices, slow_p)
+            for i in range(n):
+                if fast[i] > slow[i]:
+                    signals[i] = 1
+                elif fast[i] < slow[i]:
+                    signals[i] = -1 if spec.trading_type == TradingType.LONG_SHORT else 0
+
+        elif spec.style == StrategyStyle.MEAN_REVERSION:
+            period = int(spec.parameters.get("fast_period", 20))
+            threshold = float(spec.parameters.get("threshold", 2.0))
+            upper, mid, lower = compute_bollinger_bands_numba(
+                prices, period, threshold
+            )
+            for i in range(n):
+                if prices[i] < lower[i]:
+                    signals[i] = 1
+                elif prices[i] > upper[i]:
+                    signals[i] = -1 if spec.trading_type == TradingType.LONG_SHORT else 0
+
+        else:
+            # Deterministic momentum breakout baseline for other styles
+            lookback = 15
+            for i in range(lookback, n):
+                if prices[i] > np.max(prices[i - lookback : i]):
+                    signals[i] = 1
+                elif prices[i] < np.min(prices[i - lookback : i]):
+                    signals[i] = -1 if spec.trading_type == TradingType.LONG_SHORT else 0
+
+        return signals
+
 

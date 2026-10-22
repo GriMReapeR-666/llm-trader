@@ -80,3 +80,75 @@ def test_numba_indicators_and_simulation():
     assert m_sharpe == 0.0
 
 
+def test_polars_data_and_universe_generator():
+    from core.strategy_universe import (
+        StrategyUniverseGenerator,
+        load_market_dataset_polars,
+        StrategyStyle,
+        TradingType,
+    )
+    import polars as pl
+    import numpy as np
+
+    dates = ["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05"]
+    prices = [1.1000, 1.1050, 1.1020, 1.1080, 1.1120]
+    raw_data = {"date": dates, "close": prices, "volume": [1000, 1200, 950, 1400, 1600]}
+
+    df = load_market_dataset_polars(raw_data)
+    assert isinstance(df, pl.DataFrame)
+    assert df.height == 5
+    assert "close" in df.columns
+    assert df["close"].dtype == pl.Float64
+
+    generator = StrategyUniverseGenerator()
+    specs = generator.generate_matrix(
+        symbols=["EURUSD", "GBPUSD"],
+        timeframes=["H1", "D1"],
+    )
+    # Spans all 15 styles
+    assert len(specs) >= 15
+    styles_present = {s.style for s in specs}
+    for style in StrategyStyle:
+        assert style in styles_present
+
+    # Test baseline signals for TREND_FOLLOWING
+    trend_spec = next(s for s in specs if s.style == StrategyStyle.TREND_FOLLOWING)
+    signals_trend = generator.generate_baseline_signals(trend_spec, df)
+    assert len(signals_trend) == df.height
+    assert set(np.unique(signals_trend)).issubset({-1, 0, 1})
+
+    # Test baseline signals for MEAN_REVERSION
+    mr_spec = next(s for s in specs if s.style == StrategyStyle.MEAN_REVERSION)
+    signals_mr = generator.generate_baseline_signals(mr_spec, df)
+    assert len(signals_mr) == df.height
+    assert set(np.unique(signals_mr)).issubset({-1, 0, 1})
+
+    # Test baseline signals for BREAKOUT (other styles)
+    bo_spec = next(s for s in specs if s.style == StrategyStyle.BREAKOUT)
+    signals_bo = generator.generate_baseline_signals(bo_spec, df)
+    assert len(signals_bo) == df.height
+    assert set(np.unique(signals_bo)).issubset({-1, 0, 1})
+
+    # Test fail-closed execution authority
+    for s in specs:
+        assert s.execution_authority is False
+
+    # Test LONG_ONLY style does not generate short (-1) signals
+    carry_spec = next(s for s in specs if s.style == StrategyStyle.CARRY and s.trading_type == TradingType.LONG_ONLY)
+    signals_carry = generator.generate_baseline_signals(carry_spec, df)
+    assert -1 not in signals_carry
+
+    # Edge cases: empty DataFrame
+    empty_df = load_market_dataset_polars({"close": []})
+    assert empty_df.height == 0
+    signals_empty = generator.generate_baseline_signals(trend_spec, empty_df)
+    assert len(signals_empty) == 0
+
+    # Default generate_matrix parameters
+    default_specs = generator.generate_matrix()
+    assert len(default_specs) >= 15
+    assert default_specs[0].target_symbols == ["EURUSD", "GBPUSD", "XAUUSD", "BTCUSD"]
+
+
+
+
