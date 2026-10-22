@@ -139,14 +139,52 @@ Two new modules, both opt-in and unreferenced by the live path:
   See `tests/test_forecast_sizing.py`.
 
 - **`research/fluey_fitness.py`** — the fitness test from gap 5: FLUEY labels
-  → forward returns in ATR units → in-sample / out-of-sample split →
-  verdict per pattern, plus `FlueyFitnessGate` to say which patterns may
-  influence a position. Eligibility requires a positive out-of-sample edge, a
-  t-statistic ≥ 2, enough signals, and agreement between the two blocks.
+  → forward returns in ATR units → purged, embargoed in-sample / out-of-sample
+  split → net-of-cost verdict per pattern, plus `FlueyFitnessGate` to say
+  which patterns may influence a position. Eligibility requires a positive
+  out-of-sample edge, a t-statistic ≥ 2, enough signals, and agreement
+  between the two blocks.
   See `tests/test_fluey_fitness.py`.
 
 Both are deliberately *not* wired into the trading path: turning either on
 changes live sizing, which is a product decision, not a refactor.
+
+---
+
+## Governance
+
+`docs/PROJECT_SUCCESS_CONTRACT.md` is binding on this repository, and it
+sequences the work: *no new capability until the evidence spine is honest,
+and no promotion until the evidence exists.* Phase 1 (honest evidence spine)
+is pending and Phase 2 (the track record) is instrumented but not collected —
+0 broker-reconciled demo fills out of 200. The two modules above are therefore
+built as **research capability with a governed promotion path**, not as
+trading capability.
+
+What the new modules do about the contract:
+
+| Element | Requirement | How it is met |
+|---|---|---|
+| 8 | A missing dependency reads as refusal, never as no objection | `FlueyFitnessGate` approves nothing when the trial count is absent or short; `FitnessConfig.cost_r` unset refuses every verdict and reports no edge |
+| 11 | Every hypothesis tested is a trial; DSR uses the true count | `record_pattern_trials` writes one hash-chained trial per pattern into `core/trial_ledger.py`; the gate refuses to approve a pattern whose hypotheses were not counted |
+| 12 | Purged, embargoed train/test separation | `split_samples` drops an in-sample signal whose forward window reaches into the out-of-sample block, and an out-of-sample signal formed from in-sample bars |
+| 13 | Cost before promise | Every reported edge number is net of the stated cost; with no cost stated, no number is reported at all |
+| 20 | Published claims come from the tree | `tests/test_carver_map_integrity.py` resolves every file:line citation in this document and fails when one moves; it also asserts the document stays portable |
+| 21 | No absolute paths in evidence | Same test; the map contains no operator paths |
+
+What is **not** done, deliberately:
+
+- The consolidation above is a *policy* recommendation, not an implemented
+  migration. `data/market_data_provider.py:1577` still feeds `risk_per_trade`
+  into the live path, and `core/trading_safety.py` still owns the 1% cap.
+  Changing the live sizing route while the track record is empty would be
+  exactly the "new capability" the contract forbids.
+- No FLUEY pattern has been measured on real prices, so no pattern can be
+  promoted. The fitness harness needs a real OHLCV series and a stated cost
+  assumption before its first verdict means anything.
+- `core/forecast_sizing.py` computes positions; it does not place orders. Any
+  future use must go through the single order door and the deterministic
+  validator, with the 1% risk cap left where it is.
 
 ---
 
