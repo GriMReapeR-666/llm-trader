@@ -206,3 +206,81 @@ def test_diagnostics_pipeline_phase3_walk_forward():
     assert d["total_input"] == len(specs)
 
 
+def test_full_diagnostics_pipeline_end_to_end():
+    from core.agent_event_bus import get_bus
+    from core.strategy_universe import StrategyUniverseGenerator, load_market_dataset_polars
+    from core.diagnostics_engine import DiagnosticsPipeline, DiagnosticsPipelineReport
+
+    # 1. Generate full 1,000 bar synthetic market data
+    np.random.seed(42)
+    n = 1000
+    prices = 100.0 * np.exp(np.cumsum(np.random.normal(0.0005, 0.01, n)))
+    df = load_market_dataset_polars({"close": prices})
+    assert df.height == 1000
+
+    # 2. Generate multi-strategy matrix
+    generator = StrategyUniverseGenerator()
+    specs = generator.generate_matrix(symbols=["EURUSD"])
+    assert len(specs) > 0
+
+    # 3. Track event bus before running pipeline
+    bus = get_bus()
+    since_id = bus.latest_id()
+
+    # 4. Run end-to-end 3-phase diagnostics pipeline (1,000 bars simulation)
+    pipeline = DiagnosticsPipeline(emit_telemetry=True)
+    report = pipeline.run_pipeline(
+        specs=specs,
+        dataset=df,
+        min_sharpe=0.0,
+        max_dd=40.0,
+        n_splits=4,
+        purge_bars=5,
+    )
+
+    # 5. Verify report structure and safety invariants
+    assert isinstance(report, DiagnosticsPipelineReport)
+    assert report.total_input == len(specs)
+    assert report.phase1_survivors <= len(specs)
+    assert report.phase2_survivors <= report.phase1_survivors
+    assert len(report.finalists) == report.phase2_survivors
+    assert report.execution_authority is False
+    assert report.evaluated_at > 0
+
+    d = report.to_dict()
+    assert d["execution_authority"] is False
+    assert "finalists" in d
+
+    for finalist in report.finalists:
+        assert finalist["execution_authority"] is False
+        assert "mean_is_sharpe" in finalist
+        assert "mean_oos_sharpe" in finalist
+        assert "wfe" in finalist
+        assert len(finalist["splits"]) == 4
+        for s in finalist["splits"]:
+            assert s["test_range"][0] - s["train_range"][1] == 5
+
+    # 6. Verify event bus telemetry emissions for Phase 1, Phase 2, and Phase 3
+    events = bus.poll(since_id=since_id, limit=200)
+    diag_events = [e for e in events if e.agent == "DiagnosticsPipeline"]
+    actions = [e.action for e in diag_events]
+
+    assert "DIAGNOSTIC_PHASE1_COMPLETED" in actions
+    assert "DIAGNOSTIC_PHASE2_COMPLETED" in actions
+    assert "DIAGNOSTIC_PHASE3_COMPLETED" in actions
+
+    # Verify event payloads match pipeline report metrics
+    p1_evt = next(e for e in diag_events if e.action == "DIAGNOSTIC_PHASE1_COMPLETED")
+    assert p1_evt.payload["total_tested"] == len(specs)
+    assert p1_evt.payload["survivors_count"] == report.phase1_survivors
+
+    p2_evt = next(e for e in diag_events if e.action == "DIAGNOSTIC_PHASE2_COMPLETED")
+    assert p2_evt.payload["input_count"] == report.phase1_survivors
+    assert p2_evt.payload["passed_count"] == report.phase2_survivors
+
+    p3_evt = next(e for e in diag_events if e.action == "DIAGNOSTIC_PHASE3_COMPLETED")
+    assert p3_evt.payload["finalists_count"] == len(report.finalists)
+    assert "mean_wfe" in p3_evt.payload
+
+
+
