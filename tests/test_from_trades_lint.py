@@ -44,6 +44,11 @@ INVENTORY: dict = {
     "core/graph_state_persistence.py": ("operational", 2),
     "core/order_gateway.py": ("operational", 1),
     "core/quantitative_metrics_service.py": ("gate", 2),
+    # The scheduled sizing-route refresh: a read-only track-record measurement
+    # whose reported numbers come from broker_reconciled_tickets()/
+    # labelled_dataset(); its raw queries count rows (null-provenance health)
+    # and order the closed set before the reconciliation filter.
+    "core/sizing_route.py": ("gate", 2),
     "core/self_improvement_loop.py": ("gate", 2),
     "core/trading_safety.py": ("operational", 11),
     "core/trading_tools.py": ("gate", 1),
@@ -88,6 +93,7 @@ INVENTORY: dict = {
     "tests/test_promotion_gate_journal.py": ("test", 1),
     "tests/test_provenance_quarantine.py": ("test", 2),
     "tests/test_provenance_write_constraints.py": ("test", 2),
+    "tests/test_sizing_route_wiring.py": ("test", 1),
     "tests/test_strategy_lifecycle_engine.py": ("test", 1),
     "tools/inspection/sample_trades.py": ("script", 1),
     "tools/inspection/trade_stats.py": ("script", 3),
@@ -103,6 +109,7 @@ DEBT = frozenset()
 GATE_FILES = frozenset({
     "core/quantitative_metrics_service.py",
     "core/self_improvement_loop.py",
+    "core/sizing_route.py",
     "core/trading_tools.py",
     "mt5_trader.py",
     "operations/analytics.py",
