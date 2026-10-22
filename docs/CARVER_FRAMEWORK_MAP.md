@@ -112,13 +112,21 @@ to the FLUEY catalogue.
 | `research/alpha_miner/cvar_risk.py` | CVaR | absolute units | keep — portfolio-risk view |
 | `core/spmc_regime_filter.py` | regime switch | multiplier | keep — orthogonal to signal sizing |
 | `core/forecast_sizing.py` *(new)* | Carver chain | absolute, forecast-linked | keep — the reference implementation |
+| `core/sizing_spine.py` *(new)* | one order of operations: absolute size, then bounded multipliers, then the cap | absolute, capped | keep — the consolidation target |
 
-**Recommendation:** adopt `core/forecast_sizing.py` as the single *signal-to-
+**Recommendation:** adopt `core/sizing_spine.py` as the single *signal-to-
 position* path, and demote the multiplier paths to what they actually are —
 confidence and regime adjustments applied *after* an absolute size is chosen.
 Do not delete anything yet: the multipliers are wired into live code paths
 (`data/market_data_provider.py:1577`), so consolidation is a staged migration,
 not a cleanup.
+
+The migration is measurable rather than arguable: the route never risks more
+than the live rule does. The live rule spends a flat `risk_per_trade` of
+equity on every trade; the route spends at most that and usually less, because
+a small forecast buys a small position. `tests/test_sizing_spine.py` asserts
+it across the forecast range, and asserts that no combination of multipliers
+can push the risk above the limit.
 
 Carver's Ch. 2 is blunt about this: the best system is the simplest one that
 works, and "as simple as possible" means few moving parts and no weird
@@ -146,8 +154,14 @@ Two new modules, both opt-in and unreferenced by the live path:
   between the two blocks.
   See `tests/test_fluey_fitness.py`.
 
-Both are deliberately *not* wired into the trading path: turning either on
-changes live sizing, which is a product decision, not a refactor.
+- **`core/sizing_spine.py`** — the consolidation target: one order of
+  operations for a signal to become a position. Absolute size first (the
+  Carver chain), then the bounded confidence and regime multipliers, then
+  the risk cap. Nothing in the live path calls it yet.
+  See `tests/test_sizing_spine.py`.
+
+All three are deliberately *not* wired into the trading path: turning any of
+them on changes live sizing, which is a product decision, not a refactor.
 
 ---
 
@@ -174,11 +188,15 @@ What the new modules do about the contract:
 
 What is **not** done, deliberately:
 
-- The consolidation above is a *policy* recommendation, not an implemented
-  migration. `data/market_data_provider.py:1577` still feeds `risk_per_trade`
-  into the live path, and `core/trading_safety.py` still owns the 1% cap.
-  Changing the live sizing route while the track record is empty would be
-  exactly the "new capability" the contract forbids.
+- The consolidation above is a *policy* recommendation, and the target route
+  now exists (`core/sizing_spine.py`), but the live route still sizes by
+  risk-per-trade: `data/market_data_provider.py:1577` feeds
+  `risk_per_trade` into the live path, and `core/trading_safety.py` still
+  owns the 1% cap. Switching the live sizing route while the track record
+  is empty would be exactly the "new capability" the contract forbids, so
+  the switch needs a written amendment to
+  `docs/PROJECT_SUCCESS_CONTRACT.md` with a dated rationale — the same rule
+  the project applies to its own trading gates.
 - No FLUEY pattern has been measured on real prices, so no pattern can be
   promoted. The fitness harness needs a real OHLCV series and a stated cost
   assumption before its first verdict means anything.
