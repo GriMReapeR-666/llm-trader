@@ -10,7 +10,9 @@ import polars as pl
 from core.strategy_universe import (
     StrategySpec,
     StrategyUniverseGenerator,
+    calculate_fast_metrics_numba,
     evaluate_strategy_universe,
+    simulate_positions_numba,
 )
 
 
@@ -249,6 +251,142 @@ class PortfolioFitChecker:
         )
 
 
+@dataclass
+class DiagnosticsPipelineReport:
+    evaluated_at: float = field(default_factory=time.time)
+    total_input: int = 0
+    phase1_survivors: int = 0
+    phase2_survivors: int = 0
+    finalists: List[Dict[str, Any]] = field(default_factory=list)
+    execution_authority: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+def run_purged_walk_forward(
+    spec: StrategySpec,
+    dataset: pl.DataFrame,
+    generator: Optional[StrategyUniverseGenerator] = None,
+    n_splits: int = 4,
+    purge_bars: int = 5,
+) -> Dict[str, Any]:
+    """Phase 3: Purged Walk-Forward Optimization (WFO) over rolling train/test splits."""
+    if generator is None:
+        generator = StrategyUniverseGenerator()
+
+    if dataset.height == 0 or "close" not in dataset.columns:
+        return {
+            "strategy_id": spec.strategy_id,
+            "name": spec.name,
+            "style": spec.style.value,
+            "trading_type": spec.trading_type.value,
+            "n_splits": 0,
+            "purge_bars": purge_bars,
+            "mean_is_sharpe": 0.0,
+            "mean_oos_sharpe": 0.0,
+            "wfe": 0.0,
+            "wfe_passed": False,
+            "splits": [],
+            "execution_authority": False,
+        }
+
+    prices = dataset["close"].to_numpy()
+    n_bars = len(prices)
+
+    min_required = (n_splits + 1) * 2 + purge_bars
+    if n_bars < min_required:
+        return {
+            "strategy_id": spec.strategy_id,
+            "name": spec.name,
+            "style": spec.style.value,
+            "trading_type": spec.trading_type.value,
+            "n_splits": 0,
+            "purge_bars": purge_bars,
+            "mean_is_sharpe": 0.0,
+            "mean_oos_sharpe": 0.0,
+            "wfe": 0.0,
+            "wfe_passed": False,
+            "splits": [],
+            "execution_authority": False,
+        }
+
+    signals = generator.generate_baseline_signals(spec, dataset)
+
+    test_size = max(5, (n_bars - purge_bars) // (n_splits + 1))
+    train_size = test_size
+    step = (n_bars - train_size - purge_bars - test_size) // max(1, n_splits - 1) if n_splits > 1 else 0
+
+    split_details: List[Dict[str, Any]] = []
+    is_sharpes: List[float] = []
+    oos_sharpes: List[float] = []
+
+    for k in range(n_splits):
+        train_start = k * step
+        train_end = train_start + train_size
+        test_start = train_end + purge_bars
+        test_end = (test_start + test_size) if k < n_splits - 1 else n_bars
+        test_end = min(n_bars, test_end)
+
+        if test_start >= test_end:
+            continue
+
+        # In-Sample Simulation
+        train_p = prices[train_start:train_end]
+        train_s = signals[train_start:train_end]
+        is_eq, _, is_trades, is_ret, is_dd = simulate_positions_numba(train_p, train_s)
+        is_returns = (
+            np.diff(is_eq) / is_eq[:-1] if len(is_eq) > 1 else np.empty(0, dtype=np.float64)
+        )
+        is_sr, _, _, _, _, _ = calculate_fast_metrics_numba(is_eq, is_returns)
+
+        # Out-of-Sample Simulation
+        test_p = prices[test_start:test_end]
+        test_s = signals[test_start:test_end]
+        oos_eq, _, oos_trades, oos_ret, oos_dd = simulate_positions_numba(test_p, test_s)
+        oos_returns = (
+            np.diff(oos_eq) / oos_eq[:-1] if len(oos_eq) > 1 else np.empty(0, dtype=np.float64)
+        )
+        oos_sr, _, _, _, _, _ = calculate_fast_metrics_numba(oos_eq, oos_returns)
+
+        is_sr_clean = round(float(is_sr), 3)
+        oos_sr_clean = round(float(oos_sr), 3)
+        is_sharpes.append(is_sr_clean)
+        oos_sharpes.append(oos_sr_clean)
+
+        split_details.append({
+            "split": k,
+            "train_range": (train_start, train_end),
+            "purge_range": (train_end, test_start),
+            "test_range": (test_start, test_end),
+            "is_trades": is_trades,
+            "oos_trades": oos_trades,
+            "is_sharpe": is_sr_clean,
+            "oos_sharpe": oos_sr_clean,
+            "is_return_pct": round(float(is_ret * 100.0), 2),
+            "oos_return_pct": round(float(oos_ret * 100.0), 2),
+        })
+
+    mean_is_sharpe = float(np.mean(is_sharpes)) if is_sharpes else 0.0
+    mean_oos_sharpe = float(np.mean(oos_sharpes)) if oos_sharpes else 0.0
+    wfe = (mean_oos_sharpe / mean_is_sharpe) if mean_is_sharpe > 1e-4 else 0.0
+
+    return {
+        "strategy_id": spec.strategy_id,
+        "name": spec.name,
+        "style": spec.style.value,
+        "trading_type": spec.trading_type.value,
+        "n_splits": len(split_details),
+        "purge_bars": purge_bars,
+        "mean_is_sharpe": round(mean_is_sharpe, 3),
+        "mean_oos_sharpe": round(mean_oos_sharpe, 3),
+        "wfe": round(float(wfe), 3),
+        "wfe_passed": bool(wfe >= 0.50),
+        "splits": split_details,
+        "execution_authority": False,
+    }
+
+
 class DiagnosticsPipeline:
     """Two-Layer Multi-Strategy Diagnostics Pipeline."""
 
@@ -282,6 +420,7 @@ class DiagnosticsPipeline:
         max_dd: float = 30.0,
     ) -> List[StrategySpec]:
         """Phase 1: Quick parallel pass screening all candidate strategies."""
+        self._last_total_input = len(specs)
         report = evaluate_strategy_universe(specs, dataset, emit_telemetry=False)
         survivor_ids: set[str] = set()
 
@@ -294,6 +433,7 @@ class DiagnosticsPipeline:
                 survivor_ids.add(res["strategy_id"])
 
         survivors = [s for s in specs if s.strategy_id in survivor_ids]
+        self._last_phase1_count = len(survivors)
         self._emit(
             "DIAGNOSTIC_PHASE1_COMPLETED",
             {
@@ -313,6 +453,7 @@ class DiagnosticsPipeline:
         # Tier 1: Data Integrity
         data_rep = self.data_checker.check(dataset)
         if not data_rep.is_clean:
+            self._last_phase2_count = 0
             return []
 
         prices = dataset["close"].to_numpy()
@@ -327,6 +468,7 @@ class DiagnosticsPipeline:
 
             passed_specs.append(spec)
 
+        self._last_phase2_count = len(passed_specs)
         self._emit(
             "DIAGNOSTIC_PHASE2_COMPLETED",
             {
@@ -336,4 +478,61 @@ class DiagnosticsPipeline:
             },
         )
         return passed_specs
+
+    def run_phase3_walk_forward(
+        self,
+        finalists: List[StrategySpec],
+        dataset: pl.DataFrame,
+        n_splits: int = 4,
+        purge_bars: int = 5,
+    ) -> DiagnosticsPipelineReport:
+        """Phase 3: Purged Walk-Forward Optimization (WFO) Engine."""
+        finalist_results: List[Dict[str, Any]] = []
+        for spec in finalists:
+            wfo_res = run_purged_walk_forward(
+                spec=spec,
+                dataset=dataset,
+                generator=self.generator,
+                n_splits=n_splits,
+                purge_bars=purge_bars,
+            )
+            finalist_results.append(wfo_res)
+
+        self._emit(
+            "DIAGNOSTIC_PHASE3_COMPLETED",
+            {
+                "finalists_count": len(finalist_results),
+                "finalist_ids": [f["strategy_id"] for f in finalist_results],
+                "mean_wfe": float(np.mean([f["wfe"] for f in finalist_results])) if finalist_results else 0.0,
+            },
+        )
+
+        total_input = getattr(self, "_last_total_input", len(finalists))
+        phase1_survivors = getattr(self, "_last_phase1_count", len(finalists))
+        phase2_survivors = getattr(self, "_last_phase2_count", len(finalists))
+
+        return DiagnosticsPipelineReport(
+            evaluated_at=time.time(),
+            total_input=total_input,
+            phase1_survivors=phase1_survivors,
+            phase2_survivors=phase2_survivors,
+            finalists=finalist_results,
+            execution_authority=False,
+        )
+
+    def run_pipeline(
+        self,
+        specs: List[StrategySpec],
+        dataset: pl.DataFrame,
+        min_sharpe: float = 0.30,
+        max_dd: float = 30.0,
+        n_splits: int = 4,
+        purge_bars: int = 5,
+    ) -> DiagnosticsPipelineReport:
+        """End-to-end 3-phase multi-strategy selection pipeline."""
+        p1 = self.run_phase1_quick_pass(specs, dataset, min_sharpe=min_sharpe, max_dd=max_dd)
+        p2 = self.run_phase2_tier_audit(p1, dataset)
+        p3_report = self.run_phase3_walk_forward(p2, dataset, n_splits=n_splits, purge_bars=purge_bars)
+        return p3_report
+
 

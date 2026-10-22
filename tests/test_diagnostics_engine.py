@@ -153,3 +153,56 @@ def test_diagnostics_pipeline_phase1_and_phase2():
     assert isinstance(phase2_survivors, list)
     assert len(phase2_survivors) <= len(phase1_survivors)
 
+
+def test_diagnostics_pipeline_phase3_walk_forward():
+    from core.strategy_universe import StrategyUniverseGenerator, load_market_dataset_polars
+    from core.diagnostics_engine import (
+        DiagnosticsPipeline,
+        DiagnosticsPipelineReport,
+        run_purged_walk_forward,
+    )
+
+    np.random.seed(42)
+    n = 300
+    prices = 100.0 * np.exp(np.cumsum(np.random.normal(0.0005, 0.01, n)))
+    df = load_market_dataset_polars({"close": prices})
+
+    generator = StrategyUniverseGenerator()
+    specs = generator.generate_matrix(symbols=["EURUSD"])
+
+    # Test standalone run_purged_walk_forward
+    wfo_res = run_purged_walk_forward(specs[0], df, generator, n_splits=4, purge_bars=5)
+    assert isinstance(wfo_res, dict)
+    assert "strategy_id" in wfo_res
+    assert wfo_res["strategy_id"] == specs[0].strategy_id
+    assert "mean_is_sharpe" in wfo_res
+    assert "mean_oos_sharpe" in wfo_res
+    assert "wfe" in wfo_res
+    assert "splits" in wfo_res
+    assert len(wfo_res["splits"]) == 4
+    assert wfo_res["execution_authority"] is False
+
+    # Check splits have purge gap
+    for s in wfo_res["splits"]:
+        train_end = s["train_range"][1]
+        test_start = s["test_range"][0]
+        assert test_start - train_end == 5  # purge buffer of 5 bars
+
+    # Test DiagnosticsPipeline Phase 3
+    pipeline = DiagnosticsPipeline()
+    phase1_survivors = pipeline.run_phase1_quick_pass(specs, df)
+    phase2_survivors = pipeline.run_phase2_tier_audit(phase1_survivors, df)
+
+    report = pipeline.run_phase3_walk_forward(phase2_survivors, df, n_splits=4, purge_bars=5)
+    assert isinstance(report, DiagnosticsPipelineReport)
+    assert report.total_input == len(specs)
+    assert report.phase1_survivors == len(phase1_survivors)
+    assert report.phase2_survivors == len(phase2_survivors)
+    assert len(report.finalists) == len(phase2_survivors)
+    assert report.execution_authority is False
+    assert report.evaluated_at > 0
+    d = report.to_dict()
+    assert isinstance(d, dict)
+    assert d["total_input"] == len(specs)
+
+
