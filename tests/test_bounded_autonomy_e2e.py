@@ -244,6 +244,7 @@ def test_bounded_autonomy_monotone_exposure_cap(base_orchestrator):
     
     # Proposer produces a candidate with quantity 0.05
     orch.bounded_pipeline.proposer.default_quantity = 0.05
+    orch.bounded_pipeline.risk_shield.budget.contract_sizes = {"EURUSD": 1.0}
     
     # Veto approves
     orch.bounded_pipeline.veto_operator.llm_caller = lambda payload: {

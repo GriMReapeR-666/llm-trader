@@ -93,6 +93,7 @@ def test_record_open_trade_releases_reservation(tmp_path):
         volume=0.1,
         risk_amount=2000.0,
         payload={"intent_key": reservation_id},
+        provenance="mt5_broker",
     )
 
     # Reservation should be released, and trades table now holds the $2,000 without double counting!

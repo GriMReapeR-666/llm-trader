@@ -48,11 +48,15 @@ def test_live_pending_order_without_capability_token_is_refused(broker):
     assert broker.sent == []
 
 
-def test_live_pending_order_with_token_is_refused_by_missing_enum_today(broker):
-    """TL-T1 / L4: ConstraintVerdict.HOLD does not exist, so every live pending
-    order raises before order_send. Phase 4 fixes this; update the test then."""
+def test_live_pending_order_with_token_is_refused_without_validation_evidence(broker):
+    """TL-T1 / L4 + single-door rule: a capability token alone is not enough to
+    reach order_send from the pending path. The order is refused unless a
+    DeterministicValidator verdict, setup key and risk amount accompany it.
+
+    Renamed from ``..._by_missing_enum_today``: the enum-era guard it described
+    was replaced by the (stronger) single-door evidence guard."""
     token = NS(can_access=lambda level, scope="": True)
-    with pytest.raises(RuntimeError, match="TradingConstraintEngine"):
+    with pytest.raises(RuntimeError, match="single-door rule"):
         _pending(paper=None, token=token)
     assert broker.sent == []
 

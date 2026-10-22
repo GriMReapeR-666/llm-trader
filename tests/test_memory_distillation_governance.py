@@ -39,7 +39,7 @@ def test_only_closed_trade_with_matching_label_is_distilled(tmp_path: Path):
     memory = TradingMemory(path)
     proposal = TradeProposal("scalp", "EURUSD", "BUY", 1.1, 1.0, 1.3, 0.8,
                              {"setup_id": "memory", "regime": "trend"})
-    store.record_open_trade(101, proposal, 1.0, 1.0, {"features": {"regime": "trend"}})
+    store.record_open_trade(101, proposal, 1.0, 1.0, {"features": {"regime": "trend"}}, provenance="mt5_broker")
     store.record_close(101, 1.3, 0.3, "target")
     label = memory.label_closed_trade(101, 0.3, 1.0, "target")
     operations = AgentOperations(path)

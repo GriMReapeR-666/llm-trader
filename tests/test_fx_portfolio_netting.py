@@ -175,12 +175,12 @@ def test_portfolio_risk_arbiter_with_fx_netting(tmp_path):
     # 2. Insert open trades directly into store
     with store._connect() as con:
         con.execute(
-            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, payload) "
-            "VALUES (1, 1001, 'swing', 'EURUSD', 'BUY', 1.0, 1.1000, 120.0, '2026-09-01T00:00:00Z', '{}')"
+            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, payload, provenance) "
+            "VALUES (1, 1001, 'swing', 'EURUSD', 'BUY', 1.0, 1.1000, 120.0, '2026-09-01T00:00:00Z', '{}', 'mt5_broker')"
         )
         con.execute(
-            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, payload) "
-            "VALUES (2, 1001, 'swing', 'GBPUSD', 'BUY', 1.0, 1.3000, 100.0, '2026-09-01T00:00:00Z', '{}')"
+            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, payload, provenance) "
+            "VALUES (2, 1001, 'swing', 'GBPUSD', 'BUY', 1.0, 1.3000, 100.0, '2026-09-01T00:00:00Z', '{}', 'mt5_broker')"
         )
 
     # Open positions for netting query

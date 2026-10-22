@@ -23,7 +23,10 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # scratch/: throwaway diagnostics never imported by the app or fed to
 # promotion.  graphify-out/ is generated; node_modules/ is vendored.
-_SKIP_DIRS = {".git", "__pycache__", "node_modules", "graphify-out", "scratch"}
+# "_scratch" is the directory that actually exists in this repo; the bare
+# "scratch" entry never matched it, so throwaway restore scripts leaked into
+# the guard and failed it (audit 2026-10-20).
+_SKIP_DIRS = {".git", "__pycache__", "node_modules", "graphify-out", "scratch", "_scratch"}
 
 _FROM_TRADES = re.compile(r"FROM\s+trades\b", re.I)
 
@@ -47,6 +50,11 @@ INVENTORY: dict = {
     "intelligence/trading_memory.py": ("operational", 6),
     "mt5_trader.py": ("gate", 2),
     "operations/analytics.py": ("gate", 1),
+    # The demo-venue evidence collector: its raw reads enrich rows and count
+    # fills, but every PERFORMANCE number it reports comes from
+    # labelled_dataset()/broker_reconciled_tickets(), so it belongs to the
+    # gate role and is pinned by GATE_FILES below.
+    "operations/demo_evidence_collector.py": ("gate", 3),
     "operations/health_alerts.py": ("operational", 1),
     "operations/improvement_pipeline.py": ("gate", 1),
     "operations/journal_audit.py": ("gate", 11),
@@ -54,23 +62,32 @@ INVENTORY: dict = {
     "operations/legacy_reconciliation.py": ("operational", 3),
     "operations/meta_improvement_orchestrator.py": ("gate", 1),
     "operations/prometheus_exporter.py": ("operational", 3),
+    # Quarantine is EXCLUSION plumbing, not an evidence reader: it lists the
+    # tickets whose provenance was never declared so the admission readers can
+    # drop them.  It never grades a row, so it claims no gate role.
+    "operations/provenance_quarantine.py": ("operational", 2),
     "research/advanced_rl_pipeline.py": ("gate", 1),
     "research/auto_promotion.py": ("gate", 1),
     "scripts/insert_sim.py": ("script", 1),
     "tools/inspection/payload_check.py": ("script", 1),
     "tools/inspection/pf_check.py": ("script", 1),
     "research/code_interpreter.py": ("gate", 1),
-    "research/continuous_backtest_pipeline.py": ("gate", 1),
+    # Tombstone: the only raw reader here was removed (working tree and HEAD
+    # both have 0 sites); the gate-role requirement below still applies.
+    "research/continuous_backtest_pipeline.py": ("gate", 0),
     "research/demo_sample_generator.py": ("operational", 1),
     "research/divergence_monitor.py": ("gate", 1),
     "research/research_validation.py": ("gate", 1),
     "research/training_orchestrator.py": ("gate", 1),
     "tests/test_backtest_journal_isolation.py": ("test", 1),
+    "tests/test_demo_evidence_collector.py": ("test", 6),
     "tests/test_legacy_reconciliation.py": ("test", 2),
 "tests/test_backtest_isolation.py": ("test", 1),
     "tests/test_microstructure_scalp_pipeline_e2e.py": ("test", 1),
     "tests/test_mt5_backtest_pipeline_integration.py": ("test", 0),
     "tests/test_promotion_gate_journal.py": ("test", 1),
+    "tests/test_provenance_quarantine.py": ("test", 2),
+    "tests/test_provenance_write_constraints.py": ("test", 2),
     "tests/test_strategy_lifecycle_engine.py": ("test", 1),
     "tools/inspection/sample_trades.py": ("script", 1),
     "tools/inspection/trade_stats.py": ("script", 3),
@@ -89,6 +106,7 @@ GATE_FILES = frozenset({
     "core/trading_tools.py",
     "mt5_trader.py",
     "operations/analytics.py",
+    "operations/demo_evidence_collector.py",
     "operations/improvement_pipeline.py",
     "operations/journal_audit.py",
     "operations/meta_improvement_orchestrator.py",

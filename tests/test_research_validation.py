@@ -35,7 +35,7 @@ def test_promotion_metrics_exclude_unlabelled_closed_rows(tmp_path: Path):
         "scalp", "EURUSD", "BUY", 1.1, 1.0, 1.3, 0.8,
         {"setup_id": "legacy-test", "feature_schema_version": "legacy"},
     )
-    store.record_open_trade(1, proposal, 1.0, 0.01, {"features": {}})
+    store.record_open_trade(1, proposal, 1.0, 0.01, {"features": {}}, provenance="mt5_broker")
     store.record_close(1, 1.05, 0.01, "target")
 
     assert setup_metrics(path) == []
@@ -59,7 +59,7 @@ def test_labelled_dataset_excludes_nonfinite_point_in_time_features(tmp_path: Pa
     proposal = TradeProposal(
         "scalp", "EURUSD", "BUY", 1.1, 1.0, 1.3, 0.8, features,
     )
-    store.record_open_trade(7, proposal, 1.0, 1.0, {"proposal_features": features})
+    store.record_open_trade(7, proposal, 1.0, 1.0, {"proposal_features": features}, provenance="mt5_broker")
     store.record_close(7, 1.2, 1.0, "target")
     TradingMemory(path)
     with sqlite3.connect(path) as con:
@@ -91,7 +91,7 @@ def test_labelled_dataset_excludes_future_feature_timestamp(tmp_path: Path):
     proposal = TradeProposal(
         "scalp", "EURUSD", "BUY", 1.1, 1.0, 1.3, 0.8, features,
     )
-    store.record_open_trade(8, proposal, 1.0, 1.0, {"proposal_features": features})
+    store.record_open_trade(8, proposal, 1.0, 1.0, {"proposal_features": features}, provenance="mt5_broker")
     store.record_close(8, 1.2, 1.0, "target")
     TradingMemory(path)
     with sqlite3.connect(path) as con:
@@ -195,7 +195,7 @@ def test_labelled_dataset_requires_independent_broker_evidence(tmp_path: Path):
     store.record_open_trade(21, proposal, 1.0, 10.0, {
         "source": "broker",
         "proposal_features": {**features, "source": "mt5_live_broker"},
-    })
+    }, provenance="mt5_broker")
     store.record_close(21, 1.2, 15.0, "target")
     TradingMemory(path)
     with sqlite3.connect(path) as con:
@@ -226,7 +226,7 @@ def test_inject_samples_refuses_journal_with_real_trades(tmp_path: Path):
     proposal = TradeProposal(
         "scalp", "EURUSD", "BUY", 1.1, 1.0, 1.3, 0.8, {"setup_id": "real"},
     )
-    store.record_open_trade(500, proposal, 1.0, 10.0, {})
+    store.record_open_trade(500, proposal, 1.0, 10.0, {}, provenance="mt5_broker")
     store.record_close(500, 1.2, 10.0, "target")
 
     with __import__("pytest").raises(ValueError):

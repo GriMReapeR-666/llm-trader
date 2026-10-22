@@ -51,7 +51,7 @@ def _verified_setup(tmp_path: Path):
     memory = TradingMemory(path)
     proposal = TradeProposal("scalp", "EURUSD", "BUY", 1.1, 1.0, 1.3, 0.8,
                              {"setup_id": "memory", "regime": "trend"})
-    store.record_open_trade(201, proposal, 1.0, 1.0, {"features": {"regime": "trend"}})
+    store.record_open_trade(201, proposal, 1.0, 1.0, {"features": {"regime": "trend"}}, provenance="mt5_broker")
     store.record_close(201, 1.3, 0.3, "target")
     label = memory.label_closed_trade(201, 0.3, 1.0, "target")
     operations = AgentOperations(path)
@@ -147,7 +147,7 @@ def test_partial_outage_with_success_is_partial_failure(tmp_path: Path):
     store = TradingStore(str(tmp_path / "memory.db"))
     proposal = TradeProposal("scalp", "EURUSD", "SELL", 1.1, 1.2, 1.0, 0.8,
                              {"setup_id": "memory", "regime": "trend"})
-    store.record_open_trade(202, proposal, 1.2, 1.2, {"features": {"regime": "trend"}})
+    store.record_open_trade(202, proposal, 1.2, 1.2, {"features": {"regime": "trend"}}, provenance="mt5_broker")
     store.record_close(202, 1.0, 0.2, "stop")
     label = memory.label_closed_trade(202, 0.2, 1.2, "stop")
     operations.enqueue_memory("closed_trade", "202",

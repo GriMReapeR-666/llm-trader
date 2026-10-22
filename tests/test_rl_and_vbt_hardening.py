@@ -31,6 +31,7 @@ def test_vbt_advanced_metrics_calculation():
         slow_period=15,
         symbol="EURUSD",
         timeframe="M15",
+        data_source="synthetic",
     )
 
     assert isinstance(metrics, BacktestMetrics)

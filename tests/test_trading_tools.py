@@ -151,3 +151,18 @@ def test_query_zero_lag_macro_tool():
     assert res["symbol"] == "EURUSD"
     assert res["zero_lag_score"] > 0.0
     assert res["noise_filter_applied"] is True
+
+
+def test_query_zero_lag_macro_never_labels_constants_live():
+    """Audit 2026-10-20: the score is built ONLY from provider fields the
+    provider itself annotates SYNTHETIC. The tool must not relabel that as a
+    live macro read or advertise it as tradable."""
+    res = query_zero_lag_macro.invoke({"symbol": "EURUSD"})
+    provenance = res.get("score_input_provenance") or {}
+    assert provenance, "score inputs must carry provenance"
+    if all(str(v).startswith("SYNTHETIC") for v in provenance.values()):
+        assert res["source"] == "SYNTHETIC_CONSTANTS"
+        assert res["is_tradable"] is False
+        assert "warning" in res
+    if res["source"] == "LIVE_ZERO_LAG_PROVIDER":
+        assert any(str(v) == "LIVE" for v in provenance.values())

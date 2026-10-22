@@ -38,14 +38,14 @@ def routed(monkeypatch):
             "omnirouter": {"enabled": True, "api_keys": ["sk-omni"], "rpm": 30},
             "cerebras": {"enabled": False, "api_keys": [], "rpm": 30},
         },
-        "agents": {"trader": {"provider": "openrouter", "model": "mistralai/mistral-nemo"}},
+        "agents": {"trader": {"provider": "openrouter", "model": "mistralai/mistral-nemo:free"}},
         "global_fallback_order": ["cerebras", "openrouter"],
     }
     router.providers = {
         "openrouter": OpenRouterProvider(["sk-or-abc"]),
         "omnirouter": OmniRouterProvider(["sk-omni"]),
     }
-    router.agents = {"trader": {"provider": "openrouter", "model": "mistralai/mistral-nemo"}}
+    router.agents = {"trader": {"provider": "openrouter", "model": "mistralai/mistral-nemo:free"}}
 
     monkeypatch.setattr(lr, "get_router", lambda: router)
     return router
@@ -140,8 +140,8 @@ def test_models_are_listed(routed):
 
 def test_agent_model_is_flagged_default(routed):
     models = {m["id"]: m for m in _by_id(_call())["openrouter"]["models"]}
-    assert models["mistralai/mistral-nemo"]["isDefault"] is True
-    assert models["qwen/qwen3-8b"]["isDefault"] is False
+    assert models["mistralai/mistral-nemo:free"]["isDefault"] is True
+    assert models["qwen/qwen3-8b:free"]["isDefault"] is False
 
 
 def test_failover_priority_follows_the_router_order(routed):

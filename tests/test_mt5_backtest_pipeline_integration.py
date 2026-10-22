@@ -56,7 +56,8 @@ def test_mt5_broker_specs_fetch():
 
 def test_mt5_backtest_metrics_calculation(sample_bars):
     engine = MT5BrokerBacktestEngine(spread_pips=1.5, slippage_pips=0.5, commission_per_lot=7.0)
-    metrics = engine.run_crossover_strategy(sample_bars, fast_period=8, slow_period=20)
+    metrics = engine.run_crossover_strategy(sample_bars, fast_period=8, slow_period=20,
+                                     data_source="synthetic")
 
     assert isinstance(metrics, BacktestMetrics)
     assert metrics.total_trades > 0
@@ -74,6 +75,13 @@ def test_mt5_backtest_metrics_calculation(sample_bars):
     m_dict = metrics.to_dict()
     assert "total_return_pct" in m_dict
     assert "total_friction_drag_usd" in m_dict
+
+    # Audit 2026-10-20: these fields are percentages of equity at the mandated
+    # 1% risk per trade, not R-multiples x 100. A drawdown can never exceed 100%
+    # and total return must agree with expectancy_r * trades (within rounding).
+    assert 0.0 <= metrics.max_drawdown_pct <= 100.0
+    implied_r = metrics.expectancy_r * metrics.total_trades
+    assert abs(metrics.total_return_pct - implied_r) <= max(0.5, abs(implied_r) * 0.05)
 
 
 def test_data_improvement(sample_bars):
@@ -129,7 +137,8 @@ def test_data_improvement_shape_matches_validated_output(sample_bars):
 
 def test_strategy_improvement_and_lifecycle(sample_bars, temp_db):
     engine = MT5BrokerBacktestEngine(db_path=temp_db)
-    metrics = engine.run_crossover_strategy(sample_bars, fast_period=8, slow_period=20)
+    metrics = engine.run_crossover_strategy(sample_bars, fast_period=8, slow_period=20,
+                                     data_source="synthetic")
     strat_imp = engine.process_strategy_improvement(
         metrics=metrics,
         symbol="EURUSD",
@@ -146,7 +155,8 @@ def test_strategy_improvement_and_lifecycle(sample_bars, temp_db):
 
 def test_journaling_and_reflection(sample_bars, temp_db):
     engine = MT5BrokerBacktestEngine(db_path=temp_db)
-    metrics = engine.run_crossover_strategy(sample_bars, fast_period=8, slow_period=20)
+    metrics = engine.run_crossover_strategy(sample_bars, fast_period=8, slow_period=20,
+                                     data_source="synthetic")
 
     # Journaling
     journal_res = engine.process_journaling(
@@ -154,6 +164,7 @@ def test_journaling_and_reflection(sample_bars, temp_db):
         symbol="EURUSD",
         strategy_name="test_crossover",
         config={"timeframe": "M15"},
+        data_source="synthetic",
     )
     assert journal_res["persisted_run"] is True
     assert journal_res["trades_logged"] > 0
@@ -197,6 +208,7 @@ def test_run_full_autonomous_backtest(temp_db):
         strategy_name="auto_test_strat",
         fast_period=8,
         slow_period=20,
+        data_source="synthetic",
     )
 
     assert full_res["status"] == "COMPLETED"

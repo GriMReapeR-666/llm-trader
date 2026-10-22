@@ -54,10 +54,12 @@ def test_bug1_per_strategy_differentiation(tmp_path):
     bars_df = _generate_bars(500, seed=42)
 
     res1 = engine.run_full_autonomous_backtest(
-        symbol="EURUSD", strategy_name="gold_momentum_h4", bars_df=bars_df
+        symbol="EURUSD", strategy_name="gold_momentum_h4", bars_df=bars_df,
+        data_source="synthetic",
     )
     res2 = engine.run_full_autonomous_backtest(
-        symbol="EURUSD", strategy_name="alpha_055_orderflow", bars_df=bars_df
+        symbol="EURUSD", strategy_name="alpha_055_orderflow", bars_df=bars_df,
+        data_source="synthetic",
     )
 
     # Must produce different results

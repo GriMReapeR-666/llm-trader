@@ -354,12 +354,17 @@ class TestStrategyClassScoping:
         for i in range(200):
             ledger.record_trial(strategy_id=f"null{i}", sharpe=0.0,
                                 n_observations=100)
+        # ``annualized=False``: 0.17 is the RAW per-observation estimator
+        # (mean/std), which is what the 2.69-SE reasoning above describes.
+        # The ledger's default is annualized, so the units must be declared.
         r_global = ledger.evaluate_dsr(
             estimated_sharpe=0.17, n_observations=250, strategy_id="g_probe",
+            annualized=False,
         )
         r_scoped = ledger.evaluate_dsr(
             estimated_sharpe=0.17, n_observations=250, strategy_id="s_probe",
             strategy_class="fresh_class",
+            annualized=False,
         )
         assert r_global.n_trials == 201 and r_scoped.n_trials == 1
         assert r_global.is_significant is False   # below the global bar

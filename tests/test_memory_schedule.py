@@ -11,7 +11,7 @@ def test_weekly_narrative_and_core_consolidation_are_restart_safe(tmp_path: Path
     store = TradingStore(path)
     proposal = TradeProposal("scalp", "EURUSD", "BUY", 1.1, 1.0, 1.3, 0.8,
                              {"setup_id": "weekly-test"})
-    store.record_open_trade(1, proposal, 1.0, 1.0, {"proposal_features": {}})
+    store.record_open_trade(1, proposal, 1.0, 1.0, {"proposal_features": {}}, provenance="mt5_broker")
     # Use an explicit broker close timestamp so this test remains deterministic
     # when the calendar advances beyond the originally documented week.
     store.record_close(1, 1.2, 1.0, "target", closed_at="2026-08-04T12:00:00+00:00")

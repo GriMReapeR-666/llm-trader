@@ -37,7 +37,8 @@ def test_backtest_journaling_does_not_pollute_live_trades(tmp_path):
     metrics.expectancy_r = 0.5
     metrics.total_trades = 1
     
-    res = engine.process_journaling(metrics, symbol="EURUSD", strategy_name="test_strat")
+    res = engine.process_journaling(
+        metrics, symbol="EURUSD", strategy_name="test_strat", data_source="synthetic")
     assert res["persisted_run"] is True
     
     con = sqlite3.connect(db_file)

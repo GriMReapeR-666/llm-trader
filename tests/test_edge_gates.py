@@ -101,6 +101,9 @@ def _seed_trades(db_path, n, r_values):
         values["ticket"] = 1000 + i
         values["closed_at"] = f"2026-01-{(i % 28) + 1:02d}T00:00:00+00:00"
         values["pnl"] = r * 100.0
+        # Direct-SQL seed: the journal trigger now requires a declared source.
+        if "provenance" in values:
+            values["provenance"] = "mt5_broker"
         con.execute(
             f"INSERT OR REPLACE INTO trades({','.join(insert_cols)}) VALUES({placeholders})",
             tuple(values[c] for c in insert_cols))

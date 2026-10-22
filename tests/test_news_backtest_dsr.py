@@ -9,7 +9,7 @@ class TestNewsBacktestDSR:
     def test_backtest_result_has_dsr_fields(self):
         """BacktestResult should have DSR fields."""
         from research.news_gate_backtest import BacktestResult
-        r = BacktestResult()
+        r = BacktestResult(data_source="synthetic")
         assert hasattr(r, "dsr_confidence")
         assert hasattr(r, "dsr_pvalue")  # legacy alias
         assert hasattr(r, "dsr_passed")
@@ -33,6 +33,7 @@ class TestNewsBacktestDSR:
         """summary() should include DSR info when gate was run."""
         from research.news_gate_backtest import BacktestResult
         r = BacktestResult(
+            data_source="synthetic",
             dsr_pvalue=0.87,
             dsr_passed=True,
             dsr_n_trials=12,
@@ -47,7 +48,7 @@ class TestNewsBacktestDSR:
     def test_summary_excludes_dsr_when_not_run(self):
         """summary() should not include DSR section when not run."""
         from research.news_gate_backtest import BacktestResult
-        r = BacktestResult()
+        r = BacktestResult(data_source="synthetic")
         text = r.summary()
         assert "DSR GATE" not in text
 
@@ -66,7 +67,7 @@ class TestNewsBacktestDSR:
     def test_details_field_exists(self):
         """BacktestResult should have a details dict."""
         from research.news_gate_backtest import BacktestResult
-        r = BacktestResult()
+        r = BacktestResult(data_source="synthetic")
         assert hasattr(r, "details")
         assert isinstance(r.details, dict)
 
@@ -74,6 +75,7 @@ class TestNewsBacktestDSR:
         """DSR fields should be stored correctly with alias sync."""
         from research.news_gate_backtest import BacktestResult
         r = BacktestResult(
+            data_source="synthetic",
             dsr_pvalue=0.92,
             dsr_passed=True,
             dsr_n_trials=5,
@@ -92,5 +94,5 @@ class TestNewsBacktestDSR:
     def test_alias_sync_canonical_to_legacy(self):
         """Setting dsr_confidence via kwargs should sync the legacy alias."""
         from research.news_gate_backtest import BacktestResult
-        r = BacktestResult(dsr_confidence=0.77)
+        r = BacktestResult(data_source="synthetic", dsr_confidence=0.77)
         assert r.dsr_pvalue == 0.77

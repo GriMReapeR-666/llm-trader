@@ -45,7 +45,7 @@ def test_scenario_review_is_one_time_and_rebuild_preserves_approval(tmp_path: Pa
     store = TradingStore(str(path))
     proposal = TradeProposal("scalp", "EURUSD", "BUY", 1.1, 1.0, 1.3, 0.8,
                              {"setup_id": "setup", "regime": "trend"})
-    store.record_open_trade(1, proposal, 1.0, 1.0, {"features": {"regime": "trend"}})
+    store.record_open_trade(1, proposal, 1.0, 1.0, {"features": {"regime": "trend"}}, provenance="mt5_broker")
     store.record_close(1, 1.2, 0.1, "target")
     memory.label_closed_trade(1, 0.1, 1.0, "target")
     memory.rebuild_scenarios()

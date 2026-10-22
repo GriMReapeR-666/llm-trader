@@ -51,21 +51,21 @@ def test_incremental_journal_sync(tmp_path):
     # 1. Insert 3 closed trades
     with store._connect() as con:
         con.execute(
-            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, closed_at, pnl, payload) "
-            "VALUES (101, 1001, 'swing', 'EURUSD', 'BUY', 1.0, 1.1000, 100.0, '2026-09-01T00:00:00Z', '2026-09-01T01:00:00Z', 150.0, '{}')"
+            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, closed_at, pnl, payload, provenance) "
+            "VALUES (101, 1001, 'swing', 'EURUSD', 'BUY', 1.0, 1.1000, 100.0, '2026-09-01T00:00:00Z', '2026-09-01T01:00:00Z', 150.0, '{}', 'mt5_broker')"
         )
         con.execute(
-            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, closed_at, pnl, payload) "
-            "VALUES (102, 1001, 'swing', 'GBPUSD', 'BUY', 1.0, 1.3000, 100.0, '2026-09-01T02:00:00Z', '2026-09-01T03:00:00Z', -100.0, '{}')"
+            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, closed_at, pnl, payload, provenance) "
+            "VALUES (102, 1001, 'swing', 'GBPUSD', 'BUY', 1.0, 1.3000, 100.0, '2026-09-01T02:00:00Z', '2026-09-01T03:00:00Z', -100.0, '{}', 'mt5_broker')"
         )
         con.execute(
-            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, closed_at, pnl, payload) "
-            "VALUES (103, 1001, 'swing', 'AUDUSD', 'BUY', 1.0, 0.6500, 100.0, '2026-09-01T04:00:00Z', '2026-09-01T05:00:00Z', 250.0, '{}')"
+            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, closed_at, pnl, payload, provenance) "
+            "VALUES (103, 1001, 'swing', 'AUDUSD', 'BUY', 1.0, 0.6500, 100.0, '2026-09-01T04:00:00Z', '2026-09-01T05:00:00Z', 250.0, '{}', 'mt5_broker')"
         )
         # Open trade (closed_at is NULL) must NOT be synced
         con.execute(
-            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, closed_at, pnl, payload) "
-            "VALUES (104, 1001, 'swing', 'NZDUSD', 'BUY', 1.0, 0.6000, 100.0, '2026-09-01T06:00:00Z', NULL, 0.0, '{}')"
+            "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, risk_amount, opened_at, closed_at, pnl, payload, provenance) "
+            "VALUES (104, 1001, 'swing', 'NZDUSD', 'BUY', 1.0, 0.6000, 100.0, '2026-09-01T06:00:00Z', NULL, 0.0, '{}', 'mt5_broker')"
         )
         # Independent submission evidence: the sync gate admits only tickets
         # recorded in order_intents; a self-declared trades row proves nothing.

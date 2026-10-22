@@ -44,7 +44,7 @@ _ticket = iter(range(1, 10_000))
 
 def _open(store, risk):
     t = next(_ticket)
-    store.record_open_trade(t, _proposal(t), 0.1, risk, {})
+    store.record_open_trade(t, _proposal(t), 0.1, risk, {}, provenance="mt5_broker")
     return t
 
 

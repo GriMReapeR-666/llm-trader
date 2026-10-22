@@ -49,8 +49,8 @@ def _seed(store, n, r_multiple, label="LOSS", broker_evidenced=True):
             con.execute(
                 "INSERT OR REPLACE INTO trades (ticket, magic, strategy, symbol, side,"
                 " volume, entry, stop_loss, take_profit, risk_amount, opened_at,"
-                " closed_at, exit_price, pnl, exit_reason, payload)"
-                " VALUES (?,1,'s','EURUSD','buy',0.01,1.0,0.9,1.2,100.0,?,?,1.0,-100.0,'sl','')",
+                " closed_at, exit_price, pnl, exit_reason, payload, provenance)"
+                " VALUES (?,1,'s','EURUSD','buy',0.01,1.0,0.9,1.2,100.0,?,?,1.0,-100.0,'sl','','mt5_broker')",
                 (ticket, _CLOSED, _CLOSED))
             con.execute(
                 "INSERT OR REPLACE INTO trade_labels (ticket, label, rationale,"

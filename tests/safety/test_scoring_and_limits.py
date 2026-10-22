@@ -69,7 +69,7 @@ def test_open_bucket_risk_sums_only_matching_open_trades(tmp_path):
                                        (3, "USDJPY", "BUY", 20.0), (4, "EURUSD", "BUY", 7.0)]:
         proposal = TradeProposal(strategy="s", symbol=symbol, side=side, entry=1.0, stop_loss=.9,
                                  take_profit=1.2, confidence=.8, features={"setup_id": str(ticket)})
-        store.record_open_trade(ticket, proposal, .01, risk, {})
+        store.record_open_trade(ticket, proposal, .01, risk, {}, provenance="mt5_broker")
     store.record_close(4, 1.0, 0.0, "test")
     assert store.open_bucket_risk("USD_SHORT") == pytest.approx(80.0)
     assert store.open_bucket_risk("USD_LONG") == pytest.approx(20.0)

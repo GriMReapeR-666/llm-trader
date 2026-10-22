@@ -187,7 +187,8 @@ def test_does_not_insert_simulated_trades_or_promotions_into_live_store(tmp_path
     engine = MT5BrokerBacktestEngine(journal_path=bt_db_path)
 
     # Run complete crossover strategy and lifecycle pipeline
-    metrics = engine.run_crossover_strategy(sample_bars, fast_period=8, slow_period=20)
+    metrics = engine.run_crossover_strategy(sample_bars, fast_period=8, slow_period=20,
+                                     data_source="synthetic")
     journal_res = engine.process_journaling(metrics, symbol="EURUSD", strategy_name="test_strat")
     strat_res = engine.process_strategy_improvement(metrics, symbol="EURUSD", strategy_name="test_strat")
     refl_res = engine.process_reflection(metrics, symbol="EURUSD", strategy_name="test_strat")
@@ -291,7 +292,7 @@ def test_override_paths_in_methods_rejected(tmp_path, sample_bars):
     live_db = str(tmp_path / "override_live.db")
     ensure_scope(live_db, "LIVE", "override_fp")
 
-    metrics = engine.run_crossover_strategy(sample_bars)
+    metrics = engine.run_crossover_strategy(sample_bars, data_source="synthetic")
 
     with pytest.raises(ValueError, match="LIVE"):
         engine.process_journaling(metrics, journal_path=live_db)

@@ -931,6 +931,12 @@ def isolate_shared_root_databases(tmp_path, monkeypatch):
 # Additive only. An explicit decorator marker is never removed or overridden,
 # and a plain `pytest` run still selects exactly the same tests as before -
 # these markers only bite when someone passes `-m`.
+#
+# Phase 1 adds `fast`: the selection marker of the under-five-minute gate
+# (scripts/ci/fast_gate.py). It is the same set as `unit` - the complement of
+# `slow` - and is derived here for the same reason: a new module is inside
+# the gate by default, and the gate's own time budget is what stops it from
+# quietly growing back into the full suite.
 # ---------------------------------------------------------------------------
 
 # Modules that wire several subsystems together: expensive, and a failure
@@ -964,5 +970,10 @@ def pytest_collection_modifyitems(config, items):
             continue
 
         # `unit` is the complement, so `-m unit` is the fast lane and is not
-        # silently empty the way an unused marker always is.
+        # silently empty the way an unused marker always is. `fast` is the
+        # same set, named for what it is: the selection of the five-minute
+        # gate in scripts/ci/fast_gate.py. A test that marked itself slow
+        # stays out of the gate even in a fast-named module.
         item.add_marker(pytest.mark.unit)
+        if item.get_closest_marker("slow") is None:
+            item.add_marker(pytest.mark.fast)

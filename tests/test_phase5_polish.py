@@ -165,7 +165,7 @@ def test_end_to_end_trade_lifecycle_without_mt5(tmp_path):
 
     # 4) Order routing / execution (journaled fill)
     ticket = 424242
-    store.record_open_trade(ticket, proposal, volume=0.1, risk_amount=50.0, payload={"source": "e2e"})
+    store.record_open_trade(ticket, proposal, volume=0.1, risk_amount=50.0, payload={"source": "e2e"}, provenance="mt5_broker")
     store.record_execution_report(
         event_type="FILLED", order_ticket=ticket, position_ticket=ticket,
         requested_price=proposal.entry, filled_price=proposal.entry + 0.00005,

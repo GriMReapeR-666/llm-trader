@@ -13,7 +13,7 @@ def test_setup_instance_tracks_fill_management_partial_and_close(tmp_path):
     instance_id = store.record_setup_instance(proposal)
     store.transition_setup_instance(instance_id, "VALIDATED")
     store.transition_setup_instance(instance_id, "ACCEPTED")
-    store.record_open_trade(501, proposal, 1.0, 10.0, {"proposal_features": proposal.features})
+    store.record_open_trade(501, proposal, 1.0, 10.0, {"proposal_features": proposal.features}, provenance="mt5_broker")
     store.transition_setup_for_ticket(501, "PARTIAL", reason="partial close")
     store.record_close(501, 1.115, 15.0, "target")
 

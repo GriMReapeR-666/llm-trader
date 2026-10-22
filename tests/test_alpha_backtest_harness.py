@@ -130,7 +130,7 @@ class TestBacktestEngine:
         exits = pd.Series(False, index=range(n))
         entries.iloc[50] = True
         exits.iloc[100] = True
-        result = run_backtest(small_ohlcv, entries, exits, name="test")
+        result = run_backtest(small_ohlcv, entries, exits, name="test", data_source="synthetic")
         assert isinstance(result, BacktestResult)
         assert result.total_trades == 1
         assert result.final_equity > 0
@@ -139,12 +139,12 @@ class TestBacktestEngine:
         n = len(small_ohlcv)
         entries = pd.Series(False, index=range(n))
         exits = pd.Series(False, index=range(n))
-        result = run_backtest(small_ohlcv, entries, exits, name="test")
+        result = run_backtest(small_ohlcv, entries, exits, name="test", data_source="synthetic")
         assert result.total_trades == 0
         assert result.final_equity == 100_000.0
 
     def test_hold_baseline(self, small_ohlcv):
-        result = _compute_hold_return(small_ohlcv)
+        result = _compute_hold_return(small_ohlcv, data_source="synthetic")
         assert result.name == "buy_and_hold"
         assert result.total_trades == 1
         assert result.final_equity > 0
@@ -155,7 +155,7 @@ class TestBacktestEngine:
         exits = pd.Series(False, index=range(n))
         entries.iloc[10] = True
         exits.iloc[20] = True
-        result = run_backtest(small_ohlcv, entries, exits, name="test")
+        result = run_backtest(small_ohlcv, entries, exits, name="test", data_source="synthetic")
         d = result.to_dict()
         assert "total_return_pct" in d
         assert "sharpe_ratio" in d
@@ -171,6 +171,7 @@ class TestBacktestEngine:
         result = run_backtest(
             small_ohlcv, pd.Series(False, index=range(n)), pd.Series(False, index=range(n)),
             short_entries=entries, short_exits=exits, name="short_test",
+            data_source="synthetic",
         )
         assert result.total_trades == 1
 
@@ -180,8 +181,8 @@ class TestBacktestEngine:
         exits = pd.Series(False, index=range(n))
         entries.iloc[10] = True
         exits.iloc[50] = True
-        r_no_comm = run_backtest(slow_ohlcv := small_ohlcv, entries, exits, commission_pct=0.0, name="nc")
-        r_with_comm = run_backtest(small_ohlcv, entries, exits, commission_pct=0.01, name="wc")
+        r_no_comm = run_backtest(slow_ohlcv := small_ohlcv, entries, exits, commission_pct=0.0, name="nc", data_source="synthetic")
+        r_with_comm = run_backtest(small_ohlcv, entries, exits, commission_pct=0.01, name="wc", data_source="synthetic")
         assert r_no_comm.final_equity >= r_with_comm.final_equity
 
 
@@ -192,6 +193,7 @@ class TestHarness:
         """Full harness runs on synthetic data."""
         result = run_alpha_backtest_harness(
             medium_ohlcv,
+            data_source="synthetic",
             alpha_cols=["alpha_012", "alpha_053", "alpha_055"],
             entry_threshold=1.0,
             exit_threshold=0.0,
@@ -204,6 +206,7 @@ class TestHarness:
     def test_both_ensembles_produce_trades(self, medium_ohlcv):
         result = run_alpha_backtest_harness(
             medium_ohlcv,
+            data_source="synthetic",
             alpha_cols=["alpha_012", "alpha_053", "alpha_055"],
         )
         # At least one of them should produce trades
@@ -213,6 +216,7 @@ class TestHarness:
     def test_comparison_has_all_metrics(self, medium_ohlcv):
         result = run_alpha_backtest_harness(
             medium_ohlcv,
+            data_source="synthetic",
             alpha_cols=["alpha_012", "alpha_053"],
         )
         c = result.comparison_summary
@@ -222,6 +226,7 @@ class TestHarness:
     def test_verdict_structure(self, medium_ohlcv):
         result = run_alpha_backtest_harness(
             medium_ohlcv,
+            data_source="synthetic",
             alpha_cols=["alpha_012", "alpha_053"],
         )
         v = result.comparison_summary["verdict"]
@@ -233,6 +238,7 @@ class TestHarness:
     def test_quality_report_not_empty(self, medium_ohlcv):
         result = run_alpha_backtest_harness(
             medium_ohlcv,
+            data_source="synthetic",
             alpha_cols=["alpha_012", "alpha_053"],
         )
         assert len(result.alpha_quality_report) > 100
@@ -240,6 +246,7 @@ class TestHarness:
     def test_format_report(self, medium_ohlcv):
         result = run_alpha_backtest_harness(
             medium_ohlcv,
+            data_source="synthetic",
             alpha_cols=["alpha_012", "alpha_053"],
         )
         report = format_harness_report(result)
@@ -249,6 +256,7 @@ class TestHarness:
     def test_save_json(self, medium_ohlcv, tmp_path):
         result = run_alpha_backtest_harness(
             medium_ohlcv,
+            data_source="synthetic",
             alpha_cols=["alpha_012", "alpha_053"],
         )
         path = str(tmp_path / "report.json")
@@ -263,6 +271,7 @@ class TestHarness:
         from research.alpha_backtest_harness import _save_html_report
         result = run_alpha_backtest_harness(
             medium_ohlcv,
+            data_source="synthetic",
             alpha_cols=["alpha_012", "alpha_053"],
         )
         path = str(tmp_path / "report.html")
@@ -275,6 +284,7 @@ class TestHarness:
     def test_regime_analysis_present(self, medium_ohlcv):
         result = run_alpha_backtest_harness(
             medium_ohlcv,
+            data_source="synthetic",
             alpha_cols=["alpha_012", "alpha_053"],
         )
         rc = result.regime_comparison
@@ -284,14 +294,14 @@ class TestHarness:
         assert rc["trending_bars"] + rc["ranging_bars"] > 0
 
     def test_reproducible_with_same_data(self, medium_ohlcv):
-        r1 = run_alpha_backtest_harness(medium_ohlcv, alpha_cols=["alpha_012"])
-        r2 = run_alpha_backtest_harness(medium_ohlcv, alpha_cols=["alpha_012"])
+        r1 = run_alpha_backtest_harness(medium_ohlcv, alpha_cols=["alpha_012"], data_source="synthetic")
+        r2 = run_alpha_backtest_harness(medium_ohlcv, alpha_cols=["alpha_012"], data_source="synthetic")
         assert r1.ic_weighted.total_return_pct == r2.ic_weighted.total_return_pct
         assert r1.equal_weight.total_return_pct == r2.equal_weight.total_return_pct
 
     def test_different_thresholds_change_trades(self, medium_ohlcv):
-        r1 = run_alpha_backtest_harness(medium_ohlcv, alpha_cols=["alpha_012"], entry_threshold=0.5)
-        r2 = run_alpha_backtest_harness(medium_ohlcv, alpha_cols=["alpha_012"], entry_threshold=2.0)
+        r1 = run_alpha_backtest_harness(medium_ohlcv, alpha_cols=["alpha_012"], entry_threshold=0.5, data_source="synthetic")
+        r2 = run_alpha_backtest_harness(medium_ohlcv, alpha_cols=["alpha_012"], entry_threshold=2.0, data_source="synthetic")
         # Different thresholds should produce different trade counts
         assert r1.ic_weighted.total_trades != r2.ic_weighted.total_trades or \
                r1.equal_weight.total_trades != r2.equal_weight.total_trades

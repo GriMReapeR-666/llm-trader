@@ -155,7 +155,7 @@ def test_closed_trade_releases_its_reservation(store):
     ops.create_order_intent("k", {"risk_amount": 100.0, "symbol": "EURUSD", "side": "BUY"}, actor="RiskController")
     ops.resolve_order_intent("k", "PENDING", ticket=5)
     ops.resolve_order_intent("k", "FILLED", ticket=5)
-    store.record_open_trade(5, proposal, 0.1, 100.0, {})
+    store.record_open_trade(5, proposal, 0.1, 100.0, {}, provenance="mt5_broker")
     assert store.open_risk() == pytest.approx(100.0)                 # counted once, via the trade
     assert store.open_bucket_risk("USD_SHORT") == pytest.approx(100.0)
     store.record_close(5, 1.12, 200.0, "tp")                          # broker SL/TP, not the gateway

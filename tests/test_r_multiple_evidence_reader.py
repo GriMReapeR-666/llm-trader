@@ -62,7 +62,7 @@ def _seed_closed_trade(store: TradingStore, ticket: int, pnl: float = 10.0,
         payload["source"] = "synthetic_fixture_legacy"
     proposal = TradeProposal("scalp", "EURUSD", "BUY", 1.1000, 1.0950, 1.1100, risk,
                              payload["proposal_features"])
-    store.record_open_trade(ticket, proposal, 1.0, risk, payload)
+    store.record_open_trade(ticket, proposal, 1.0, risk, payload, provenance="mt5_broker")
     store.record_close(ticket, 1.1050, pnl, "target")
     with sqlite3.connect(store.path) as con:
         con.execute(

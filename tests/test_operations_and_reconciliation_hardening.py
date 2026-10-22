@@ -49,8 +49,9 @@ class TestOperationsAndReconciliationHardening:
         with store._connect() as con:
             con.execute("""
                 INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, take_profit,
-                                    risk_amount, opened_at, closed_at, exit_price, pnl, exit_reason, payload)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    risk_amount, opened_at, closed_at, exit_price, pnl, exit_reason, payload,
+                                    provenance)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mt5_broker')
             """, (ticket, SWING_MAGIC, "trend_pullback", "EURUSD", "BUY", 0.10, 1.1000, 1.0950, 1.1100,
                   50.0, (now - timedelta(hours=1)).isoformat(), now.isoformat(), 1.1050, 50.0, "TP", "{}"))
 
@@ -93,14 +94,16 @@ class TestOperationsAndReconciliationHardening:
         with store._connect() as con:
             con.execute("""
                 INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, take_profit,
-                                    risk_amount, opened_at, closed_at, exit_price, pnl, exit_reason, payload)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    risk_amount, opened_at, closed_at, exit_price, pnl, exit_reason, payload,
+                                    provenance)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mt5_broker')
             """, (ticket_matched, SWING_MAGIC, "trend", "EURUSD", "BUY", 0.10, 1.1000, 1.0950, 1.1100,
                   50.0, (now - timedelta(hours=2)).isoformat(), now.isoformat(), 1.1100, 100.0, "TP", "{}"))
             con.execute("""
                 INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, take_profit,
-                                    risk_amount, opened_at, closed_at, exit_price, pnl, exit_reason, payload)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    risk_amount, opened_at, closed_at, exit_price, pnl, exit_reason, payload,
+                                    provenance)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mt5_broker')
             """, (ticket_absent_broker, SWING_MAGIC, "trend", "EURUSD", "BUY", 0.10, 1.1000, 1.0950, 1.1100,
                   50.0, (now - timedelta(hours=2)).isoformat(), now.isoformat(), 1.1050, 50.0, "TP", "{}"))
 

@@ -416,7 +416,8 @@ class TestVerdictGates:
         pipe = ContinuousBacktestPipeline(base_dir="")
         good = {
             "stages": {
-                "backtest": {"status": "COMPLETED", "sharpe": 1.4},
+                "backtest": {"status": "COMPLETED", "sharpe": 1.4,
+                             "data_source": "mt5_history"},
                 "dsr": {"status": "OK", "deflated_sharpe": 1.6},
                 "walkforward": {
                     "status": "OK",
@@ -498,6 +499,7 @@ class TestSharedBarsWindow:
             run_dsr=False,
             compare_live=False,
             bars_df=frame,
+            data_source="synthetic",
         )
         assert result["stages"]["backtest"]["status"] in ("COMPLETED", "completed")
 

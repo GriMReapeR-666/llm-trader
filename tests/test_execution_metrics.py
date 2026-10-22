@@ -48,7 +48,7 @@ def test_qualified_metrics_reports_descriptive_calibration(tmp_path: Path):
     store = TradingStore(path)
     proposal = TradeProposal("scalp", "EURUSD", "BUY", 1.1, 1.0, 1.3, 0.8,
                              {"setup_id": "calibration", "confidence": 0.8})
-    store.record_open_trade(1, proposal, 1.0, 1.0, {"features": {"confidence": 0.8}})
+    store.record_open_trade(1, proposal, 1.0, 1.0, {"features": {"confidence": 0.8}}, provenance="mt5_broker")
     store.record_close(1, 1.3, 0.3, "target")
     # Independent submission evidence: descriptive sections only admit
     # broker-evidenced tickets. AgentOperations creates the canonical

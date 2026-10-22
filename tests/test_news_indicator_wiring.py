@@ -286,7 +286,8 @@ class TestNewsGateBacktest:
             "title": "NON-FARM PAYROLLS", "currency": "USD",
             "time": now + timedelta(minutes=5), "importance": "high",
         }]
-        result = bt.run(trades=trades, events=events, symbol="EURUSD")
+        result = bt.run(trades=trades, events=events, symbol="EURUSD",
+                    data_source="synthetic")
         # The first trade should be blocked, second should go through
         assert result.with_gate["n_trades"] == 1
         assert result.without_gate["n_trades"] == 2

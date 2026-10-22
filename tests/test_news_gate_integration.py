@@ -209,19 +209,20 @@ def _build_orch(db_path: Path, perf_path: Path):
     import data.market_data_provider as _mdp
     _orig_mt5 = _mdp._get_mt5
     _orig_fetch_ohlc = _mdp.fetch_ohlc
-    _orig_fetch_resolver = _mdp._get_fetch_ohlc
     _mdp._get_mt5 = lambda: _MiniMT5()
     # Override the module-level fetch_ohlc so the provider's DATA path sees a
     # real DataFrame from our stub instead of trying the broker's copy_rates.
-    # fetch_data() resolves every fetch through _get_fetch_ohlc(), which prefers
-    # sys.modules["mt5_trader"].fetch_ohlc when another test has already
-    # imported that module (full-suite runs). Patch the resolver, not just the
-    # attribute, or the original (non-TIMEFRAME_M15-stubbed) path leaks in.
+    #
+    # The resolver is deliberately NOT patched: fetch_data() resolves every
+    # fetch through _get_fetch_ohlc(), and the provider owns that decision.
+    # That resolver used to prefer sys.modules["mt5_trader"].fetch_ohlc
+    # whenever another test had already imported that module, so this stub
+    # was ignored in a full-suite run and the live broker fetcher leaked in
+    # ("Unsupported timeframe M15" -> 4/4 failures in this file).  The
+    # resolver is order-independent now, so patching the attribute is enough
+    # -- and leaving the resolver alone is what proves it.
     _mdp.fetch_ohlc = _mini_fetch_ohlc
-    _mdp._get_fetch_ohlc = lambda: _mini_fetch_ohlc
-    orch._news_gate_test_mt5_backend = (
-        _mdp, _orig_mt5, _orig_fetch_ohlc, _orig_fetch_resolver,
-    )
+    orch._news_gate_test_mt5_backend = (_mdp, _orig_mt5, _orig_fetch_ohlc)
     return orch, store
 
 
@@ -428,10 +429,8 @@ def news_cycle(tmp_path_factory):
         # Restore the module-attribute patches. Without this the _MiniMT5 /
         # mini-fetch stubs leak into every later test in the same pytest
         # process (module-scoped patching without teardown).
-        _mdp, _orig_mt5, _orig_fetch_ohlc, _orig_fetch_resolver = (
-            orch._news_gate_test_mt5_backend)
+        _mdp, _orig_mt5, _orig_fetch_ohlc = orch._news_gate_test_mt5_backend
         _mdp._get_mt5 = _orig_mt5
-        _mdp._get_fetch_ohlc = _orig_fetch_resolver
         _mdp.fetch_ohlc = _orig_fetch_ohlc
 
 

@@ -32,6 +32,7 @@ def test_vbt_engine_synthetic_crossover():
         slow_period=15,
         symbol="EURUSD",
         timeframe="M15",
+        data_source="synthetic",
     )
 
     assert isinstance(metrics, BacktestMetrics)
@@ -66,6 +67,7 @@ def test_vbt_engine_explicit_signals():
         exits=exits,
         symbol="BTCUSD",
         timeframe="H1",
+        data_source="synthetic",
     )
 
     assert metrics.total_trades == 2

@@ -15,7 +15,7 @@ def test_reconciliation_maps_position_ticket_to_order_ticket(tmp_path):
         "scalp", "EURUSD", "BUY", 1.1, 1.09, 1.12, 0.8,
         {"setup_id": "reconcile_v1"},
     )
-    store.record_open_trade(101, proposal, 1.0, 10.0, {"setup_id": "reconcile_v1"})
+    store.record_open_trade(101, proposal, 1.0, 10.0, {"setup_id": "reconcile_v1"}, provenance="mt5_broker")
     store.record_execution_report(
         event_type="FILLED", order_ticket=101, position_ticket=909,
         filled_price=1.1, filled_volume=1.0,

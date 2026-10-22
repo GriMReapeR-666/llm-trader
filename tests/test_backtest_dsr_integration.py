@@ -112,7 +112,7 @@ class TestAlphaHarnessDSR:
     def test_alpha_harness_backtest_result_has_dsr_fields(self):
         """The alpha harness BacktestResult should have DSR fields."""
         from research.alpha_backtest_harness import BacktestResult
-        r = BacktestResult(name="test")
+        r = BacktestResult(name="test", data_source="synthetic")
         assert hasattr(r, "dsr_confidence")
         assert hasattr(r, "dsr_pvalue")  # legacy alias
         assert hasattr(r, "dsr_passed")
@@ -124,7 +124,8 @@ class TestAlphaHarnessDSR:
     def test_alpha_harness_backtest_result_to_dict(self):
         """to_dict() should include canonical + legacy DSR keys with equal values."""
         from research.alpha_backtest_harness import BacktestResult
-        r = BacktestResult(name="test", sharpe_ratio=2.0, dsr_pvalue=0.92, dsr_passed=True, dsr_n_trials=20)
+        r = BacktestResult(name="test", sharpe_ratio=2.0, dsr_pvalue=0.92, dsr_passed=True,
+                          dsr_n_trials=20, data_source="synthetic")
         d = r.to_dict()
         assert "dsr_confidence" in d
         assert "dsr_pvalue" in d
@@ -135,13 +136,13 @@ class TestAlphaHarnessDSR:
     def test_alpha_harness_alias_sync_canonical_to_legacy(self):
         """Setting dsr_confidence via kwargs should sync the legacy alias."""
         from research.alpha_backtest_harness import BacktestResult
-        r = BacktestResult(name="t", dsr_confidence=0.81)
+        r = BacktestResult(name="t", dsr_confidence=0.81, data_source="synthetic")
         assert r.dsr_pvalue == 0.81
 
     def test_alpha_harness_alias_sync_legacy_to_canonical(self):
         """Setting the legacy alias via kwargs should sync dsr_confidence."""
         from research.alpha_backtest_harness import BacktestResult
-        r = BacktestResult(name="t", dsr_pvalue=0.93)
+        r = BacktestResult(name="t", dsr_pvalue=0.93, data_source="synthetic")
         assert r.dsr_confidence == 0.93
 
 

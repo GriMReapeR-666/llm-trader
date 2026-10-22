@@ -62,7 +62,7 @@ def _seed_closed_trade(store: TradingStore, ticket: int, pnl: float = 10.0,
         "feature_values_hash": values_hash(values),
     }}
     proposal = TradeProposal("scalp", "EURUSD", "BUY", 1.1000, 1.0950, 1.1100, risk, payload["proposal_features"])
-    store.record_open_trade(ticket, proposal, 1.0, risk, payload)
+    store.record_open_trade(ticket, proposal, 1.0, risk, payload, provenance="mt5_broker")
     store.record_close(ticket, 1.1050, pnl, "target")
     with store._connect() as con:
         con.execute(
@@ -491,7 +491,7 @@ def test_paper_close_flows_through_to_scoring_and_rewards(tmp_path, monkeypatch)
         store.record_open_trade(
             ticket, TradeProposal("scalp", "EURUSD", "BUY", entry, 1.09, 1.12, 1.0,
                                   payload["proposal_features"]),
-            1.0, 1.0, payload)
+            1.0, 1.0, payload, provenance="mt5_broker")
         close_px = entry + (0.0005 if i % 2 == 0 else -0.0002)
         pnl = float(paper.close_position(ticket, close_px, magic=SCALP_MAGIC)["profit"])
         store.record_close(ticket, close_px, pnl, "target")
@@ -549,8 +549,8 @@ def test_cpcv_refuses_unreconciled_and_fixture_rows(tmp_path, monkeypatch):
         with store._connect() as con:
             con.execute(
                 """INSERT INTO trades(ticket,magic,strategy,symbol,side,volume,entry,stop_loss,
-                       take_profit,risk_amount,opened_at,closed_at,exit_price,pnl,exit_reason,payload)
-                   VALUES(?,?,'scalp','EURUSD','BUY',1.0,1.1,1.0,1.3,10.0,?,?,1.3,15.0,'target',?)""",
+                       take_profit,risk_amount,opened_at,closed_at,exit_price,pnl,exit_reason,payload,provenance)
+                   VALUES(?,?,'scalp','EURUSD','BUY',1.0,1.1,1.0,1.3,10.0,?,?,1.3,15.0,'target',?,'synthetic')""",
                 (ticket, SCALP_MAGIC, datetime.now(timezone.utc).isoformat(),
                  datetime.now(timezone.utc).isoformat(),
                  json.dumps({"synthetic": True, "source": "synthetic_fixture_legacy"})))
@@ -565,3 +565,31 @@ def test_cpcv_refuses_unreconciled_and_fixture_rows(tmp_path, monkeypatch):
     assert result["cpcv_report"]["sample_size"] == 0
     assert result["cpcv_report"]["minimum_sample"] == 40      # threshold untouched
     assert result["execution_authority"] is False
+
+
+def test_run_daily_review_attributes_when_delegated_reconciliation_writes_evidence(tmp_path, monkeypatch):
+    """When the orchestrator delegates daily reconciliation and writes evidence,
+    reward attribution must be triggered rather than silently skipped."""
+    from operations import learning_loop
+
+    path = str(tmp_path / "delegated_attr.db")
+    store = TradingStore(path)
+    ticket = 8801
+    _seed_closed_trade(store, ticket, pnl=15.0, risk=15.0)
+    monkeypatch.setenv("LLM_TRADER_JOURNAL_PATH", path)
+
+    start, end = _window()
+    compare_rep = compare_day(store, adapt_paper_deals([_paper_close(ticket, 15.0)]), start, end)
+    assert compare_rep.get("reconciled_execution_evidence", {}).get("written") == 1
+
+    class _Ctx:
+        paper_broker = type("_PB", (), {"history": [_paper_close(ticket, 15.0)]})()
+
+        def _execute_daily_review(self, payload, paper_mode=True):
+            return {"summary": {}, "daily_reconciliation": compare_rep, "execution_authority": False}
+
+    result = learning_loop.run_daily_review({"run_id": "delegated-run"}, context=_Ctx())
+    assert result["daily_reconciliation"] == compare_rep
+    assert result.get("reward_attribution", {}).get("status") == "ATTRIBUTED"
+    assert result["reward_attribution"]["emitted_count"] == 1
+    assert result["reward_attribution"]["emitted"][0]["ticket"] == ticket

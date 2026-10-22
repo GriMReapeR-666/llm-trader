@@ -238,7 +238,7 @@ class TestKillSwitchPortfolioArbiter:
         from datetime import datetime, timezone
         today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         with store._connect() as con:
-            con.execute("INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, take_profit, risk_amount, opened_at, closed_at, exit_price, pnl, exit_reason, payload) VALUES (1, 1, 'test', 'EURUSD', 'BUY', 0.01, 1.1, 1.095, 1.11, 100, ?, ?, 1.095, -400, 'test', '{}')", (today.isoformat(), datetime.now(timezone.utc).isoformat()))
+            con.execute("INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, take_profit, risk_amount, opened_at, closed_at, exit_price, pnl, exit_reason, payload, provenance) VALUES (1, 1, 'test', 'EURUSD', 'BUY', 0.01, 1.1, 1.095, 1.11, 100, ?, ?, 1.095, -400, 'test', '{}', 'mt5_broker')", (today.isoformat(), datetime.now(timezone.utc).isoformat()))
         permitted, reason = arbiter.permit(equity=10000.0, new_risk=100.0)
         assert permitted is False
         assert "daily" in reason.lower()

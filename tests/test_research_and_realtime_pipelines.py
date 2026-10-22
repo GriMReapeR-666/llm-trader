@@ -82,6 +82,7 @@ def test_hybrid_backtest_pipeline_evaluation(sample_bars_df):
     verdict = pipeline.evaluate_strategy(
         sample_bars_df, entries.fillna(False), exits.fillna(False),
         symbol="EURUSD", timeframe="M15", sl_pips=25.0, tp_pips=50.0,
+        data_source="synthetic",
     )
 
     assert isinstance(verdict, HybridVerdict)
@@ -95,6 +96,25 @@ def test_hybrid_backtest_pipeline_evaluation(sample_bars_df):
     assert "vbt_metrics" in verdict_dict
     assert "mt5_metrics" in verdict_dict
     assert "sharpe_delta" in verdict_dict
+    # Fixture data is never authoritative evidence, so the verdict must say so.
+    assert "synthetic_data_not_authoritative" in verdict.rejection_reasons
+    assert verdict.passes_promotion is False
+
+
+def test_hybrid_backtest_pipeline_requires_a_declared_source(sample_bars_df):
+    """An undeclared data source is refused, not defaulted."""
+    pipeline = HybridBacktestPipeline()
+    close = sample_bars_df["close"]
+    fast_ema = close.ewm(span=8, adjust=False).mean()
+    slow_ema = close.ewm(span=21, adjust=False).mean()
+    entries = (fast_ema > slow_ema) & (fast_ema.shift(1) <= slow_ema.shift(1))
+    exits = (fast_ema < slow_ema) & (fast_ema.shift(1) >= slow_ema.shift(1))
+
+    with pytest.raises(ValueError, match="data_source"):
+        pipeline.evaluate_strategy(
+            sample_bars_df, entries.fillna(False), exits.fillna(False),
+            symbol="EURUSD", timeframe="M15",
+        )
 
 
 def test_hybrid_backtest_pipeline_sweep(sample_bars_df):
@@ -107,6 +127,7 @@ def test_hybrid_backtest_pipeline_sweep(sample_bars_df):
         fast_range=(8, 12),
         slow_range=(20, 24),
         step=4,
+        data_source="synthetic",
     )
 
     assert isinstance(sweep_results, list)
@@ -197,6 +218,7 @@ def test_continuous_backtest_pipeline_verdict_logic(tmp_path):
             "win_rate": 0.58,
             "profit_factor": 1.65,
             "expectancy_r": 0.42,
+            "data_source": "mt5_history",
         },
         "dsr": {"status": "completed", "passed": True},
         "walkforward": {"status": "completed", "stability_score": 0.72},
@@ -215,6 +237,7 @@ def test_continuous_backtest_pipeline_verdict_logic(tmp_path):
             "win_rate": 0.40,
             "profit_factor": 1.05,
             "expectancy_r": -0.10,
+            "data_source": "mt5_history",
         },
         "dsr": {"status": "completed", "passed": False},
         "walkforward": {"status": "completed", "stability_score": 0.30},
@@ -230,6 +253,33 @@ def test_continuous_backtest_pipeline_verdict_logic(tmp_path):
     assert "live_backtest_divergence" in v_fail["blockers"]
     assert "low_win_rate" in v_fail["warnings"]
     assert "low_stability_score" in v_fail["warnings"]
+
+
+def test_continuous_backtest_pipeline_verdict_requires_declared_source(tmp_path):
+    """An undeclared or synthetic source never earns a PASSED verdict."""
+    pipeline = ContinuousBacktestPipeline(base_dir=str(tmp_path))
+    base = {
+        "backtest": {
+            "status": "completed",
+            "sharpe": 1.45,
+            "win_rate": 0.58,
+            "profit_factor": 1.65,
+            "expectancy_r": 0.42,
+        },
+        "dsr": {"status": "completed", "passed": True},
+        "walkforward": {"status": "completed", "stability_score": 0.72},
+        "live_comparison": {"status": "completed", "significant_divergence": False},
+    }
+
+    undeclared = pipeline._compute_verdict(dict(base))
+    assert undeclared["passed"] is False
+    assert "data_source_undeclared" in undeclared["blockers"]
+
+    synthetic = dict(base)
+    synthetic["backtest"] = dict(base["backtest"], data_source="synthetic")
+    v_synth = pipeline._compute_verdict(synthetic)
+    assert v_synth["passed"] is False
+    assert "synthetic_data_not_authoritative" in v_synth["blockers"]
 
 
 def test_continuous_backtest_pipeline_cpcv_samples(tmp_path):

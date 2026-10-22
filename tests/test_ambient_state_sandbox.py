@@ -197,6 +197,7 @@ _AMBIENT_ALLOWLIST = frozenset({
     "journal_audit.json",     # audit output written by ops tooling
     "market_state.json",      # market-state snapshot feed for the UI
     "scanner_state.json",     # scanner service state (separate process)
+    "engine_watchdog.json",   # keepalive watchdog state (operations/keepalive_watchdog.py)
     "strategy_registry.json", # strategy lifecycle registry (shared authority)
     "strategy_state.json",    # strategy runtime state (shared authority)
     "backtest_report.json",   # published backtest report
