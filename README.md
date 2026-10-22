@@ -178,3 +178,11 @@ python mt5_trader.py llm-trade --symbol EURUSD --timeframe M15 --paper --tui --a
 2. **Causal Agreement Gate**: Trade setups are cross-checked with the 134-rule macroeconomic dynamics catalog and causal DAG before approval.
 3. **Multi-Tier SQLite Memory**: Local L0–L3 memory stores execution traces, validated scenario facts, and distilled operational principles without cloud lock-in.
 4. **Broker Deal Reconciliation**: Automated end-of-day audit compares MT5 terminal deals against the local SQLite journal, detecting any slippage, out-of-band trades, or missing executions.
+
+---
+
+## 📜 Project Contract
+
+Success criteria for this repository live in one place: **[docs/PROJECT_SUCCESS_CONTRACT.md](docs/PROJECT_SUCCESS_CONTRACT.md)** — the critical elements, their acceptance tests, and the phased plan with objective exit criteria. It is derived from the independent audit in **[docs/AUDIT_2026-10-20_INDEPENDENT_VERDICT.md](docs/AUDIT_2026-10-20_INDEPENDENT_VERDICT.md)**.
+
+Current standing: the safety and evidence architecture is in place; the *demonstrated trading edge* is not. The gates reject this system's own only strategy, and `execution_authority` is `false`. Until that changes, the contract says so in writing.

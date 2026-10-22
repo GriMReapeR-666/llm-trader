@@ -36,15 +36,15 @@ Expected: PASS
 In `tests/test_section_f_hardening.py`:
 Change:
 ```python
-"secret_assignment": "ROUTESME_KEY=rm-da4790ea1631c5cd82303e2a1173a3208750a22a5f27c6b6",
+"secret_assignment": "ROUTESME_KEY=rm-<48-hex key redacted 2026-10-22: it is still in git history and must be rotated>",
 ```
 To:
 ```python
-"secret_assignment": "ROUTESME_KEY=rm-TESTFIXTURE0000000000000000000000000000000000000000",
+"secret_assignment": "ROUTESME_KEY=rm-TESTFIXTURE000000000000000000000000000000000",  # secret-scan: allow
 ```
 And change line 33 assertion:
 ```python
-assert "rm-TESTFIXTURE0000000000000000000000000000000000000000" not in redacted_json
+assert "rm-TESTFIXTURE0000000000000000000000000000000000000000" not in redacted_json  # secret-scan: allow
 ```
 
 - [ ] **Step 3: Run test to verify it passes with synthetic fixture**
