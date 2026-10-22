@@ -40,7 +40,12 @@ from typing import Any, Dict, Optional, Tuple
 LEGACY = "legacy"
 CARVER = "carver"
 
-SNAPSHOT_PATH = os.path.join("artifacts", "sizing_route.json")
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+ARTIFACTS_ROOT = os.path.join(_REPO_ROOT, "artifacts")
+"""The artifacts tree, resolved from the package rather than the process CWD."""
+
+SNAPSHOT_PATH = os.path.join(ARTIFACTS_ROOT, "sizing_route.json")
 
 DEFAULT_MIN_RECONCILED_FILLS = 200
 DEFAULT_MIN_ADMISSIBLE_ROWS = 200
@@ -184,7 +189,7 @@ def _null_provenance_rows(journal_path: str) -> int:
     try:
         with sqlite3.connect(journal_path, timeout=5.0) as con:
             row = con.execute(
-                "SELECT COUNT(*) FROM trades WHERE provenance IS NULL OR TRAGIM(provenance) = ''"
+                "SELECT COUNT(*) FROM trades WHERE provenance IS NULL OR TRIM(provenance) = ''"
             ).fetchone()
     except sqlite3.Error:
         return 1  # unknown -> fail closed
@@ -230,7 +235,7 @@ def _read_only_track_record(
     }
 
 
-def _execution_authority(artifacts_root: str = "artifacts") -> bool:
+def _execution_authority(artifacts_root: str = ARTIFACTS_ROOT) -> bool:
     """Live authority is earned in the bootstrap state, never assumed."""
     path = os.path.join(artifacts_root, "bootstrap_state.json")
     try:
@@ -241,7 +246,7 @@ def _execution_authority(artifacts_root: str = "artifacts") -> bool:
     return bool(isinstance(data, dict) and data.get("execution_authority", False))
 
 
-def _absolute_path_artifacts(root: str = "artifacts") -> int:
+def _absolute_path_artifacts(root: str = ARTIFACTS_ROOT) -> int:
     """Artifacts that still contain an operator path (contract Phase 1)."""
     count = 0
     for dirpath, dirnames, filenames in os.walk(root):
@@ -264,8 +269,8 @@ def _absolute_path_artifacts(root: str = "artifacts") -> int:
 def refresh_route_snapshot(
     journal_path: str = "trading_state.db",
     *,
-    artifacts_root: str = "artifacts",
-    path: str = SNAPSHOT_PATH,
+    artifacts_root: str = ARTIFACTS_ROOT,
+    path: Optional[str] = None,
     target_trades: int = DEFAULT_MIN_ADMISSIBLE_ROWS,
 ) -> Dict[str, Any]:
     """Gather the evidence and write the snapshot. A scheduled/operator call.
@@ -276,6 +281,7 @@ def refresh_route_snapshot(
     evidence has drifted — that is the gate doing its job, not a side effect
     of measuring.
     """
+    target_path = path or os.path.join(artifacts_root, "sizing_route.json")
     track: Dict[str, Any] = {}
     rollout: Dict[str, Any] = {}
     errors = []
@@ -303,8 +309,8 @@ def refresh_route_snapshot(
         "errors": errors,
     }
     try:
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        with open(path, "w", encoding="utf-8") as handle:
+        os.makedirs(os.path.dirname(target_path) or ".", exist_ok=True)
+        with open(target_path, "w", encoding="utf-8") as handle:
             json.dump(snapshot, handle, indent=2, default=str)
     except OSError as exc:
         errors.append(f"snapshot not written: {exc}")

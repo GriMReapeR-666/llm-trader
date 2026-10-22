@@ -116,7 +116,8 @@ def handle_sizing_route_refresh(payload: Dict[str, Any], context: Any = None) ->
         or getattr(context, "journal_path", None)
         or "trading_state.db"
     )
-    artifacts_root = str((payload or {}).get("artifacts_root") or "artifacts")
+    from core.sizing_route import ARTIFACTS_ROOT
+    artifacts_root = str((payload or {}).get("artifacts_root") or ARTIFACTS_ROOT)
 
     from core.sizing_route import refresh_route_snapshot, reset_cache, select_route
 
