@@ -9,8 +9,6 @@ import json
 import os
 import sqlite3
 
-import pytest
-
 from core import sizing_route
 
 

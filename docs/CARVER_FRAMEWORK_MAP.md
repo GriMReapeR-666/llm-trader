@@ -219,8 +219,8 @@ spine, and a granted rollout approval.
 
 | Precondition (contract) | Source |
 |---|---|
-| 200+ broker-reconciled demo fills, admissible rows at the floor | the demo track record |
-| the journal grants execution authority | the same report |
+| 200+ broker-reconciled demo fills, admissible rows at the floor | the demo track record, measured read-only |
+| the journal grants execution authority | `artifacts/bootstrap_state.json` |
 | the rollout approval is in force and its evidence has not drifted | the live rollout gate |
 | no journal row without provenance | the authoritative journal |
 | no artifact carrying an operator path | the artifacts tree |
@@ -231,6 +231,17 @@ hot path. The evidence is read from a small snapshot
 (`artifacts/sizing_route.json`) written by `refresh_route_snapshot`, so a
 trade never pays for a directory scan and a stale snapshot cannot authorise
 anything.
+
+**The refresh is scheduled, so the switch can fire on its own.** The
+`MaintenanceAgent` runs `sizing_route_refresh` every 15 minutes
+(`operations/agent_scheduler.py:82`, handled by
+`operations/agents/journal_agent.py:101`). The measurement is SELECT-only: the
+track record is derived from read-only queries rather than from the
+collector's report, which enriches rows it wrote. The one write that can
+still happen is the rollout gate invalidating an approval whose evidence has
+drifted — that is the gate working, not a side effect of measuring. A stale
+snapshot cannot authorise the switch, so the cadence is a freshness guarantee
+rather than a trigger.
 
 The live path reaches the new route through
 `_apply_autonomous_sizing_route` (`core/risk_manager.py:1588`), and only as a
