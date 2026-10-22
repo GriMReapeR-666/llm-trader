@@ -53,6 +53,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+try:
+    from core.artifact_paths import scrub as _scrub_artifact_paths
+except ImportError:  # pragma: no cover - flat-layout fallback
+    from artifact_paths import scrub as _scrub_artifact_paths
+
 logger = logging.getLogger(__name__)
 
 # Default blackout windows (from news_trading.py)
@@ -1285,8 +1290,11 @@ class NewsRegimeCorrelation:
                 )
 
         # Write JSON
+        # The export names the journal it read (``summary.db_path``); that
+        # path is absolute and machine-specific, so it is scrubbed at the
+        # write site — the artifact must stay portable.
         with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(export_data, f, indent=2, default=str)
+            json.dump(_scrub_artifact_paths(export_data), f, indent=2, default=str)
 
         logger.info("Exported correlation data to %s (%d outcomes, %d hit rates)",
                      output_path, len(outcomes), len(export_data["hit_rates"]))

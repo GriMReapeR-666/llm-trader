@@ -117,3 +117,71 @@ def handle_workflow_sweep(payload: Dict[str, Any], context: Optional[Any] = None
         duration_ms, len(sweep_results), len(actionable_proposals),
     )
     return report
+
+_bar_bus_instance: Optional[Any] = None
+
+
+def get_bar_opportunity_bus(store: Any = None, graph_engine: Any = None) -> Any:
+    global _bar_bus_instance
+    if _bar_bus_instance is None:
+        from intelligence.opportunity_bus import BarSynchronizedOpportunityBus
+        _bar_bus_instance = BarSynchronizedOpportunityBus(store=store, graph_engine=graph_engine)
+    elif store is not None and getattr(_bar_bus_instance, "store", None) is None:
+        _bar_bus_instance.store = store
+    return _bar_bus_instance
+
+
+def handle_bar_synchronized_auction(payload: Dict[str, Any], context: Optional[Any] = None) -> Dict[str, Any]:
+    """Execute scheduled Bar-Synchronized Opportunity Auction for TechnicalNet.
+
+    Evaluates active quant strategies at bar boundaries (M15 default), routing:
+      - SCALP candidates -> Fast Lane (core.execution_planning)
+      - SWING/LONG_TERM candidates -> Deep Reasoning Lane (intelligence.graph_engine_facade)
+    """
+    t0 = time.time()
+    symbol = str(payload.get("symbol", "EURUSD") or "EURUSD")
+    timeframe = str(payload.get("timeframe", "M15") or "M15")
+    bar_time = payload.get("bar_time")
+
+    store = getattr(context, "store", None) if context is not None else None
+    graph_engine = getattr(context, "graph_engine", None) if context is not None else None
+    market_data = getattr(context, "market_data", None) if context is not None else None
+
+    bus = get_bar_opportunity_bus(store=store, graph_engine=graph_engine)
+
+    # Fast skip if bar hasn't rolled over (prevents redundant CPU/GPU load)
+    if bar_time is not None and not bus.is_new_bar(symbol, timeframe, bar_time):
+        return {
+            "status": "SKIPPED_SAME_BAR",
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "bar_time": bar_time,
+            "duration_ms": round((time.time() - t0) * 1000.0, 2),
+            "execution_authority": False,
+        }
+
+    auction_res = bus.run_synchronized_bar_auction(
+        symbol=symbol,
+        timeframe=timeframe,
+        bar_time=bar_time,
+        market_data=market_data,
+        context=payload.get("context"),
+        strategies=payload.get("strategies"),
+        graph_engine=graph_engine,
+        quote_bid=payload.get("quote_bid"),
+        quote_ask=payload.get("quote_ask"),
+    )
+
+    duration_ms = round((time.time() - t0) * 1000.0, 2)
+    auction_res["duration_ms"] = duration_ms
+    auction_res["execution_authority"] = False
+
+    logger.info(
+        "Bar synchronized auction completed in %.1fms for %s %s: %d candidates (scalp: %d, swing: %d)",
+        duration_ms, symbol, timeframe,
+        auction_res.get("candidates_count", 0),
+        len(auction_res.get("scalp_winners", [])),
+        len(auction_res.get("swing_winners", [])),
+    )
+    return auction_res
+

@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, Sequence
 import numpy as np
 
 from core.overfit_detector import detect_overfitting, OverfitResult
+from core.hypothesis_class import resolve_class
 from core.trial_ledger import TrialLedger, DSR_GATE_THRESHOLD
 from core.state_persistence import StoreBackedState
 
@@ -168,6 +169,15 @@ class OverfitGate(StoreBackedState):
         # inside one call; and (b) the double-counting a second
         # evaluate_dsr(record=True) would cause now that per-class
         # forwarding is consistent end-to-end.
+        #
+        # The hypothesis class is resolved ONCE, here, and forwarded down the
+        # whole chain: an explicit tag wins, otherwise the canonical taxonomy
+        # derives the family from the strategy identity, and an identity that
+        # cannot be attributed to a family stays None and keeps the GLOBAL
+        # bar (fail-closed).  Resolving it in two places inside one call is
+        # exactly how two gates end up disagreeing about the family they
+        # deflate within.
+        strategy_class = resolve_class(strategy_class, strategy)
         try:
             self._trial_ledger.record_trial(
                 strategy_id=strategy,
@@ -176,7 +186,7 @@ class OverfitGate(StoreBackedState):
                 skewness=_skew,
                 kurtosis=_kurt,
                 metadata={"n_strategies_tested": n_strategies_tested},
-                strategy_class=strategy_class if strategy_class else "general",
+                strategy_class=strategy_class,
             )
         except Exception as _rec_exc:
             logger.debug("Trial Ledger record skipped: %s", _rec_exc)
@@ -239,8 +249,13 @@ class OverfitGate(StoreBackedState):
             # hypothesis — that double-count inflated E[max|null] and
             # auto-failed honest strategies.
             dsr_result = self._trial_ledger.evaluate_dsr(
+                # _sharpe_est is mean/std of the return series -- the RAW
+                # per-period estimator. Declaring it stops the ledger from
+                # de-annualizing it by sqrt(252), which understated z ~15.9x
+                # and rejected every healthy strategy (audit 2026-10-20).
                 estimated_sharpe=_sharpe_est,
                 n_observations=max(10, len(returns)),
+                annualized=False,
                 skewness=_skew,
                 kurtosis=_kurt,
                 strategy_id=strategy,
@@ -321,8 +336,10 @@ class OverfitGate(StoreBackedState):
         dsr_result = None
         try:
             dsr_result = self._trial_ledger.evaluate_dsr(
+                # Same raw per-period estimator persisted at validate time.
                 estimated_sharpe=float(stored.get("est_sharpe", 0.0) or 0.0),
                 n_observations=max(10, int(stored.get("n_observations", 30) or 30)),
+                annualized=False,
                 strategy_id=strategy,
                 strategy_class=stored.get("strategy_class"),
                 record=False,

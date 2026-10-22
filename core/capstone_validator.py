@@ -31,6 +31,11 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+try:
+    from core.artifact_paths import scrub as _scrub_artifact_paths
+except ImportError:  # pragma: no cover - flat-layout fallback
+    from artifact_paths import scrub as _scrub_artifact_paths
+
 log = logging.getLogger(__name__)
 
 
@@ -149,10 +154,23 @@ class CapstoneValidator:
         )
 
         # Save final result
-        out_file = self.output_dir / f"capstone_{symbol}_{int(time.time())}.json"
-        out_file.write_text(json.dumps(result.to_dict(), indent=2, default=str), encoding="utf-8")
+        out_file = self._write_result(result, symbol)
         log.info("Capstone validation complete: %s", result.summary)
         return result
+
+    def _write_result(self, result: CapstoneResult, symbol: str) -> Path:
+        """Write the capstone result as a portable artifact.
+
+        A phase error quotes the failing import verbatim, and that message can
+        contain an absolute path. The artifact is evidence, so it must not
+        publish the operator's directory layout.
+        """
+        out_file = self.output_dir / f"capstone_{symbol}_{int(time.time())}.json"
+        out_file.write_text(
+            json.dumps(_scrub_artifact_paths(result.to_dict()), indent=2, default=str),
+            encoding="utf-8",
+        )
+        return out_file
 
     def _phase_real_backtest(self, symbol: str, timeframe: str, mt5_client: Optional[Any]) -> ValidationPhase:
         t0 = time.time()
@@ -475,7 +493,9 @@ class CapstoneValidator:
         artifacts = {}
         # Save trades
         trades_file = self.output_dir / f"trades_{symbol}_{int(time.time())}.json"
-        trades_file.write_text(json.dumps(self._all_trades[:500], indent=2, default=str), encoding="utf-8")
+        trades_file.write_text(
+            json.dumps(_scrub_artifact_paths(self._all_trades[:500]), indent=2, default=str),
+            encoding="utf-8")
         artifacts["trades"] = str(trades_file)
         # Save equity curve
         equity_file = self.output_dir / f"equity_{symbol}_{int(time.time())}.json"
@@ -483,6 +503,8 @@ class CapstoneValidator:
         artifacts["equity"] = str(equity_file)
         # Save scenario results
         scenario_file = self.output_dir / f"scenarios_{symbol}_{int(time.time())}.json"
-        scenario_file.write_text(json.dumps(self._scenario_results, indent=2, default=str), encoding="utf-8")
+        scenario_file.write_text(
+            json.dumps(_scrub_artifact_paths(self._scenario_results), indent=2, default=str),
+            encoding="utf-8")
         artifacts["scenarios"] = str(scenario_file)
         return artifacts

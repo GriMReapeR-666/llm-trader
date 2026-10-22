@@ -173,9 +173,14 @@ def inject_samples(
             stop_loss REAL, take_profit REAL, risk_amount REAL NOT NULL,
             opened_at TEXT NOT NULL, closed_at TEXT, exit_price REAL,
             pnl REAL, exit_reason TEXT, payload TEXT NOT NULL,
-            setup_id TEXT
+            setup_id TEXT, provenance TEXT
         )
     """)
+    # A journal created by TradingStore already has the column; a minimal
+    # hand-made one may not. Add it before writing, never after.
+    _cols = {row[1] for row in cur.execute("PRAGMA table_info(trades)")}
+    if "provenance" not in _cols:
+        cur.execute("ALTER TABLE trades ADD COLUMN provenance TEXT")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS trade_labels (
             ticket INTEGER PRIMARY KEY, label TEXT NOT NULL,
@@ -201,14 +206,16 @@ def inject_samples(
             cur.execute("""
                 INSERT OR REPLACE INTO trades
                 (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, take_profit,
-                 risk_amount, opened_at, closed_at, exit_price, pnl, exit_reason, payload, setup_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 risk_amount, opened_at, closed_at, exit_price, pnl, exit_reason, payload, setup_id,
+                 provenance)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 trade["ticket"], trade["magic"], trade["strategy"], trade["symbol"],
                 trade["side"], trade["volume"], trade["entry"], trade["stop_loss"],
                 trade["take_profit"], trade["risk_amount"], trade["opened_at"],
                 trade["closed_at"], trade["exit_price"], trade["pnl"],
                 trade["exit_reason"], trade["payload"], trade["setup_id"],
+                "synthetic_demo_generator",
             ))
             cur.execute("""
                 INSERT OR REPLACE INTO trade_labels

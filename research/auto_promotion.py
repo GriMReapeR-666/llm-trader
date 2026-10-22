@@ -35,6 +35,16 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("AutoPromotion")
 
+try:
+    from core.provenance import is_synthetic, provenance_token
+except ImportError:  # pragma: no cover - flat-layout fallback
+    from provenance import is_synthetic, provenance_token
+
+try:
+    from operations.provenance_quarantine import quarantined_tickets
+except ImportError:  # pragma: no cover - flat-layout fallback
+    from provenance_quarantine import quarantined_tickets
+
 # Statuses that carry live trading authority. The research layer may never
 # write one of these on its own: graduating to it is an operator action
 # with a recorded sign-off, not a gate result.
@@ -327,7 +337,115 @@ class AutoPromoter:
         # Gate 7: P08 OpenQuant Benchmark Dominance (Reid et al. 2026 Eq. 6)
         gates["openquant_admissibility"] = self._check_openquant_admissibility(strategy_key, current)
 
+        # Gate 8: Data provenance. A strategy whose evidence is a fixture is
+        # not promotable, whatever its metrics say.
+        gates["provenance"] = self._check_provenance(strategy_key)
+
         return gates
+
+    def _check_provenance(self, strategy_key: str) -> Dict[str, Any]:
+        """Refuse promotion when the evidence chain is synthetic or undeclared.
+
+        Two links are checked independently:
+
+        * **Journal** — the provenance column on the broker-reconciled closed
+          rows this strategy would be graded on. A single synthetic row refuses
+          the promotion; so does a row with no declaration, because "unknown"
+          is not "observed".
+        * **Backtest** — the most recent trial recorded for this strategy in the
+          trial ledger. Backtests stamp ``data_source`` into the trial metadata;
+          a synthetic or missing declaration refuses. No trial at all is left to
+          the DSR gate, which already fails closed on an empty ledger.
+        """
+        try:
+            from research.research_validation import broker_reconciled_tickets
+            tickets = broker_reconciled_tickets(self.db_path)
+            if not tickets:
+                return self._no_evidence()
+
+            # Rows whose provenance was never declared and that the operator
+            # set aside explicitly.  They are excluded from the admissible set
+            # below, and counted here so the report says how much evidence
+            # was parked rather than silently dropping it.
+            quarantined = quarantined_tickets(self.db_path)
+
+            con = sqlite3.connect(self.db_path, timeout=2)
+            con.row_factory = sqlite3.Row
+            try:
+                rows = self._admissible_trades(con, strategy_key, "provenance")
+            except sqlite3.OperationalError as exc:
+                return self._gate_unavailable("provenance_column_missing", str(exc))
+            finally:
+                con.close()
+
+            sources = [row["provenance"] for row in rows]
+            if not sources:
+                no_evidence = self._no_evidence()
+                no_evidence["quarantined_rows"] = len(quarantined)
+                return no_evidence
+            synthetic = sorted({str(s) for s in sources if is_synthetic(s)})
+            if synthetic:
+                return {
+                    "passed": False,
+                    "reason": "synthetic_journal_evidence",
+                    "synthetic_sources": synthetic,
+                    "rows": len(sources),
+                    "quarantined_rows": len(quarantined),
+                }
+            undeclared = sum(1 for s in sources if not provenance_token(s))
+            if undeclared:
+                return {
+                    "passed": False,
+                    "reason": "undeclared_journal_provenance",
+                    "undeclared_rows": undeclared,
+                    "rows": len(sources),
+                    "quarantined_rows": len(quarantined),
+                }
+
+            # ── Backtest half ──────────────────────────────────────────
+            ledger_path = os.path.join(self.base_dir, "artifacts", "trial_ledger.db")
+            if not os.path.exists(ledger_path):
+                verdict = {"journal_sources": sorted(set(sources)),
+                           "backtest_provenance": "no_trial_ledger",
+                           "quarantined_rows": len(quarantined)}
+                verdict["passed"] = True
+                return verdict
+            ledger = sqlite3.connect(ledger_path, timeout=2)
+            ledger.row_factory = sqlite3.Row
+            try:
+                trial = ledger.execute(
+                    "SELECT metadata FROM trials WHERE strategy_id=? "
+                    "ORDER BY trial_id DESC LIMIT 1", (strategy_key,)
+                ).fetchone()
+            finally:
+                ledger.close()
+            backtest_source = ""
+            if trial is not None and trial["metadata"]:
+                try:
+                    backtest_source = str((json.loads(trial["metadata"]) or {}).get("data_source") or "")
+                except (TypeError, ValueError):
+                    backtest_source = ""
+            if trial is not None:
+                if is_synthetic(backtest_source):
+                    return {
+                        "passed": False,
+                        "reason": "synthetic_backtest_evidence",
+                        "backtest_data_source": backtest_source,
+                        "journal_sources": sorted(set(sources)),
+                        "quarantined_rows": len(quarantined),
+                    }
+            # A legacy trial predating the backtest declaration is not itself
+            # synthetic; record it as undeclared rather than inventing a verdict.
+            verdict = {
+                "journal_sources": sorted(set(sources)),
+                "backtest_data_source": backtest_source or "no_strategy_trial",
+                "quarantined_rows": len(quarantined),
+            }
+            verdict["passed"] = True
+            return verdict
+        except Exception as exc:
+            log.warning("Provenance gate unavailable, failing closed: %s", exc)
+            return self._gate_unavailable("provenance_unavailable", str(exc))
 
     def _admissible_trades(self, con, strategy_key: str, columns: str, extra: str = "") -> list:
         """Rows from `trades` that a gate may actually grade.
@@ -339,6 +457,12 @@ class AutoPromoter:
         """
         from research.research_validation import broker_reconciled_tickets
         tickets = broker_reconciled_tickets(self.db_path)
+        if not tickets:
+            return []
+        # Rows set aside by the provenance quarantine are not admissible
+        # evidence: their origin was never declared, and the quarantine
+        # explicitly does not label it (operations/provenance_quarantine.py).
+        tickets = tickets - quarantined_tickets(self.db_path)
         if not tickets:
             return []
         # Without a ticket column there is no way to tie a row to broker

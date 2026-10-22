@@ -123,6 +123,9 @@ def skill_backtest_sweep(
                     slow_period=s,
                     symbol=sym,
                     timeframe=timeframe,
+                    # This skill fabricates its price series two lines above;
+                    # saying so keeps the sweep from reading as market evidence.
+                    data_source="synthetic",
                 )
                 sweep_results.append({
                     "symbol": sym,

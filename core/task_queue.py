@@ -500,6 +500,46 @@ class TaskQueue:
     # Query
     # ------------------------------------------------------------------
 
+    def dispatch_ready_tasks(
+        self,
+        cycle_num: int,
+        runner_fn: Optional[Callable[[Task], Any]] = None,
+        max_tasks: int = 2,
+    ) -> List[Dict[str, Any]]:
+        """Safely dispatch ready tasks up to max_tasks budget.
+
+        Ponytail: Bounded execution (max_tasks) prevents thundering-herd starvation.
+        """
+        ready = self.get_ready_tasks(cycle_num)
+        executed: List[Dict[str, Any]] = []
+
+        for task in ready[:max_tasks]:
+            if not self.start_task(task.task_id):
+                continue
+            t0 = time.time()
+            try:
+                if runner_fn is not None:
+                    res = runner_fn(task)
+                else:
+                    res = {"status": "SKIPPED_NO_RUNNER"}
+                self.complete(task.task_id, res if isinstance(res, dict) else {"result": res})
+                executed.append({
+                    "task_id": task.task_id,
+                    "tool_name": task.tool_name,
+                    "status": "COMPLETED",
+                    "duration_s": round(time.time() - t0, 3),
+                })
+            except Exception as exc:
+                self.fail(task.task_id, str(exc))
+                executed.append({
+                    "task_id": task.task_id,
+                    "tool_name": task.tool_name,
+                    "status": "FAILED",
+                    "error": str(exc),
+                    "duration_s": round(time.time() - t0, 3),
+                })
+        return executed
+
     def get_task(self, task_id: str) -> Optional[Task]:
         return self._tasks.get(task_id)
 

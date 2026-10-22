@@ -35,6 +35,9 @@ DEEP = ROOT / "artifacts" / "backtest_results" / "deep_sweep_5000.json"
 BARS = 5000
 SYMBOL, TF = "EURUSD", "H1"
 SEED = 42
+# Set by main() from the loader that actually fetched the bars; every engine
+# below is told the truth rather than inheriting an "unknown" default.
+DATA_SOURCE = ""
 
 
 def metrics_dict(m) -> dict:
@@ -49,7 +52,7 @@ def run(engine, name, bars_df, el, es, sl=30.0, tp=60.0):
     m = engine.run_strategy_backtest(
         bars_df=bars_df, entries_long=el, entries_short=es,
         symbol=SYMBOL, timeframe=TF, sl_pips=sl, tp_pips=tp,
-        strategy_name=name,
+        strategy_name=name, data_source=DATA_SOURCE,
     )
     entry = {"baseline": name, "sl_pips": sl, "tp_pips": tp,
              "seconds": round(time.time() - t0, 2)}
@@ -69,7 +72,10 @@ def run(engine, name, bars_df, el, es, sl=30.0, tp=60.0):
 def main():
     from research.mt5_backtest_engine import MT5BrokerBacktestEngine
 
-    df = MT5BrokerBacktestEngine().fetch_market_data(SYMBOL, TF, BARS)
+    global DATA_SOURCE
+    _loader = MT5BrokerBacktestEngine()
+    df = _loader.fetch_market_data(SYMBOL, TF, BARS)
+    DATA_SOURCE = _loader._data_source
     n = len(df)
     close = df["close"].astype(float).values
     print(f"data: {n} bars {df.index[0]} -> {df.index[-1]} "

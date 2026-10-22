@@ -134,7 +134,15 @@ def run_daily_review(payload: Dict[str, Any], context: Optional[Any] = None) -> 
 
     delegated = None
     if context is not None and hasattr(context, "_execute_daily_review"):
-        delegated = context._execute_daily_review(payload)
+        paper_mode = (
+            payload.get("paper_mode")
+            if isinstance(payload, dict) and "paper_mode" in payload
+            else getattr(context, "paper_mode", True)
+        )
+        try:
+            delegated = context._execute_daily_review(payload, paper_mode=paper_mode)
+        except TypeError:
+            delegated = context._execute_daily_review(payload)
 
     result: Dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -149,6 +157,21 @@ def run_daily_review(payload: Dict[str, Any], context: Optional[Any] = None) -> 
             result["broker_source"] = produced["broker_source"]
             result["daily_reconciliation"] = produced["daily_reconciliation"]
             result["reward_attribution"] = produced["reward_attribution"]
+        else:
+            reconciled_rep = delegated.get("daily_reconciliation")
+            if (isinstance(reconciled_rep, dict) and
+                    reconciled_rep.get("reconciled_execution_evidence", {}).get("written")):
+                try:
+                    from operations.reward_attribution import attribute_reconciled_history
+                    result["reward_attribution"] = attribute_reconciled_history(
+                        db_path, run_id=(payload or {}).get("run_id")
+                    )
+                except Exception as exc:
+                    result["reward_attribution"] = {
+                        "status": "ERROR",
+                        "error": str(exc)[:300],
+                        "execution_authority": False,
+                    }
         return result
 
     result.update(_reconcile_and_attribute(db_path, context, payload))

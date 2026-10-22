@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from core.provenance import is_synthetic, validate_data_source
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,6 +40,7 @@ class HybridVerdict:
     sharpe_delta: float = 0.0
     passes_promotion: bool = False
     rejection_reasons: List[str] = field(default_factory=list)
+    data_source: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -46,6 +49,7 @@ class HybridVerdict:
             "sharpe_delta": round(self.sharpe_delta, 1),
             "passes_promotion": self.passes_promotion,
             "rejection_reasons": self.rejection_reasons,
+            "data_source": self.data_source,
         }
 
 
@@ -105,6 +109,7 @@ def _run_mt5_replay(
     tp_pips: float = 60.0,
     spread_pips: float = 1.5,
     slippage_pips: float = 0.5,
+    data_source: str = "",
 ) -> BacktestMetrics:
     """Tier-2: realistic MT5 replay with friction."""
     from research.mt5_backtest_engine import MT5BrokerBacktestEngine
@@ -125,6 +130,7 @@ def _run_mt5_replay(
     return engine.run_crossover_strategy(
         bars_df, fast_period=12, slow_period=26,
         sl_pips=sl_pips, tp_pips=tp_pips,
+        data_source=data_source,
     )
 
 
@@ -143,10 +149,17 @@ class HybridBacktestPipeline:
         timeframe: str = "M15",
         sl_pips: float = 30.0,
         tp_pips: float = 60.0,
+        data_source: str = "",
     ) -> HybridVerdict:
-        """Run both tiers and compare."""
+        """Run both tiers and compare.
+
+        ``data_source`` is required: a verdict is a promotion input, and a
+        synthetic run may never pass it.
+        """
+        source = validate_data_source(
+            data_source, kind="backtest", field="evaluate_strategy(data_source)")
         vbt = _run_vectorized(bars_df, entries, exits, sl_pips, tp_pips)
-        mt5 = _run_mt5_replay(bars_df, entries, exits, sl_pips, tp_pips)
+        mt5 = _run_mt5_replay(bars_df, entries, exits, sl_pips, tp_pips, data_source=source)
         delta = 0.0
         if vbt.sharpe_ratio != 0:
             delta = (1 - mt5.sharpe_ratio / vbt.sharpe_ratio) * 100
@@ -156,6 +169,10 @@ class HybridBacktestPipeline:
             reasons.append("insufficient_vectorized_trades")
         if delta > self.sharpe_decay_threshold:
             reasons.append(f"sharpe_decay_{delta:.1f}%_exceeds_{self.sharpe_decay_threshold}%")
+        # Fixture data is never authoritative evidence for promotion, whatever
+        # the metrics say.
+        if is_synthetic(source):
+            reasons.append("synthetic_data_not_authoritative")
 
         return HybridVerdict(
             vbt_metrics=vbt,
@@ -163,6 +180,7 @@ class HybridBacktestPipeline:
             sharpe_delta=round(delta, 1),
             passes_promotion=len(reasons) == 0,
             rejection_reasons=reasons,
+            data_source=source,
         )
 
     def run_two_tier_sweep(
@@ -173,6 +191,7 @@ class HybridBacktestPipeline:
         fast_range: Tuple[int, int] = (8, 20),
         slow_range: Tuple[int, int] = (20, 50),
         step: int = 4,
+        data_source: str = "",
     ) -> List[Tuple[Dict[str, int], HybridVerdict]]:
         """Grid sweep over EMA parameters, return sorted by Sharpe."""
         results = []
@@ -185,7 +204,7 @@ class HybridBacktestPipeline:
                 exits = (fast_ema < slow_ema) & (fast_ema.shift(1) >= slow_ema.shift(1))
                 verdict = self.evaluate_strategy(
                     bars_df, entries.fillna(False), exits.fillna(False),
-                    symbol=symbol, timeframe=timeframe,
+                    symbol=symbol, timeframe=timeframe, data_source=data_source,
                 )
                 results.append(({"fast_period": fast, "slow_period": slow}, verdict))
         results.sort(key=lambda x: x[1].vbt_metrics.sharpe_ratio, reverse=True)

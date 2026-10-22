@@ -125,6 +125,10 @@ def run_combinatorial_purged_backtest(
     return {
         "status": "CPCV_VALIDATED" if is_robust else "OVERFITTING_RISK_DETECTED",
         "combinatorial_paths_evaluated": len(combos),
+        # What the gate ACTUALLY charged, so the trial count is visible
+        # instead of hidden inside the DSR call.
+        "n_trials_used": int(true_trials),
+        "trial_family": "cpcv",
         "mean_cpcv_sharpe": round(mean_sr, 3),
         "std_cpcv_sharpe": round(std_sr, 3),
         "return_skewness": round(skew, 3),

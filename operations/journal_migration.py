@@ -68,12 +68,13 @@ def migrate(source: str = "trading_rewards.json", db_path: str = "trading_state.
                 opened = _iso(legacy.get("open_time"))
                 con.execute("""INSERT INTO trades
                     (ticket,magic,strategy,symbol,side,volume,entry,stop_loss,take_profit,
-                     risk_amount,opened_at,payload)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                     risk_amount,opened_at,payload,provenance)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
                     ticket, magic, strategy, str(legacy.get("symbol", "")), side,
                     float(legacy.get("volume") or 0), float(legacy.get("open_price") or 0),
                     decision.get("stop_loss"), decision.get("take_profit"),
-                    float(legacy.get("risk_amount") or 0), opened, json.dumps(payload, default=str)))
+                    float(legacy.get("risk_amount") or 0), opened, json.dumps(payload, default=str),
+                    "legacy_import"))
                 # Preserve the original proposal as an auditable, already-executed proposal.
                 setup_key = f"legacy-{ticket}"
                 con.execute("""INSERT INTO proposals

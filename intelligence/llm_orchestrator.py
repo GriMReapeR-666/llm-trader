@@ -79,18 +79,35 @@ def _resolve_symbol(name, default):
     return default
 
 def _get_mt5():
-    mt5_mod = sys.modules.get("mt5_trader")
-    if mt5_mod is not None and hasattr(mt5_mod, "mt5"):
-        return mt5_mod.mt5
-    return mt5
+    """Resolve the terminal module through the single provider resolver.
+
+    Same rule as the fetcher: one owner, one answer.  A second copy of the
+    decision is a second chance for the answer to depend on which module
+    happened to be imported first.
+    """
+    from data.market_data_provider import _get_mt5 as _provider_resolver
+    return _provider_resolver()
 
 def _get_fetch_ohlc():
-    """Resolve fetch_ohlc from mt5_trader module or fallback to market_data_provider."""
-    mt5_mod = sys.modules.get("mt5_trader")
-    if mt5_mod is not None and hasattr(mt5_mod, "fetch_ohlc"):
-        return mt5_mod.fetch_ohlc
-    from data.market_data_provider import fetch_ohlc
-    return fetch_ohlc
+    """Resolve the OHLC fetcher through the single provider resolver.
+
+    This used to be a second, weaker copy of ``data.market_data_provider
+    ._get_fetch_ohlc``: it preferred ``mt5_trader.fetch_ohlc`` whenever that
+    module happened to be in ``sys.modules``.  Whether ``mt5_trader`` is
+    imported is an accident of import order, not a fact about the market
+    data, so the SAME test could see its stub in one run and the live broker
+    fetcher in the next.  Measured: with ``mt5_trader`` imported first,
+    ``tests/test_news_gate_integration.py`` failed 4/4 because the cycle
+    could not confirm a completed candle ("Unsupported timeframe M15"),
+    while the file passed 4/4 standalone.
+
+    One resolver, one answer: the provider owns the decision, this module
+    asks it.  The lookup is a module attribute read at call time, so a test
+    (or a runtime override) that replaces the provider's resolver is
+    honoured here too.
+    """
+    from data.market_data_provider import _get_fetch_ohlc as _provider_resolver
+    return _provider_resolver()
 
 from core.risk_manager import RiskManager
 from core.trade_manager import TradeManager
@@ -170,6 +187,7 @@ from intelligence.intermarket_regime import (
 )
 from core.margin_safety import MarginSafetyGate
 from operations.daily_reconciliation import compare_day as compare_broker_day
+from operations.demo_evidence_collector import DemoEvidenceCollector
 from data.data_requirements import evaluate as evaluate_data_requirements
 from intelligence.cost_estimator import assess_costs
 from intelligence.feature_schema import validate_snapshot as validate_feature_schema
@@ -224,7 +242,7 @@ from core.order_execution import (
     modify_order_sltp, cancel_pending_order
 )
 from data.market_data_provider import (
-    TIMEFRAME_MAP, tf_const, fetch_ohlc, collect_calendar_event_rows,
+    TIMEFRAME_MAP, tf_const, collect_calendar_event_rows,
     DOMCollector, PerformanceMonitor, MarketDataProvider, ohlc_records
 )
 
@@ -886,7 +904,17 @@ class LLMOrchestrator:
             # The journal_callback is what makes a paper close evidence-bearing:
             # without it a fill survives only in a volatile in-memory list and the
             # broker-reconciled gates stay shut with nothing in the journal saying why.
-            self.paper_broker = PaperBroker(journal_callback=self._journal_paper_fill)
+            #
+            # The fill_observer is the demo evidence collector: it sees every
+            # fill, opening as well as closing, so a demo trade is journalled
+            # with its paper_broker provenance at the moment it happened rather
+            # than whenever the reconciler next runs.
+            self.demo_evidence = (DemoEvidenceCollector(self.store)
+                                  if getattr(self, "store", None) is not None else None)
+            self.paper_broker = PaperBroker(
+                journal_callback=self._journal_paper_fill,
+                fill_observer=(self.demo_evidence.observe_fill
+                               if self.demo_evidence is not None else None))
             if getattr(self.data_provider, "trade_manager", None) is not None:
                 self.data_provider.trade_manager.attach_paper_broker(self.paper_broker)
             if hasattr(self.risk, "set_active_positions_provider"):
@@ -4140,7 +4168,7 @@ class LLMOrchestrator:
                 if str(preferred).upper() == exclude:
                     continue
                 try:
-                    df = fetch_ohlc(str(preferred), timeframe, count=80)
+                    df = _get_fetch_ohlc()(str(preferred), timeframe, count=80)
                     bars = ohlc_records(df) if hasattr(df, "to_dict") else []
                     if len(bars) < 3:
                         continue
@@ -6101,6 +6129,10 @@ class LLMOrchestrator:
                                  "feature_schema_version": original.features.get("feature_schema_version"),
                                  "feature_schema_hash": original.features.get("feature_schema_hash"),
                                  "setup_id": original.features.get("setup_id")},
+                                # Declared at the write site: this row is a paper
+                                # fill or a broker-reconciled MT5 fill, never a
+                                # fixture. The promotion gate refuses synthetic.
+                                provenance="paper_broker" if paper_mode else "mt5_broker",
                             )
                             # PerformanceMonitor receives a fill only after
                             # broker history proves the order was executed.
@@ -6611,6 +6643,7 @@ class LLMOrchestrator:
         # alert_dispatch / incident_sweep (operator-critical latency) and
         # position_reconcile / market_health (risk & observability floors).
         "sieve_poll": 900,              # 60s -> 15 min while closed
+        "bar_synchronized_auction": 300,  # 60s -> 5 min; auctions live with bars
     }
 
     def _market_closed_now(self) -> bool:
@@ -6784,7 +6817,9 @@ class LLMOrchestrator:
             # --- multi-agent executor registry: principal-owned handlers first ---
             try:
                 from operations.executors import try_handle as _executors_try
-                if _executors_try(schedule_name, scheduled.get("payload") or {}, context=self):
+                _exec_payload = dict(scheduled.get("payload") or {})
+                _exec_payload.setdefault("paper_mode", paper_mode)
+                if _executors_try(schedule_name, _exec_payload, context=self):
                     continue
             except Exception as exc:
                 logging.getLogger("LLMOrchestrator").debug("Schedule executor '%s' failed: %s", schedule_name, exc)

@@ -1,86 +1,16 @@
 {
-  "generated_at": "2026-10-19T19:32:03.229494+00:00",
-  "total_approved_causal_edges": 22,
+  "generated_at": "2026-10-22T05:21:02.764776+00:00",
+  "deterministic_seed": 42,
+  "training_days_completed": 5,
+  "total_approved_causal_edges": 16,
   "causal_edges": [
-    {
-      "edge_id": 18,
-      "source": "MONETARY_POLICY",
-      "target": "EURUSD",
-      "relation": "REAL_RATE_SPREAD_COMPRESSION",
-      "sign": "NEGATIVE",
-      "confidence": 1.0,
-      "status": "AUTO_APPROVED"
-    },
-    {
-      "edge_id": 19,
-      "source": "DISINFLATION",
-      "target": "GBPUSD",
-      "relation": "RISK_ON_EXPANSION",
-      "sign": "POSITIVE",
-      "confidence": 1.0,
-      "status": "AUTO_APPROVED"
-    },
-    {
-      "edge_id": 20,
-      "source": "GEOPOLITICAL_TENSION",
-      "target": "XAUUSD",
-      "relation": "SAFE_HAVEN_CAPITAL_PRESERVATION",
-      "sign": "POSITIVE",
-      "confidence": 1.0,
-      "status": "AUTO_APPROVED"
-    },
-    {
-      "edge_id": 21,
-      "source": "INTERBANK_CREDIT_SPREAD",
-      "target": "USDJPY",
-      "relation": "CARRY_UNWIND_REPATRIATION",
-      "sign": "NEGATIVE",
-      "confidence": 1.0,
-      "status": "AUTO_APPROVED"
-    },
-    {
-      "edge_id": 22,
-      "source": "GEOPOLITICAL_RISK",
-      "target": "XAUUSD",
-      "relation": "SAFE_HAVEN_BID",
-      "sign": "POSITIVE",
-      "confidence": 1.0,
-      "status": "AUTO_APPROVED"
-    },
-    {
-      "edge_id": 3,
-      "source": "USD",
-      "target": "EURUSD",
-      "relation": "WEAKENS",
-      "sign": "NEGATIVE",
-      "confidence": 0.99,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 4,
-      "source": "USD",
-      "target": "GBPUSD",
-      "relation": "WEAKENS",
-      "sign": "NEGATIVE",
-      "confidence": 0.99,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 5,
-      "source": "USD",
-      "target": "USDJPY",
-      "relation": "STRENGTHENS",
-      "sign": "POSITIVE",
-      "confidence": 0.99,
-      "status": "APPROVED"
-    },
     {
       "edge_id": 6,
       "source": "USD",
       "target": "XAUUSD",
       "relation": "INVERSE_PRICES",
       "sign": "NEGATIVE",
-      "confidence": 0.99,
+      "confidence": 0.971,
       "status": "APPROVED"
     },
     {
@@ -90,6 +20,24 @@
       "relation": "BUYS_GOLD",
       "sign": "POSITIVE",
       "confidence": 0.95,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 15,
+      "source": "GEOPOLITICAL_TENSION",
+      "target": "XAUUSD",
+      "relation": "SAFE_HAVEN_CAPITAL_PRESERVATION",
+      "sign": "POSITIVE",
+      "confidence": 0.94,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 3,
+      "source": "USD",
+      "target": "EURUSD",
+      "relation": "WEAKENS",
+      "sign": "NEGATIVE",
+      "confidence": 0.937,
       "status": "APPROVED"
     },
     {
@@ -111,7 +59,7 @@
       "status": "APPROVED"
     },
     {
-      "edge_id": 14,
+      "edge_id": 12,
       "source": "LIQUIDITY_SQUEEZE",
       "target": "USDJPY",
       "relation": "UNWINDS_CARRY",
@@ -120,11 +68,29 @@
       "status": "APPROVED"
     },
     {
-      "edge_id": 15,
-      "source": "LIQUIDITY_SQUEEZE",
-      "target": "XAUUSD",
-      "relation": "COLLATERAL_DEMAND",
+      "edge_id": 13,
+      "source": "MONETARY_POLICY",
+      "target": "EURUSD",
+      "relation": "REAL_RATE_SPREAD_COMPRESSION",
+      "sign": "NEGATIVE",
+      "confidence": 0.92,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 5,
+      "source": "USD",
+      "target": "USDJPY",
+      "relation": "STRENGTHENS",
       "sign": "POSITIVE",
+      "confidence": 0.918,
+      "status": "APPROVED"
+    },
+    {
+      "edge_id": 16,
+      "source": "INTERBANK_CREDIT_SPREAD",
+      "target": "USDJPY",
+      "relation": "CARRY_UNWIND_REPATRIATION",
+      "sign": "NEGATIVE",
       "confidence": 0.91,
       "status": "APPROVED"
     },
@@ -138,7 +104,7 @@
       "status": "APPROVED"
     },
     {
-      "edge_id": 13,
+      "edge_id": 11,
       "source": "INTERBANK_CREDIT_SPREAD",
       "target": "LIQUIDITY_SQUEEZE",
       "relation": "RESTRICTS",
@@ -165,111 +131,65 @@
       "status": "APPROVED"
     },
     {
-      "edge_id": 16,
-      "source": "LIQUIDITY_SQUEEZE",
-      "target": "EURUSD",
-      "relation": "USD_FUNDING_STRESS",
-      "sign": "NEGATIVE",
-      "confidence": 0.86,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 17,
-      "source": "LIQUIDITY_SQUEEZE",
+      "edge_id": 14,
+      "source": "DISINFLATION",
       "target": "GBPUSD",
-      "relation": "USD_FUNDING_STRESS",
-      "sign": "NEGATIVE",
-      "confidence": 0.84,
+      "relation": "RISK_ON_EXPANSION",
+      "sign": "POSITIVE",
+      "confidence": 0.88,
       "status": "APPROVED"
     },
     {
-      "edge_id": 11,
-      "source": "SAFE_HAVEN_DEMAND",
-      "target": "EURUSD",
-      "relation": "CAPITAL_FLIGHT",
-      "sign": "NEGATIVE",
-      "confidence": 0.82,
-      "status": "APPROVED"
-    },
-    {
-      "edge_id": 12,
-      "source": "SAFE_HAVEN_DEMAND",
+      "edge_id": 4,
+      "source": "USD",
       "target": "GBPUSD",
-      "relation": "CAPITAL_FLIGHT",
+      "relation": "WEAKENS",
       "sign": "NEGATIVE",
-      "confidence": 0.8,
+      "confidence": 0.866,
       "status": "APPROVED"
     }
   ],
-  "active_maml_profile": "EVENT_SHOCK",
+  "active_maml_profile": "LOW_VOL_TREND",
   "ewc_locked_regimes": [
-    "DAEMON_CYCLE_SHOCK",
-    "DAEMON_CYCLE_SHOCK",
-    "DAEMON_CYCLE_SHOCK",
-    "DAEMON_CYCLE_SHOCK",
-    "DAEMON_CYCLE_SHOCK"
+    "MONETARY_TIGHTENING_INFLATION_SHOCK",
+    "DISINFLATIONARY_GROWTH_EXPANSION",
+    "GEOPOLITICAL_ENERGY_SUPPLY_SHOCK",
+    "INTERBANK_LIQUIDITY_BANKING_STRESS",
+    "EQUILIBRIUM_LOW_VOL_RANGE_BOUND"
   ],
   "top_verified_heuristics": [
     {
-      "id": 121,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #50: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "id": 5,
+      "summary": "Deterministic Replay Mastery: EQUILIBRIUM_LOW_VOL_RANGE_BOUND",
+      "lesson": "In EQUILIBRIUM_LOW_VOL_RANGE_BOUND, synchronized US_INITIAL_JOBLESS_CLAIMS surprise (+0.05 sigma) propagated into EURUSD SELL bias. RL executed HOLD under XM Ultra Low costs, returning $+6.10.",
       "confidence": 0.98
     },
     {
-      "id": 120,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #49: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "id": 4,
+      "summary": "Deterministic Replay Mastery: INTERBANK_LIQUIDITY_BANKING_STRESS",
+      "lesson": "In INTERBANK_LIQUIDITY_BANKING_STRESS, synchronized FED_DISCOUNT_WINDOW_SURGE surprise (+3.40 sigma) propagated into USDJPY SELL bias. RL executed FULL_EXIT under XM Ultra Low costs, returning $+11.60.",
       "confidence": 0.98
     },
     {
-      "id": 119,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #48: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "id": 3,
+      "summary": "Deterministic Replay Mastery: GEOPOLITICAL_ENERGY_SUPPLY_SHOCK",
+      "lesson": "In GEOPOLITICAL_ENERGY_SUPPLY_SHOCK, synchronized CRUDE_OIL_SUPPLY_OUTAGE surprise (+3.10 sigma) propagated into XAUUSD BUY bias. RL executed FULL_EXIT under XM Ultra Low costs, returning $+14.20.",
       "confidence": 0.98
     },
     {
-      "id": 118,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #47: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "id": 2,
+      "summary": "Deterministic Replay Mastery: DISINFLATIONARY_GROWTH_EXPANSION",
+      "lesson": "In DISINFLATIONARY_GROWTH_EXPANSION, synchronized US_CORE_PCE_MOM surprise (-1.80 sigma) propagated into GBPUSD BUY bias. RL executed TRAIL under XM Ultra Low costs, returning $+9.20.",
       "confidence": 0.98
     },
     {
-      "id": 117,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #46: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
-      "confidence": 0.98
-    },
-    {
-      "id": 116,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #45: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
-      "confidence": 0.98
-    },
-    {
-      "id": 115,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #44: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
-      "confidence": 0.98
-    },
-    {
-      "id": 114,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #43: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
-      "confidence": 0.98
-    },
-    {
-      "id": 113,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #42: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
-      "confidence": 0.98
-    },
-    {
-      "id": 112,
-      "summary": "Autonomous Causal Multi-Asset Backtest & Edge Reinforcement Validated",
-      "lesson": "Cycle #41: Ingested multi-asset feeds, detected 2.0 ATR dislocations, auto-approved safe-haven edges, and reinforced policy weights.",
+      "id": 1,
+      "summary": "Deterministic Replay Mastery: MONETARY_TIGHTENING_INFLATION_SHOCK",
+      "lesson": "In MONETARY_TIGHTENING_INFLATION_SHOCK, synchronized US_CPI_YOY surprise (+2.50 sigma) propagated into EURUSD SELL bias. RL executed FULL_EXIT under XM Ultra Low costs, returning $+11.30.",
       "confidence": 0.98
     }
   ],
-  "broker_pricing_model": "XM_ULTRA_LOW"
+  "broker_pricing_model": "XM_ULTRA_LOW",
+  "cumulative_pnl": 52.4,
+  "win_rate": 100.0
 }

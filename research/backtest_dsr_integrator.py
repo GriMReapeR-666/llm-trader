@@ -34,6 +34,7 @@ from typing import Any, Dict, List, Optional, Sequence
 import numpy as np
 
 from core.trial_ledger import TrialLedger, DSR_GATE_THRESHOLD, DSRResult
+from core.hypothesis_class import resolve_class
 
 logger = logging.getLogger(__name__)
 
@@ -163,17 +164,24 @@ class BacktestDSRIntegrator:
         metadata: Optional[Dict[str, Any]] = None,
         strategy_class: Optional[str] = None,
         n_trades: Optional[int] = None,
+        sharpe_annualized: bool = True,
+        periods_per_year: float = 252.0,
     ) -> DSRReport:
         """Validate a backtest result against the DSR gate.
 
         Args:
             strategy_id: Unique strategy identifier
-            sharpe: Backtested Sharpe ratio
-            n_observations: Number of observations in the backtest
+            sharpe: Backtested Sharpe ratio (annualized by default -- see the
+                DSR units contract in core/metrics.py)
+            n_observations: Number of observations BEHIND that Sharpe, at the
+                same frequency it was computed at (trades for a per-trade
+                Sharpe, bars for a per-bar one)
             returns: Optional return series for computing skew/kurtosis
             skewness: Optional pre-computed skewness
             kurtosis: Optional pre-computed kurtosis (excess + 3)
             metadata: Optional extra context (params, universe, etc.)
+            sharpe_annualized: Set False when ``sharpe`` is the raw mean/std
+            periods_per_year: Annualization constant used to produce ``sharpe``
 
         Returns:
             DSRReport with PASS/FAIL verdict
@@ -202,7 +210,16 @@ class BacktestDSRIntegrator:
 
         # Record trial and compute DSR via the ledger. Per-call
         # strategy_class overrides the integrator-level default.
+        #
+        # When neither is given, the hypothesis class is DERIVED from the
+        # strategy identity by the canonical taxonomy
+        # (``core.hypothesis_class``): a backtest that belongs to a known
+        # research programme is deflated within that programme instead of
+        # against every trial the ledger has ever seen.  An identity that
+        # cannot be attributed to a family stays None and keeps the GLOBAL
+        # bar (fail-closed).
         _strategy_class = strategy_class or self._strategy_class
+        _strategy_class = resolve_class(_strategy_class, strategy_id, metadata)
         dsr_result: DSRResult = self._ledger.evaluate_dsr(
             estimated_sharpe=sharpe,
             n_observations=max(10, n_observations),
@@ -212,6 +229,8 @@ class BacktestDSRIntegrator:
             gate_threshold=self._gate_threshold,
             metadata=metadata,
             strategy_class=_strategy_class,
+            annualized=sharpe_annualized,
+            periods_per_year=periods_per_year,
         )
 
         # Build report. The run-level trade count is enforced even when the

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import asdict, dataclass, field
+from functools import lru_cache
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 
@@ -158,6 +159,99 @@ def calculate_wfe(annualized_return_oos: float, annualized_return_is: float) -> 
     return float(ret_oos / ret_is)
 
 
+# ---------------------------------------------------------------------------
+# DSR UNITS CONTRACT (resolved 2026-10-20)
+#
+# Every function in this module that consumes a Sharpe ratio follows one rule:
+#
+#   * ``estimated_sharpe`` and ``benchmark_sharpe`` are ANNUALIZED by default;
+#     pass ``annualized=False`` when you hold the raw estimator (mean / std).
+#   * ``periods_per_year`` MUST be the annualization that actually produced
+#     the Sharpe (252 for daily equity, 8760 for hourly FX, or the trades per
+#     year when Sharpe is computed per trade). It is never guessed from
+#     ``sample_size``.
+#   * ``sample_size`` is the number of observations behind the Sharpe at that
+#     same frequency. A per-trade Sharpe with ``sample_size=trades`` is
+#     legitimate; a per-bar Sharpe with ``sample_size=bars`` is legitimate;
+#     the two must never be mixed.
+#
+# Why the rule exists: ``overfit_gate`` computed ``mean / std`` (per-period)
+# but called the ledger, which assumed annualized-daily. That de-annualized a
+# value that was already per-period, understating z by sqrt(252) ~ 15.9x and
+# rejecting every healthy strategy.
+# ---------------------------------------------------------------------------
+
+
+@lru_cache(maxsize=4096)
+def _expected_max_standard_normal(k: int) -> float:
+    """E[max of ``k`` iid standard normals], in standard-deviation units.
+
+    Exact order-statistic expectation::
+
+        E[max] = ∫₀^∞ (1 - Φ(x)^k) dx  −  ∫₀^∞ Φ(−x)^k dx
+
+    The closed-form EVT/Gumbel approximation used previously is biased HIGH,
+    and worst exactly where a new strategy is judged: +50% at k=2, +15% at
+    k=5, +3.5% at k=100, +1.5% at k=2811.  (Verified against the exact
+    integral; k=2 must equal 1/sqrt(pi) = 0.56419.)  A too-high bar is a
+    type-II error factory -- it rejects real edges.
+    """
+    if k <= 1:
+        return 0.0
+    try:
+        from scipy.integrate import quad
+        from scipy.stats import norm
+
+        upper = max(8.0, math.sqrt(2.0 * math.log(k)) + 6.0)
+        positive, _ = quad(
+            lambda x: 1.0 - norm.cdf(x) ** k, 0.0, upper, epsabs=1e-9, limit=200
+        )
+        negative, _ = quad(
+            lambda x: norm.cdf(-x) ** k, 0.0, upper, epsabs=1e-9, limit=200
+        )
+        return float(positive - negative)
+    except Exception:  # pragma: no cover - scipy missing or integral failure
+        return (
+            math.sqrt(2.0 * math.log(k))
+            - (math.log(math.pi) + math.log(math.log(k)))
+            / (2.0 * math.sqrt(2.0 * math.log(k)))
+        )
+
+
+def expected_max_sharpe(
+    num_trials: int,
+    sample_size: int,
+    benchmark_sharpe: float = 0.0,
+    annualized: bool = True,
+    periods_per_year: float = 252.0,
+) -> float:
+    """Multiple-testing benchmark E[max Sharpe] under the null.
+
+    Returns a value in the SAME units as ``benchmark_sharpe``: annualized when
+    ``annualized=True``, so it can be compared directly with a reported Sharpe.
+
+    The bar is ``se_null * E[max of k standard normals]``.  The standard error
+    belongs to the Sharpe *estimator* (1/sqrt(n)), not to the standard normal,
+    so omitting the scale -- as ``overfit_detector`` and both trial ledgers did
+    -- reports a bar in sigma units as if it were a Sharpe ratio (4x too high
+    at k=2811).
+    """
+    sr_0 = float(benchmark_sharpe)
+    scale = math.sqrt(periods_per_year) if (annualized and periods_per_year > 1.0) else 1.0
+    sr_0_period = sr_0 / scale
+
+    k = int(num_trials)
+    if k <= 1 or sample_size < 10:
+        return float(sr_0)
+
+    n = float(sample_size)
+    # SE of the Sharpe estimator at the null (Gaussian moments: skew 0, kurt 3),
+    # evaluated at the benchmark's own scale.
+    se_null = math.sqrt(max(1.0 - sr_0_period * sr_0_period / 2.0, 1e-12) / max(n - 1.0, 1.0))
+    exp_max_period = sr_0_period + se_null * _expected_max_standard_normal(k)
+    return float(exp_max_period * scale)
+
+
 def calculate_deflated_sharpe_ratio(
     estimated_sharpe: float,
     num_trials: int,
@@ -172,10 +266,10 @@ def calculate_deflated_sharpe_ratio(
     Adjusts Sharpe ratio for multiple testing and selection bias.
     Returns p-value of rejecting the null hypothesis (true Sharpe <= benchmark).
 
-    Unit Consistency:
-    De-annualizes estimated_sharpe when annualized=True (the standard in backtest
-    reports where Sharpe is annualized via sqrt(252)), aligning it with per-period
-    quantities (se_null, sr_variance).
+    Units: see the module contract above. ``estimated_sharpe`` is annualized
+    unless ``annualized=False``; ``periods_per_year`` must match how it was
+    annualized. De-annualization happens internally so the comparison is made
+    in per-period units against ``se_null`` and ``sr_variance``.
     """
     if num_trials < 1 or sample_size < 10:
         return 1.0
@@ -193,23 +287,14 @@ def calculate_deflated_sharpe_ratio(
     gamma_4 = float(kurtosis)
     
     # Expected maximum Sharpe under null of zero Sharpe across k independent
-    # trials. E[max of k standard normals] is in SE units, so it must be
-    # scaled by the SE of the SR estimator BEFORE comparison with ``sr`` —
-    # the raw EVT value (e.g. 3.24 at k=1000) subtracted from a per-bar
-    # Sharpe (~0.01) forced z ≈ -400 and p = 1.0 for EVERY strategy,
-    # making the multiple-testing gate structurally unpassable.
-    # SE uses Gaussian moments at the null (skew 0, kurtosis 3) — the null
-    # distribution is defined there — evaluated at sr_0's own scale.
+    # trials, in per-period units (the units of ``sr`` and ``sr_0`` here).
+    # SE uses Gaussian moments at the null (skew 0, kurtosis 3) -- the null
+    # distribution is defined there -- evaluated at sr_0's own scale.
     if k > 1:
         se_null = math.sqrt(
-            (1.0 - sr_0 * sr_0 / 2.0) / max(n - 1.0, 1.0)
+            max(1.0 - sr_0 * sr_0 / 2.0, 1e-12) / max(n - 1.0, 1.0)
         )
-        m_k = (
-            np.sqrt(2.0 * np.log(k))
-            - (np.log(np.pi) + np.log(np.log(k)))
-            / (2.0 * np.sqrt(2.0 * np.log(k)))
-        )
-        exp_max_sr = sr_0 + se_null * m_k
+        exp_max_sr = sr_0 + se_null * _expected_max_standard_normal(int(k))
     else:
         exp_max_sr = sr_0
     

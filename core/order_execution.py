@@ -137,21 +137,37 @@ class PaperBroker:
     When a journal_callback is set, every close_position() call will
     automatically persist the closed trade to the TradingStore journal,
     enabling research gates and reconciliation to consume paper trade data.
+
+    ``fill_observer`` sees *every* fill -- the opening fill as well as the
+    closing one -- which is what the demo evidence collector needs: a fill
+    that is only noticed at close time is a fill the journal cannot describe
+    if the process dies in between.  The observer is bookkeeping, never
+    execution: it cannot stop the venue from filling.
     """
 
-    def __init__(self, journal_callback=None):
+    def __init__(self, journal_callback=None, fill_observer=None):
         self.orders: Dict[int, Dict[str, Any]] = {}
         self.positions: Dict[int, Dict[str, Any]] = {}
         self.pending_orders: Dict[int, Dict[str, Any]] = {}
         self.history: List[Dict[str, Any]] = []
         self.next_ticket: int = 100000
         self._journal_callback = journal_callback
+        self._fill_observer = fill_observer
         _alert_paper_fallback("PaperBroker instance created/active")
 
     def _ticket(self) -> int:
         t = self.next_ticket
         self.next_ticket += 1
         return t
+
+    def _notify_fill(self, record: Dict[str, Any]) -> None:
+        """Tell the observer about a fill."""
+        if self._fill_observer is None:
+            return
+        try:
+            self._fill_observer(record)
+        except Exception as _fo_exc:
+            log.debug("PaperBroker fill observer failed: %s", _fo_exc)
 
     def market_order(self, symbol: str, side: str, volume: float, price: float,
                      sl: Optional[float], tp: Optional[float], comment: str,
@@ -160,10 +176,20 @@ class PaperBroker:
             return {"retcode": 10013, "order": None,
                     "error": "paper quote/volume unavailable; no synthetic position created"}
         ticket = self._ticket()
+        opened_at = time.time()
         self.positions[ticket] = {
             "symbol": symbol, "side": side, "volume": volume, "price_open": price,
             "sl": sl, "tp": tp, "comment": comment, "magic": int(magic), "profit": 0.0,
+            "opened_at": opened_at,
         }
+        # The opening fill is a fact the journal needs as much as the close:
+        # without it a position that never closes leaves no trace at all.
+        self._notify_fill({
+            "ticket": int(ticket), "symbol": symbol, "side": side, "volume": float(volume),
+            "price": float(price), "price_open": float(price), "sl": sl, "tp": tp,
+            "comment": comment, "magic": int(magic), "status": "OPEN",
+            "filled_at": opened_at,
+        })
         return {"retcode": 10009, "order": ticket}
 
     def pending_order(self, symbol: str, otype: str, price: float, volume: float,
@@ -237,6 +263,10 @@ class PaperBroker:
             "magic": int(position.get("magic", 0) or 0),
             "status": status,
             "close_time": time.time(),
+            # The open timestamp travels with the close so a trade the engine
+            # never journalled can still be reconstructed with its real
+            # holding period instead of the close time twice.
+            "open_time": float(position.get("opened_at") or 0.0),
         }
         self.history.append(deal_info)
         if len(self.history) > 2000:
@@ -248,6 +278,10 @@ class PaperBroker:
                 self._journal_callback(deal_info)
             except Exception as _jb_exc:
                 log.debug("PaperBroker journal callback failed: %s", _jb_exc)
+
+        # The observer runs after the journal bridge so an attestation that
+        # already exists for this fill is not written twice.
+        self._notify_fill(deal_info)
 
         return {"retcode": 10009, "order": int(ticket), "status": status,
                 "filled_price": numeric_price, "filled_volume": close_volume,

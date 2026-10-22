@@ -71,6 +71,9 @@ REGISTRY: Dict[str, ExecutorSpec] = {
     # Systematic Institutional Quant Workflow sweep (TechnicalNet)
     "quant_workflow_sweep": ExecutorSpec("quant_workflow_sweep", "TechnicalNet",
                                          "operations.agents.workflow_agent:handle_workflow_sweep", 300),
+    # Bar Synchronized Opportunity Auction (TechnicalNet)
+    "bar_synchronized_auction": ExecutorSpec("bar_synchronized_auction", "TechnicalNet",
+                                             "operations.agents.workflow_agent:handle_bar_synchronized_auction", 60),
 }
 
 

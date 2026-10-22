@@ -14,6 +14,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
+from core.provenance import validate_data_source
+
 import logging as _vbt_log
 try:
     import vectorbt as vbt
@@ -55,6 +57,13 @@ class BacktestMetrics:
     equity_series: List[float] = field(default_factory=list)
     drawdown_series: List[float] = field(default_factory=list)
     timestamps: List[str] = field(default_factory=list)
+    #: Declared bar provenance; validated so a fixture result cannot be
+    #: constructed without saying so (core/provenance.py).
+    data_source: str = ""
+
+    def __post_init__(self) -> None:
+        self.data_source = validate_data_source(
+            self.data_source, kind="backtest", field="BacktestMetrics.data_source")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -81,6 +90,7 @@ class BacktestMetrics:
             "initial_cash": round(self.initial_cash, 2),
             "final_cash": round(self.final_cash, 2),
             "data_points": len(self.equity_series),
+            "data_source": self.data_source,
         }
 
 
@@ -121,8 +131,14 @@ class VectorizedBacktestEngine:
         timeframe: str = "M15",
         short_entries: Optional[Union[pd.Series, np.ndarray, List[bool]]] = None,
         short_exits: Optional[Union[pd.Series, np.ndarray, List[bool]]] = None,
+        data_source: str = "",
     ) -> BacktestMetrics:
-        """Run vectorized backtest on price DataFrame with boolean entry/exit signals."""
+        """Run vectorized backtest on price DataFrame with boolean entry/exit signals.
+
+        ``data_source`` is mandatory at run time: empty/unknown values raise
+        rather than producing metrics that look observed.
+        """
+        source = validate_data_source(data_source, kind="backtest", field="run_backtest(data_source)")
         if df.empty or "close" not in df.columns:
             raise ValueError("Input DataFrame must be non-empty and contain 'close' column — clear: provide OHLC df with 'close', no silent empty result")
 
@@ -275,6 +291,7 @@ class VectorizedBacktestEngine:
             equity_series=equity_curve.tolist(),
             drawdown_series=(drawdowns * 100.0).tolist(),
             timestamps=timestamps,
+            data_source=source,
         )
 
     def run_crossover_strategy(
@@ -284,6 +301,7 @@ class VectorizedBacktestEngine:
         slow_period: int = 30,
         symbol: str = "EURUSD",
         timeframe: str = "M15",
+        data_source: str = "",
     ) -> BacktestMetrics:
         """Helper to run a fast moving-average crossover benchmark backtest."""
         close = df["close"]
@@ -299,6 +317,7 @@ class VectorizedBacktestEngine:
             exits=exits.fillna(False),
             symbol=symbol,
             timeframe=timeframe,
+            data_source=data_source,
         )
 
     def run_grid_sweep(
@@ -308,6 +327,7 @@ class VectorizedBacktestEngine:
         slow_periods: Any = (20, 30, 50, 100),
         symbol: str = "EURUSD",
         timeframe: str = "M15",
+        data_source: str = "",
     ) -> List[Tuple[Dict[str, int], BacktestMetrics]]:
         """Run parameter sweep across fast/slow period combinations, ranked by Sharpe ratio."""
         results: List[Tuple[Dict[str, int], BacktestMetrics]] = []
@@ -321,6 +341,7 @@ class VectorizedBacktestEngine:
                     slow_period=int(slow),
                     symbol=symbol,
                     timeframe=timeframe,
+                    data_source=data_source,
                 )
                 results.append(({"fast_period": int(fast), "slow_period": int(slow)}, metrics))
         results.sort(key=lambda item: item[1].sharpe_ratio, reverse=True)

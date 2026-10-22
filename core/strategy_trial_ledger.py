@@ -25,11 +25,17 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from core.metrics import calculate_deflated_sharpe_ratio
+from core.hypothesis_class import (
+    UNCLASSIFIED,
+    classify,
+    group_by_effective_class,
+    resolve_class,
+)
+from core.metrics import calculate_deflated_sharpe_ratio, expected_max_sharpe
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +89,7 @@ class DSRResult:
     verdict: str                  # "PASS" or "FAIL_NOT_SIGNIFICANT"
     gate_threshold: float         # τ_dsr threshold used
     pbo_proxy: float = 0.0       # Empirical PBO (fraction of trials with Sharpe <= 0)
-    strategy_class: str = "general"  # Hypothesis class the deflation was scoped to
+    strategy_class: str = "global"  # Hypothesis class the deflation was scoped to ("global" = the whole ledger)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -125,6 +131,9 @@ class TrialLedger:
 
     def __init__(self, db_path: Optional[str] = None):
         self._lock = threading.Lock()
+        # (row_count, {class_id: [sharpe, ...]}) — invalidated by count, the
+        # ledger being append-only.
+        self._class_cache: Optional[Tuple[int, Dict[str, List[float]]]] = None
         if db_path is None:
             db_path = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
@@ -235,6 +244,27 @@ class TrialLedger:
         """Current trial Sharpe distribution as numpy array."""
         return np.array(self.trial_sharpes(), dtype=float)
 
+    def _class_snapshot(self) -> Dict[str, List[float]]:
+        """Trial Sharpes grouped by EFFECTIVE hypothesis class.
+
+        A stored tag that names a family is authoritative; a stored
+        ``general`` tag means "no class claim" and the class is re-derived
+        from the strategy id (``core.hypothesis_class``).  See
+        ``core.trial_ledger`` for the full rationale.
+        """
+        with self._lock:
+            with self._conn() as con:
+                total = int(con.execute("SELECT COUNT(*) FROM trials").fetchone()[0])
+                if self._class_cache is not None and self._class_cache[0] == total:
+                    return self._class_cache[1]
+                rows = con.execute(
+                    "SELECT strategy_id, strategy_class, sharpe, metadata "
+                    "FROM trials ORDER BY trial_id ASC"
+                ).fetchall()
+        groups = group_by_effective_class(rows)
+        self._class_cache = (total, groups)
+        return groups
+
     def n_trials_for_class(self, strategy_class: Optional[str] = None) -> int:
         """Trial count scoped to a hypothesis class (S.Ξ multiple-testing fix).
 
@@ -252,13 +282,7 @@ class TrialLedger:
         """
         if strategy_class is None:
             return self.n_trials
-        with self._lock:
-            with self._conn() as con:
-                row = con.execute(
-                    "SELECT COUNT(*) FROM trials WHERE strategy_class = ?",
-                    (str(strategy_class),),
-                ).fetchone()
-                return int(row[0]) if row else 0
+        return len(self._class_snapshot().get(str(strategy_class), []))
 
     def trial_sharpes_for_class(
         self, strategy_class: Optional[str] = None
@@ -266,24 +290,13 @@ class TrialLedger:
         """Trial Sharpes scoped to a hypothesis class (None → global list)."""
         if strategy_class is None:
             return self.trial_sharpes()
-        with self._lock:
-            with self._conn() as con:
-                rows = con.execute(
-                    "SELECT sharpe FROM trials WHERE strategy_class = ? "
-                    "ORDER BY trial_id ASC",
-                    (str(strategy_class),),
-                ).fetchall()
-                return [float(r[0]) for r in rows]
+        return list(self._class_snapshot().get(str(strategy_class), []))
 
     def list_strategy_classes(self) -> Dict[str, int]:
-        """Trial counts per strategy_class tag (for observability)."""
-        with self._lock:
-            with self._conn() as con:
-                rows = con.execute(
-                    "SELECT strategy_class, COUNT(*) FROM trials "
-                    "GROUP BY strategy_class ORDER BY COUNT(*) DESC"
-                ).fetchall()
-        return {r[0]: int(r[1]) for r in rows}
+        """Trial counts per effective hypothesis class (for observability)."""
+        groups = self._class_snapshot()
+        return {cls: len(sharpes) for cls, sharpes in
+                sorted(groups.items(), key=lambda kv: -len(kv[1]))}
 
     # ------------------------------------------------------------------
     # Append trial (never delete, never update)
@@ -296,13 +309,15 @@ class TrialLedger:
         skewness: float = 0.0,
         kurtosis: float = 3.0,
         metadata: Optional[Dict[str, Any]] = None,
-        strategy_class: str = "general",
+        strategy_class: Optional[str] = None,
     ) -> TrialRecord:
         """Record a new trial — append-only, monotonic.
 
         strategy_class: hypothesis-class tag used for per-class DSR
         deflation (e.g. "persistence_tsmom"). NOT part of the hash
-        payload, so legacy rows and verify_chain() stay valid.
+        payload, so legacy rows and verify_chain() stay valid.  When it is
+        NOT given, the class is DERIVED from the strategy id by the
+        canonical taxonomy (``core.hypothesis_class``).
 
         This is the ONLY write operation. There is no delete, no update.
 
@@ -317,6 +332,8 @@ class TrialLedger:
         Returns:
             TrialRecord with hash chain info
         """
+        stored_class = str(strategy_class) if strategy_class else classify(
+            strategy_id, metadata)
         with self._lock:
             for attempt in range(10):
                 try:
@@ -374,7 +391,7 @@ class TrialLedger:
                                     record.n_observations, record.skewness, record.kurtosis,
                                     record.timestamp, record.hash_prev, record.hash_current,
                                     json.dumps(metadata) if metadata else None,
-                                    str(strategy_class),
+                                    stored_class,
                                 ),
                             )
                         # Commit happened at the connection-context exit. Still
@@ -493,6 +510,8 @@ class TrialLedger:
         metadata: Optional[Dict[str, Any]] = None,
         strategy_class: Optional[str] = None,
         record: bool = True,
+        annualized: bool = True,
+        periods_per_year: float = 252.0,
     ) -> DSRResult:
         """Compute DSR using TRUE trial count from this ledger.
 
@@ -517,10 +536,25 @@ class TrialLedger:
                 to that class (the right multiple-testing bar for a new
                 hypothesis in a class with prior research). None → the
                 GLOBAL count (strictest, fail-closed).
+                Resolve it ONCE at the entry point with
+                ``core.hypothesis_class.resolve_class()``: an explicit tag
+                wins, otherwise the class is derived from the strategy id,
+                and an identity that cannot be attributed to a family stays
+                None and keeps the global bar. The scope must not be
+                re-derived deeper in the call chain — two gates inside one
+                call must not disagree about the family they deflate
+                within.
 
         Returns:
             DSRResult with verdict
         """
+        # The deflation scope is resolved ONCE, here: an explicit class tag
+        # selects the family to deflate within; an untagged identity is
+        # attributed by the canonical taxonomy; "general" or an
+        # unattributable identity keeps the GLOBAL family (strictest,
+        # fail-closed) — never the small unattributed bucket.
+        scope = resolve_class(strategy_class, strategy_id, metadata)
+
         # Record this trial FIRST (UAQP Patch 2: n_trials ← n_trials + 1).
         # record=False re-gates an already-recorded hypothesis WITHOUT
         # appending a phantom trial (e.g. OverfitGate.check_strategy).
@@ -532,13 +566,13 @@ class TrialLedger:
                 skewness=skewness,
                 kurtosis=kurtosis,
                 metadata=metadata,
-                strategy_class=strategy_class if strategy_class else "general",
+                strategy_class=scope,
             )
 
         # Now read the UPDATED trial count and distribution — scoped to the
         # hypothesis class when tagged, global when untagged (fail-closed).
-        true_n_trials = self.n_trials_for_class(strategy_class)
-        sharpes = self.trial_sharpes_for_class(strategy_class)
+        true_n_trials = self.n_trials_for_class(scope)
+        sharpes = self.trial_sharpes_for_class(scope)
 
         # Compute trial distribution stats
         if sharpes:
@@ -550,24 +584,26 @@ class TrialLedger:
             trial_std = 1.0
             pbo_proxy = 0.0
 
-        # DSR p-value using TRUE trial count (now includes this trial)
+        # DSR p-value using TRUE trial count (now includes this trial).
+        # Units are declared by the caller (see the DSR contract in
+        # core/metrics.py): the ledger must not guess.
         dsr_pvalue = calculate_deflated_sharpe_ratio(
             estimated_sharpe=estimated_sharpe,
             num_trials=max(1, true_n_trials),
             sample_size=max(10, n_observations),
             skewness=skewness,
             kurtosis=kurtosis,
+            annualized=annualized,
+            periods_per_year=periods_per_year,
         )
 
-        # Expected max Sharpe under null
-        if true_n_trials > 1:
-            max_expected = (
-                math.sqrt(2.0 * math.log(max(true_n_trials, 2)))
-                - (math.log(math.pi) + math.log(math.log(max(true_n_trials, 2))))
-                / (2.0 * math.sqrt(2.0 * math.log(max(true_n_trials, 2))))
-            )
-        else:
-            max_expected = 0.0
+        # Expected max Sharpe under null, in the caller's units.
+        max_expected = expected_max_sharpe(
+            num_trials=max(1, true_n_trials),
+            sample_size=max(10, n_observations),
+            annualized=annualized,
+            periods_per_year=periods_per_year,
+        )
 
         # Bailey's DSR is the CONFIDENCE Phi(z) = 1 - p_value that the true
         # Sharpe exceeds the multiple-testing-adjusted benchmark. The gate is
@@ -593,7 +629,7 @@ class TrialLedger:
             verdict=verdict,
             gate_threshold=gate_threshold,
             pbo_proxy=pbo_proxy,
-            strategy_class=strategy_class or "general",
+            strategy_class=scope or "global",
         )
 
         # Log the gate evaluation

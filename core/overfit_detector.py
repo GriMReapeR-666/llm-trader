@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from core.metrics import calculate_deflated_sharpe_ratio
+from core.metrics import calculate_deflated_sharpe_ratio, expected_max_sharpe
 
 # Optional trial ledger import (S.Ξ from UAQP Patch 2)
 try:
@@ -93,19 +93,30 @@ def deflated_sharpe_test(
     skewness: float = 0.0,
     kurtosis: float = 3.0,
     benchmark_sharpe: float = 0.0,
+    annualized: bool = True,
+    periods_per_year: float = 252.0,
 ) -> Dict[str, Any]:
     """Deflated Sharpe Ratio with multiple testing correction.
 
     Tests whether the observed Sharpe is genuine or the result of
     testing many strategies and picking the best.
 
+    UNITS (see core.metrics DSR contract): ``estimated_sharpe`` is ANNUALIZED
+    unless ``annualized=False``, in which case it is the raw per-period
+    estimator (mean/std). ``sample_size`` is the observation count at that
+    same frequency and ``periods_per_year`` must match the annualization that
+    was applied. Mixing the two -- the state this function was in before
+    2026-10-20 -- silently moves the bar by a factor of sqrt(252).
+
     Args:
-        estimated_sharpe: The backtested Sharpe ratio
+        estimated_sharpe: The backtested Sharpe ratio (annualized by default)
         n_trials: Number of different strategies/parameters tested
         sample_size: Number of observations in the sample
         skewness: Return skewness
-        kurtosis: Return excess kurtosis + 3
+        kurtosis: Return full kurtosis (excess + 3)
         benchmark_sharpe: Benchmark Sharpe (0 = random walk)
+        annualized: Whether the supplied Sharpes are annualized
+        periods_per_year: Annualization constant used to produce them
 
     Returns:
         Dict with p_value, is_significant, max_expected_sharpe, rating
@@ -117,17 +128,21 @@ def deflated_sharpe_test(
         skewness=skewness,
         kurtosis=kurtosis,
         benchmark_sharpe=benchmark_sharpe,
+        annualized=annualized,
+        periods_per_year=periods_per_year,
     )
 
-    # Maximum expected Sharpe under null (from Benford's law / extreme value theory)
-    if n_trials > 1:
-        max_expected = (
-            math.sqrt(2.0 * math.log(n_trials))
-            - (math.log(math.pi) + math.log(math.log(n_trials)))
-            / (2.0 * math.sqrt(2.0 * math.log(n_trials)))
-        )
-    else:
-        max_expected = 0.0
+    # Multiple-testing benchmark, in the SAME units as ``estimated_sharpe``.
+    # This used to return E[max of k standard normals] unscaled -- a value in
+    # sigma units reported as a Sharpe ratio -- which overstated the bar by 4x
+    # at k=2811 and 15% at k=5 (audit 2026-10-20, finding H6).
+    max_expected = expected_max_sharpe(
+        num_trials=n_trials,
+        sample_size=sample_size,
+        benchmark_sharpe=benchmark_sharpe,
+        annualized=annualized,
+        periods_per_year=periods_per_year,
+    )
 
     is_significant = p_value < 0.05
 
@@ -175,15 +190,12 @@ def minimum_backtest_length(
     Returns:
         MinBacktestResult
     """
-    # Expected max Sharpe under null of no edge
-    if n_strategies_tested > 1:
-        max_expected = (
-            math.sqrt(2.0 * math.log(n_strategies_tested))
-            - (math.log(math.pi) + math.log(math.log(max(n_strategies_tested, 2))))
-            / (2.0 * math.sqrt(2.0 * math.log(max(n_strategies_tested, 2))))
-        )
-    else:
-        max_expected = 0.0
+    # Expected max of k standard normals, in SE units. Exact order-statistic
+    # expectation (shared with core.metrics) -- the Gumbel form used to live
+    # here and was 50% too high at k=2 and 15% too high at k=5.
+    from core.metrics import _expected_max_standard_normal
+
+    max_expected = _expected_max_standard_normal(int(n_strategies_tested))
 
     # Simplified minimum length formula
     # T_min ≈ (2 * target_sharpe)^2 when no multiple testing correction
@@ -213,11 +225,13 @@ def minimum_backtest_length(
 
     ratio = n_observations / min_required if min_required > 0 else 0.0
 
-    # Deflated Sharpe p-value
+    # Deflated Sharpe p-value. ``target_sharpe`` is a per-observation Sharpe
+    # (see the note above), so the units are declared explicitly.
     dsr = deflated_sharpe_test(
         estimated_sharpe=target_sharpe,
         n_trials=n_strategies_tested,
         sample_size=n_observations,
+        annualized=False,
     )
 
     return MinBacktestResult(
@@ -489,10 +503,14 @@ def detect_overfitting(
     # 2. Deflated Sharpe Ratio
     sharpe = _compute_sharpe(returns)
     n_obs = len([r for r in returns if math.isfinite(r)])
+    # ``sharpe`` is _compute_sharpe(returns) with annualization=1.0, i.e. the
+    # raw per-period estimator -- declare it rather than letting the DSR
+    # de-annualize a value that was never annualized.
     dsr = deflated_sharpe_test(
         estimated_sharpe=sharpe,
         n_trials=n_strategies_tested,
         sample_size=n_obs,
+        annualized=False,
     )
     factors["deflated_sharpe"] = dsr
     if dsr["rating"] == "LIKELY_OVERFIT":
@@ -662,6 +680,8 @@ def detect_overfitting(
             ledger_result = ledger.evaluate_dsr(
                 estimated_sharpe=sharpe,
                 n_observations=n_obs,
+                # ``sharpe`` here is the raw per-period estimator.
+                annualized=False,
                 skewness=factors.get("deflated_sharpe", {}).get("skewness", 0.0),
                 kurtosis=factors.get("deflated_sharpe", {}).get("kurtosis", 3.0),
                 strategy_id="overfit_detector",

@@ -915,6 +915,12 @@ def query_zero_lag_macro(symbol: str = "EURUSD") -> Dict[str, Any]:
 
     Live: delegates to data/zero_lag_macro_provider.py ZeroLagMacroProvider (0-24h physical proxies).
     Honest about staleness; never hardcoded 0.72.
+
+    Audit 2026-10-20: the score below is built ONLY from three snapshot fields that
+    the provider annotates SYNTHETIC (see _SNAPSHOT_PLACEHOLDERS / _ALWAYS_SYNTHETIC).
+    ``source`` and ``is_tradable`` are therefore derived from the provider's own
+    provenance map instead of being hardcoded LIVE/True, so a constants-only
+    snapshot can no longer reach the LLM dressed as a live macro read.
     """
     sym = str(symbol).strip().upper()
     now = utcnow_iso()
@@ -927,6 +933,22 @@ def query_zero_lag_macro(symbol: str = "EURUSD") -> Dict[str, Any]:
         mom = float(d.get("daily_cpi_mom_nowcast", 0) or 0)
         grid = float(d.get("industrial_grid_load_index", 100) or 100)
         net_bias = str(d.get("net_liquidity_bias","NEUTRAL"))
+        # Provenance of every input the score actually consumes.
+        quality = d.get("source_quality") or {}
+        score_inputs = (
+            "daily_cpi_mom_nowcast",
+            "industrial_grid_load_index",
+            "net_liquidity_usd_billions",
+        )
+        provenance = {k: str(quality.get(k, "UNKNOWN")) for k in score_inputs}
+        all_synthetic = all(v.startswith("SYNTHETIC") for v in provenance.values())
+        any_live = any(v == "LIVE" for v in provenance.values())
+        if all_synthetic:
+            source = "SYNTHETIC_CONSTANTS"
+        elif any_live:
+            source = "LIVE_ZERO_LAG_PROVIDER"
+        else:
+            source = "MIXED_PROVENANCE"
         # Score in [-1,1]: +grid above 100, +expansionary liquidity, -contractionary, mom drag if >0.3%
         score = 0.0
         score += max(-0.5, min(0.5, (grid - 100)/10.0))
@@ -942,10 +964,10 @@ def query_zero_lag_macro(symbol: str = "EURUSD") -> Dict[str, Any]:
         else:
             direction = "FLAT"
             regime = "NEUTRAL"
-        return {
+        result = {
             "symbol": sym,
             "observed_at": now,
-            "source": "LIVE_ZERO_LAG_PROVIDER",
+            "source": source,
             "zero_lag_score": round(score, 3),
             "momentum_direction": direction,
             "filtered_regime": regime,
@@ -953,9 +975,16 @@ def query_zero_lag_macro(symbol: str = "EURUSD") -> Dict[str, Any]:
             "net_liquidity_bias": net_bias,
             "industrial_grid_load_index": grid,
             "daily_cpi_mom_nowcast": mom,
+            "score_input_provenance": provenance,
             "snapshot": d,
-            "is_tradable": True,
+            "is_tradable": bool(any_live),
         }
+        if not any_live:
+            result["warning"] = (
+                "zero_lag_score is computed from provider fields annotated "
+                f"{provenance} -- no LIVE input. Treat as a constant prior, not an observation."
+            )
+        return result
     except Exception as exc:
         logger.debug("query_zero_lag_macro failed: %s", exc)
         return {

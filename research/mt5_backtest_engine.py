@@ -18,6 +18,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Sequence
 import numpy as np
 import pandas as pd
 
+from core.provenance import validate_data_source
+
 logger = logging.getLogger(__name__)
 
 # Single import root (P1-C1/M3): only the repo root may be added to sys.path;
@@ -58,6 +60,9 @@ class BacktestMetrics:
     trades: List[Dict[str, Any]] = field(default_factory=list)
     r_multiples: List[float] = field(default_factory=list)
     friction_breakdown: Dict[str, Any] = field(default_factory=dict)
+    #: Bar provenance declared by the run (core/provenance.py). Empty only on
+    #: the INSUFFICIENT_DATA failure shape, which carries no metrics anyway.
+    data_source: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert metrics to clean dictionary representation."""
@@ -87,6 +92,7 @@ class BacktestMetrics:
             "total_commission": round(self.total_commission, 2),
             "total_swap": round(self.total_swap, 2),
             "holding_period_bars_mean": round(self.holding_period_bars_mean, 1),
+            "data_source": self.data_source,
             "total_friction_drag_usd": round(
                 self.total_spread_cost + self.total_slippage_cost + self.total_commission + self.total_swap, 2
             ),
@@ -343,11 +349,11 @@ class MT5BrokerBacktestEngine:
         count: int = 1000,
     ) -> pd.DataFrame:
         """Fetch market data from MT5 using server-to-UTC converted pipeline."""
-        self._data_source = "live"
         try:
             from data.market_data_provider import fetch_ohlc
             df = fetch_ohlc(symbol=symbol, timeframe=timeframe, count=count)
             if df is not None and not df.empty:
+                self._data_source = "mt5_history"
                 return df
         except Exception as exc:
             logger.debug("Live fetch_ohlc fallback: %s", exc)
@@ -357,6 +363,7 @@ class MT5BrokerBacktestEngine:
             fetcher = DataFetcher()
             df = fetcher.get_historical_data(symbol=symbol, timeframe=timeframe, count=count)
             if df is not None and not df.empty:
+                self._data_source = "mt5_history"
                 return df
         except Exception:
             pass
@@ -407,6 +414,7 @@ class MT5BrokerBacktestEngine:
         entry_signal_scores: Optional[Sequence[float]] = None,
         entry_signal_threshold: float = 1.0,
         strategy_name: Optional[str] = None,
+        data_source: Optional[str] = None,
     ) -> BacktestMetrics:
         """Run EMA crossover strategy with broker friction simulation.
 
@@ -437,6 +445,14 @@ class MT5BrokerBacktestEngine:
             )
             return BacktestMetrics()
 
+        # A declared source is mandatory for any run that can produce metrics.
+        # Empty/unknown is refused here rather than written into a result the
+        # promotion path may later read as market evidence.
+        source = validate_data_source(
+            data_source if data_source is not None else self._data_source,
+            kind="backtest", field="run_crossover_strategy(data_source)")
+        self._data_source = source
+
         close = bars_df["close"].values
         if entry_signal_scores is not None:
             scores = np.asarray(entry_signal_scores, dtype=np.float64)
@@ -464,6 +480,7 @@ class MT5BrokerBacktestEngine:
             sl_pips=sl_pips,
             tp_pips=tp_pips,
             strategy_name=ruleset_name,
+            data_source=source,
         )
 
     def run_strategy_backtest(
@@ -476,6 +493,7 @@ class MT5BrokerBacktestEngine:
         sl_pips: float = 30.0,
         tp_pips: float = 60.0,
         strategy_name: str = "strategy",
+        data_source: str = "",
     ) -> BacktestMetrics:
         """Execute comprehensive strategy simulation with full MT5 friction models.
 
@@ -493,6 +511,11 @@ class MT5BrokerBacktestEngine:
                 symbol, timeframe, bool(bars_df.empty), missing_cols,
             )
             return BacktestMetrics()
+
+        source = validate_data_source(
+            data_source if data_source is not None else self._data_source,
+            kind="backtest", field="run_strategy_backtest(data_source)")
+        self._data_source = source
 
         close = bars_df["close"].values
         n = len(close)
@@ -652,13 +675,25 @@ class MT5BrokerBacktestEngine:
         holding_bars_mean = float(np.mean([t["holding_bars"] for t in trades])) if trades else 0.0
         recovery_factor = (total_pnl / max_dd) if max_dd > 0 else 1.0
 
+        # Audit 2026-10-20: ``pnls`` are PIPs, so ``total_pnl / sl_pips`` is an
+        # R-multiple. The previous code multiplied that R by 100 and called it a
+        # percentage -- a +4.5R run was reported as "452%" and a 10.1R drawdown
+        # as "1010%", which then tripped the 20%-drawdown promotion gate on
+        # every strategy and fed 100x units into Calmar. R converts to a
+        # percentage of equity through the system's mandated 1% risk per trade.
+        total_r = total_pnl / max(sl_pips, 1.0)
+        max_dd_r = max_dd / max(sl_pips, 1.0)
+        risk_pct_per_trade = 1.0  # DeterministicValidator: 1% risk cap
+        total_return_pct_value = total_r * risk_pct_per_trade
+        max_drawdown_pct_value = max_dd_r * risk_pct_per_trade
+
         metrics = BacktestMetrics(
-            total_return_pct=round(total_pnl / max(sl_pips, 1.0) * 100.0, 2),
-            annualized_return_pct=round((total_pnl / max(sl_pips, 1.0) * 100.0) * (252.0 / max(n / 24.0, 1.0)), 2),
+            total_return_pct=round(total_return_pct_value, 2),
+            annualized_return_pct=round(total_return_pct_value * (252.0 / max(n / 24.0, 1.0)), 2),
             sharpe_ratio=round(float(sharpe), 2),
             sortino_ratio=round(float(sortino), 2),
             calmar_ratio=round(float(calmar), 2),
-            max_drawdown_pct=round(float(max_dd / max(sl_pips, 1.0) * 100.0), 2),
+            max_drawdown_pct=round(max_drawdown_pct_value, 2),
             max_drawdown_duration_bars=dd_duration,
             total_trades=total_trades,
             win_rate=round(win_rate, 2),
@@ -681,6 +716,7 @@ class MT5BrokerBacktestEngine:
             trades=trades,
             r_multiples=r_multiples,
             friction_breakdown=self.last_friction_breakdown,
+            data_source=source,
         )
         return metrics
 
@@ -931,6 +967,7 @@ class MT5BrokerBacktestEngine:
         config: Optional[Dict[str, Any]] = None,
         data_improvement: Optional[Dict[str, Any]] = None,
         journal_path: Optional[str] = None,
+        data_source: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Record the complete backtest run and trade log into dedicated SQLite backtest DB
         under research_validation_runs and trades tables.
@@ -944,7 +981,9 @@ class MT5BrokerBacktestEngine:
             "friction_breakdown": self.last_friction_breakdown,
             "broker_specs": self.last_broker_specs,
             "data_improvement": data_improvement or {},
-            "data_source": getattr(self, "_data_source", "unknown"),
+            "data_source": validate_data_source(
+                data_source or self._data_source,
+                kind="backtest", field="process_journaling(data_source)"),
         }
         report_json = json.dumps(report_payload, default=str)
         report_hash = hashlib.sha256(report_json.encode()).hexdigest()
@@ -1127,6 +1166,7 @@ class MT5BrokerBacktestEngine:
         signal_builder: Optional[Callable[[pd.DataFrame], Any]] = None,
         entry_signal_threshold: float = 1.0,
         bars_df: Optional[pd.DataFrame] = None,
+        data_source: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Orchestrate the complete autonomous end-to-end backtesting pipeline:
         1. Live MT5 Broker Data & Specifications Acquisition
@@ -1142,10 +1182,22 @@ class MT5BrokerBacktestEngine:
 
         active_journal = validate_backtest_journal_path(journal_path) if journal_path is not None else self.journal_path
 
+        # Reset per-run: an engine instance reused across runs must not carry
+        # the previous run's provenance into this one.
+        self._data_source = "unknown"
+        if data_source is not None:
+            self._data_source = validate_data_source(
+                data_source, kind="backtest", field="run_full_autonomous_backtest(data_source)")
+
         # 1. Fetch live MT5 broker specs & market data
         broker_specs = self.fetch_broker_specs(symbol)
         if bars_df is None or (hasattr(bars_df, "empty") and bars_df.empty):
             bars_df = self.fetch_market_data(symbol, timeframe, count)
+
+        # Caller-supplied bars must come with their own declaration.
+        run_source = validate_data_source(
+            self._data_source, kind="backtest", field="run_full_autonomous_backtest(data_source)")
+        self._data_source = run_source
 
         # 2. Data Improvement
         data_improvement = self.process_data_improvement(bars_df, symbol, timeframe)
@@ -1222,6 +1274,7 @@ class MT5BrokerBacktestEngine:
             config=config_summary,
             data_improvement=data_improvement,
             journal_path=active_journal,
+            data_source=run_source,
         )
 
         # 6. Reflection & Meta-Learning (no writes to memories or playbooks)
@@ -1239,7 +1292,7 @@ class MT5BrokerBacktestEngine:
             "timeframe": timeframe,
             "strategy_name": strategy_name,
             "completed_at": datetime.now(timezone.utc).isoformat(),
-            "data_source": getattr(self, "_data_source", "unknown"),
+            "data_source": run_source,
             "broker_specs": broker_specs,
             "metrics": metrics.to_dict(),
             "r_multiples": metrics.r_multiples,

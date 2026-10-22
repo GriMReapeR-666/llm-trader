@@ -47,6 +47,7 @@ from core.alpha_ensemble import (
     interpret_composite,
     zscore_normalize,
 )
+from core.provenance import validate_data_source
 
 # MT5 copy_rates_from_pos rejects oversized per-call counts (~100k).
 _MT5_MAX_BARS_PER_CALL = 50_000
@@ -516,8 +517,14 @@ class BacktestResult:
     dsr_raw_sharpe: float = 0.0
     dsr_expected_max: float = 0.0
     dsr_pbo_proxy: float = 0.0
+    #: Where the bars came from. Required and validated at construction — a
+    #: result object with no declared source is exactly what the promotion
+    #: gate must never see.
+    data_source: str = ""
 
     def __post_init__(self) -> None:
+        self.data_source = validate_data_source(
+            self.data_source, kind="backtest", field="BacktestResult.data_source")
         # Keep dsr_confidence and its deprecated alias in sync at construction.
         # (If both are set explicitly and disagree, both are respected as-is.)
         if self.dsr_confidence == 0.0 and self.dsr_pvalue != 0.0:
@@ -547,6 +554,7 @@ class BacktestResult:
             "dsr_pvalue": round(self.dsr_confidence, 6),  # legacy key name, carries confidence
             "dsr_passed": self.dsr_passed,
             "dsr_n_trials": self.dsr_n_trials,
+            "data_source": self.data_source,
         }
         if self.regime_returns:
             d["regime_returns"] = {k: round(v, 4) for k, v in self.regime_returns.items()}
@@ -565,8 +573,19 @@ def run_backtest(
     risk_per_trade_pct: float = 0.02,
     name: str = "backtest",
     periods_per_year: Optional[int] = None,
+    data_source: str = "",
 ) -> BacktestResult:
-    """Self-contained vectorized backtest supporting long+short."""
+    """Self-contained vectorized backtest supporting long+short.
+
+    ``data_source`` is required: every result must declare what it ran on
+    (``mt5_history``, ``csv_archive``, ``synthetic(seed=…)``, …) so a fixture
+    can never be mistaken for market evidence downstream. See
+    core/provenance.py.
+    """
+    # Positional callers predate the required declaration: an empty value is
+    # refused here, by the same validator, so silence fails loudly instead of
+    # defaulting to something plausible.
+    source = validate_data_source(data_source, kind="backtest", field="run_backtest(data_source)")
     close = df["close"].values.astype(np.float64)
     n = len(close)
     if periods_per_year is None:
@@ -694,6 +713,7 @@ def run_backtest(
         final_equity=final,
         equity_curve=equity,
         in_market_mask=in_market,
+        data_source=source,
     )
 
 
@@ -773,6 +793,7 @@ def _run_stressed_backtest(
     cost_multiplier: float = 1.0,
     volume_multiplier: float = 1.0,
     name: str = "stressed",
+    data_source: str,
 ) -> BacktestResult:
     """Re-run a backtest with stressed cost/liquidity assumptions.
 
@@ -791,10 +812,11 @@ def _run_stressed_backtest(
         df, *signals,
         initial_cash=initial_cash,
         commission_pct=stressed_commission,
-        slippage_pips=stressed_slippage,
-        risk_per_trade_pct=risk_per_trade_pct,
+        slippage_pips=stressed_slippage,        risk_per_trade_pct=risk_per_trade_pct,
         name=name,
+        data_source=data_source,
     )
+
 
 
 def run_stress_passes(
@@ -811,6 +833,7 @@ def run_stress_passes(
     cost_sharpe_floor: float = 0.5,
     liquidity_return_floor_pct: float = 0.0,
     liquidity_sharpe_retention: float = 0.5,
+    data_source: str,
 ) -> List[StressPassResult]:
     """Run cost-stress and liquidity-stress robustness passes.
 
@@ -831,6 +854,7 @@ def run_stress_passes(
         initial_cash=initial_cash, commission_pct=commission_pct,
         slippage_pips=slippage_pips, risk_per_trade_pct=risk_per_trade_pct,
         cost_multiplier=cost_multiplier, name="cost_stress_x2",
+        data_source=data_source,
     )
     cost_pass = StressPassResult(
         name="cost_stress",
@@ -859,6 +883,7 @@ def run_stress_passes(
         slippage_pips=slippage_pips, risk_per_trade_pct=risk_per_trade_pct,
         cost_multiplier=cost_multiplier,
         volume_multiplier=volume_multiplier, name="liquidity_stress_x0.5",
+        data_source=data_source,
     )
     liq_retention = (
         liq_bt.traded_sharpe_ratio / baseline.traded_sharpe_ratio
@@ -932,7 +957,8 @@ class HarnessResult:
         }
 
 
-def _compute_hold_return(df: pd.DataFrame, initial_cash: float = 100_000.0) -> BacktestResult:
+def _compute_hold_return(df: pd.DataFrame, initial_cash: float = 100_000.0, *,
+                         data_source: str) -> BacktestResult:
     """Compute buy-and-hold baseline."""
     close = df["close"].values
     n = len(close)
@@ -962,6 +988,7 @@ def _compute_hold_return(df: pd.DataFrame, initial_cash: float = 100_000.0) -> B
         total_trades=1,
         final_equity=equity[-1],
         equity_curve=equity,
+        data_source=data_source,
     )
 
 
@@ -976,7 +1003,8 @@ def run_alpha_backtest_harness(
     commission_pct: float = 0.0002,
     slippage_pips: float = 0.00005,
     risk_per_trade_pct: float = 0.02,
-    data_source: str = "synthetic",
+    *,
+    data_source: str,
     apply_edge_filter: bool = True,
     min_edge_multiple: float = 1.5,
     edge_lookback: int = 480,
@@ -1092,15 +1120,15 @@ def run_alpha_backtest_harness(
         df, ic_long_e, ic_long_x, ic_short_e, ic_short_x,
         initial_cash=initial_cash, commission_pct=commission_pct,
         slippage_pips=slippage_pips, risk_per_trade_pct=risk_per_trade_pct,
-        name="ic_weighted",
+        name="ic_weighted", data_source=data_source,
     )
     eq_bt = run_backtest(
         df, eq_long_e, eq_long_x, eq_short_e, eq_short_x,
         initial_cash=initial_cash, commission_pct=commission_pct,
         slippage_pips=slippage_pips, risk_per_trade_pct=risk_per_trade_pct,
-        name="equal_weight",
+        name="equal_weight", data_source=data_source,
     )
-    hold_bt = _compute_hold_return(df, initial_cash)
+    hold_bt = _compute_hold_return(df, initial_cash, data_source=data_source)
 
     # ── Quality report ──
     quality_report = _format_quality_comparison(ic_result, eq_result)
@@ -1150,7 +1178,11 @@ def run_alpha_backtest_harness(
                     sharpe=_bt.traded_sharpe_ratio,
                     n_observations=_n_obs,
                     returns=_returns,
-                    metadata={"strategy_class": _dsr_strategy_class},
+                    # Stamp the declaration into the trial ledger: this is
+                    # the link the promotion gate reads to refuse a synthetic
+                    # backtest.
+                    metadata={"strategy_class": _dsr_strategy_class,
+                              "data_source": _bt.data_source},
                 )
                 _bt.dsr_confidence = _report.dsr
                 _bt.dsr_pvalue = _report.dsr  # compat alias
@@ -1177,6 +1209,7 @@ def run_alpha_backtest_harness(
                 commission_pct=commission_pct,
                 slippage_pips=slippage_pips,
                 risk_per_trade_pct=risk_per_trade_pct,
+                data_source=data_source,
             )
         except Exception as exc:
             logger.warning("Stress passes failed: %s", exc)

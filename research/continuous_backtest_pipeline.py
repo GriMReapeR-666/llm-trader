@@ -41,6 +41,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 log = logging.getLogger("ContinuousBacktest")
 
+try:
+    from core.provenance import validate_data_source
+except ImportError:  # pragma: no cover - flat-layout fallback
+    from provenance import validate_data_source
+
+try:
+    from core.artifact_paths import scrub as _scrub_artifact_paths
+except ImportError:  # pragma: no cover - flat-layout fallback
+    from artifact_paths import scrub as _scrub_artifact_paths
+
 SECONDS_PER_YEAR = 365.0 * 24 * 3600
 
 
@@ -145,7 +155,7 @@ class ContinuousBacktestPipeline:
         """Save pipeline state to disk."""
         try:
             with open(self.state_path, "w") as f:
-                json.dump(self.state, f, indent=2, default=str)
+                json.dump(_scrub_artifact_paths(self.state), f, indent=2, default=str)
         except Exception as exc:
             log.debug("Failed to save pipeline state: %s", exc)
 
@@ -156,6 +166,7 @@ class ContinuousBacktestPipeline:
         timeframe: str = "H1",
         bars: int = 500,
         bars_df: Optional[Any] = None,
+        data_source: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Entry point called by mt5_trader.py background validation loop.
 
@@ -170,6 +181,7 @@ class ContinuousBacktestPipeline:
             timeframe=timeframe,
             bars=bars,
             bars_df=bars_df,
+            data_source=data_source,
             run_walkforward=True,
             run_dsr=True,
             compare_live=True,
@@ -202,8 +214,15 @@ class ContinuousBacktestPipeline:
         compare_live: bool = True,
         cost_overrides: Optional[Dict[str, Any]] = None,
         bars_df: Optional[Any] = None,
+        data_source: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Run full validation suite for a symbol/timeframe."""
+        """Run full validation suite for a symbol/timeframe.
+
+        ``data_source`` declares where the bars came from. When this function
+        fetches them itself the answer is known (broker history); when a caller
+        supplies ``bars_df``, the declaration is REQUIRED — the pipeline cannot
+        see through the frame, and guessing is how fixtures became evidence.
+        """
         log.info("=" * 60)
         log.info("Starting full validation: %s %s (%d bars, strategy=%s)",
                  symbol, timeframe, bars, strategy_name)
@@ -233,19 +252,27 @@ class ContinuousBacktestPipeline:
             # sys.modules["mt5_trader"] here: it is always absent when the
             # engine runs as `python mt5_trader.py` and would block Stage 1
             # on every cycle.
-            if bars_df is None:
+            caller_bars = bars_df is not None
+            if not caller_bars:
                 bars_df = fetch_ohlc(symbol, timeframe, max(bars, 500))
             if bars_df is None or len(bars_df) < 200:
                 raise RuntimeError(
                     f"Backtest requires >=200 bars of {symbol} {timeframe}; "
                     f"got {None if bars_df is None else len(bars_df)}."
                 )
+            source = validate_data_source(
+                data_source if caller_bars or data_source else "mt5_history",
+                kind="backtest",
+                field=("run_full_validation(data_source) for caller-supplied bars"
+                       if caller_bars else "run_full_validation(data_source)"),
+            )
             backtest_res = self._run_pipeline_backtest(
                 symbol=symbol,
                 strategy_name=strategy_name,
                 bars_df=bars_df,
                 timeframe=timeframe,
                 cost_overrides=cost_overrides,
+                data_source=source,
             )
             results["stages"]["backtest"] = backtest_res
             _regime_label = self._regime_from_bars(bars_df)
@@ -460,6 +487,7 @@ class ContinuousBacktestPipeline:
         bars_df: Any,
         timeframe: str = "H1",
         cost_overrides: Optional[Dict[str, Any]] = None,
+        data_source: str = "",
     ) -> Dict[str, Any]:
         """Run the indicator -> gates -> execution backtest on the supplied bars.
 
@@ -514,6 +542,7 @@ class ContinuousBacktestPipeline:
             signal_builder=signal_builder,
             entry_signal_threshold=1.0,
             bars_df=bars_df,
+            data_source=data_source,
         )
         if not isinstance(res, dict):
             res = {"status": "OK", "result": res}
@@ -553,7 +582,7 @@ class ContinuousBacktestPipeline:
             "n_trials": n_trials,
             "n_obs": int(bars_count or trades or 0),
             "strategy_name": strategy_id,
-            "data_source": res.get("data_source", "unknown"),
+            "data_source": res.get("data_source", data_source),
             "r_multiples": r_multiples,
             "trades": res.get("trades") or metrics.get("trades") or [],
             "_raw": res,
@@ -601,6 +630,16 @@ class ContinuousBacktestPipeline:
                 "passed": False,
             }
 
+        # DSR units (contract resolved 2026-10-20). Stage-1 Sharpe arrives from
+        # the engine as (mean/std of per-TRADE pnl) * sqrt(252): annualized per
+        # trade, NOT per bar. So the annualization constant is 252 and the
+        # estimator's sample size is the TRADE count. Pairing a per-trade
+        # Sharpe with the bar count (4000 bars for 72 trades) shrinks the
+        # standard error and overstates the evidence by ~7x.
+        sharpe_basis = "per_trade"
+        dsr_ppy = 252.0
+        dsr_n = max(10, _run_trades)
+
         periods = _periods_per_year(timeframe)
         if periods <= 0:
             return {"status": "SKIPPED", "reason": "cannot annualize timeframe", "deflated_sharpe": 0.0}
@@ -627,13 +666,19 @@ class ContinuousBacktestPipeline:
             deflated = float(engine_dsr)
             passed = bool(engine_passed) if engine_passed is not None else (deflated >= 0.95)
         else:
+            # Audit 2026-10-20: this stage de-annualizes the Sharpe inside the
+            # DSR, so it must be told the timeframe's own periods-per-year. It
+            # used to leave the default 252 while reporting periods_per_year
+            # 8760 for H1 -- the DSR was computed 5.9x too lenient.
             deflated = _calc_dsr(
                 estimated_sharpe=sharpe,
                 num_trials=max(1, k),
-                sample_size=max(1, n_obs),
+                sample_size=dsr_n,
                 skewness=0.0,
                 kurtosis=3.0,
                 benchmark_sharpe=0.0,
+                annualized=True,
+                periods_per_year=dsr_ppy,
             )
             passed = bool(deflated < 0.05)
 
@@ -642,8 +687,16 @@ class ContinuousBacktestPipeline:
             "sharpe": sharpe,
             "deflated_sharpe": float(deflated),
             "n_obs": n_obs,
-            "n_trades": k,
-            "periods_per_year": periods,
+            # Audit 2026-10-20: ``k`` is the multiple-testing FAMILY size, not a
+            # trade count. Reporting it as ``n_trades`` made the last artifact
+            # claim 2811 trades where 72 were taken, which would corrupt any
+            # per-trade statistic (Sharpe standard error, expectancy R) computed
+            # downstream from this stage.
+            "n_trades": _run_trades,
+            "n_trials": max(1, k),
+            "sharpe_basis": sharpe_basis,
+            "dsr_sample_size": dsr_n,
+            "periods_per_year": dsr_ppy,
             "p_h0": 0.05,
             "passed": passed,
         }
@@ -973,7 +1026,14 @@ class ContinuousBacktestPipeline:
 
         # Synthetic fixture data (seeded random walk) is NEVER authoritative
         # for promotion — it is a CI/testing convenience, not market evidence.
-        if bt.get("data_source") == "synthetic":
+        # An undeclared source is refused too: the old equality check against
+        # the literal "synthetic" passed every run that simply omitted the key,
+        # and ignored "synthetic(seed=7)".
+        from core.provenance import is_synthetic
+        bt_source = bt.get("data_source")
+        if not bt_source:
+            blockers.append("data_source_undeclared")
+        elif is_synthetic(bt_source):
             blockers.append("synthetic_data_not_authoritative")
 
         # Check backtest. Case-insensitive: the engine reports "COMPLETED"
@@ -1081,7 +1141,12 @@ class ContinuousBacktestPipeline:
                         log.warning("Pipeline results file had unexpected shape %s; starting fresh", type(loaded).__name__)
                 except (json.JSONDecodeError, OSError) as parse_exc:
                     log.warning("Pipeline results file unreadable (%s); starting fresh", parse_exc)
-            history.append(results)
+            # The results file is evidence: it must not carry the operator's
+            # directory layout. The walk-forward stage names the journal it
+            # read, and a stage error can quote an absolute path verbatim, so
+            # the whole record is scrubbed at the write site rather than at
+            # each producer.
+            history.append(_scrub_artifact_paths(results))
             # Keep last 100 results
             history = history[-100:]
             tmp_path = self.results_path + ".tmp"

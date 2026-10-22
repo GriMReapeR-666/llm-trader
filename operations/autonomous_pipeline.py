@@ -70,6 +70,7 @@ def run_pipeline(
     lifecycle_path: str = "trading_state.db",
     outbox_path: str = "alerts_outbox.db",
     queue: Any = None,
+    cycle_num: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Execute one autonomous pipeline tick: discover, register, verify, flag.
 
@@ -102,6 +103,20 @@ def run_pipeline(
             "heuristics": sync.get("heuristics_count", 0),
             "maml_profile": sync.get("maml_profile"),
         }
+
+        # Process ready S.Q priority queue tasks under bounded execution (max 2 per tick)
+        if queue is not None and hasattr(queue, "dispatch_ready_tasks"):
+            try:
+                effective_cycle = (
+                    cycle_num
+                    if cycle_num is not None
+                    else (result.get("registered", 0) + result.get("skipped", 0))
+                )
+                tasks_res = queue.dispatch_ready_tasks(effective_cycle, max_tasks=2)
+                result["queue_dispatched"] = len(tasks_res)
+                result["queue_tasks"] = tasks_res
+            except Exception as q_exc:
+                logger.debug("TaskQueue dispatch error in pipeline: %s", q_exc)
     except Exception as exc:
         logger.debug("autonomous pipeline tick failed: %s", exc)
     return result

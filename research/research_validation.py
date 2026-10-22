@@ -33,6 +33,18 @@ try:
 except ImportError:
     from intelligence.feature_schema import SCHEMA_HASHES, values_hash
 
+try:
+    from core.provenance import SYNTHETIC_SOURCES, is_synthetic
+    from core.provenance import validate_data_source as _validate_source
+except ImportError:  # pragma: no cover - flat-layout fallback
+    from provenance import SYNTHETIC_SOURCES, is_synthetic
+    from provenance import validate_data_source as _validate_source
+
+try:
+    from operations.provenance_quarantine import quarantined_tickets
+except ImportError:  # pragma: no cover - flat-layout fallback
+    from provenance_quarantine import quarantined_tickets
+
 
 
 def _con(path: str):
@@ -80,14 +92,13 @@ def _finite_feature_values(values: Any) -> bool:
     return True
 
 
-SYNTHETIC_SOURCE_MARKERS = {
-    "synthetic_demo_generator", "synthetic", "demo_sample_generator",
-    # Backtest-engine rows are fixtures by construction. The canonical journal
-    # gained 50 all-winner EURUSD rows (tickets 200000+, Jan 1-5 2025) from a
-    # backtest fixture run; admitting them as live evidence inflated
-    # walk-forward Sharpe and every meta IS/OOS comparison.
-    "backtest", "backtest_fixture", "fixture",
-}
+# Single source of truth: core/provenance.py. Kept as a module-level name
+# because callers and tests import it from here.
+SYNTHETIC_SOURCE_MARKERS = set(SYNTHETIC_SOURCES)
+# Backtest-engine rows are fixtures by construction. The canonical journal
+# gained 50 all-winner EURUSD rows (tickets 200000+, Jan 1-5 2025) from a
+# backtest fixture run; admitting them as live evidence inflated walk-forward
+# Sharpe and every meta IS/OOS comparison. Those markers are in the set above.
 
 
 def _as_int(value: Any) -> Optional[int]:
@@ -127,13 +138,18 @@ def _broker_confirmed_tickets(con: Any, tables: Any) -> Optional[set]:
     return confirmed if found_source else None
 
 
-def _is_synthetic_row(payload: Any, exit_reason: Any) -> bool:
-    """Detect fixture rows from the demo sample generator (defense in depth).
+def _is_synthetic_row(payload: Any, exit_reason: Any, provenance: Any = None) -> bool:
+    """Detect fixture rows (defense in depth).
 
-    A row is synthetic when any of these hold: the payload carries a truthy
-    ``synthetic`` flag, its declared source is a known fixture generator, or
-    the close reason is the generator's reserved marker.
+    A row is synthetic when any of these hold: the ``trades.provenance``
+    column names a fixture source, the payload carries a truthy ``synthetic``
+    flag, its declared source is a known fixture generator, or the close reason
+    is the generator's reserved marker. The column is checked first because it
+    is written under a schema constraint; the payload heuristics remain for
+    rows written before that column existed.
     """
+    if is_synthetic(provenance):
+        return True
     if isinstance(payload, dict):
         if payload.get("synthetic") is True:
             return True
@@ -209,10 +225,20 @@ def labelled_dataset(path: str = "trading_state.db") -> Dict[str, Any]:
             return {"rows": [], "excluded": {"no_broker_reconciliation_source": 1},
                     "sample_size": 0, "point_in_time": True,
                     "cost_model": "journal broker-reconciled fields only"}
+        # Rows whose provenance was never declared are set aside explicitly
+        # (operations/provenance_quarantine.py).  A quarantined row is not
+        # evidence: it can neither satisfy a sample floor nor contribute a
+        # return, and it is counted under its own name so the operator can
+        # see the difference between "starved" and "quarantined".
+        quarantined = quarantined_tickets(path)
         rows = con.execute("""SELECT t.*, l.label, l.r_multiple AS label_r, l.label_rule
             FROM trades t LEFT JOIN trade_labels l ON l.ticket=t.ticket
             WHERE t.closed_at IS NOT NULL AND t.pnl IS NOT NULL ORDER BY t.opened_at, t.ticket""").fetchall()
+        has_provenance = "provenance" in {r[1] for r in con.execute("PRAGMA table_info(trades)")}
     for row in rows:
+        if _as_int(row["ticket"]) in quarantined:
+            excluded["quarantined_row"] += 1
+            continue
         if _as_int(row["ticket"]) not in brokered:
             excluded["unbrokered_trade"] += 1
             continue
@@ -233,7 +259,8 @@ def labelled_dataset(path: str = "trading_state.db") -> Dict[str, Any]:
         except (TypeError, ValueError, json.JSONDecodeError):
             excluded["malformed_trade_payload"] += 1
             continue
-        if _is_synthetic_row(payload, row["exit_reason"]):
+        provenance = row["provenance"] if has_provenance else None
+        if _is_synthetic_row(payload, row["exit_reason"], provenance):
             excluded["synthetic_row_excluded"] += 1
             continue
         features = payload.get("proposal_features") or {}
@@ -281,6 +308,7 @@ def labelled_dataset(path: str = "trading_state.db") -> Dict[str, Any]:
             "opened_at": opened_at.isoformat(), "closed_at": closed_at.isoformat(),
             "label_start": opened_at.isoformat(), "label_end": closed_at.isoformat(),
             "label": row["label"], "label_rule": row["label_rule"],
+            "provenance": provenance,
             "r_multiple": label_r,
             "pnl": pnl, "risk_amount": risk,
             "feature_schema_version": version, "feature_schema_hash": feature_hash,

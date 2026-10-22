@@ -480,10 +480,37 @@ from core.order_execution import (
     place_market_order, emergency_market_exit, place_pending_order,
     modify_order_sltp, cancel_pending_order,
 )
+import data.market_data_provider as _market_data_provider
 from data.market_data_provider import (
-    TIMEFRAME_MAP, tf_const, fetch_ohlc, collect_calendar_event_rows,
+    TIMEFRAME_MAP, collect_calendar_event_rows,
     DOMCollector, PerformanceMonitor, MarketDataProvider,
 )
+
+
+def fetch_ohlc(symbol: str, timeframe: str, count: int = 100):
+    """Live view of ``data.market_data_provider.fetch_ohlc``.
+
+    A ``from ... import fetch_ohlc`` snapshot froze the function at import
+    time, so the two names could drift apart: a stub installed on the
+    provider stayed invisible here, and the provider's resolver then had to
+    guess which copy was newer -- a guess that flipped with import order
+    (that is how ``tests/test_news_gate_integration.py`` started failing
+    when it ran after ``tests/test_ablation_harness.py``).
+
+    Delegating at call time keeps one answer whichever module is imported
+    first.  ``_provider_live_view`` lets the provider recognise this name as
+    its own live view instead of as a deliberate override.
+    """
+    return _market_data_provider.fetch_ohlc(symbol, timeframe, count=count)
+
+
+def tf_const(tf: str) -> int:
+    """Live view of ``data.market_data_provider.tf_const`` (see ``fetch_ohlc``)."""
+    return _market_data_provider.tf_const(tf)
+
+
+fetch_ohlc._provider_live_view = True
+tf_const._provider_live_view = True
 from intelligence.llm_orchestrator import (
     LLMOrchestrator,
 )
@@ -1855,7 +1882,7 @@ def main() -> None:
 
     parser_journal = sub.add_parser("journal", help="Inspect durable trade memory and recurring patterns")
     parser_journal.add_argument("action", choices=["patterns", "playbook", "integrity", "metrics", "dashboard-status", "report", "audit-export", "audit-retention-status", "migrate", "migrate-states", "states-status", "operations", "recover", "memory-status", "memory-metrics", "memory-maintenance", "weekly-memory", "monthly-memory", "working-memory-status", "working-memory-context", "working-memory-compact", "setup-labels", "research-status", "validation-runs", "promotion-package", "promotion-verify", "historical-status", "macro-extraction-status", "policy-status", "policy-candidate", "policy-approve", "broker-preflight-status", "auth-status", "readiness-status", "incident-drills", "forward-test-status", "dataset-status", "sample-gate-status", "baseline-status", "supervised-status", "model-family-status", "model-status", "model-register", "model-review", "model-drift", "stress-status", "bandit-status", "semantic-status", "alerts", "alerts-enqueue", "alerts-status", "alerts-claim", "alerts-ack", "alerts-recover", "alerts-deliver", "lifecycle-audit", "lifecycle-board",
-"strategy-status", "strategy-transition", "strategy-unfreeze", "strategy-retire", "strategy-tune", "strategy-evaluate", "strategy-acknowledge", "macro-prune", "model-activation-status", "research-influence-status", "research-influence-approve", "research-influence-revoke", "legacy-status", "legacy-quarantine", "security-status", "live-approval", "backup-status", "backup-create", "backup-restore", "backup-prune", "encrypted-backup-status", "encrypted-backup-create", "encrypted-backup-restore", "restart-status", "scope-status", "scope-init", "execution-reviews", "resolve-execution-review", "reconciliation", "reconciliation-run", "db-maintenance", "housekeeping"])
+"strategy-status", "strategy-transition", "strategy-unfreeze", "strategy-retire", "strategy-tune", "strategy-evaluate", "strategy-acknowledge", "macro-prune", "model-activation-status", "research-influence-status", "research-influence-approve", "research-influence-revoke", "legacy-status", "legacy-quarantine", "security-status", "live-approval", "backup-status", "backup-create", "backup-restore", "backup-prune", "encrypted-backup-status", "encrypted-backup-create", "encrypted-backup-restore", "restart-status", "scope-status", "scope-init", "execution-reviews", "resolve-execution-review", "reconciliation", "reconciliation-run", "demo-track-record", "db-maintenance", "housekeeping"])
     parser_journal.add_argument("--start", default="", help="UTC ISO start timestamp for reconciliation-run")
     parser_journal.add_argument("--end", default="", help="UTC ISO end timestamp for reconciliation-run")
     parser_journal.add_argument("--paper", action="store_true", help="Reconcile paper broker deals instead of live MT5")
@@ -1896,6 +1923,8 @@ def main() -> None:
     parser_journal.add_argument("--audit-output", default="journal_audit.json", help="Output JSON path for audit-export")
     parser_journal.add_argument("--demo-journal", default="trading_state.db")
     parser_journal.add_argument("--minimum-demo-sample", type=int, default=100)
+    parser_journal.add_argument("--demo-track-target", type=int, default=200,
+                                help="Trade floor the demo evidence track record is measured against")
     parser_journal.add_argument("--approval-action", choices=["status", "approve", "revoke", "verify"], default="status")
     parser_journal.add_argument("--confirmation", default="")
     parser_journal.add_argument("--evidence", action="append", default=[])
@@ -3027,6 +3056,14 @@ def main() -> None:
 
             print(json.dumps(report, indent=2))
             return
+        if args.action == "demo-track-record":
+            # The demo track record: how many broker-reconciled demo fills
+            # exist so far, against the floor the research gates ask for.
+            from operations.demo_evidence_collector import demo_track_record
+            print(json.dumps(demo_track_record(args.journal_path,
+                                               target_trades=args.demo_track_target),
+                             indent=2, default=str))
+            return
         if args.action == "db-maintenance":
             store = TradingStore(args.journal_path)
             bdir = getattr(args, "backup_dir", "backups") or "backups"
@@ -3721,6 +3758,9 @@ def execute_skill(**kwargs):
             # pd/np come from module scope — local imports here shadow them
             # for the earlier history-overview branch (pd.Timestamp at ~3210).
             bars_df = None
+            # Declared at the point the bars enter the pipeline; every engine
+            # below is told which of the two branches it actually got.
+            bars_source = "mt5_history"
             if not getattr(args, "paper", False) and client and mt5:
                 try:
                     from data_fetcher import DataFetcher
@@ -3730,6 +3770,7 @@ def execute_skill(**kwargs):
                     logging.getLogger("main").warning("Could not fetch MT5 data: %s, falling back to synthetic", fetch_err)
 
             if bars_df is None or bars_df.empty:
+                bars_source = "synthetic"
                 np.random.seed(42)
                 n_bars = int(args.count)
                 dt_index = pd.date_range(end=pd.Timestamp.now(tz="UTC"), periods=n_bars, freq="15min")
@@ -3755,13 +3796,13 @@ def execute_skill(**kwargs):
                 from research.vbt_engine import VectorizedBacktestEngine
                 vbt_eng = VectorizedBacktestEngine()
                 if getattr(args, "sweep", False):
-                    sweep_res = vbt_eng.run_grid_sweep(bars_df, symbol=args.symbol, timeframe=args.timeframe)
+                    sweep_res = vbt_eng.run_grid_sweep(bars_df, symbol=args.symbol, timeframe=args.timeframe, data_source=bars_source)
                     print(f"Grid sweep evaluated {len(sweep_res)} combinations.")
                     print(f"Top Parameter Sets:")
                     for idx, (p, m) in enumerate(sweep_res[:5], 1):
                         print(f"  #{idx}: Fast={p['fast_period']}, Slow={p['slow_period']} -> Sharpe: {m.sharpe_ratio:.2f}, Ret: {m.total_return_pct:.2f}%, MaxDD: {m.max_drawdown_pct:.2f}%, Trades: {m.total_trades}")
                 else:
-                    metrics = vbt_eng.run_crossover_strategy(bars_df, fast_period=args.fast, slow_period=args.slow, symbol=args.symbol, timeframe=args.timeframe)
+                    metrics = vbt_eng.run_crossover_strategy(bars_df, fast_period=args.fast, slow_period=args.slow, symbol=args.symbol, timeframe=args.timeframe, data_source=bars_source)
                     print(json.dumps(metrics.to_dict(), indent=2))
 
             elif args.engine == "mt5":
@@ -3800,7 +3841,7 @@ def execute_skill(**kwargs):
                 from research.hybrid_backtest_pipeline import HybridBacktestPipeline
                 pipe = HybridBacktestPipeline()
                 if getattr(args, "sweep", False):
-                    sweep_res = pipe.run_two_tier_sweep(bars_df, symbol=args.symbol, timeframe=args.timeframe)
+                    sweep_res = pipe.run_two_tier_sweep(bars_df, symbol=args.symbol, timeframe=args.timeframe, data_source=bars_source)
                     print(f"Two-Tier Funnel Results ({len(sweep_res)} candidates evaluated):")
                     for p, comp in sweep_res:
                         verdict = "PASS" if comp.passes_promotion else "FAIL"
@@ -3816,7 +3857,7 @@ def execute_skill(**kwargs):
                     slow_ema = close.ewm(span=args.slow, adjust=False).mean()
                     entries = (fast_ema > slow_ema) & (fast_ema.shift(1) <= slow_ema.shift(1))
                     exits = (fast_ema < slow_ema) & (fast_ema.shift(1) >= slow_ema.shift(1))
-                    comp = pipe.evaluate_strategy(bars_df, entries=entries.fillna(False), exits=exits.fillna(False), symbol=args.symbol, timeframe=args.timeframe, sl_pips=args.sl_pips, tp_pips=args.tp_pips)
+                    comp = pipe.evaluate_strategy(bars_df, entries=entries.fillna(False), exits=exits.fillna(False), symbol=args.symbol, timeframe=args.timeframe, sl_pips=args.sl_pips, tp_pips=args.tp_pips, data_source=bars_source)
                     print(json.dumps(comp.to_dict(), indent=2))
                     print(f"\nHybrid Two-Tier Promotion Verdict: {'PROMOTED' if comp.passes_promotion else 'REJECTED'}")
                     if comp.rejection_reasons:
@@ -4568,6 +4609,17 @@ def execute_skill(**kwargs):
             logging.getLogger("main").warning("supervisor boot skipped: %s", sup_exc)
         # -----------------------------------------------------------------
 
+        # --- S.Q Priority Task Queue (Autonomous background research & work dispatch) ---
+        _task_queue = None
+        try:
+            from core.task_queue import migrate_from_intervals
+            from core.auto_quant_tools import DEFAULT_INTERVALS
+            _task_queue = migrate_from_intervals(DEFAULT_INTERVALS)
+            logging.getLogger("main").info("S.Q Priority Queue initialized (%d tasks)", len(_task_queue._pending))
+        except Exception as _tq_exc:
+            logging.getLogger("main").warning("S.Q Task Queue init skipped: %s", _tq_exc)
+        # -----------------------------------------------------------------
+
         # --- κ Compliance Audit: hash-chained immutable log (UAQP Agent κ) ---
         _audit = None
         try:
@@ -4850,6 +4902,8 @@ def execute_skill(**kwargs):
                         _pipe = run_pipeline(
                             lifecycle_path=getattr(_plugin_store, "path", "trading_state.db"),
                             outbox_path="alerts_outbox.db",
+                            queue=_task_queue,
+                            cycle_num=cycle_count,
                         )
                         _inc = _pipe.get("incubation", {})
                         logging.getLogger("main").info(
@@ -4916,6 +4970,9 @@ def execute_skill(**kwargs):
                                     _bt_res = _pipeline.run_validation_cycle(
                                         symbol=_res_sym, strategy_name=_sname, timeframe=_res_tf,
                                         bars=_vbars, bars_df=_vdf,
+                                        # The sweep passes the broker window it already
+                                        # fetched; declare it, or the pipeline refuses.
+                                        data_source="mt5_history" if _vdf is not None else None,
                                     )
                                     if _bt_res:
                                         _status = _bt_res.get("verdict", {}).get("status", "COMPLETE")

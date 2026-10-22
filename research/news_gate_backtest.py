@@ -27,6 +27,8 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
+
+from core.provenance import validate_data_source
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -76,8 +78,12 @@ class BacktestResult:
     dsr_expected_max: float = 0.0
     dsr_pbo_proxy: float = 0.0
     details: Dict[str, Any] = field(default_factory=dict)
+    #: Declared bar/trade provenance; validated at construction.
+    data_source: str = ""
 
     def __post_init__(self) -> None:
+        self.data_source = validate_data_source(
+            self.data_source, kind="backtest", field="BacktestResult.data_source")
         # Keep dsr_confidence and its deprecated alias in sync at construction.
         # (If both are set explicitly and disagree, both are respected as-is.)
         if self.dsr_confidence == 0.0 and self.dsr_pvalue != 0.0:
@@ -92,6 +98,7 @@ class BacktestResult:
         lines.append("NEWS GATE BACKTEST RESULTS")
         lines.append("=" * 60)
         lines.append(f"Total trades: {self.total_trades}")
+        lines.append(f"Data source: {self.data_source}")
         lines.append(f"Events analyzed: {self.events_analyzed}")
         lines.append(f"Whipsaw trades avoided: {self.whipsaw_trades_avoided}")
         lines.append("")
@@ -210,6 +217,7 @@ class NewsGateBacktest:
         n_synthetic_trades: int = 500,
         n_synthetic_events: int = 20,
         seed: int = 42,
+        data_source: str = "",
     ) -> BacktestResult:
         """Run the backtest.
 
@@ -226,14 +234,20 @@ class NewsGateBacktest:
         """
         rng = np.random.RandomState(seed)
 
+        supplied = trades is not None and events is not None
         if trades is None:
             trades = self._generate_synthetic_trades(n_synthetic_trades, symbol, rng)
         if events is None:
             events = self._generate_synthetic_events(n_synthetic_events, symbol, rng)
+        # Anything generated makes the whole comparison a fixture; a caller
+        # supplying its own history must say where it came from.
+        source = ("synthetic" if not supplied else validate_data_source(
+            data_source, kind="backtest", field="NewsGateBacktest.run(data_source)"))
 
         result = BacktestResult(
             total_trades=len(trades),
             events_analyzed=len(events),
+            data_source=source,
         )
 
         # Run WITHOUT gate (baseline)
@@ -413,7 +427,8 @@ class NewsGateBacktest:
         trades = self._bars_to_trades(bars, symbol)
 
         # Run base comparison (static windows)
-        result = self.run(trades=trades, events=events, symbol=symbol)
+        result = self.run(trades=trades, events=events, symbol=symbol,
+                          data_source="mt5_history")
 
         # If correlation engine is available, also run with dynamic windows
         if correlation_engine is not None and event_reactions:
@@ -702,6 +717,7 @@ class NewsGateBacktest:
         result = BacktestResult(
             total_trades=len(trades),
             events_analyzed=len(event_reactions),
+            data_source="mt5_history",
         )
 
         # Get dynamic windows

@@ -26,6 +26,11 @@ except ImportError:
     from operations.journal_scope import ensure_scope
 
 try:
+    from core.provenance import sql_in_list, validate_data_source
+except ImportError:
+    from core.provenance import sql_in_list, validate_data_source
+
+try:
     from research.setup_labeling import ensure_setup_label_table, persist_setup_label
 except ImportError:
     from research.setup_labeling import ensure_setup_label_table, persist_setup_label
@@ -308,7 +313,11 @@ class TradingStore:
               symbol TEXT NOT NULL, side TEXT NOT NULL, volume REAL NOT NULL,
               entry REAL NOT NULL, stop_loss REAL, take_profit REAL, risk_amount REAL NOT NULL,
               opened_at TEXT NOT NULL, closed_at TEXT, exit_price REAL, pnl REAL,
-              exit_reason TEXT, payload TEXT NOT NULL
+              exit_reason TEXT, payload TEXT NOT NULL,
+              -- Where this row's evidence came from (core/provenance.py). Null
+              -- only on rows written before the constraint existed; every new
+              -- INSERT must declare it, enforced by a trigger below.
+              provenance TEXT
             );
             CREATE INDEX IF NOT EXISTS idx_trades_open ON trades(closed_at, magic);
             CREATE INDEX IF NOT EXISTS idx_trades_symbol_closed ON trades(symbol, closed_at);
@@ -466,6 +475,20 @@ class TradingStore:
             }.items():
                 if name not in columns:
                     con.execute(f"ALTER TABLE trades ADD COLUMN {name} {definition}")
+            if "provenance" not in columns:
+                # Legacy journals predate the declaration. Existing rows stay
+                # NULL — honestly "undeclared" — and the INSERT trigger admits
+                # only new rows that name a known source.
+                con.execute("ALTER TABLE trades ADD COLUMN provenance TEXT")
+            con.execute(
+                "CREATE TRIGGER IF NOT EXISTS trades_provenance_required "
+                "BEFORE INSERT ON trades "
+                "WHEN NEW.provenance IS NULL OR TRIM(NEW.provenance) = '' "
+                "OR LOWER(TRIM(NEW.provenance)) NOT IN (%s) "
+                "BEGIN SELECT RAISE(ABORT, 'trades.provenance is required and "
+                "must be a known journal source'); END;" % sql_in_list("journal")
+            )
+            con.execute("CREATE INDEX IF NOT EXISTS idx_trades_provenance ON trades(provenance, closed_at)")
             mark_columns = {row["name"] for row in con.execute("PRAGMA table_info(position_observations)").fetchall()}
             for name, definition in {
                 "source": "TEXT NOT NULL DEFAULT 'unknown'", "quote_time_msc": "INTEGER",
@@ -994,11 +1017,20 @@ class TradingStore:
         then = datetime.fromisoformat(row["created_at"])
         return (datetime.now(timezone.utc) - then).total_seconds() < seconds
 
-    def record_open_trade(self, ticket: int, proposal: TradeProposal, volume: float, risk_amount: float, payload: Dict[str, Any]) -> None:
+    def record_open_trade(self, ticket: int, proposal: TradeProposal, volume: float, risk_amount: float,
+                          payload: Dict[str, Any], *, provenance: str) -> None:
+        """Journal an executed fill together with the evidence behind it.
+
+        ``provenance`` is a required keyword, validated against the journal
+        vocabulary in core/provenance.py. The column used to not exist, so a
+        fixture fill and a broker fill were indistinguishable once written;
+        the promotion gate read whichever it found.
+        """
+        source = validate_data_source(provenance, kind="journal", field="provenance")
         with self._connect() as con:
-            con.execute("INSERT INTO trades(ticket,magic,strategy,symbol,side,volume,entry,stop_loss,take_profit,risk_amount,opened_at,payload,setup_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(ticket) DO UPDATE SET payload=excluded.payload,setup_id=excluded.setup_id", (
+            con.execute("INSERT INTO trades(ticket,magic,strategy,symbol,side,volume,entry,stop_loss,take_profit,risk_amount,opened_at,payload,setup_id,provenance) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(ticket) DO UPDATE SET payload=excluded.payload,setup_id=excluded.setup_id,provenance=excluded.provenance", (
                 ticket, proposal.magic, proposal.strategy, proposal.symbol, proposal.side, volume, proposal.entry,
-                proposal.stop_loss, proposal.take_profit, risk_amount, datetime.now(timezone.utc).isoformat(), json.dumps(payload, default=str), proposal.features.get("setup_id", "unclassified_v1")))
+                proposal.stop_loss, proposal.take_profit, risk_amount, datetime.now(timezone.utc).isoformat(), json.dumps(payload, default=str), proposal.features.get("setup_id", "unclassified_v1"), source))
         self.transition_latest_setup(proposal.setup_key(), "FILLED", ticket=int(ticket), reason="broker position recorded")
         self.release_risk(proposal.setup_key())
         if isinstance(payload, dict):

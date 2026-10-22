@@ -9,7 +9,7 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -86,18 +86,44 @@ def _get_mt5():
     return mt5
 
 
-def _get_fetch_ohlc():
+def _resolve_provider_callable(name: str) -> Callable:
+    """Resolve one of this module's callables, order-independently.
+
+    ``fetch_ohlc`` and ``tf_const`` are owned here.  ``mt5_trader`` re-exports
+    them as *live views* (delegators marked ``_provider_live_view``), so that
+    name carries no information of its own: its mere presence in
+    ``sys.modules`` -- an accident of import order -- must never change the
+    answer.  Only a *replacement* of that re-export (a different function
+    object) is a deliberate override, and it wins.
+
+    Before 2026-10-22 the rule was "prefer ``mt5_trader.<name>`` when it
+    differs from mine", which silently ignored a stub installed on this
+    module whenever ``mt5_trader`` had been imported first: the same test
+    then saw its stub in one order and the live broker fetcher in the other.
+    That is what made ``tests/test_news_gate_integration.py`` fail 4/4 when
+    it ran after ``tests/test_ablation_harness.py`` in the same process
+    (the ablation harness imports ``mt5_trader`` at module scope).
+    """
+    mine = globals()[name]
     mt5_mod = sys.modules.get("mt5_trader")
-    if mt5_mod is not None and hasattr(mt5_mod, "fetch_ohlc") and mt5_mod.fetch_ohlc is not fetch_ohlc:
-        return mt5_mod.fetch_ohlc
-    return fetch_ohlc
+    candidate = getattr(mt5_mod, name, None) if mt5_mod is not None else None
+    if (
+        candidate is not None
+        and candidate is not mine
+        and not getattr(candidate, "_provider_live_view", False)
+    ):
+        return candidate
+    return mine
+
+
+def _get_fetch_ohlc():
+    """The one OHLC-fetcher resolver (see ``_resolve_provider_callable``)."""
+    return _resolve_provider_callable("fetch_ohlc")
 
 
 def _get_tf_const():
-    mt5_mod = sys.modules.get("mt5_trader")
-    if mt5_mod is not None and hasattr(mt5_mod, "tf_const") and mt5_mod.tf_const is not tf_const:
-        return mt5_mod.tf_const
-    return tf_const
+    """The one timeframe-constant resolver (see ``_resolve_provider_callable``)."""
+    return _resolve_provider_callable("tf_const")
 
 
 TIMEFRAME_MAP = {
