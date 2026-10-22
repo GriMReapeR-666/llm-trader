@@ -9,6 +9,7 @@ This gives the LLM "visual reasoning" capability without image inputs.
 
 Patterns detected:
   - Candlestick: Doji, Hammer, Engulfing, Morning/Evening Star
+  - Candlestick (opt-in): full FLUEY catalogue, Jha (2026) Sec. 4/5
   - Chart: Head & Shoulders, Double Top/Bottom, Triangle, Wedge
   - Trend: Support/Resistance breaks, Channel, Flag/Pennant
   - Volume: Volume Spike, OBV Divergence, Accumulation/Distribution
@@ -16,6 +17,8 @@ Patterns detected:
 References:
   - FinAgent (2024): Multimodal fusion of price + text + visual
   - DeepFund (2025): Multi-agent framework with pattern consensus
+  - Jha, A. (2026): "FLUEY: Formal Logical Unified Engine for
+    Candlestick Analysis" (core/flue_thresholds.py)
 """
 
 from __future__ import annotations
@@ -53,6 +56,48 @@ class PatternType(str, Enum):
     ENGULFING_BEARISH = "engulfing_bearish"
     MORNING_STAR = "morning_star"
     EVENING_STAR = "evening_star"
+    # Candlestick — FLUEY catalogue (Jha 2026 Sec. 4/5). Values match the
+    # registry names in core.flue_thresholds so the two stay in lockstep.
+    HANGING_MAN = "hanging_man"
+    SHOOTING_STAR = "shooting_star"
+    DRAGONFLY_DOJI = "dragonfly_doji"
+    GRAVESTONE_DOJI = "gravestone_doji"
+    LONG_LEGGED_DOJI = "long_legged_doji"
+    RICKSHAW_MAN = "rickshaw_man"
+    MARUBOZU_BULL = "marubozu_bull"
+    MARUBOZU_BEAR = "marubozu_bear"
+    BELT_HOLD_BULL = "belt_hold_bull"
+    BELT_HOLD_BEAR = "belt_hold_bear"
+    HIGH_WAVE = "high_wave"
+    LONG_WHITE = "long_white"
+    LONG_BLACK = "long_black"
+    SPINNING_TOP = "spinning_top"
+    BULLISH_HARAMI = "bullish_harami"
+    BEARISH_HARAMI = "bearish_harami"
+    HARAMI_CROSS = "harami_cross"
+    COUNTERATTACK_BULL = "counterattack_bull"
+    COUNTERATTACK_BEAR = "counterattack_bear"
+    KICKING_BULL = "kicking_bull"
+    KICKING_BEAR = "kicking_bear"
+    SEPARATING_LINES_BULL = "separating_lines_bull"
+    SEPARATING_LINES_BEAR = "separating_lines_bear"
+    MATCHING_HIGH = "matching_high"
+    THREE_WHITE_SOLDIERS = "three_white_soldiers"
+    THREE_BLACK_CROWS = "three_black_crows"
+    THREE_INSIDE_UP = "three_inside_up"
+    THREE_INSIDE_DOWN = "three_inside_down"
+    THREE_OUTSIDE_UP = "three_outside_up"
+    THREE_OUTSIDE_DOWN = "three_outside_down"
+    TRI_STAR = "tri_star"
+    UPSIDE_GAP_TWO_CROWS = "upside_gap_two_crows"
+    UNIQUE_THREE_RIVER_BOTTOM = "unique_three_river_bottom"
+    DELIBERATION = "deliberation"
+    TASUKI_GAP_UP = "tasuki_gap_up"
+    CONCEALING_BABY_SWALLOW = "concealing_baby_swallow"
+    THREE_LINE_STRIKE_BULL = "three_line_strike_bull"
+    THREE_LINE_STRIKE_BEAR = "three_line_strike_bear"
+    RISING_THREE_METHODS = "rising_three_methods"
+    LADDER_BOTTOM = "ladder_bottom"
     # Chart
     DOUBLE_TOP = "double_top"
     DOUBLE_BOTTOM = "double_bottom"
@@ -75,6 +120,59 @@ class SignalDirection(str, Enum):
     BULLISH = "BULLISH"
     BEARISH = "BEARISH"
     NEUTRAL = "NEUTRAL"
+
+
+# ---------------------------------------------------------------------------
+# FLUEY catalogue wiring (Jha 2026 Sec. 6.6)
+# ---------------------------------------------------------------------------
+
+# Registry names whose PatternType member already existed under another name.
+_FLUEY_ENUM_OVERRIDES: Dict[str, PatternType] = {
+    "bullish_engulfing": PatternType.ENGULFING_BULLISH,
+    "bearish_engulfing": PatternType.ENGULFING_BEARISH,
+}
+
+
+def _fluey_pattern_types() -> Dict[str, PatternType]:
+    """Map every FLUEY registry name to a PatternType member.
+
+    Fails loudly when registry and enum drift apart, so a newly registered
+    pattern can never be silently dropped by the detector.
+    """
+    out: Dict[str, PatternType] = {}
+    for _, name, _bias in flue.REGISTRY:
+        override = _FLUEY_ENUM_OVERRIDES.get(name)
+        if override is not None:
+            out[name] = override
+            continue
+        try:
+            out[name] = PatternType(name)
+        except ValueError as exc:
+            raise ValueError(
+                f"FLUEY pattern {name!r} has no PatternType member — add it to PatternType"
+            ) from exc
+    return out
+
+
+FLUEY_PATTERN_TYPES: Dict[str, PatternType] = _fluey_pattern_types()
+FLUEY_CANDLE_COUNT: Dict[str, int] = {name: count for count, name, _ in flue.REGISTRY}
+
+FLUEY_BIAS_DIRECTION: Dict[str, SignalDirection] = {
+    "bullish_reversal": SignalDirection.BULLISH,
+    "bullish_continuation": SignalDirection.BULLISH,
+    "bearish_reversal": SignalDirection.BEARISH,
+    "bearish_continuation": SignalDirection.BEARISH,
+    "indecision": SignalDirection.NEUTRAL,
+}
+
+# Patterns excluded from live feeds due to continuous-market failure modes:
+# - separating_lines_* collapses in 24/5 FX/crypto where O_2 ~= C_1 (near 100% false alarm)
+# - matching_high lacks structural prominence checks and false-alarms on micro ticks
+EXCLUDED_LIVE_PATTERNS = frozenset({
+    "matching_high",
+    "separating_lines_bull",
+    "separating_lines_bear",
+})
 
 
 @dataclass
@@ -281,6 +379,59 @@ class CandlestickDetector:
                         description="Evening star — 3-candle bearish reversal",
                     ))
 
+        return patterns
+
+    def detect_fluey(
+        self, ohlcv: List[Dict[str, Any]], exclude_noisy: bool = True
+    ) -> List[DetectedPattern]:
+        """Full FLUEY catalogue scan (paper Sec. 6.6 detection engine).
+
+        Opt-in path: `detect()` stays the narrow "significant pattern" feed
+        used for LLM context, while this returns one registry label per bar
+        (the registry is first-match-wins, so a bar yields at most one label).
+        Confidence encodes pattern length, not predictive edge — FLUEY
+        defines geometry only, with no backtested expectancy (paper Sec. 7.1.4).
+
+        When `exclude_noisy=True` (default), continuous-market failure modes
+        (matching_high, separating_lines_*) are filtered out.
+        """
+        if len(ohlcv) < 5:
+            return []
+
+        series = [
+            (
+                float(b.get("open", 0.0) or 0.0),
+                float(b.get("high", 0.0) or 0.0),
+                float(b.get("low", 0.0) or 0.0),
+                float(b.get("close", 0.0) or 0.0),
+            )
+            for b in ohlcv[-self.lookback:]
+        ]
+
+        patterns: List[DetectedPattern] = []
+        for name, bias, index in flue.scan(series):
+            if exclude_noisy and name in EXCLUDED_LIVE_PATTERNS:
+                continue
+            ptype = FLUEY_PATTERN_TYPES.get(name)
+            if ptype is None:
+                continue
+            direction = FLUEY_BIAS_DIRECTION.get(bias, SignalDirection.NEUTRAL)
+            count = FLUEY_CANDLE_COUNT.get(name, 1)
+            confidence = 0.5 + 0.1 * count
+            if direction is SignalDirection.NEUTRAL:
+                confidence -= 0.05
+            patterns.append(DetectedPattern(
+                pattern_type=ptype,
+                direction=direction,
+                confidence=round(min(0.9, confidence), 3),
+                bar_index=index,
+                description=f"FLUEY {name.replace('_', ' ')} — {bias.replace('_', ' ')}",
+                metadata={
+                    "fluey_pattern": name,
+                    "fluey_bias": bias,
+                    "fluey_candles": count,
+                },
+            ))
         return patterns
 
 
@@ -673,11 +824,19 @@ class MultimodalAnalysisEngine(StoreBackedState):
             self.attach_store(store)
 
     def analyze(
-        self, symbol: str, timeframe: str, ohlcv: List[Dict[str, Any]]
+        self, symbol: str, timeframe: str, ohlcv: List[Dict[str, Any]],
+        include_fluey: bool = False,
     ) -> VisualAnalysisReport:
-        """Run full pattern analysis on OHLCV data."""
+        """Run full pattern analysis on OHLCV data.
+
+        `include_fluey` adds the full FLUEY catalogue (Jha 2026) on top of
+        the standard feed. It is off by default because it is far noisier
+        (one label per bar) and it shifts the confluence score.
+        """
         # 1. Candlestick patterns
         candle_patterns = self.candlestick_detector.detect(ohlcv)
+        if include_fluey:
+            candle_patterns = candle_patterns + self.candlestick_detector.detect_fluey(ohlcv)
 
         # 2. Chart patterns
         chart_patterns = self.chart_detector.detect(ohlcv)
