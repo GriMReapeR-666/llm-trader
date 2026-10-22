@@ -249,6 +249,59 @@ def test_evaluate_strategy_universe():
     assert empty_data_report.results[0]["total_trades"] == 0
 
 
+def test_full_15_styles_represented_in_universe():
+    """Verify that all 15 StrategyStyle members are represented in the generated matrix."""
+    from core.strategy_universe import StrategyUniverseGenerator, StrategyStyle
+
+    generator = StrategyUniverseGenerator()
+    specs = generator.generate_matrix()
+
+    styles_present = {s.style for s in specs}
+    assert len(styles_present) == 15
+    for style in StrategyStyle:
+        assert style in styles_present, f"Missing style {style} in generated universe matrix"
+
+    # Verify fail-closed security and metadata on all specs
+    for s in specs:
+        assert s.execution_authority is False
+        assert len(s.target_symbols) > 0
+        assert len(s.timeframes) > 0
+
+
+def test_performance_benchmark():
+    """Benchmark evaluation of all specs across 1,000 bars executes well under 1.5 seconds."""
+    import time
+    import numpy as np
+    from core.strategy_universe import (
+        StrategyUniverseGenerator,
+        load_market_dataset_polars,
+        evaluate_strategy_universe,
+    )
+
+    # 1,000 synthetic bars
+    np.random.seed(42)
+    n = 1000
+    prices = 100.0 * np.exp(np.cumsum(np.random.normal(0.0002, 0.008, n)))
+    df = load_market_dataset_polars({"close": prices})
+
+    generator = StrategyUniverseGenerator()
+    specs = generator.generate_matrix()
+    assert len(specs) >= 15
+
+    # Warm-up run to compile Numba kernels across styles
+    _ = evaluate_strategy_universe(specs, df, emit_telemetry=False)
+
+    # Benchmark full matrix execution across 1,000 bars
+    t0 = time.perf_counter()
+    report = evaluate_strategy_universe(specs, df, emit_telemetry=False)
+    elapsed = time.perf_counter() - t0
+
+    assert report.total_strategies == len(specs)
+    assert len(report.results) == len(specs)
+    assert elapsed < 1.5, f"Universe evaluation took {elapsed:.4f}s, exceeding 1.5s benchmark ceiling"
+
+
+
 
 
 
