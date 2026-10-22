@@ -130,3 +130,26 @@ def test_portfolio_fit_checker():
     rep_none = checker.check(strat_rets, None)
     assert rep_none.fit_passed is True
     assert rep_none.max_correlation == 0.0
+
+
+def test_diagnostics_pipeline_phase1_and_phase2():
+    from core.strategy_universe import StrategyUniverseGenerator, load_market_dataset_polars
+    from core.diagnostics_engine import DiagnosticsPipeline
+
+    np.random.seed(42)
+    n = 300
+    prices = 100.0 * np.exp(np.cumsum(np.random.normal(0.0005, 0.01, n)))
+    df = load_market_dataset_polars({"close": prices})
+
+    generator = StrategyUniverseGenerator()
+    specs = generator.generate_matrix(symbols=["EURUSD"])
+
+    pipeline = DiagnosticsPipeline()
+    phase1_survivors = pipeline.run_phase1_quick_pass(specs, df)
+    assert isinstance(phase1_survivors, list)
+    assert len(phase1_survivors) <= len(specs)
+
+    phase2_survivors = pipeline.run_phase2_tier_audit(phase1_survivors, df)
+    assert isinstance(phase2_survivors, list)
+    assert len(phase2_survivors) <= len(phase1_survivors)
+

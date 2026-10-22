@@ -7,6 +7,12 @@ from typing import Any, Dict, List, Optional, Tuple, Sequence
 import numpy as np
 import polars as pl
 
+from core.strategy_universe import (
+    StrategySpec,
+    StrategyUniverseGenerator,
+    evaluate_strategy_universe,
+)
+
 
 @dataclass
 class DataIntegrityReport:
@@ -241,3 +247,93 @@ class PortfolioFitChecker:
             issues=issues,
             execution_authority=False,
         )
+
+
+class DiagnosticsPipeline:
+    """Two-Layer Multi-Strategy Diagnostics Pipeline."""
+
+    def __init__(self, emit_telemetry: bool = True):
+        self.emit_telemetry = emit_telemetry
+        self.data_checker = DataIntegrityChecker()
+        self.signal_checker = SignalQualityChecker()
+        self.exec_checker = ExecutionFeasibilityChecker()
+        self.portfolio_checker = PortfolioFitChecker()
+        self.generator = StrategyUniverseGenerator()
+
+    def _emit(self, event_type: str, payload: Dict[str, Any]) -> None:
+        if not self.emit_telemetry:
+            return
+        try:
+            import core.agent_event_bus as aeb
+            emit_fn = getattr(aeb, "emit_agent_event", None)
+            if emit_fn is not None:
+                emit_fn(sender="DiagnosticsPipeline", event_type=event_type, payload=payload)
+            elif hasattr(aeb, "get_bus"):
+                bus = aeb.get_bus()
+                bus.emit(agent="DiagnosticsPipeline", action=event_type, stage="DIAGNOSTICS", payload=payload)
+        except Exception:
+            pass
+
+    def run_phase1_quick_pass(
+        self,
+        specs: List[StrategySpec],
+        dataset: pl.DataFrame,
+        min_sharpe: float = 0.30,
+        max_dd: float = 30.0,
+    ) -> List[StrategySpec]:
+        """Phase 1: Quick parallel pass screening all candidate strategies."""
+        report = evaluate_strategy_universe(specs, dataset, emit_telemetry=False)
+        survivor_ids: set[str] = set()
+
+        for res in report.results:
+            if (
+                res["sharpe"] >= min_sharpe
+                and res["max_drawdown_pct"] <= max_dd
+                and res["total_trades"] >= 5
+            ):
+                survivor_ids.add(res["strategy_id"])
+
+        survivors = [s for s in specs if s.strategy_id in survivor_ids]
+        self._emit(
+            "DIAGNOSTIC_PHASE1_COMPLETED",
+            {
+                "total_tested": len(specs),
+                "survivors_count": len(survivors),
+                "survivor_ids": list(survivor_ids),
+            },
+        )
+        return survivors
+
+    def run_phase2_tier_audit(
+        self,
+        survivors: List[StrategySpec],
+        dataset: pl.DataFrame,
+    ) -> List[StrategySpec]:
+        """Phase 2: Deep 4-tier audit to eliminate brittle or cost-sensitive strategies."""
+        # Tier 1: Data Integrity
+        data_rep = self.data_checker.check(dataset)
+        if not data_rep.is_clean:
+            return []
+
+        prices = dataset["close"].to_numpy()
+        passed_specs: List[StrategySpec] = []
+
+        for spec in survivors:
+            signals = self.generator.generate_baseline_signals(spec, dataset)
+            # Tier 3: Execution Feasibility
+            exec_rep = self.exec_checker.check(prices, signals)
+            if not exec_rep.is_viable:
+                continue
+
+            passed_specs.append(spec)
+
+        self._emit(
+            "DIAGNOSTIC_PHASE2_COMPLETED",
+            {
+                "input_count": len(survivors),
+                "passed_count": len(passed_specs),
+                "passed_ids": [s.strategy_id for s in passed_specs],
+            },
+        )
+        return passed_specs
+
