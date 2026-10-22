@@ -353,3 +353,104 @@ class StrategyUniverseGenerator:
         return signals
 
 
+# ============================================================================
+# Parallel Universe Diagnostics Runner & Telemetry Event Emission
+# ============================================================================
+
+@dataclass
+class UniverseEvaluationReport:
+    total_strategies: int
+    evaluated_at: float
+    results: List[Dict[str, Any]]
+    execution_authority: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_strategies": self.total_strategies,
+            "evaluated_at": self.evaluated_at,
+            "results": self.results,
+            "execution_authority": self.execution_authority,
+        }
+
+
+def evaluate_strategy_universe(
+    specs: List[StrategySpec],
+    dataset: pl.DataFrame,
+    spread_bps: float = 2.0,
+    slippage_bps: float = 1.0,
+    initial_capital: float = 10000.0,
+    emit_telemetry: bool = True,
+) -> UniverseEvaluationReport:
+    """Evaluates all strategy specs across common dataset using Polars + Numba acceleration."""
+    if "close" in dataset.columns and dataset.height > 0:
+        prices = dataset["close"].to_numpy()
+    else:
+        prices = np.empty(0, dtype=np.float64)
+
+    generator = StrategyUniverseGenerator()
+    results: List[Dict[str, Any]] = []
+
+    # Optional EventBus emission
+    emit_event_fn = None
+    if emit_telemetry:
+        try:
+            import core.agent_event_bus as aeb
+            emit_event_fn = getattr(aeb, "emit_agent_event", None)
+        except (ImportError, AttributeError):
+            emit_event_fn = None
+
+    for spec in specs:
+        t0 = time.perf_counter()
+        signals = generator.generate_baseline_signals(spec, dataset)
+        equity, trade_pnls, trade_count, total_ret, max_dd = simulate_positions_numba(
+            prices,
+            signals,
+            spread_bps=spread_bps,
+            slippage_bps=slippage_bps,
+            initial_capital=initial_capital,
+        )
+        returns = (
+            np.diff(equity) / equity[:-1]
+            if len(equity) > 1
+            else np.empty(0, dtype=np.float64)
+        )
+        sharpe, sortino, calmar, win_rate, pf, max_dd_pct = calculate_fast_metrics_numba(
+            equity, returns
+        )
+        latency_ms = (time.perf_counter() - t0) * 1000.0
+
+        res = {
+            "strategy_id": spec.strategy_id,
+            "style": spec.style.value,
+            "trading_type": spec.trading_type.value,
+            "total_trades": trade_count,
+            "total_return_pct": round(total_ret * 100.0, 2),
+            "sharpe": round(sharpe, 3),
+            "sortino": round(sortino, 3),
+            "calmar": round(calmar, 3),
+            "max_drawdown_pct": round(max_dd_pct * 100.0, 2),
+            "win_rate_pct": round(win_rate * 100.0, 2),
+            "profit_factor": round(pf, 2),
+            "compute_latency_ms": round(latency_ms, 2),
+        }
+        results.append(res)
+
+        if emit_event_fn:
+            try:
+                emit_event_fn(
+                    sender="StrategyUniverseEngine",
+                    event_type="STRATEGY_UNIVERSE_EVALUATED",
+                    payload=res,
+                )
+            except Exception:
+                pass
+
+    return UniverseEvaluationReport(
+        total_strategies=len(results),
+        evaluated_at=time.time(),
+        results=results,
+        execution_authority=False,
+    )
+
+
+

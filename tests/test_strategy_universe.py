@@ -150,5 +150,105 @@ def test_polars_data_and_universe_generator():
     assert default_specs[0].target_symbols == ["EURUSD", "GBPUSD", "XAUUSD", "BTCUSD"]
 
 
+def test_evaluate_strategy_universe():
+    import numpy as np
+    import polars as pl
+    from unittest.mock import MagicMock
+    import sys
+    from core.strategy_universe import (
+        StrategyUniverseGenerator,
+        load_market_dataset_polars,
+        UniverseEvaluationReport,
+        evaluate_strategy_universe,
+    )
+
+    # Generate synthetic price series
+    np.random.seed(42)
+    n = 200
+    prices = 100.0 * np.exp(np.cumsum(np.random.normal(0.0005, 0.01, n)))
+    df = load_market_dataset_polars({"close": prices})
+
+    generator = StrategyUniverseGenerator()
+    specs = generator.generate_matrix(symbols=["EURUSD"], timeframes=["H1"])[:5]
+
+    # Test baseline evaluation without telemetry
+    report = evaluate_strategy_universe(specs, df, emit_telemetry=False)
+    assert isinstance(report, UniverseEvaluationReport)
+    assert report.total_strategies == 5
+    assert len(report.results) == 5
+    assert report.execution_authority is False
+    assert report.evaluated_at > 0.0
+
+    d = report.to_dict()
+    assert d["total_strategies"] == 5
+    assert d["execution_authority"] is False
+    assert len(d["results"]) == 5
+
+    first_result = report.results[0]
+    expected_keys = {
+        "strategy_id",
+        "style",
+        "trading_type",
+        "total_trades",
+        "total_return_pct",
+        "sharpe",
+        "sortino",
+        "calmar",
+        "max_drawdown_pct",
+        "win_rate_pct",
+        "profit_factor",
+        "compute_latency_ms",
+    }
+    assert expected_keys.issubset(first_result.keys())
+    assert isinstance(first_result["sharpe"], float)
+    assert isinstance(first_result["max_drawdown_pct"], float)
+    assert isinstance(first_result["compute_latency_ms"], float)
+    assert first_result["compute_latency_ms"] >= 0.0
+
+    # Test telemetry emission when emit_telemetry=True and emit_agent_event exists
+    mock_emit = MagicMock()
+    import core.agent_event_bus as aeb
+    orig_emit = getattr(aeb, "emit_agent_event", None)
+    try:
+        aeb.emit_agent_event = mock_emit
+        report_telemetry = evaluate_strategy_universe(specs[:2], df, emit_telemetry=True)
+        assert mock_emit.call_count == 2
+        call_args = mock_emit.call_args_list[0]
+        kwargs = call_args.kwargs
+        assert kwargs.get("sender") == "StrategyUniverseEngine"
+        assert kwargs.get("event_type") == "STRATEGY_UNIVERSE_EVALUATED"
+        assert "payload" in kwargs
+    finally:
+        if orig_emit is not None:
+            aeb.emit_agent_event = orig_emit
+        elif hasattr(aeb, "emit_agent_event"):
+            delattr(aeb, "emit_agent_event")
+
+    # Test telemetry not emitted when emit_telemetry=False even if emit_agent_event exists
+    try:
+        aeb.emit_agent_event = mock_emit
+        mock_emit.reset_mock()
+        evaluate_strategy_universe(specs[:2], df, emit_telemetry=False)
+        assert mock_emit.call_count == 0
+    finally:
+        if orig_emit is not None:
+            aeb.emit_agent_event = orig_emit
+        elif hasattr(aeb, "emit_agent_event"):
+            delattr(aeb, "emit_agent_event")
+
+    # Test edge case: empty specs
+    empty_report = evaluate_strategy_universe([], df, emit_telemetry=False)
+    assert empty_report.total_strategies == 0
+    assert len(empty_report.results) == 0
+
+    # Test edge case: empty dataset
+    empty_df = load_market_dataset_polars({"close": []})
+    empty_data_report = evaluate_strategy_universe(specs[:1], empty_df, emit_telemetry=False)
+    assert empty_data_report.total_strategies == 1
+    assert len(empty_data_report.results) == 1
+    assert empty_data_report.results[0]["total_trades"] == 0
+
+
+
 
 
