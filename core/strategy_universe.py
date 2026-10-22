@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 import time
-from typing import Any, Dict, List, Optional, Tuple, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 
