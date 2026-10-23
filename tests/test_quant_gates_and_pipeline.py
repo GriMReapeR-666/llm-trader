@@ -60,3 +60,54 @@ def test_quant_gate_stack_passing_and_failing():
     assert verdict_fail.passed is False
     assert "RISK_GATE" in verdict_fail.failed_gates
     assert "EXECUTION_GATE" in verdict_fail.failed_gates
+
+def test_execution_order_manager():
+    from core.quant_gates_and_pipeline import (
+        ExecutionOrderManager,
+        OrderType,
+        OrderRequest,
+    )
+
+    om = ExecutionOrderManager()
+
+    # Standard Limit Order
+    ord_limit = om.create_order(
+        symbol="EURUSD",
+        side="BUY",
+        quantity=1.0,
+        order_type=OrderType.LIMIT,
+        price=1.1050,
+    )
+    assert isinstance(ord_limit, OrderRequest)
+    assert len(ord_limit.child_orders) == 1
+    assert ord_limit.child_orders[0]["quantity"] == 1.0
+
+    # TWAP Sliced Order (5 slices)
+    ord_twap = om.create_order(
+        symbol="EURUSD",
+        side="BUY",
+        quantity=5.0,
+        order_type=OrderType.TWAP,
+        slices=5,
+    )
+    assert len(ord_twap.child_orders) == 5
+    assert ord_twap.child_orders[0]["quantity"] == 1.0
+
+    # Iceberg Sliced Order (Display 0.5 lot)
+    ord_iceberg = om.create_order(
+        symbol="BTCUSD",
+        side="SELL",
+        quantity=2.0,
+        order_type=OrderType.ICEBERG,
+        iceberg_display_qty=0.5,
+    )
+    assert len(ord_iceberg.child_orders) == 4
+    assert ord_iceberg.child_orders[0]["quantity"] == 0.5
+
+    # Dynamic Leverage calculation
+    lev_normal = om.calculate_dynamic_leverage(base_leverage=3.0, current_drawdown=0.02, kill_dd=0.15)
+    assert lev_normal > 2.5
+    # Near kill switch -> leverage steps down
+    lev_stressed = om.calculate_dynamic_leverage(base_leverage=3.0, current_drawdown=0.12, kill_dd=0.15)
+    assert lev_stressed <= 1.0
+

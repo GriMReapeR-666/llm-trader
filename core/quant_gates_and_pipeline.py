@@ -160,3 +160,110 @@ class QuantGateStack:
             composite_score=composite_score,
             execution_authority=False,
         )
+
+class OrderType(str, Enum):
+    MARKET = "MARKET"
+    LIMIT = "LIMIT"
+    STOP = "STOP"
+    STOP_LIMIT = "STOP_LIMIT"
+    TWAP = "TWAP"
+    VWAP = "VWAP"
+    ICEBERG = "ICEBERG"
+
+@dataclass
+class OrderRequest:
+    symbol: str
+    side: str
+    total_quantity: float
+    order_type: OrderType
+    price: Optional[float] = None
+    stop_price: Optional[float] = None
+    child_orders: List[Dict[str, Any]] = field(default_factory=list)
+    created_at: float = field(default_factory=time.time)
+    execution_authority: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "symbol": self.symbol,
+            "side": self.side,
+            "total_quantity": self.total_quantity,
+            "order_type": self.order_type.value if hasattr(self.order_type, "value") else str(self.order_type),
+            "price": self.price,
+            "stop_price": self.stop_price,
+            "child_orders": self.child_orders,
+            "created_at": self.created_at,
+            "execution_authority": self.execution_authority,
+        }
+
+class ExecutionOrderManager:
+    """Manages order slicing (TWAP, VWAP, Iceberg) and dynamic portfolio leverage."""
+
+    def create_order(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        order_type: OrderType = OrderType.MARKET,
+        price: Optional[float] = None,
+        stop_price: Optional[float] = None,
+        slices: int = 1,
+        iceberg_display_qty: Optional[float] = None,
+    ) -> OrderRequest:
+        if isinstance(order_type, str):
+            order_type = OrderType(order_type)
+
+        child_orders: List[Dict[str, Any]] = []
+
+        if order_type in (OrderType.TWAP, OrderType.VWAP):
+            n_slices = max(1, slices)
+            slice_qty = round(quantity / n_slices, 4)
+            for i in range(n_slices):
+                child_orders.append({
+                    "slice_idx": i + 1,
+                    "quantity": slice_qty,
+                    "type": OrderType.LIMIT.value if price else OrderType.MARKET.value,
+                    "price": price,
+                })
+        elif order_type == OrderType.ICEBERG:
+            display_qty = iceberg_display_qty or (quantity / 4.0)
+            n_slices = max(1, int(math.ceil(quantity / display_qty)))
+            remaining = quantity
+            for i in range(n_slices):
+                q = min(remaining, display_qty)
+                child_orders.append({
+                    "slice_idx": i + 1,
+                    "quantity": round(q, 4),
+                    "type": OrderType.LIMIT.value if price else OrderType.MARKET.value,
+                    "price": price,
+                })
+                remaining -= q
+        else:
+            child_orders.append({
+                "slice_idx": 1,
+                "quantity": quantity,
+                "type": order_type.value if hasattr(order_type, "value") else str(order_type),
+                "price": price,
+            })
+
+        return OrderRequest(
+            symbol=symbol,
+            side=side,
+            total_quantity=quantity,
+            order_type=order_type,
+            price=price,
+            stop_price=stop_price,
+            child_orders=child_orders,
+            execution_authority=False,
+        )
+
+    def calculate_dynamic_leverage(
+        self,
+        base_leverage: float = 3.0,
+        current_drawdown: float = 0.0,
+        kill_dd: float = 0.15,
+    ) -> float:
+        if current_drawdown >= kill_dd or kill_dd <= 0:
+            return 0.0
+        headroom = max(0.0, (kill_dd - current_drawdown) / kill_dd)
+        return float(round(base_leverage * headroom, 2))
+
