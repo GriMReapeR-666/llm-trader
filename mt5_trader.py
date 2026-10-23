@@ -2080,7 +2080,7 @@ def main() -> None:
     ap_pipeline.add_argument("--verify", action="store_true", help="Also run one evidence-verification pass against the overfit gate")
 
     ap_quant = sub.add_parser("quant", help="Institutional quantitative operating engine & strategy universe matrix")
-    ap_quant.add_argument("action", choices=["universe-sweep", "pipeline-run"], default="universe-sweep", nargs="?")
+    ap_quant.add_argument("action", choices=["universe-sweep", "pipeline-run", "diagnostics"], default="universe-sweep", nargs="?")
     ap_quant.add_argument("--symbol", default="EURUSD", help="Symbol to evaluate (default: EURUSD)")
     ap_quant.add_argument("--timeframe", default="H1", help="Timeframe (default: H1)")
     ap_quant.add_argument("--bars", type=int, default=1000, help="Number of bars to evaluate (default: 1000)")
@@ -2224,6 +2224,32 @@ def main() -> None:
             res = run_pipeline(lifecycle_path=args.journal_path, symbols=[getattr(args, "symbol", "EURUSD")])
             qop = res.get("quant_operating_pipeline", {})
             print(f"\n[quant] Autonomous pipeline tick: {qop.get('total_candidates', 0)} candidates evaluated, {qop.get('gate_survivors_count', 0)} passed gates.")
+            sys.exit(0)
+        elif args.action == "diagnostics":
+            from core.strategy_universe import StrategyUniverseGenerator
+            from core.diagnostics_engine import DiagnosticsPipeline
+            from operations.autonomous_pipeline import _resolve_market_bars
+
+            gen = StrategyUniverseGenerator()
+            sym = getattr(args, "symbol", "EURUSD")
+            tf = getattr(args, "timeframe", "H1")
+            bars_count = getattr(args, "bars", 500)
+            specs = gen.generate_full_matrix(symbols=[sym], timeframes=[tf])
+            df = _resolve_market_bars(n_bars=bars_count)
+
+            diag = DiagnosticsPipeline(emit_telemetry=True)
+            print(f"\n[quant diagnostics] Running parallel & sequential diagnostics across {len(specs)} candidates ({sym} {tf}, {bars_count} bars)...")
+            p_res = diag.run_parallel_diagnostics(specs, df)
+            seq_rep = diag.run_pipeline(specs, df)
+
+            print(f"\n[quant diagnostics] Diagnostics Complete:")
+            print(f"  Input: {seq_rep.total_input} candidates")
+            print(f"  Phase 1 Survivors: {seq_rep.phase1_survivors}")
+            print(f"  Phase 2 Survivors: {seq_rep.phase2_survivors}")
+            print(f"  Phase 3 Finalists: {len(seq_rep.finalists)}")
+            for fin in seq_rep.finalists[:5]:
+                print(f"    * {fin['strategy_id']:<20} | Style: {fin['style']:<16} | WFE: {fin['wfe']:.2f} (Passed: {fin['wfe_passed']}) | IS Sharpe: {fin['mean_is_sharpe']:.2f} | OOS Sharpe: {fin['mean_oos_sharpe']:.2f}")
+            print("[quant diagnostics] Live Execution Authority: FALSE (evaluation only)")
             sys.exit(0)
         sys.exit(0)
 

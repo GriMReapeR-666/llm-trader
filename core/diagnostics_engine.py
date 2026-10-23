@@ -21,6 +21,8 @@ class DataIntegrityReport:
     is_clean: bool
     missing_bars: int = 0
     stale_bars: int = 0
+    duplicate_timestamps: int = 0
+    price_spikes: int = 0
     issues: List[str] = field(default_factory=list)
     execution_authority: bool = False
 
@@ -31,8 +33,9 @@ class DataIntegrityReport:
 class DataIntegrityChecker:
     """Tier 1: Data integrity verification."""
 
-    def __init__(self, max_stale_bars: int = 10):
+    def __init__(self, max_stale_bars: int = 10, price_spike_z_score: float = 5.0):
         self.max_stale_bars = max_stale_bars
+        self.price_spike_z_score = price_spike_z_score
 
     def check(self, df: pl.DataFrame) -> DataIntegrityReport:
         if df.height == 0:
@@ -43,6 +46,9 @@ class DataIntegrityChecker:
         prices = df["close"].to_numpy()
         issues: List[str] = []
         stale_count = 0
+        missing_count = 0
+        dup_count = 0
+        spike_count = 0
 
         # Check negative or zero prices
         if np.any(prices <= 0):
@@ -62,10 +68,57 @@ class DataIntegrityChecker:
         if stale_count > 0:
             issues.append(f"Detected {stale_count} instances of stale prices exceeding {self.max_stale_bars} bars")
 
+        # Check duplicate timestamps & missing bars if time column exists
+        for time_col in ["time", "timestamp", "datetime", "date"]:
+            if time_col in df.columns:
+                times = df[time_col].to_numpy()
+                unique_times = np.unique(times)
+                if len(unique_times) < len(times):
+                    dup_count = len(times) - len(unique_times)
+                    issues.append(f"Detected {dup_count} duplicate timestamps in '{time_col}'")
+
+                if len(times) > 2:
+                    try:
+                        time_diffs = np.diff(times.astype(np.float64))
+                        pos_diffs = time_diffs[time_diffs > 0]
+                        if len(pos_diffs) > 0:
+                            med_dt = np.median(pos_diffs)
+                            if med_dt > 0:
+                                gaps = int(np.sum(time_diffs > 3.0 * med_dt))
+                                if gaps > 0:
+                                    missing_count = gaps
+                                    issues.append(f"Detected {gaps} abnormal timestamp gaps / missing bars")
+                    except Exception:
+                        pass
+                break
+
+        # Check price spikes / bad fills (> price_spike_z_score return shock)
+        if len(prices) > 5:
+            rets = np.diff(prices) / np.maximum(prices[:-1], 1e-8)
+            med_r = np.median(rets)
+            mad_r = np.median(np.abs(rets - med_r))
+            std_r = np.std(rets)
+            if mad_r > 1e-8:
+                robust_z = 0.6745 * np.abs(rets - med_r) / mad_r
+                spikes = int(np.sum(robust_z > self.price_spike_z_score))
+            elif std_r > 1e-8:
+                mean_r = np.mean(rets)
+                z_scores = np.abs((rets - mean_r) / std_r)
+                spikes = int(np.sum(z_scores > self.price_spike_z_score))
+            else:
+                spikes = 0
+
+            if spikes > 0:
+                spike_count = spikes
+                issues.append(f"Detected {spikes} extreme price spikes / bad fills exceeding {self.price_spike_z_score} sigma")
+
         is_clean = len(issues) == 0
         return DataIntegrityReport(
             is_clean=is_clean,
+            missing_bars=missing_count,
             stale_bars=stale_count,
+            duplicate_timestamps=dup_count,
+            price_spikes=spike_count,
             issues=issues,
             execution_authority=False,
         )
@@ -76,6 +129,9 @@ class SignalQualityReport:
     passed: bool
     sharpe_stability: float
     regime_consistency_pct: float
+    turnover: float = 0.0
+    decay_half_life: float = 0.0
+    regime_breakdown: Dict[str, float] = field(default_factory=dict)
     issues: List[str] = field(default_factory=list)
     execution_authority: bool = False
 
@@ -84,7 +140,7 @@ class SignalQualityReport:
 
 
 class SignalQualityChecker:
-    """Tier 2: Signal statistical quality and regime consistency."""
+    """Tier 2: Signal statistical quality, turnover, decay, and regime consistency."""
 
     def check(
         self,
@@ -92,6 +148,7 @@ class SignalQualityChecker:
         returns: np.ndarray,
         regime_returns: Optional[Dict[str, np.ndarray]] = None,
         regime_rets: Optional[Dict[str, np.ndarray]] = None,
+        signals: Optional[np.ndarray] = None,
     ) -> SignalQualityReport:
         issues: List[str] = []
         n = len(returns)
@@ -100,6 +157,9 @@ class SignalQualityChecker:
                 passed=False,
                 sharpe_stability=0.0,
                 regime_consistency_pct=0.0,
+                turnover=0.0,
+                decay_half_life=0.0,
+                regime_breakdown={},
                 issues=["Sample size too small"],
                 execution_authority=False,
             )
@@ -114,14 +174,39 @@ class SignalQualityChecker:
         if sr2 < 0.5 * sr1 and sr1 > 0:
             issues.append("Significant out-of-sample Sharpe decay across halves")
 
-        # Regime consistency
+        # Turnover and Decay Half-Life
+        turnover = 0.0
+        decay_half_life = 0.0
+        if signals is not None and len(signals) > 1:
+            turnover = float(round(np.mean(np.abs(np.diff(signals))), 4))
+            if len(signals) > 4:
+                s1, s2 = signals[:-1], signals[1:]
+                std_s1, std_s2 = np.std(s1), np.std(s2)
+                if std_s1 > 1e-8 and std_s2 > 1e-8:
+                    autocorr = float(np.corrcoef(s1, s2)[0, 1])
+                    if 0.0 < autocorr < 0.999:
+                        decay_half_life = float(round(-np.log(2.0) / np.log(autocorr), 2))
+                    elif autocorr >= 0.999:
+                        decay_half_life = 100.0
+                    else:
+                        decay_half_life = 1.0
+
+        # Regime consistency & breakdown
         regimes = regime_returns if regime_returns is not None else regime_rets
         regime_consistency_pct = 100.0
+        regime_breakdown: Dict[str, float] = {}
+
         if regimes:
             pos_regimes = 0
             for name, r in regimes.items():
-                if len(r) > 0 and np.mean(r) > 0:
-                    pos_regimes += 1
+                if len(r) > 0:
+                    r_sr = float(round(np.mean(r) / (np.std(r) + 1e-8) * np.sqrt(252.0), 3))
+                    regime_breakdown[name] = r_sr
+                    if np.mean(r) > 0:
+                        pos_regimes += 1
+                else:
+                    regime_breakdown[name] = 0.0
+
             regime_consistency_pct = (pos_regimes / len(regimes)) * 100.0
             if regime_consistency_pct < 50.0:
                 issues.append(f"Regime consistency below threshold: {regime_consistency_pct:.1f}%")
@@ -131,6 +216,9 @@ class SignalQualityChecker:
             passed=passed,
             sharpe_stability=float(round(stability, 3)),
             regime_consistency_pct=float(round(regime_consistency_pct, 1)),
+            turnover=turnover,
+            decay_half_life=decay_half_life,
+            regime_breakdown=regime_breakdown,
             issues=issues,
             execution_authority=False,
         )
@@ -141,6 +229,8 @@ class ExecutionCheckReport:
     is_viable: bool
     baseline_cost_bps: float
     slippage_degradation_pct: float
+    latency_degradation_pct: float = 0.0
+    market_impact_bps: float = 0.0
     issues: List[str] = field(default_factory=list)
     execution_authority: bool = False
 
@@ -149,7 +239,7 @@ class ExecutionCheckReport:
 
 
 class ExecutionFeasibilityChecker:
-    """Tier 3: Transaction costs, market impact, and slippage stress-testing."""
+    """Tier 3: Transaction costs, market impact, latency stress, and slippage."""
 
     def check(
         self,
@@ -157,6 +247,7 @@ class ExecutionFeasibilityChecker:
         signals: Optional[Any] = None,
         baseline_spread_bps: float = 2.0,
         generator: Optional[Any] = None,
+        simulate_latency_bars: int = 0,
     ) -> ExecutionCheckReport:
         from core.strategy_universe import simulate_positions_numba
 
@@ -194,11 +285,33 @@ class ExecutionFeasibilityChecker:
         else:
             issues.append("Negative baseline return under 1x spread")
 
+        # Market impact model proxy: square-root law proxy = 0.1 * vol * sqrt(turnover)
+        turnover = float(np.mean(np.abs(np.diff(signals_arr)))) if len(signals_arr) > 1 else 0.0
+        price_vol = float(np.std(np.diff(prices_arr) / np.maximum(prices_arr[:-1], 1e-8))) if len(prices_arr) > 1 else 0.0
+        market_impact_bps = round(float(price_vol * 10000.0 * np.sqrt(max(turnover, 0.01)) * 0.1), 2)
+
+        # Latency stress test: simulate n-bar delayed execution
+        latency_degradation_pct = 0.0
+        if simulate_latency_bars > 0 and len(signals_arr) > simulate_latency_bars:
+            delayed_signals = np.zeros_like(signals_arr)
+            delayed_signals[simulate_latency_bars:] = signals_arr[:-simulate_latency_bars]
+            _, _, _, ret_delayed, _ = simulate_positions_numba(
+                prices_arr, delayed_signals, spread_bps=baseline_spread_bps, slippage_bps=1.0
+            )
+            if ret_1x > 0:
+                latency_degradation_pct = max(0.0, (ret_1x - ret_delayed) / ret_1x * 100.0)
+                if ret_delayed <= 0:
+                    issues.append(f"{simulate_latency_bars}-bar latency delay turns net return negative")
+                elif latency_degradation_pct > 60.0:
+                    issues.append(f"Severe latency sensitivity: {latency_degradation_pct:.1f}% profit eroded")
+
         is_viable = len(issues) == 0
         return ExecutionCheckReport(
             is_viable=is_viable,
             baseline_cost_bps=baseline_spread_bps + 1.0,
             slippage_degradation_pct=round(degradation_pct, 2),
+            latency_degradation_pct=round(latency_degradation_pct, 2),
+            market_impact_bps=market_impact_bps,
             issues=issues,
             execution_authority=False,
         )
@@ -209,6 +322,8 @@ class PortfolioFitReport:
     fit_passed: bool
     max_correlation: float
     capacity_usd: float = 500000.0
+    hhi_concentration: float = 0.0
+    effective_bets: float = 1.0
     issues: List[str] = field(default_factory=list)
     execution_authority: bool = False
 
@@ -217,7 +332,7 @@ class PortfolioFitReport:
 
 
 class PortfolioFitChecker:
-    """Tier 4: Cross-correlation, portfolio redundancy, and capacity."""
+    """Tier 4: Cross-correlation, portfolio redundancy, capacity, and concentration."""
 
     def check(
         self,
@@ -246,6 +361,53 @@ class PortfolioFitChecker:
             fit_passed=fit_passed,
             max_correlation=round(max_corr, 3),
             capacity_usd=500000.0,
+            hhi_concentration=1.0,
+            effective_bets=1.0,
+            issues=issues,
+            execution_authority=False,
+        )
+
+    def check_portfolio_matrix(
+        self,
+        returns_matrix: np.ndarray,
+        max_corr_threshold: float = 0.70,
+    ) -> PortfolioFitReport:
+        """Check multi-strategy portfolio returns matrix for correlation, HHI, and effective bets."""
+        issues: List[str] = []
+        n_samples, n_strats = returns_matrix.shape
+
+        if n_strats <= 1:
+            return PortfolioFitReport(
+                fit_passed=True,
+                max_correlation=0.0,
+                hhi_concentration=1.0,
+                effective_bets=1.0,
+                issues=[],
+                execution_authority=False,
+            )
+
+        # Pairwise correlation
+        corr_matrix = np.corrcoef(returns_matrix, rowvar=False)
+        corr_matrix = np.nan_to_num(corr_matrix, nan=0.0)
+        upper_idx = np.triu_indices(n_strats, k=1)
+        off_diag_corrs = np.abs(corr_matrix[upper_idx])
+        max_corr = float(np.max(off_diag_corrs)) if len(off_diag_corrs) > 0 else 0.0
+
+        if max_corr > max_corr_threshold:
+            issues.append(f"High cross-strategy correlation ({max_corr:.2f} > {max_corr_threshold})")
+
+        # Equal-weighted concentration metrics: HHI = sum(w_i^2), N_eff = 1 / HHI
+        weights = np.ones(n_strats, dtype=np.float64) / n_strats
+        hhi = float(np.sum(weights ** 2))
+        effective_bets = float(1.0 / hhi) if hhi > 1e-8 else 1.0
+
+        fit_passed = len(issues) == 0
+        return PortfolioFitReport(
+            fit_passed=fit_passed,
+            max_correlation=round(max_corr, 3),
+            capacity_usd=500000.0 * n_strats,
+            hhi_concentration=round(hhi, 4),
+            effective_bets=round(effective_bets, 2),
             issues=issues,
             execution_authority=False,
         )
@@ -534,5 +696,77 @@ class DiagnosticsPipeline:
         p2 = self.run_phase2_tier_audit(p1, dataset)
         p3_report = self.run_phase3_walk_forward(p2, dataset, n_splits=n_splits, purge_bars=purge_bars)
         return p3_report
+
+    def run_parallel_diagnostics(
+        self,
+        specs: List[StrategySpec],
+        dataset: pl.DataFrame,
+        spread_bps: float = 2.0,
+        slippage_bps: float = 1.0,
+    ) -> Dict[str, Any]:
+        """Layer 1: Parallel diagnostics across common data universe and uniform cost model."""
+        report = evaluate_strategy_universe(
+            specs,
+            dataset,
+            spread_bps=spread_bps,
+            slippage_bps=slippage_bps,
+            emit_telemetry=False,
+        )
+
+        ranking = sorted(report.results, key=lambda x: x["sharpe"], reverse=True)
+
+        # Style summary
+        style_summary: Dict[str, Dict[str, Any]] = {}
+        for r in ranking:
+            st = r["style"]
+            if st not in style_summary:
+                style_summary[st] = {"count": 0, "sharpes": [], "returns": []}
+            style_summary[st]["count"] += 1
+            style_summary[st]["sharpes"].append(r["sharpe"])
+            ret_val = r.get("total_return_pct", r.get("net_return_pct", 0.0))
+            style_summary[st]["returns"].append(ret_val)
+
+        aggregated_styles = {
+            st: {
+                "count": data["count"],
+                "mean_sharpe": round(float(np.mean(data["sharpes"])), 3),
+                "mean_return_pct": round(float(np.mean(data["returns"])), 2),
+            }
+            for st, data in style_summary.items()
+        }
+
+        # Rich formatted ASCII table output
+        print("\n" + "=" * 90)
+        print("          PARALLEL MULTI-STRATEGY DIAGNOSTICS BATCH REPORT          ")
+        print("=" * 90)
+        print(f"{'Strategy ID':<18} | {'Style':<16} | {'Sharpe':>7} | {'Return %':>9} | {'MaxDD %':>8} | {'Trades':>6}")
+        print("-" * 90)
+        for cand in ranking[:15]:
+            ret_display = cand.get("total_return_pct", cand.get("net_return_pct", 0.0))
+            print(
+                f"{cand['strategy_id']:<18} | {cand['style']:<16} | {cand['sharpe']:>7.2f} | "
+                f"{ret_display:>8.2f}% | {cand['max_drawdown_pct']:>7.2f}% | {cand['total_trades']:>6}"
+            )
+        if len(ranking) > 15:
+            print(f"... and {len(ranking) - 15} more candidates tested simultaneously across common data universe.")
+        print("-" * 90)
+
+        self._emit(
+            "DIAGNOSTIC_PARALLEL_BATCH_COMPLETED",
+            {
+                "total_candidates": len(specs),
+                "top_strategy_id": ranking[0]["strategy_id"] if ranking else None,
+                "top_sharpe": ranking[0]["sharpe"] if ranking else 0.0,
+                "styles_evaluated": len(aggregated_styles),
+            },
+        )
+
+        return {
+            "total_candidates": len(specs),
+            "ranking": ranking,
+            "style_summary": aggregated_styles,
+            "execution_authority": False,
+        }
+
 
 
