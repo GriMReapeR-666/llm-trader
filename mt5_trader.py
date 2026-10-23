@@ -2080,10 +2080,11 @@ def main() -> None:
     ap_pipeline.add_argument("--verify", action="store_true", help="Also run one evidence-verification pass against the overfit gate")
 
     ap_quant = sub.add_parser("quant", help="Institutional quantitative operating engine & strategy universe matrix")
-    ap_quant.add_argument("action", choices=["universe-sweep", "pipeline-run", "diagnostics"], default="universe-sweep", nargs="?")
+    ap_quant.add_argument("action", choices=["universe-sweep", "pipeline-run", "diagnostics", "regime-backtest"], default="universe-sweep", nargs="?")
     ap_quant.add_argument("--symbol", default="EURUSD", help="Symbol to evaluate (default: EURUSD)")
     ap_quant.add_argument("--timeframe", default="H1", help="Timeframe (default: H1)")
     ap_quant.add_argument("--bars", type=int, default=1000, help="Number of bars to evaluate (default: 1000)")
+    ap_quant.add_argument("--strategy-id", default=None, help="Specific strategy ID to backtest (optional)")
     ap_quant.add_argument("--journal-path", default="trading_state.db", help="Path to SQLite trading store")
 
     args = ap.parse_args()
@@ -2250,6 +2251,34 @@ def main() -> None:
             for fin in seq_rep.finalists[:5]:
                 print(f"    * {fin['strategy_id']:<20} | Style: {fin['style']:<16} | WFE: {fin['wfe']:.2f} (Passed: {fin['wfe_passed']}) | IS Sharpe: {fin['mean_is_sharpe']:.2f} | OOS Sharpe: {fin['mean_oos_sharpe']:.2f}")
             print("[quant diagnostics] Live Execution Authority: FALSE (evaluation only)")
+            sys.exit(0)
+        elif args.action == "regime-backtest":
+            from core.strategy_universe import StrategyUniverseGenerator
+            from core.regime_backtester import RegimeBacktestPipeline
+            from operations.autonomous_pipeline import _resolve_market_bars
+
+            gen = StrategyUniverseGenerator()
+            sym = getattr(args, "symbol", "EURUSD")
+            tf = getattr(args, "timeframe", "H1")
+            bars_count = getattr(args, "bars", 1000)
+            strat_id = getattr(args, "strategy_id", None)
+            specs = gen.generate_full_matrix(symbols=[sym], timeframes=[tf])
+            df = _resolve_market_bars(n_bars=bars_count)
+
+            target_spec = None
+            if strat_id:
+                for s in specs:
+                    if s.strategy_id == strat_id:
+                        target_spec = s
+                        break
+            if target_spec is None:
+                target_spec = specs[0]
+
+            print(f"\n[quant regime-backtest] Running regime-aware backtest on '{target_spec.strategy_id}' ({sym} {tf}, {bars_count} bars)...")
+            pipeline = RegimeBacktestPipeline(emit_telemetry=True)
+            report = pipeline.run_backtest(target_spec, df)
+            print(f"[quant regime-backtest] Run Complete. Walk-Forward Efficiency: {report.walk_forward_efficiency:.2f} (Passed: {report.wfe_passed}) | Stress Survival: {report.stress_survival_passed}")
+            print("[quant regime-backtest] Live Execution Authority: FALSE (evaluation only)")
             sys.exit(0)
         sys.exit(0)
 
