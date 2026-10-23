@@ -514,7 +514,13 @@ class AutoPromoter:
         """Check Deflated Sharpe Ratio via trial ledger."""
         try:
             from research.backtest_dsr_integrator import BacktestDSRIntegrator
-            integrator = BacktestDSRIntegrator(strategy_class=strategy_key)
+            # No explicit class tag here: a journal strategy key is an id, not
+            # a class.  Stamping it as the class used to scope the DSR family
+            # to this strategy's OWN trials (~1 trial) -- a bar that invents
+            # significance.  The integrator derives the class from the
+            # identity instead (canonical taxonomy) and stays on the GLOBAL
+            # family when the id cannot be attributed (fail-closed).
+            integrator = BacktestDSRIntegrator()
 
             # Get all previous gate results to compute DSR
             gate_results = integrator.get_all_gate_results(limit=100)

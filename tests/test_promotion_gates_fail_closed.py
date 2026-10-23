@@ -71,6 +71,33 @@ def test_dsr_gate_fails_closed_on_empty_trial_ledger(promoter, monkeypatch):
     assert res["reason"] == "trial_ledger_empty"
 
 
+def test_dsr_gate_does_not_stamp_the_strategy_key_as_a_class(promoter, monkeypatch):
+    """A journal strategy key is an id, not a class.
+
+    Passing it as ``strategy_class`` used to scope the DSR family to the
+    strategy's OWN trials (~1) -- a bar that invents significance.  The class
+    must be derived from the identity instead (canonical taxonomy, global
+    family when the id cannot be attributed).
+    """
+    seen = {}
+
+    class FakeIntegrator:
+        def __init__(self, **kw):
+            seen.update(kw)
+
+        def get_all_gate_results(self, limit=100):
+            return [object()]  # non-empty ledger, so the gate proceeds
+
+    mod = type(sys)("research.backtest_dsr_integrator")
+    mod.BacktestDSRIntegrator = FakeIntegrator
+    monkeypatch.setitem(sys.modules, "research.backtest_dsr_integrator", mod)
+
+    promoter._check_dsr("alpha_test_1")
+    assert "strategy_class" not in seen or seen["strategy_class"] is None, (
+        "the promotion DSR gate must not stamp the strategy key as a class tag"
+    )
+
+
 def test_walkforward_gate_fails_closed_when_module_unavailable(promoter, monkeypatch):
     _block(monkeypatch, "bayesian_walk_forward_sandbox")
     res = promoter._check_walkforward("alpha_test_1")
