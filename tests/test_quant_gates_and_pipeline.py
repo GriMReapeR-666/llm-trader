@@ -136,4 +136,27 @@ def test_autonomous_quant_operating_pipeline():
     if len(package.ranked_finalists) > 1:
         assert package.ranked_finalists[0]["composite_score"] >= package.ranked_finalists[1]["composite_score"]
 
+def test_pipeline_telemetry_event_dispatch():
+    from unittest.mock import MagicMock
+    import core.agent_event_bus as aeb
+    from core.strategy_universe import load_market_dataset_polars
+    from core.quant_gates_and_pipeline import AutonomousQuantOperatingPipeline
+
+    mock_emit = MagicMock()
+    orig_emit = getattr(aeb, "emit_agent_event", None)
+    try:
+        aeb.emit_agent_event = mock_emit
+        pipeline = AutonomousQuantOperatingPipeline(emit_telemetry=True)
+        df = load_market_dataset_polars({"close": [100.0 + i * 0.1 for i in range(200)]})
+        pkg = pipeline.run_pipeline(df, symbols=["EURUSD"])
+        assert pkg.total_candidates > 0
+        assert mock_emit.call_count >= 1
+        event_types = [call.kwargs.get("event_type") for call in mock_emit.call_args_list]
+        assert "DEPLOYMENT_PIPELINE_COMPLETED" in event_types
+    finally:
+        if orig_emit is not None:
+            aeb.emit_agent_event = orig_emit
+        elif hasattr(aeb, "emit_agent_event"):
+            delattr(aeb, "emit_agent_event")
+
 
