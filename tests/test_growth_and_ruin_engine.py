@@ -166,3 +166,50 @@ def test_account_flip_controller():
     d = state_flip.to_dict()
     assert d["flip_count"] == 1
     assert d["execution_authority"] is False
+
+
+def test_full_growth_and_ruin_integration():
+    from unittest.mock import MagicMock
+    import core.agent_event_bus as aeb
+    from core.growth_and_ruin_engine import (
+        SmallCapitalGrowthSimulator,
+        AdvancedMonteCarloEngine,
+        AccountFlipController,
+    )
+
+    mock_emit = MagicMock()
+    orig_emit = getattr(aeb, "emit_agent_event", None)
+    try:
+        aeb.emit_agent_event = mock_emit
+        sim = SmallCapitalGrowthSimulator(seed=123)
+        mc = AdvancedMonteCarloEngine(seed=123)
+        ctrl = AccountFlipController(starting_capital=1000.0, emit_telemetry=True)
+
+        # 1. Run compounding simulation
+        trade_rs = [1.5, 2.0, -1.0, 1.8, 2.2, -1.0] * 10
+        res = sim.simulate_path(1000.0, trade_rs)
+        assert res.terminal_equity > 1000.0
+
+        # 2. Run Monte Carlo simulation
+        trades_by_regime = {
+            "BULL": np.array([0.02, 0.015, -0.01, 0.025]),
+            "BEAR": np.array([0.01, -0.01, 0.005]),
+            "SHOCK": np.array([-0.03, -0.02, 0.03]),
+        }
+        mc_res = mc.run_simulation(trades_by_regime, starting_capital=1000.0, n_simulations=100)
+        assert mc_res.probability_of_ruin < 0.20
+
+        # 3. Simulate compounding growth into Account Flip
+        state1 = ctrl.update_equity(1500.0)
+        assert state1.flip_count == 0
+
+        state2 = ctrl.update_equity(2100.0)
+        assert state2.flip_count == 1
+        assert mock_emit.call_count >= 1
+        event_types = [call.kwargs.get("event_type") for call in mock_emit.call_args_list]
+        assert "ACCOUNT_FLIP_TRIGGERED" in event_types
+    finally:
+        if orig_emit is not None:
+            aeb.emit_agent_event = orig_emit
+        elif hasattr(aeb, "emit_agent_event"):
+            delattr(aeb, "emit_agent_event")
