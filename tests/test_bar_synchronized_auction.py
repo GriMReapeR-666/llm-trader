@@ -84,7 +84,7 @@ def test_autonomous_pipeline_task_queue_integration():
     tq.enqueue(Task(task_id="t2", name="Task 2", tool_name="tool_2", priority=Priority.HIGH, cycle_due=1))
     tq.enqueue(Task(task_id="t3", name="Task 3", tool_name="tool_3", priority=Priority.LOW, cycle_due=1))
 
-    result = run_pipeline(queue=tq, cycle_num=1)
+    result = run_pipeline(queue=tq, cycle_num=1, run_quant_pipeline=False)
 
     # Bounded to max 2 tasks per tick
     assert result.get("queue_dispatched") == 2
