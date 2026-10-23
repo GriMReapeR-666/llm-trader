@@ -104,6 +104,78 @@ if os.environ.get("LLM_TRADER_TEST_ALLOW_TERMINAL") != "1":
 
 
 # ---------------------------------------------------------------------------
+# Low-memory failsafe for xdist parallelism.
+#
+# Why: this host runs the continuous live paper-trader (mt5_trader.py, see
+# engine.pid) which alone holds several GB of Windows commit charge on a
+# 7.4 GB RAM box.  When commit headroom is thin, parallel workers stall under
+# paging pressure and die at allocation time with [WinError 1455] - the
+# "paging file too small" crash recorded in pytest.ini's comment and the
+# "gw node down / Not properly terminated (OSError 22)" xdist signature.
+# Rather than relying on every caller to remember whose cron job is running,
+# the session checks free memory BEFORE workers spawn: with less than
+# LOW_MEMORY_SERIAL_LIMIT_GB available, explicit parallelism (-n 2, -n auto,
+# -n N) is downgraded to the documented serial default.  Parallelism returns
+# the moment the host has memory again - no flag dance, no permanent pin.
+# Escape hatch for tests of the downgrade itself: set
+# LLM_TRADER_TESTS_LOW_MEMORY_GB (a float threshold in GB).
+# Production is unaffected: these hooks are pytest-only.
+# ---------------------------------------------------------------------------
+LOW_MEMORY_SERIAL_LIMIT_GB = 2.0
+
+
+def _free_memory_gb():
+    try:
+        import psutil
+    except ImportError:
+        return None
+    try:
+        return psutil.virtual_memory().available / 2**30
+    except Exception:
+        return None
+
+
+def _low_memory_threshold_gb():
+    value = os.environ.get("LLM_TRADER_TESTS_LOW_MEMORY_GB")
+    if value:
+        try:
+            return float(value)
+        except ValueError:
+            pass
+    return LOW_MEMORY_SERIAL_LIMIT_GB
+
+
+def pytest_xdist_auto_num_workers(config):
+    """-n auto: size workers to what the host can actually afford."""
+    free = _free_memory_gb()
+    if free is not None and free < _low_memory_threshold_gb():
+        print(f"[xdiag] only {free:.1f} GB free -> -n auto downgraded to serial", flush=True)
+        return 0
+    return None
+
+
+def pytest_configure(config):
+    if hasattr(config, "workerinput"):
+        return  # a worker never decides the session's shape
+    free = _free_memory_gb()
+    if free is None or free >= _low_memory_threshold_gb():
+        return
+    processes = getattr(config.option, "numprocesses", 0)
+    tx = list(getattr(config.option, "tx", []) or [])
+    parallel = bool(tx) or (isinstance(processes, int) and processes > 1)
+    if not parallel:
+        return
+    print(
+        f"[xdiag] only {free:.1f} GB free - downgrading -n {processes or len(tx)} "
+        "to serial (WinError-1455 guard; unpin with LLM_TRADER_TESTS_LOW_MEMORY_GB=0)",
+        flush=True,
+    )
+    config.option.dist = "no"
+    config.option.numprocesses = 0
+    config.option.tx = []
+
+
+# ---------------------------------------------------------------------------
 # Tests must not modify tracked files.
 #
 # A full run used to rewrite committed evidence (trial ledgers, caches,
