@@ -312,7 +312,7 @@ class AutonomousQuantOperatingPipeline:
         target_symbols = symbols or ["EURUSD", "GBPUSD"]
 
         # Step 1: Universe Generation (15 styles x 12 types)
-        all_specs = self.universe_gen.generate_matrix(symbols=target_symbols)
+        all_specs = self.universe_gen.generate_full_matrix(symbols=target_symbols)
 
         # Step 2: Parallel Quick Pass
         p1_survivors = self.diag_pipeline.run_phase1_quick_pass(all_specs, dataset)

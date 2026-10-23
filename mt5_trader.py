@@ -2079,6 +2079,13 @@ def main() -> None:
     ap_pipeline.add_argument("--journal-path", default="trading_state.db")
     ap_pipeline.add_argument("--verify", action="store_true", help="Also run one evidence-verification pass against the overfit gate")
 
+    ap_quant = sub.add_parser("quant", help="Institutional quantitative operating engine & strategy universe matrix")
+    ap_quant.add_argument("action", choices=["universe-sweep", "pipeline-run"], default="universe-sweep", nargs="?")
+    ap_quant.add_argument("--symbol", default="EURUSD", help="Symbol to evaluate (default: EURUSD)")
+    ap_quant.add_argument("--timeframe", default="H1", help="Timeframe (default: H1)")
+    ap_quant.add_argument("--bars", type=int, default=1000, help="Number of bars to evaluate (default: 1000)")
+    ap_quant.add_argument("--journal-path", default="trading_state.db", help="Path to SQLite trading store")
+
     args = ap.parse_args()
 
     if args.cmd == "market-order":
@@ -2193,6 +2200,31 @@ def main() -> None:
             for flag in _ver["flagged"][:10]:
                 print(f"    FLAG {flag['setup_id'][:60]}: {flag['why'][:80]}")
         print("  authority: CANDIDATE rows cannot trade; promotion is operator-only")
+        sys.exit(0)
+
+    # Handle quant command
+    if args.cmd == "quant":
+        if args.action == "universe-sweep":
+            from core.strategy_universe import StrategyUniverseGenerator, evaluate_strategy_universe
+            from operations.autonomous_pipeline import _resolve_market_bars
+
+            gen = StrategyUniverseGenerator()
+            sym = getattr(args, "symbol", "EURUSD")
+            tf = getattr(args, "timeframe", "H1")
+            bars_count = getattr(args, "bars", 1000)
+            matrix = gen.generate_full_matrix(symbols=[sym], timeframes=[tf])
+            df = _resolve_market_bars(n_bars=bars_count)
+            report = evaluate_strategy_universe(matrix, df, log_diagnostics=True)
+            print(f"\n[quant] Universe sweep complete: {report.total_strategies} strategies evaluated for {sym} {tf}.")
+            print(f"[quant] Fast evaluation compute time: {sum(r['compute_latency_ms'] for r in report.results):.2f} ms")
+            print("[quant] Live Execution Authority: FALSE (evaluation only)")
+            sys.exit(0)
+        elif args.action == "pipeline-run":
+            from operations.autonomous_pipeline import run_pipeline
+            res = run_pipeline(lifecycle_path=args.journal_path, symbols=[getattr(args, "symbol", "EURUSD")])
+            qop = res.get("quant_operating_pipeline", {})
+            print(f"\n[quant] Autonomous pipeline tick: {qop.get('total_candidates', 0)} candidates evaluated, {qop.get('gate_survivors_count', 0)} passed gates.")
+            sys.exit(0)
         sys.exit(0)
 
     # Handle Account Commands immediately (secure + MCP login + OpenTUI deck)
