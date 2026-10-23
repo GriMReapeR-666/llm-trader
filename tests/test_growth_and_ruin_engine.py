@@ -126,3 +126,43 @@ def test_advanced_monte_carlo_engine():
     assert d["starting_capital"] == 1000.0
     assert d["execution_authority"] is False
 
+
+def test_account_flip_controller():
+    from core.growth_and_ruin_engine import (
+        AccountFlipController,
+        AccountFlipState,
+        RiskBucket,
+    )
+
+    ctrl = AccountFlipController(starting_capital=1000.0, flip_target_mult=2.0)
+    assert ctrl.state.starting_capital == 1000.0
+    assert ctrl.get_effective_risk_multiplier() == 1.0
+
+    allocs = ctrl.get_bucket_allocations()
+    assert allocs[RiskBucket.CORE] == 0.50
+    assert allocs[RiskBucket.GROWTH] == 0.30
+    assert allocs[RiskBucket.HEDGE] == 0.20
+
+    # 10% Drawdown triggers 50% risk halving
+    state = ctrl.update_equity(900.0)
+    assert ctrl.get_effective_risk_multiplier() == 0.50
+    assert state.active_drawdown >= 0.10
+
+    # 15% Drawdown disables GROWTH bucket
+    state = ctrl.update_equity(850.0)
+    assert ctrl.get_effective_risk_multiplier() == 0.25
+    allocs = ctrl.get_bucket_allocations()
+    assert allocs[RiskBucket.GROWTH] == 0.0
+
+    # 20% Drawdown triggers emergency halt
+    state = ctrl.update_equity(790.0)
+    assert state.is_halted is True
+
+    # Equity Flip Trigger at 2x ($2,000)
+    ctrl_flip = AccountFlipController(starting_capital=1000.0, flip_target_mult=2.0)
+    state_flip = ctrl_flip.update_equity(2050.0)
+    assert state_flip.flip_count == 1
+    assert state_flip.starting_capital == 2050.0  # Reset baseline
+    d = state_flip.to_dict()
+    assert d["flip_count"] == 1
+    assert d["execution_authority"] is False

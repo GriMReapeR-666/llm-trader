@@ -265,3 +265,124 @@ class AdvancedMonteCarloEngine:
             execution_authority=False,
         )
 
+
+
+class RiskBucket(str, Enum):
+    CORE = "CORE"
+    GROWTH = "GROWTH"
+    HEDGE = "HEDGE"
+
+
+@dataclass
+class AccountFlipState:
+    starting_capital: float
+    current_equity: float
+    high_water_mark: float
+    active_drawdown: float
+    flip_count: int
+    risk_multiplier: float
+    is_halted: bool
+    bucket_allocations: Dict[RiskBucket, float]
+    execution_authority: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "starting_capital": self.starting_capital,
+            "current_equity": self.current_equity,
+            "high_water_mark": self.high_water_mark,
+            "active_drawdown": self.active_drawdown,
+            "flip_count": self.flip_count,
+            "risk_multiplier": self.risk_multiplier,
+            "is_halted": self.is_halted,
+            "bucket_allocations": {k.value: v for k, v in self.bucket_allocations.items()},
+            "execution_authority": self.execution_authority,
+        }
+
+
+class AccountFlipController:
+    """Manages account flip milestone locking, risk bucket allocation, and tiered drawdown defense."""
+
+    def __init__(
+        self,
+        starting_capital: float = 1000.0,
+        flip_target_mult: float = 2.0,
+        emit_telemetry: bool = True,
+    ):
+        self.flip_target_mult = flip_target_mult
+        self.emit_telemetry = emit_telemetry
+        self.state = AccountFlipState(
+            starting_capital=starting_capital,
+            current_equity=starting_capital,
+            high_water_mark=starting_capital,
+            active_drawdown=0.0,
+            flip_count=0,
+            risk_multiplier=1.0,
+            is_halted=False,
+            bucket_allocations={
+                RiskBucket.CORE: 0.50,
+                RiskBucket.GROWTH: 0.30,
+                RiskBucket.HEDGE: 0.20,
+            },
+            execution_authority=False,
+        )
+
+    def _emit(self, event_type: str, payload: Dict[str, Any]) -> None:
+        if not self.emit_telemetry:
+            return
+        try:
+            from core.agent_event_bus import emit_agent_event
+            emit_agent_event(sender="AccountFlipController", event_type=event_type, payload=payload)
+        except Exception:
+            pass
+
+    def get_effective_risk_multiplier(self) -> float:
+        return self.state.risk_multiplier
+
+    def get_bucket_allocations(self) -> Dict[RiskBucket, float]:
+        return self.state.bucket_allocations
+
+    def update_equity(self, equity: float) -> AccountFlipState:
+        eq = float(equity)
+        self.state.current_equity = eq
+        if eq > self.state.high_water_mark:
+            self.state.high_water_mark = eq
+
+        hwm = self.state.high_water_mark
+        dd = (hwm - eq) / hwm if hwm > 0 else 0.0
+        self.state.active_drawdown = round(dd, 4)
+
+        # Check Account Flip milestone (e.g. 2x baseline)
+        if eq >= self.state.starting_capital * self.flip_target_mult:
+            self.state.flip_count += 1
+            self.state.starting_capital = eq  # Reset baseline
+            self.state.high_water_mark = eq
+            self.state.active_drawdown = 0.0
+            self.state.risk_multiplier = 1.0
+            self._emit("ACCOUNT_FLIP_TRIGGERED", self.state.to_dict())
+            return self.state
+
+        # Tiered Drawdown Escalation
+        if dd >= 0.20:
+            self.state.is_halted = True
+            self.state.risk_multiplier = 0.0
+            self._emit("DRAWDOWN_HALT_TRIGGERED", {"drawdown": dd, "equity": eq})
+        elif dd >= 0.15:
+            self.state.risk_multiplier = 0.25
+            self.state.bucket_allocations = {
+                RiskBucket.CORE: 0.70,
+                RiskBucket.GROWTH: 0.0,
+                RiskBucket.HEDGE: 0.30,
+            }
+            self._emit("DRAWDOWN_DEFENSE_TIER2", {"drawdown": dd, "equity": eq})
+        elif dd >= 0.10:
+            self.state.risk_multiplier = 0.50
+            self._emit("DRAWDOWN_DEFENSE_TIER1", {"drawdown": dd, "equity": eq})
+        else:
+            self.state.risk_multiplier = 1.0
+            self.state.bucket_allocations = {
+                RiskBucket.CORE: 0.50,
+                RiskBucket.GROWTH: 0.30,
+                RiskBucket.HEDGE: 0.20,
+            }
+
+        return self.state
