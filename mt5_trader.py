@@ -4906,8 +4906,9 @@ def execute_skill(**kwargs):
                             cycle_num=cycle_count,
                         )
                         _inc = _pipe.get("incubation", {})
+                        _qop = _pipe.get("quant_operating_pipeline", {})
                         logging.getLogger("main").info(
-                            "Autonomous pipeline tick: %d discovered, %d registered, %d skipped, %d flagged | Incubation: %s (%d causal edges, %d heuristics, MAML=%s)",
+                            "Autonomous pipeline tick: %d discovered, %d registered, %d skipped, %d flagged | Incubation: %s (%d causal edges, %d heuristics, MAML=%s) | Quant Ops: %s (%d candidates, %d gate survivors)",
                             _pipe.get("discovery", {}).get("members", 0),
                             _pipe.get("registered", 0),
                             _pipe.get("skipped", 0),
@@ -4916,7 +4917,21 @@ def execute_skill(**kwargs):
                             _inc.get("edges", 0),
                             _inc.get("heuristics", 0),
                             _inc.get("maml_profile", "DEFAULT"),
+                            _qop.get("status", "SKIPPED"),
+                            _qop.get("total_candidates", 0),
+                            _qop.get("gate_survivors_count", 0),
                         )
+                        if _qop.get("top_finalists"):
+                            _top = _qop["top_finalists"][0]
+                            logging.getLogger("main").info(
+                                "Autonomous Quant Leader: %s | Style: %s | Type: %s | Score: %.3f | Ruin Prob: %.2f%% | WFE: %.2f",
+                                _top.get("strategy_id"),
+                                _top.get("style"),
+                                _top.get("trading_type"),
+                                _top.get("composite_score", 0.0),
+                                _top.get("probability_of_ruin", 0.0) * 100,
+                                _top.get("wfe", 0.0),
+                            )
                     except Exception as _pipe_exc:
                         logging.getLogger("main").warning(
                             "Autonomous pipeline tick FAILED: %s", _pipe_exc
