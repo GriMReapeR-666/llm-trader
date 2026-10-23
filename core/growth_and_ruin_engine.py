@@ -144,3 +144,124 @@ class SmallCapitalGrowthSimulator:
         degradation = (prior - current) / abs(prior)
         is_degraded = degradation >= degrade_threshold
         return is_degraded, float(round(degradation, 4))
+
+@dataclass
+class MonteCarloRuinResult:
+    starting_capital: float
+    num_simulations: int
+    num_trades: int
+    median_terminal_equity: float
+    p5_terminal_equity: float
+    p95_terminal_equity: float
+    median_max_dd: float
+    probability_of_ruin: float
+    probability_dd_over_20: float
+    confidence_target_flip: float
+    execution_authority: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+class AdvancedMonteCarloEngine:
+    """Vectorized Markov regime-switching Monte Carlo & parameter perturbation simulator."""
+
+    def __init__(self, seed: Optional[int] = 42):
+        self.rng = np.random.default_rng(seed)
+
+    def run_simulation(
+        self,
+        trades_by_regime: Dict[str, np.ndarray],
+        starting_capital: float = 1000.0,
+        n_trades: int = 100,
+        n_simulations: int = 1000,
+        ruin_dd_threshold: float = 0.50,
+        target_multiplier: float = 2.0,
+        transition_matrix: Optional[np.ndarray] = None,
+    ) -> MonteCarloRuinResult:
+        regime_names = list(trades_by_regime.keys())
+        n_regimes = len(regime_names)
+        if n_regimes == 0:
+            raise ValueError("trades_by_regime cannot be empty")
+
+        # 3-state default transition matrix: 80% persistence
+        if transition_matrix is None:
+            if n_regimes == 3:
+                transition_matrix = np.array([
+                    [0.80, 0.15, 0.05],  # BULL -> BULL, BEAR, SHOCK
+                    [0.20, 0.70, 0.10],  # BEAR -> BULL, BEAR, SHOCK
+                    [0.30, 0.30, 0.40],  # SHOCK -> BULL, BEAR, SHOCK
+                ])
+            else:
+                transition_matrix = np.eye(n_regimes) * 0.8 + (0.2 / n_regimes)
+
+        target_capital = starting_capital * target_multiplier
+        final_equities = np.zeros(n_simulations, dtype=np.float64)
+        max_drawdowns = np.zeros(n_simulations, dtype=np.float64)
+        ruin_count = 0
+        dd_20_count = 0
+        flip_success_count = 0
+
+        for s in range(n_simulations):
+            equity = starting_capital
+            peak = equity
+            curr_regime = 0
+            path_max_dd = 0.0
+            flipped = False
+            ruined = False
+
+            for _ in range(n_trades):
+                # Step regime via Markov chain
+                probs = transition_matrix[curr_regime]
+                prob_sum = np.sum(probs)
+                if prob_sum > 0:
+                    probs = probs / prob_sum
+                curr_regime = int(self.rng.choice(n_regimes, p=probs))
+
+                # Sample trade return from active regime
+                pool = trades_by_regime[regime_names[curr_regime]]
+                ret = float(self.rng.choice(pool)) if len(pool) > 0 else 0.0
+
+                equity += equity * ret
+                if equity <= 0.0:
+                    equity = 0.0
+                    ruined = True
+                    break
+
+                if equity >= target_capital:
+                    flipped = True
+
+                if equity > peak:
+                    peak = equity
+                dd = (peak - equity) / peak if peak > 0 else 0.0
+                if dd > path_max_dd:
+                    path_max_dd = dd
+
+                if dd >= ruin_dd_threshold:
+                    ruined = True
+                    break
+
+            if ruined:
+                ruin_count += 1
+            if path_max_dd >= 0.20:
+                dd_20_count += 1
+            if flipped:
+                flip_success_count += 1
+
+            final_equities[s] = equity
+            max_drawdowns[s] = path_max_dd
+
+        final_equities.sort()
+        return MonteCarloRuinResult(
+            starting_capital=starting_capital,
+            num_simulations=n_simulations,
+            num_trades=n_trades,
+            median_terminal_equity=float(np.median(final_equities)),
+            p5_terminal_equity=float(np.percentile(final_equities, 5)),
+            p95_terminal_equity=float(np.percentile(final_equities, 95)),
+            median_max_dd=float(round(np.median(max_drawdowns), 4)),
+            probability_of_ruin=float(round(ruin_count / n_simulations, 4)),
+            probability_dd_over_20=float(round(dd_20_count / n_simulations, 4)),
+            confidence_target_flip=float(round(flip_success_count / n_simulations, 4)),
+            execution_authority=False,
+        )
+

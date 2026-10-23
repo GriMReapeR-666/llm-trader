@@ -97,3 +97,32 @@ def test_equity_drift_detection():
     is_deg_neg, decay_neg = sim.detect_equity_drift([-10.0] * 20 + [5.0] * 20, window=20)
     assert is_deg_neg is False
     assert decay_neg == 0.0
+
+def test_advanced_monte_carlo_engine():
+    from core.growth_and_ruin_engine import AdvancedMonteCarloEngine, MonteCarloRuinResult
+
+    mc = AdvancedMonteCarloEngine(seed=42)
+    # Define trades in 3 regimes: BULL (high positive expectation), BEAR (mild positive), SHOCK (fat tails)
+    trades_by_regime = {
+        "BULL": np.array([0.02, 0.015, -0.01, 0.025, 0.01, -0.01]),
+        "BEAR": np.array([0.01, -0.01, 0.012, -0.01, -0.005]),
+        "SHOCK": np.array([-0.03, -0.02, 0.04, -0.04, -0.01]),
+    }
+
+    res = mc.run_simulation(
+        trades_by_regime=trades_by_regime,
+        starting_capital=1000.0,
+        n_trades=100,
+        n_simulations=500,
+        target_multiplier=2.0,
+    )
+    assert isinstance(res, MonteCarloRuinResult)
+    assert res.execution_authority is False
+    assert 0.0 <= res.probability_of_ruin <= 1.0
+    assert 0.0 <= res.probability_dd_over_20 <= 1.0
+    assert 0.0 <= res.confidence_target_flip <= 1.0
+    assert res.median_terminal_equity > 0.0
+    d = res.to_dict()
+    assert d["starting_capital"] == 1000.0
+    assert d["execution_authority"] is False
+
