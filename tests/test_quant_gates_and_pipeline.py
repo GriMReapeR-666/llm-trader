@@ -111,3 +111,29 @@ def test_execution_order_manager():
     lev_stressed = om.calculate_dynamic_leverage(base_leverage=3.0, current_drawdown=0.12, kill_dd=0.15)
     assert lev_stressed <= 1.0
 
+def test_autonomous_quant_operating_pipeline():
+    import numpy as np
+    from core.strategy_universe import load_market_dataset_polars
+    from core.quant_gates_and_pipeline import (
+        AutonomousQuantOperatingPipeline,
+        PipelineDeploymentPackage,
+    )
+
+    # 1,000 bars synthetic data
+    np.random.seed(42)
+    n = 1000
+    prices = 100.0 * np.exp(np.cumsum(np.random.normal(0.0004, 0.007, n)))
+    df = load_market_dataset_polars({"close": prices})
+
+    pipeline = AutonomousQuantOperatingPipeline(emit_telemetry=False)
+    package = pipeline.run_pipeline(df, symbols=["EURUSD"])
+
+    assert isinstance(package, PipelineDeploymentPackage)
+    assert package.execution_authority is False
+    assert package.total_candidates >= 15
+    assert len(package.ranked_finalists) > 0
+    # Top finalist must have highest composite score
+    if len(package.ranked_finalists) > 1:
+        assert package.ranked_finalists[0]["composite_score"] >= package.ranked_finalists[1]["composite_score"]
+
+
