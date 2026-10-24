@@ -312,6 +312,7 @@ class AlphaCandidate:
     ic_tstat: float = 0.0
     ic_pvalue: float = 1.0
     n_trials: int = 1
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -367,6 +368,7 @@ class SealedSandboxEvaluator:
         min_sharpe: float = 0.3,
         embargo_pct: float = 0.02,
         max_ic_pvalue: float = 0.05,
+        allow_contrarian: bool = True,
     ):
         self.min_ic_ir = min_ic_ir
         self.min_ic_mean = min_ic_mean
@@ -374,6 +376,7 @@ class SealedSandboxEvaluator:
         self.min_sharpe = min_sharpe
         self.embargo_pct = embargo_pct
         self.max_ic_pvalue = max_ic_pvalue
+        self.allow_contrarian = allow_contrarian
         self.evaluator = SafeAlphaEvaluator()
 
     def evaluate_candidate(
@@ -449,11 +452,31 @@ class SealedSandboxEvaluator:
             ic_values, candidate.n_trials, self.max_ic_pvalue
         )
 
-        # Apply thresholds (fail closed: require strictly positive IC and IC_IR)
-        if candidate.ic_mean < self.min_ic_mean:
+        # Check magnitude first (fail closed: require sufficient correlation magnitude)
+        if abs(candidate.ic_mean) < self.min_ic_mean:
             candidate.status = "REJECTED"
-            candidate.rejection_reason = f"IC mean too low: {candidate.ic_mean:.4f} < {self.min_ic_mean}"
+            candidate.rejection_reason = f"|IC| mean too low: {abs(candidate.ic_mean):.4f} < {self.min_ic_mean}"
             return candidate
+
+        # Contrarian factor auto-negation:
+        # A strongly negative IC factor (e.g. -0.15) has genuine predictive power
+        # when inverted (multiplying by -1.0 transforms mean-reversion into positive alpha).
+        if candidate.ic_mean < 0.0:
+            if not self.allow_contrarian:
+                candidate.status = "REJECTED"
+                candidate.rejection_reason = f"IC mean too low: {candidate.ic_mean:.4f} < {self.min_ic_mean}"
+                return candidate
+
+            # Invert factor expression and flip metrics
+            candidate.expression = f"-1.0 * ({candidate.expression})"
+            candidate.ic_mean = -candidate.ic_mean
+            candidate.ic_ir = abs(candidate.ic_ir)
+            candidate.ic_tstat = -candidate.ic_tstat
+            if not hasattr(candidate, "metadata") or candidate.metadata is None:
+                candidate.metadata = {}
+            candidate.metadata["is_inverted_contrarian"] = True
+            alpha_series = -alpha_series
+            ic_values = [-x for x in ic_values]
 
         if candidate.ic_ir < self.min_ic_ir:
             candidate.status = "REJECTED"
