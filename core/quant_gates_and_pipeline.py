@@ -335,6 +335,8 @@ class AutonomousQuantOperatingPipeline:
         # Step 0: Regime & BOCPD Hazard Detection (P1-3)
         close_prices = dataset["close"].to_list() if "close" in dataset.columns else []
         regime_state = self.regime_engine.detect_regime(prices=close_prices)
+        if regime_state.changepoint_detected:
+            self.bandit.apply_changepoint_decay(gamma=0.40)
         regime_context = {
             "primary_regime": regime_state.primary_regime,
             "bocpd_changepoint_prob": float(regime_state.bocpd_changepoint_prob),
