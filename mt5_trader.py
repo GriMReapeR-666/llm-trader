@@ -2080,7 +2080,7 @@ def main() -> None:
     ap_pipeline.add_argument("--verify", action="store_true", help="Also run one evidence-verification pass against the overfit gate")
 
     ap_quant = sub.add_parser("quant", help="Institutional quantitative operating engine & strategy universe matrix")
-    ap_quant.add_argument("action", choices=["universe-sweep", "pipeline-run", "diagnostics", "regime-backtest", "rl-evaluate"], default="universe-sweep", nargs="?")
+    ap_quant.add_argument("action", choices=["universe-sweep", "pipeline-run", "diagnostics", "regime-backtest", "rl-evaluate", "layered-pipeline"], default="universe-sweep", nargs="?")
     ap_quant.add_argument("--symbol", default="EURUSD", help="Symbol to evaluate (default: EURUSD)")
     ap_quant.add_argument("--timeframe", default="H1", help="Timeframe (default: H1)")
     ap_quant.add_argument("--bars", type=int, default=1000, help="Number of bars to evaluate (default: 1000)")
@@ -2294,6 +2294,20 @@ def main() -> None:
             report = pipeline.evaluate_policy(df, symbol=sym, timeframe=tf)
             print(f"[quant rl-evaluate] Evaluation Complete. Gate Passed: {report.gate_passed} | Sharpe Delta: {report.sharpe_outperformance:+.2f}")
             print("[quant rl-evaluate] Live Execution Authority: FALSE (evaluation only)")
+            sys.exit(0)
+        elif args.action == "layered-pipeline":
+            from core.operating_layers import DecoupledOperatingPipeline
+            from operations.autonomous_pipeline import _resolve_market_bars
+
+            sym = getattr(args, "symbol", "EURUSD")
+            tf = getattr(args, "timeframe", "H1")
+            bars_count = getattr(args, "bars", 500)
+            df = _resolve_market_bars(n_bars=bars_count)
+
+            print(f"\n[quant layered-pipeline] Executing 8-Layer Decoupled Operating Pipeline ({sym} {tf}, {bars_count} bars)...")
+            pipeline = DecoupledOperatingPipeline(emit_telemetry=True)
+            report = pipeline.tick(df, symbol=sym, timeframe=tf)
+            print(f"[quant layered-pipeline] Tick Complete. Governance Verdict: {report.layer8_governance.gate_verdict} (Authority: {report.execution_authority})")
             sys.exit(0)
         sys.exit(0)
 
