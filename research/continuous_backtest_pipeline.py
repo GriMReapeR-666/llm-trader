@@ -131,7 +131,7 @@ class ContinuousBacktestPipeline:
         self.state = self._load_state()
         # Last run's params (used by the CPCV stage to replay the same data)
         self._last_timeframe = "H1"
-        self._last_bars = 500
+        self._last_bars = 3000
 
     def _resolve_target_symbol(self, strategy_name: str, symbol: str) -> str:
         """Map multi-leg/cross strategies to their natural traded symbol/pair."""
@@ -196,7 +196,7 @@ class ContinuousBacktestPipeline:
         symbol: str = "EURUSD",
         strategy_name: str = "default",
         timeframe: str = "H1",
-        bars: int = 500,
+        bars: int = 3000,
         bars_df: Optional[Any] = None,
         data_source: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -259,6 +259,7 @@ class ContinuousBacktestPipeline:
         log.info("Starting full validation: %s %s (%d bars, strategy=%s)",
                  symbol, timeframe, bars, strategy_name)
         log.info("=" * 60)
+        orig_symbol = symbol
         symbol = self._resolve_target_symbol(strategy_name, symbol)
         self._last_timeframe = timeframe
         self._last_bars = bars
@@ -285,7 +286,7 @@ class ContinuousBacktestPipeline:
             # sys.modules["mt5_trader"] here: it is always absent when the
             # engine runs as `python mt5_trader.py` and would block Stage 1
             # on every cycle.
-            caller_bars = bars_df is not None
+            caller_bars = (bars_df is not None) and (orig_symbol == symbol)
             if not caller_bars:
                 bars_df = fetch_ohlc(symbol, timeframe, max(bars, 500))
             if bars_df is None or len(bars_df) < 200:
@@ -513,6 +514,96 @@ class ContinuousBacktestPipeline:
         except Exception:
             return ""
 
+    @staticmethod
+    def _classify_bars_regimes(bars_df: Any) -> List[str]:
+        """Bar-by-bar market regime classification for regime-conditioned backtesting."""
+        if bars_df is None or len(bars_df) == 0:
+            return []
+        try:
+            closes = bars_df["close"].to_numpy(dtype=np.float64) if hasattr(bars_df["close"], "to_numpy") else np.array(bars_df["close"], dtype=np.float64)
+            highs = bars_df["high"].to_numpy(dtype=np.float64) if hasattr(bars_df["high"], "to_numpy") else np.array(bars_df["high"], dtype=np.float64)
+            lows = bars_df["low"].to_numpy(dtype=np.float64) if hasattr(bars_df["low"], "to_numpy") else np.array(bars_df["low"], dtype=np.float64)
+            n = len(closes)
+            if n < 5:
+                return ["MEAN_REVERTING"] * n
+
+            tr = np.empty(n, dtype=np.float64)
+            tr[0] = highs[0] - lows[0]
+            for i in range(1, n):
+                tr[i] = max(highs[i] - lows[i], abs(highs[i] - closes[i - 1]), abs(lows[i] - closes[i - 1]))
+
+            atr_20 = np.empty(n, dtype=np.float64)
+            alpha_atr = 2.0 / 21.0
+            atr_20[0] = tr[0]
+            for i in range(1, n):
+                atr_20[i] = alpha_atr * tr[i] + (1.0 - alpha_atr) * atr_20[i - 1]
+
+            sma_50 = np.empty(n, dtype=np.float64)
+            alpha_sma = 2.0 / 51.0
+            sma_50[0] = closes[0]
+            for i in range(1, n):
+                sma_50[i] = alpha_sma * closes[i] + (1.0 - alpha_sma) * sma_50[i - 1]
+
+            regimes: List[str] = []
+            for i in range(n):
+                vr = tr[i] / max(atr_20[i], 1e-8)
+                c = closes[i]
+                s = sma_50[i]
+
+                if vr > 1.8:
+                    regimes.append("HIGH_VOLATILITY_CHOP")
+                elif c > s * 1.002:
+                    regimes.append("BULL_TREND")
+                elif c < s * 0.998:
+                    regimes.append("BEAR_TREND")
+                else:
+                    regimes.append("MEAN_REVERTING")
+            return regimes
+        except Exception as exc:
+            log.debug("Regime classification failed: %s", exc)
+            return ["MEAN_REVERTING"] * len(bars_df)
+
+    @staticmethod
+    def _get_strategy_suitable_regimes(strategy_name: str) -> Optional[List[str]]:
+        """Map strategy hypotheses to suitable market regimes (Flag 3)."""
+        sname = str(strategy_name or "").lower()
+        if any(k in sname for k in ("statarb", "meanrev", "copula", "bollinger")):
+            return ["MEAN_REVERTING", "LOW_VOL_RANGE", "SIDEWAYS_CONSOLIDATION"]
+        elif any(k in sname for k in ("kronos", "momentum", "pullback", "trend", "changepoint")):
+            return ["BULL_TREND", "BEAR_TREND", "LOW_VOL_TREND", "HIGH_VOL_TREND"]
+        elif any(k in sname for k in ("volatility", "skew", "orderflow", "chop")):
+            return ["HIGH_VOLATILITY_CHOP", "HIGH_VOL_EXPANSION", "HIGH_VOL_CRISIS"]
+        return None
+
+    def _apply_regime_filter_to_scores(
+        self,
+        strategy_name: str,
+        scores: np.ndarray,
+        bars_df: Any,
+        filter_regime: Optional[Any] = None,
+    ) -> np.ndarray:
+        """Gate/mute entry signals on bars with non-matching market regime."""
+        if filter_regime is not None:
+            if isinstance(filter_regime, str):
+                target_regimes = [filter_regime]
+            else:
+                target_regimes = list(filter_regime)
+        else:
+            target_regimes = self._get_strategy_suitable_regimes(strategy_name)
+
+        if not target_regimes or len(scores) == 0:
+            return scores
+
+        regimes = self._classify_bars_regimes(bars_df)
+        if len(regimes) != len(scores):
+            return scores
+
+        filtered = np.copy(scores)
+        for i, r in enumerate(regimes):
+            if r not in target_regimes:
+                filtered[i] = 0.0
+        return filtered
+
     def _run_pipeline_backtest(
         self,
         symbol: str,
@@ -521,6 +612,9 @@ class ContinuousBacktestPipeline:
         timeframe: str = "H1",
         cost_overrides: Optional[Dict[str, Any]] = None,
         data_source: str = "",
+        filter_regime: Optional[Union[str, List[str]]] = None,
+        regime_conditioned: bool = True,
+        filter_bars_by_regime: bool = False,
     ) -> Dict[str, Any]:
         """Run the indicator -> gates -> execution backtest on the supplied bars.
 
@@ -536,14 +630,18 @@ class ContinuousBacktestPipeline:
 
         strategy_id = str(strategy_name)
         engine = MT5BrokerBacktestEngine()
-        # Per-strategy registry wiring (PU-0156 §8.1): a registered label runs
-        # its OWN causal entry signal through the engine's external-signal mode,
-        # so its stage-1 metrics describe that hypothesis, not the generic EMA
-        # crossover. The builder is invoked inside the engine on exactly the
-        # bars the engine will trade (score/bar alignment is guaranteed), and a
-        # failing or misaligned builder fails the stage loudly — never silently
-        # mislabeled as the generic ruleset. Unregistered labels ("default" and
-        # any non-registry name) keep the generic path, logged explicitly.
+
+        # Optional contiguous bar filtering by matching regime (Flag 3)
+        target_regimes = (
+            [filter_regime] if isinstance(filter_regime, str)
+            else (list(filter_regime) if filter_regime is not None else self._get_strategy_suitable_regimes(strategy_id))
+        )
+        if filter_bars_by_regime and target_regimes and hasattr(bars_df, "__len__") and len(bars_df) >= 200:
+            bar_regimes = self._classify_bars_regimes(bars_df)
+            mask = [r in target_regimes for r in bar_regimes]
+            if sum(mask) >= 200:
+                bars_df = bars_df.iloc[mask] if hasattr(bars_df, "iloc") else bars_df[mask]
+
         signal_builder: Optional[Callable[[Any], Any]] = None
         try:
             from research.strategy_signal_registry import build_signal, has_signal
@@ -551,12 +649,20 @@ class ContinuousBacktestPipeline:
             from strategy_signal_registry import build_signal, has_signal
         if has_signal(strategy_id):
             def signal_builder(bdf: Any) -> Any:
-                return build_signal(
+                raw = build_signal(
                     strategy_id,
                     bdf["close"].to_numpy(dtype=np.float64),
                     bdf["high"].to_numpy(dtype=np.float64),
                     bdf["low"].to_numpy(dtype=np.float64),
                 )
+                if regime_conditioned and not filter_bars_by_regime:
+                    return self._apply_regime_filter_to_scores(
+                        strategy_name=strategy_id,
+                        scores=raw,
+                        bars_df=bdf,
+                        filter_regime=filter_regime,
+                    )
+                return raw
         elif strategy_id != "default":
             log.warning(
                 "Backtest for '%s': no signal in strategy_signal_registry — running "
@@ -567,7 +673,7 @@ class ContinuousBacktestPipeline:
             symbol=symbol,
             strategy_name=strategy_id,
             timeframe=timeframe,
-            count=len(bars_df) if hasattr(bars_df, "__len__") else 500,
+            count=len(bars_df) if hasattr(bars_df, "__len__") else 3000,
             fast_period=12,
             slow_period=26,
             sl_pips=30.0,

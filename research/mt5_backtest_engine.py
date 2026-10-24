@@ -881,7 +881,7 @@ class MT5BrokerBacktestEngine:
             dsr_report = integrator.validate_backtest(
                 strategy_id=strategy_name,
                 sharpe=metrics.sharpe_ratio,
-                n_observations=metrics.total_trades or 50,
+                n_observations=metrics.total_trades or 150,
                 returns=metrics.r_multiples,
                 # Run-level trade count: the gate's tiny-sample floor decides
                 # on what this run actually traded, not the ledger-wide
@@ -1156,7 +1156,7 @@ class MT5BrokerBacktestEngine:
         self,
         symbol: str = "EURUSD",
         timeframe: str = "M15",
-        count: int = 500,
+        count: int = 3000,
         strategy_name: str = "default",
         fast_period: int = 12,
         slow_period: int = 26,
