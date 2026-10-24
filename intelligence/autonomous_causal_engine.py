@@ -133,8 +133,162 @@ def _reaction_directional_return(windows: Any) -> Optional[float]:
     return None
 
 
+from dataclasses import dataclass, field
+from collections import defaultdict
+import numpy as np
+import pandas as pd
+from scipy.cluster.hierarchy import linkage, fcluster
+from scipy.spatial.distance import squareform
+from scipy import stats
+
+
+@dataclass
+class CausalPruneResult:
+    """Result of hierarchical correlation clustering & causal alpha pruning."""
+    pruned_alphas: List[str]
+    dropped_alphas: Dict[str, Dict[str, Any]]
+    clusters: Dict[int, List[str]]
+    correlation_matrix: Dict[str, Dict[str, float]]
+    max_pairwise_correlation: float
+    selected_ic: Dict[str, float]
+
+
+class HierarchicalCausalAlphaPruner:
+    """Hierarchical Correlation Clustering & Causal Alpha Pruner (P1-2).
+
+    1. Computes NxN Spearman correlation matrix across alpha factor streams.
+    2. Converts to correlation distance matrix D_ij = 1 - |rho_ij|.
+    3. Performs hierarchical agglomerative clustering at threshold.
+    4. Evaluates predictive Information Coefficient (IC) with forward returns.
+    5. Retains the highest-performing representative per cluster, pruning
+       collinear factors so max pairwise correlation <= max_correlation ceiling.
+    """
+
+    def __init__(self, max_correlation: float = 0.70, method: str = "average"):
+        self.max_correlation = float(max_correlation)
+        self.method = method
+
+    def cluster_alphas(self, alpha_df: pd.DataFrame) -> Dict[int, List[str]]:
+        """Cluster alpha factors based on pairwise absolute correlation."""
+        cols = list(alpha_df.columns)
+        if len(cols) <= 1:
+            return {1: cols}
+
+        corr = alpha_df.corr(method="spearman").fillna(0.0).abs()
+        dist = 1.0 - corr.values
+        np.fill_diagonal(dist, 0.0)
+        dist = np.clip(dist, 0.0, 1.0)
+
+        condensed = squareform(dist, checks=False)
+        Z = linkage(condensed, method=self.method)
+        dist_threshold = max(0.01, 1.0 - self.max_correlation)
+        cluster_ids = fcluster(Z, t=dist_threshold, criterion="distance")
+
+        clusters: Dict[int, List[str]] = defaultdict(list)
+        for col_name, c_id in zip(cols, cluster_ids):
+            clusters[int(c_id)].append(col_name)
+        return dict(clusters)
+
+    def prune(
+        self,
+        alpha_df: pd.DataFrame,
+        forward_returns: Union[pd.Series, Sequence[float]],
+    ) -> CausalPruneResult:
+        """Prune collinear alphas, selecting the highest-IC representative per cluster."""
+        cols = list(alpha_df.columns)
+        if isinstance(forward_returns, (list, tuple, np.ndarray)):
+            fwd = pd.Series(forward_returns, index=alpha_df.index)
+        else:
+            fwd = forward_returns.reindex(alpha_df.index).fillna(0.0)
+
+        ics: Dict[str, float] = {}
+        for c in cols:
+            val = alpha_df[c]
+            clean_mask = val.notna() & fwd.notna() & np.isfinite(val) & np.isfinite(fwd)
+            if clean_mask.sum() >= 10:
+                spearman_ic, _ = stats.spearmanr(val[clean_mask], fwd[clean_mask])
+                ics[c] = float(spearman_ic) if math.isfinite(spearman_ic) else 0.0
+            else:
+                ics[c] = 0.0
+
+        clusters = self.cluster_alphas(alpha_df)
+
+        pruned_alphas = []
+        dropped_alphas = {}
+
+        for c_id, members in clusters.items():
+            if len(members) == 1:
+                pruned_alphas.append(members[0])
+                continue
+
+            sorted_members = sorted(members, key=lambda m: abs(ics.get(m, 0.0)), reverse=True)
+            winner = sorted_members[0]
+            pruned_alphas.append(winner)
+
+            for loser in sorted_members[1:]:
+                dropped_alphas[loser] = {
+                    "representative": winner,
+                    "cluster_id": c_id,
+                    "reason": f"Collinear in cluster {c_id} with {winner} (IC {ics.get(loser, 0.0):.3f} vs {ics.get(winner, 0.0):.3f})",
+                    "loser_ic": ics.get(loser, 0.0),
+                    "winner_ic": ics.get(winner, 0.0),
+                }
+
+        final_pruned = list(pruned_alphas)
+        while len(final_pruned) > 1:
+            sub_corr = alpha_df[final_pruned].corr(method="spearman").fillna(0.0).abs()
+            np.fill_diagonal(sub_corr.values, 0.0)
+            max_c = float(sub_corr.values.max())
+            if max_c <= self.max_correlation:
+                break
+            idx1, idx2 = np.unravel_index(np.argmax(sub_corr.values), sub_corr.shape)
+            col1 = final_pruned[idx1]
+            col2 = final_pruned[idx2]
+            if abs(ics.get(col1, 0.0)) >= abs(ics.get(col2, 0.0)):
+                dropped_alphas[col2] = {
+                    "representative": col1,
+                    "cluster_id": -1,
+                    "reason": f"Secondary pairwise correlation {max_c:.3f} > {self.max_correlation} with {col1}",
+                }
+                final_pruned.remove(col2)
+            else:
+                dropped_alphas[col1] = {
+                    "representative": col2,
+                    "cluster_id": -1,
+                    "reason": f"Secondary pairwise correlation {max_c:.3f} > {self.max_correlation} with {col2}",
+                }
+                final_pruned.remove(col1)
+
+        if len(final_pruned) > 1:
+            final_corr = alpha_df[final_pruned].corr(method="spearman").fillna(0.0).abs()
+            np.fill_diagonal(final_corr.values, 0.0)
+            max_pairwise = float(final_corr.values.max())
+        else:
+            max_pairwise = 0.0
+
+        full_corr = alpha_df.corr().fillna(0.0).to_dict()
+
+        return CausalPruneResult(
+            pruned_alphas=sorted(final_pruned),
+            dropped_alphas=dropped_alphas,
+            clusters=clusters,
+            correlation_matrix=full_corr,
+            max_pairwise_correlation=round(max_pairwise, 4),
+            selected_ic={a: round(ics.get(a, 0.0), 4) for a in final_pruned},
+        )
+
+
 class AutonomousCausalValidator:
     """Statistical validator that automatically verifies candidate macro causal edges."""
+
+    @staticmethod
+    def prune_alpha_universe(
+        alpha_df: pd.DataFrame,
+        forward_returns: Union[pd.Series, Sequence[float]],
+        max_correlation: float = 0.70,
+    ) -> CausalPruneResult:
+        pruner = HierarchicalCausalAlphaPruner(max_correlation=max_correlation)
+        return pruner.prune(alpha_df, forward_returns)
 
     def __init__(self, graph: MacroGraph, *, min_reaction_samples: int = MIN_REACTION_SAMPLES):
         if not isinstance(min_reaction_samples, int) or isinstance(min_reaction_samples, bool) or min_reaction_samples < 1:
