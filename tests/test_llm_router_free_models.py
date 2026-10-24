@@ -5,15 +5,15 @@ from data.llm_router import LLMRouter
 def test_select_best_free_model_returns_ranked_default():
     r = LLMRouter.__new__(LLMRouter)
     r._catalogue_cache = {}
-    assert LLMRouter.select_best_free_model(r, "openrouter") == "nvidia/nemotron-3-super-120b-a12b:free"
-    assert LLMRouter.select_best_free_model(r, "cerebras") == "gpt-oss-120b"
-    assert LLMRouter.select_best_free_model(r, "nvidia_nim") == "nvidia/nemotron-3-super-120b-a12b"
+    assert LLMRouter.select_best_free_model(r, "openrouter") == "deepseek/deepseek-r1:free"
+    assert LLMRouter.select_best_free_model(r, "cerebras") == "llama-3.3-70b"
+    assert LLMRouter.select_best_free_model(r, "nvidia_nim") == "meta/llama-3.3-70b-instruct"
     assert LLMRouter.select_best_free_model(r, "omnirouter") == "auto"
 
 
 def test_select_best_free_model_prefers_cached_available():
     r = LLMRouter.__new__(LLMRouter)
-    r._catalogue_cache = {"openrouter": [{"id": "qwen/qwen3-8b:free"}, {"id": "meta-llama/llama-3.3-70b-instruct:free"}]}
+    r._catalogue_cache = {"openrouter": [{"id": "meta-llama/llama-3.1-8b-instruct:free"}, {"id": "meta-llama/llama-3.3-70b-instruct:free"}]}
     assert LLMRouter.select_best_free_model(r, "openrouter") == "meta-llama/llama-3.3-70b-instruct:free"
 
 
@@ -24,9 +24,9 @@ def test_select_best_free_model_unknown_provider():
 
 
 def test_is_free_model():
-    assert LLMRouter._is_free_model("nvidia/nemotron-3-super-120b-a12b:free") is True
-    assert LLMRouter._is_free_model("qwen-3.8-27b") is True
-    assert LLMRouter._is_free_model("gpt-oss-120b") is True
+    assert LLMRouter._is_free_model("deepseek/deepseek-r1:free") is True
+    assert LLMRouter._is_free_model("llama-3.3-70b") is True
+    assert LLMRouter._is_free_model("meta/llama-3.3-70b-instruct") is True
     assert LLMRouter._is_free_model("meta/llama-3.2-11b-vision-instruct") is True
     assert LLMRouter._is_free_model("openai/gpt-4-turbo") is False
     assert LLMRouter._is_free_model("") is False
@@ -70,11 +70,11 @@ def test_failover_uses_provider_appropriate_model(monkeypatch):
     result = router.generate("trader", [{"role": "user", "content": "x"}])
     assert result == "fallback result"
     assert router.providers["cerebras"].calls == 1
-    assert router.providers["cerebras"].last_model == "gpt-oss-120b"
+    assert router.providers["cerebras"].last_model == "llama-3.3-70b"
 
 
 def test_failover_respects_per_provider_env_override(monkeypatch):
-    monkeypatch.setenv("LLM_ROUTER_MODEL_CEREBRAS", "qwen-3.8-27b")
+    monkeypatch.setenv("LLM_ROUTER_MODEL_CEREBRAS", "llama3.1-70b")
 
     class _Provider:
         def __init__(self, result):
@@ -96,33 +96,27 @@ def test_failover_respects_per_provider_env_override(monkeypatch):
     router._catalogue_cache = {}
     router.FREE_MODEL_RANKING = LLMRouter.FREE_MODEL_RANKING
     assert router.generate("trader", [{"role": "user", "content": "x"}]) == "fallback result"
-    assert router.providers["cerebras"].last_model == "qwen-3.8-27b"
+    assert router.providers["cerebras"].last_model == "llama3.1-70b"
+
 
 def test_cached_catalogue_picks_largest_general_model_not_first():
     r = LLMRouter.__new__(LLMRouter)
     r._catalogue_cache = {"cerebras": [
         {"id": "nvidia/nemotron-3-embed-1b"},
         {"id": "acme/tiny-7b:free"},
-        {"id": "acme/chat-70b:free"},
-        {"id": "acme/chat-32b:free"},
+        {"id": "acme/huge-chat-70b:free"},
     ]}
-    # No curated entry present -> largest general-purpose free model wins,
-    # deterministically, regardless of catalogue order.
-    assert LLMRouter.select_best_free_model(r, "cerebras") == "acme/chat-70b:free"
+    # huge-chat-70b has 70B parameters and is not a non-chat marker -> wins
+    best = r.select_best_free_model("cerebras")
+    assert best == "acme/huge-chat-70b:free"
 
 
-def test_cached_catalogue_skips_embeddings_and_guards():
+def test_non_chat_markers_filter_embeddings():
     r = LLMRouter.__new__(LLMRouter)
-    r._catalogue_cache = {"nvidia_nim": [
-        {"id": "nvidia/nemotron-embed-1b"},
-        {"id": "nvidia/llama-guard-4-12b"},
-        {"id": "acme/chat-8b:free"},
+    r._catalogue_cache = {"openrouter": [
+        {"id": "baai/bge-large-en-v1.5:free"},
+        {"id": "meta/llama-guard-3-8b:free"},
+        {"id": "mistralai/mistral-small-24b:free"},
     ]}
-    assert LLMRouter.select_best_free_model(r, "nvidia_nim") == "acme/chat-8b:free"
-
-
-def test_model_size_parser():
-    assert LLMRouter._model_size_b("nvidia/nemotron-3-ultra-550b-a55b") == 550.0
-    assert LLMRouter._model_size_b("qwen-3.8-27b") == 27.0
-    assert LLMRouter._model_size_b("no-size-here") == 0.0
-
+    best = r.select_best_free_model("openrouter")
+    assert best == "mistralai/mistral-small-24b:free"

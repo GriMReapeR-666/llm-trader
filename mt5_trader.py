@@ -1195,7 +1195,7 @@ def _run_simple_menu(interactive: bool = True) -> Dict[str, Any] | None:
             "mode": "paper",
             "symbols": "EURUSD",
             "timeframe": "AUTO",
-            "model": "meta/llama-3.2-11b-vision-instruct",
+            "model": "meta-llama/llama-3.3-70b-instruct:free",
             "trading_mode": {"mode": "single", "loops": 1},
             "risk": {"risk_per_trade": 0.01},
             "advanced": {"show_metrics": True, "show_rl_metrics": True},
@@ -1208,7 +1208,7 @@ def _run_simple_menu(interactive: bool = True) -> Dict[str, Any] | None:
 
     symbols = input("Enter symbols (comma-separated, e.g. EURUSD,XAUUSD): ").strip() or "EURUSD"
 
-    model = input("Enter model ID (default: meta/llama-3.2-11b-vision-instruct): ").strip() or "meta/llama-3.2-11b-vision-instruct"
+    model = input("Enter model ID (default: meta-llama/llama-3.3-70b-instruct:free): ").strip() or "meta-llama/llama-3.3-70b-instruct:free"
 
     timeframe = "AUTO"
 
@@ -1805,7 +1805,7 @@ def main() -> None:
     ap_llm.add_argument("--show-metrics", action="store_true", help="Show detailed performance metrics at end")
     ap_llm.add_argument("--show-rl-metrics", action="store_true", help="Show RL training metrics at end")
     ap_llm.add_argument("--select-model", action="store_true", help="Interactively select LLM model before trading")
-    ap_llm.add_argument("--model", type=str, help="LLM model to use (e.g., 'meta/llama-3.2-11b-vision-instruct')")
+    ap_llm.add_argument("--model", type=str, help="LLM model to use (default: router-selected best free model, e.g. 'meta-llama/llama-3.3-70b-instruct:free')")
     ap_llm.add_argument("--continuous", action="store_true", help="Run continuously (infinite loop)")
     ap_llm.add_argument("--poll-interval", type=float, default=5.0,
                         help="Seconds between market/position pulses; LLM calls remain candle/event gated (default: 5)")

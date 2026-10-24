@@ -408,17 +408,17 @@ def _phase_validate(
                     symbol="EURUSD",
                     strategy_name=strat_id,
                     timeframe="H1",
-                    bars=500,
+                    bars=int(os.getenv("BOOTSTRAP_BACKTEST_BARS", "2500")),
                 )
-            backtest_results[strat_id] = {
-                "passed": result.get("verdict", {}).get("passed", False) if isinstance(result, dict) else False,
-                "sharpe": result.get("stages", {}).get("backtest", {}).get("sharpe", 0) if isinstance(result, dict) else 0,
-                "max_dd": result.get("stages", {}).get("backtest", {}).get("max_drawdown_pct", 0) if isinstance(result, dict) else 0,
-                # Measured per-bar returns, so the WFE / overfit gates below can
-                # validate evidence rather than a series synthesised from the
-                # Sharpe claim. None -> those gates report NOT_VALIDATED.
-                "returns": result.get("stages", {}).get("backtest", {}).get("returns") if isinstance(result, dict) else None,
-            }
+                backtest_results[strat_id] = {
+                    "passed": result.get("verdict", {}).get("passed", False) if isinstance(result, dict) else False,
+                    "sharpe": result.get("stages", {}).get("backtest", {}).get("sharpe", 0) if isinstance(result, dict) else 0,
+                    "max_dd": result.get("stages", {}).get("backtest", {}).get("max_drawdown_pct", 0) if isinstance(result, dict) else 0,
+                    # Measured per-bar returns, so the WFE / overfit gates below can
+                    # validate evidence rather than a series synthesised from the
+                    # Sharpe claim. None -> those gates report NOT_VALIDATED.
+                    "returns": result.get("stages", {}).get("backtest", {}).get("returns") if isinstance(result, dict) else None,
+                }
 
         except Exception as exc:
             logger.warning("Backtest pipeline skipped: %s", exc)

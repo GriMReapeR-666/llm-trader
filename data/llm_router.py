@@ -355,6 +355,31 @@ class OpenRouterProvider(BaseLLMProvider):
                     max_retries=0,
                 ))
 
+    def fetch_models(self) -> List[Dict[str, Any]]:
+        models = super().fetch_models()
+        if models:
+            return models
+        try:
+            import urllib.request
+            import json as _json
+            req = urllib.request.Request(
+                "https://openrouter.ai/api/v1/models",
+                headers={"User-Agent": "LLMRouter/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    payload = _json.loads(resp.read().decode())
+                    out = []
+                    for m in payload.get("data", []):
+                        m_id = m.get("id")
+                        if m_id and (m_id.endswith(":free") or "free" in str(m.get("name", "")).lower()):
+                            out.append({"id": m_id, "name": m.get("name", m_id), "provider": self.provider_name})
+                    if out:
+                        return out
+        except Exception as e:
+            logger.debug("Public OpenRouter model fetch fallback failed: %s", e)
+        return []
+
     def generate(self, messages: list, model: str, **kwargs) -> str:
         if not self.clients:
             return "Error: OpenRouter client not initialized. Check API keys."
@@ -586,8 +611,8 @@ class NvidiaNIMProvider(BaseLLMProvider):
         self.current_key_index += 1
 
         nvidia_model = model if "/" in model else f"nvidia/{model}"
-        if nvidia_model in {"meta/llama-3.2-11b-vision-instruct", "nvidia/meta/llama-3.2-11b-vision-instruct", "llama-3.2-11b-vision-instruct"}:
-            nvidia_model = os.getenv("LLM_ROUTER_MODEL_NVIDIA_NIM", "nvidia/nemotron-3-super-120b-a12b")
+        if nvidia_model in {"meta/llama-3.2-11b-vision-instruct", "nvidia/meta/llama-3.2-11b-vision-instruct", "llama-3.2-11b-vision-instruct", "nvidia/nemotron-3-super-120b-a12b"}:
+            nvidia_model = os.getenv("LLM_ROUTER_MODEL_NVIDIA_NIM", "meta/llama-3.3-70b-instruct")
 
         def request():
             call_kwargs = dict(
@@ -668,19 +693,19 @@ class LLMRouter:
             "agents": {
                 "trader": {
                     "provider": os.getenv("TRADER_LLM_PROVIDER", "routesme"),
-                    "model": os.getenv("TRADER_LLM_MODEL", "meta/llama-3.2-11b-vision-instruct"),
+                    "model": os.getenv("TRADER_LLM_MODEL", "meta-llama/llama-3.3-70b-instruct:free"),
                     "fallback_providers": os.getenv("TRADER_LLM_FALLBACK", "openrouter,tokenrouter,cerebras,nvidia_nim").split(","),
                     "allow_failover": os.getenv("LLM_TRADER_ALLOW_PROVIDER_FAILOVER", "false").lower() in {"1", "true", "yes"},
                 },
                 "analyst": {
                     "provider": os.getenv("ANALYST_LLM_PROVIDER", "routesme"),
-                    "model": os.getenv("ANALYST_LLM_MODEL", "meta/llama-3.2-11b-vision-instruct"),
+                    "model": os.getenv("ANALYST_LLM_MODEL", "meta-llama/llama-3.3-70b-instruct:free"),
                     "fallback_providers": os.getenv("ANALYST_LLM_FALLBACK", "cerebras,openrouter,tokenrouter,nvidia_nim").split(","),
                     "allow_failover": os.getenv("LLM_TRADER_ALLOW_PROVIDER_FAILOVER", "false").lower() in {"1", "true", "yes"},
                 },
                 "risk": {
                     "provider": os.getenv("RISK_LLM_PROVIDER", "routesme"),
-                    "model": os.getenv("RISK_LLM_MODEL", "meta/llama-3.2-11b-vision-instruct"),
+                    "model": os.getenv("RISK_LLM_MODEL", "meta-llama/llama-3.3-70b-instruct:free"),
                     "fallback_providers": os.getenv("RISK_LLM_FALLBACK", "nvidia_nim,openrouter,tokenrouter,cerebras").split(","),
                     "allow_failover": os.getenv("LLM_TRADER_ALLOW_PROVIDER_FAILOVER", "false").lower() in {"1", "true", "yes"},
                 },
@@ -777,35 +802,40 @@ class LLMRouter:
     def _get_static_models(self, p: str) -> List[Dict[str, str]]:
         if p == "openrouter":
             return [
-                {"id": "nvidia/nemotron-3-super-120b-a12b:free", "name": "Nemotron 3 Super 120B (Free)", "provider": "OpenRouter"},
-                {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B (Free)", "provider": "OpenRouter"},
-                {"id": "qwen/qwen-2.5-72b-instruct:free", "name": "Qwen 2.5 72B (Free)", "provider": "OpenRouter"},
                 {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Free)", "provider": "OpenRouter"},
-                {"id": "mistralai/mistral-nemo:free", "name": "Mistral Nemo (Free)", "provider": "OpenRouter"},
-                {"id": "qwen/qwen3-8b:free", "name": "Qwen3 8B (Free)", "provider": "OpenRouter"},
+                {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B (Free)", "provider": "OpenRouter"},
+                {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash Exp (Free)", "provider": "OpenRouter"},
+                {"id": "qwen/qwen-2.5-coder-32b-instruct:free", "name": "Qwen 2.5 Coder 32B (Free)", "provider": "OpenRouter"},
+                {"id": "mistralai/mistral-small-24b-instruct-2501:free", "name": "Mistral Small 24B (Free)", "provider": "OpenRouter"},
+                {"id": "meta-llama/llama-3.1-8b-instruct:free", "name": "Llama 3.1 8B (Free)", "provider": "OpenRouter"},
             ]
         elif p == "tokenrouter":
             return [
-                {"id": "nvidia/nemotron-3-super-120b-a12b:free", "name": "Nemotron 3 Super 120B (Free)", "provider": "TokenRouter"},
+                {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Free)", "provider": "TokenRouter"},
                 {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B (Free)", "provider": "TokenRouter"},
-                {"id": "qwen/qwen-2.5-72b-instruct:free", "name": "Qwen 2.5 72B (Free)", "provider": "TokenRouter"},
-                {"id": "mistralai/mistral-nemo:free", "name": "Mistral Nemo (Free)", "provider": "TokenRouter"},
-                {"id": "qwen/qwen3-8b:free", "name": "Qwen3 8B (Free)", "provider": "TokenRouter"},
+                {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash Exp (Free)", "provider": "TokenRouter"},
+                {"id": "qwen/qwen-2.5-coder-32b-instruct:free", "name": "Qwen 2.5 Coder 32B (Free)", "provider": "TokenRouter"},
+                {"id": "mistralai/mistral-small-24b-instruct-2501:free", "name": "Mistral Small 24B (Free)", "provider": "TokenRouter"},
             ]
         elif p == "routesme":
             return [
                 {"id": "mistralai/mistral-nemo", "name": "Mistral Nemo (Free)", "provider": "RoutesMe"},
+                {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B", "provider": "RoutesMe"},
             ]
         elif p == "cerebras":
             return [
-                {"id": "gpt-oss-120b", "name": "GPT-OSS 120B (Free)", "provider": "Cerebras"},
-                {"id": "qwen-3.8-27b", "name": "Qwen 3.8 27B (Free)", "provider": "Cerebras"},
+                {"id": "llama-3.3-70b", "name": "Llama 3.3 70B", "provider": "Cerebras"},
+                {"id": "deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill Llama 70B", "provider": "Cerebras"},
+                {"id": "llama3.1-70b", "name": "Llama 3.1 70B", "provider": "Cerebras"},
+                {"id": "llama3.1-8b", "name": "Llama 3.1 8B", "provider": "Cerebras"},
             ]
         elif p == "nvidia_nim":
             return [
-                {"id": "nvidia/nemotron-3-super-120b-a12b", "name": "Nemotron 3 Super 120B", "provider": "NVIDIA NIM"},
-                {"id": "meta/llama-3.2-11b-vision-instruct", "name": "Llama 3.2 11B Vision Instruct", "provider": "NVIDIA NIM"},
-                {"id": "openai/gpt-oss-20b", "name": "GPT-OSS 20B", "provider": "NVIDIA NIM"},
+                {"id": "meta/llama-3.3-70b-instruct", "name": "Llama 3.3 70B Instruct", "provider": "NVIDIA NIM"},
+                {"id": "nvidia/llama-3.1-nemotron-70b-instruct", "name": "Llama 3.1 Nemotron 70B Instruct", "provider": "NVIDIA NIM"},
+                {"id": "meta/llama-3.1-70b-instruct", "name": "Llama 3.1 70B Instruct", "provider": "NVIDIA NIM"},
+                {"id": "meta/llama-3.1-8b-instruct", "name": "Llama 3.1 8B Instruct", "provider": "NVIDIA NIM"},
+                {"id": "deepseek-ai/deepseek-r1", "name": "DeepSeek R1", "provider": "NVIDIA NIM"},
             ]
         elif p == "omnirouter":
             return [
@@ -819,27 +849,37 @@ class LLMRouter:
     # during failover instead of reusing the primary's (possibly foreign) id.
     FREE_MODEL_RANKING = {
         "openrouter": [
-            "nvidia/nemotron-3-super-120b-a12b:free",
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "qwen/qwen-2.5-72b-instruct:free",
             "deepseek/deepseek-r1:free",
-            "mistralai/mistral-nemo:free",
-            "qwen/qwen3-8b:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "google/gemini-2.0-flash-exp:free",
+            "qwen/qwen-2.5-coder-32b-instruct:free",
+            "mistralai/mistral-small-24b-instruct-2501:free",
+            "meta-llama/llama-3.1-8b-instruct:free",
         ],
         "tokenrouter": [
-            "nvidia/nemotron-3-super-120b-a12b:free",
+            "deepseek/deepseek-r1:free",
             "meta-llama/llama-3.3-70b-instruct:free",
-            "qwen/qwen-2.5-72b-instruct:free",
-            "mistralai/mistral-nemo:free",
-            "qwen/qwen3-8b:free",
+            "google/gemini-2.0-flash-exp:free",
+            "qwen/qwen-2.5-coder-32b-instruct:free",
+            "mistralai/mistral-small-24b-instruct-2501:free",
         ],
-        "cerebras": ["gpt-oss-120b", "qwen-3.8-27b"],
+        "cerebras": [
+            "llama-3.3-70b",
+            "deepseek-r1-distill-llama-70b",
+            "llama3.1-70b",
+            "llama3.1-8b",
+        ],
         "nvidia_nim": [
-            "nvidia/nemotron-3-super-120b-a12b",
-            "meta/llama-3.2-11b-vision-instruct",
-            "openai/gpt-oss-20b",
+            "meta/llama-3.3-70b-instruct",
+            "nvidia/llama-3.1-nemotron-70b-instruct",
+            "meta/llama-3.1-70b-instruct",
+            "meta/llama-3.1-8b-instruct",
+            "deepseek-ai/deepseek-r1",
         ],
-        "routesme": ["mistralai/mistral-nemo"],
+        "routesme": [
+            "mistralai/mistral-nemo",
+            "meta-llama/llama-3.3-70b-instruct",
+        ],
         "omnirouter": ["auto"],
     }
 
@@ -916,6 +956,79 @@ class LLMRouter:
             return ranking[0]
         return None
 
+    def resolve_model_for_provider(self, provider: str, requested_model: Optional[str] = None) -> str:
+        """Ensure the model id is valid and supported by the target provider.
+
+        Substitutes obsolete, incompatible, or nonexistent model identifiers
+        with the provider's best available active model.
+        """
+        best_default = self.select_best_free_model(provider) or "auto"
+        if not requested_model:
+            return best_default
+
+        req = requested_model.strip()
+
+        # Check provider-specific syntax and known valid catalogue
+        static_models = [m["id"] for m in self._get_static_models(provider)]
+        cached = [m.get("id") for m in getattr(self, "_catalogue_cache", {}).get(provider, []) if m.get("id")]
+        valid_ids = set(static_models + cached)
+
+        if req in valid_ids:
+            return req
+
+        # Provider compatibility transformations
+        if provider == "cerebras":
+            if "llama-3.3-70b" in req:
+                return "llama-3.3-70b"
+            if "llama-3.1-70b" in req or "llama3.1-70b" in req:
+                return "llama3.1-70b"
+            if "llama-3.1-8b" in req or "llama3.1-8b" in req:
+                return "llama3.1-8b"
+            if "deepseek" in req or "r1" in req:
+                return "deepseek-r1-distill-llama-70b"
+            return best_default
+
+        elif provider == "nvidia_nim":
+            clean_id = req.replace(":free", "")
+            if not clean_id.startswith(("meta/", "nvidia/", "deepseek-ai/")):
+                if clean_id.startswith("llama"):
+                    clean_id = f"meta/{clean_id}"
+                else:
+                    clean_id = f"nvidia/{clean_id}"
+            if clean_id in valid_ids:
+                return clean_id
+            if "llama-3.3-70b" in req:
+                return "meta/llama-3.3-70b-instruct"
+            if "nemotron" in req:
+                return "nvidia/llama-3.1-nemotron-70b-instruct"
+            if "deepseek" in req or "r1" in req:
+                return "deepseek-ai/deepseek-r1"
+            return best_default
+
+        elif provider in ("openrouter", "tokenrouter"):
+            stale_models = {
+                "gpt-oss-120b", "qwen-3.8-27b", "openai/gpt-oss-20b",
+                "nvidia/nemotron-3-super-120b-a12b:free", "qwen/qwen3-8b:free",
+                "meta/llama-3.2-11b-vision-instruct", "meta-llama/llama-3.2-11b-vision-instruct:free",
+            }
+            if req in stale_models:
+                return best_default
+            if req.endswith(":free"):
+                return req
+            if f"{req}:free" in valid_ids:
+                return f"{req}:free"
+            return req if "/" in req else best_default
+
+        elif provider == "routesme":
+            if req in {"mistralai/mistral-nemo", "meta-llama/llama-3.3-70b-instruct"}:
+                return req
+            return best_default
+
+        elif provider == "omnirouter":
+            return req or "auto"
+
+        return req or best_default
+
     @staticmethod
     def _is_free_model(model_id: str) -> bool:
         """Heuristic: a model id is 'free' if it carries a ':free' suffix
@@ -925,8 +1038,8 @@ class LLMRouter:
         if model_id.endswith(":free"):
             return True
         free_prefixes = (
-            "nvidia/", "meta/llama-3.2", "openai/gpt-oss", "gpt-oss",
-            "qwen-3", "llama3.1", "mistralai/mistral-nemo",
+            "nvidia/", "meta/llama", "meta-llama/llama", "deepseek",
+            "llama-3.3", "llama3.1", "mistralai/mistral-nemo", "google/gemini", "qwen/",
         )
         return model_id.startswith(free_prefixes)
 
@@ -1044,13 +1157,10 @@ class LLMRouter:
                 continue
             model_for_provider = provider_models.get(prov)
             if not model_for_provider:
-                if prov == provider_name:
-                    model_for_provider = model or agent_cfg.get("model", "")
-                else:
-                    # Failover: pick a model that actually exists on the target
-                    # provider instead of reusing the primary's (possibly
-                    # foreign) model id.
-                    model_for_provider = self.select_best_free_model(prov) or (model or agent_cfg.get("model", ""))
+                raw_candidate = model or agent_cfg.get("model", "")
+                model_for_provider = self.resolve_model_for_provider(prov, raw_candidate)
+            else:
+                model_for_provider = self.resolve_model_for_provider(prov, model_for_provider)
             try:
                 result = provider.generate(messages, model_for_provider, **kwargs)
                 # Handle both message objects (new) and strings (legacy)

@@ -672,7 +672,7 @@ def _router_llm_generate(prompt: str) -> str:
             primary = available[0]
         model = os.getenv("ALPHA_LLM_MODEL")
         if not model:
-            model = "auto" if primary == "omnirouter" else "meta-llama/llama-3.2-11b-vision-instruct:free"
+            model = "auto" if primary == "omnirouter" else (router.select_best_free_model(primary) or "meta-llama/llama-3.3-70b-instruct:free")
         fallback_providers = [p for p in available if p != primary]
         if "omnirouter" in available and "omnirouter" not in fallback_providers and primary != "omnirouter":
             fallback_providers.insert(0, "omnirouter")

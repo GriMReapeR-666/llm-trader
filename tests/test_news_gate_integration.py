@@ -158,11 +158,20 @@ class _MiniAPI:
 
 
 class _MockRouter:
+    agents: dict = {}
+
     def generate(self, messages, model=None, **kwargs):
         return _mock_generate(messages, model=model, **kwargs)
 
     def generate_with_tools(self, messages, tools, tool_executor, model=None, **kwargs):
         return _mock_generate(messages, model=model, **kwargs)
+
+    def resolve_model_for_provider(self, provider: str, model: str = None) -> str:
+        """Stub: return model unchanged so MockRouter never touches real catalogue."""
+        return model or "meta-llama/llama-3.3-70b-instruct:free"
+
+    def select_best_free_model(self, provider: str):
+        return "meta-llama/llama-3.3-70b-instruct:free"
 
 
 def _mock_generate(messages, model=None, **kwargs) -> str:

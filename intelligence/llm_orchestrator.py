@@ -790,12 +790,18 @@ class LLMOrchestrator:
         )
         # NOTE: TradeManager safety attachment is deferred to wire_trade_manager()
         # which is called by mt5_trader.py after the orchestrator is constructed.
-        # 2026-10-01: mistralai/mistral-7b-instruct-v0.2 was decommissioned
-        # upstream (NVIDIA 404/410-Gone, OpenRouter 404 no-endpoints) and its
-        # dead slug overrode the correct .env model in every boot that passed
-        # --model explicitly. meta/llama-3.2-11b-vision-instruct is the .env
-        # default and verified live against the gateway.
-        self.model_name = model_name or "meta/llama-3.2-11b-vision-instruct"
+        # Resolve model name: if unspecified or legacy stale slug, ask router for best active model
+        _stale_models = {"meta/llama-3.2-11b-vision-instruct", "meta-llama/llama-3.2-11b-vision-instruct:free"}
+        if llm_router and (not model_name or model_name in _stale_models):
+            _resolver = getattr(llm_router, "resolve_model_for_provider", None)
+            if _resolver is not None:
+                agent_cfg = getattr(llm_router, "agents", {}).get(agent_name, {})
+                prov = agent_cfg.get("provider", "openrouter")
+                self.model_name = _resolver(prov, model_name)
+            else:
+                self.model_name = "meta-llama/llama-3.3-70b-instruct:free"
+        else:
+            self.model_name = model_name or "meta-llama/llama-3.3-70b-instruct:free"
         self.agent_name = agent_name
         
         # Multi-LLM Router Integration

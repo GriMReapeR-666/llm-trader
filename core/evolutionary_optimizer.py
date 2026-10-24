@@ -395,7 +395,7 @@ def llm_seed_gene(
                 agent,
                 provider=primary,
                 model=model or os.getenv(
-                    "EVOL_LLM_MODEL", "meta-llama/llama-3.2-11b-vision-instruct:free"),
+                    "EVOL_LLM_MODEL", "meta-llama/llama-3.3-70b-instruct:free"),
                 fallback_providers=[p for p in available if p != primary],
                 allow_failover=True,
             )
