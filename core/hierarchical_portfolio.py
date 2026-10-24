@@ -35,6 +35,8 @@ class RegimeState:
     adx: float
     atr_percentile: float
     is_crisis: bool
+    bocpd_changepoint_prob: float = 0.0
+    changepoint_detected: bool = False
     timestamp_iso: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
@@ -60,8 +62,19 @@ class DynamicAllocationResult:
 class RegimeDetectionEngine:
     """Layer 1: Continuous multi-factor regime detector."""
 
-    def __init__(self, atr_lookback: int = 252):
+    def __init__(self, atr_lookback: int = 252, bocpd_hazard_lambda: float = 50.0):
         self.atr_lookback = atr_lookback
+        self.bocpd_hazard_lambda = max(1.0, float(bocpd_hazard_lambda))
+        self._bocpd_detector: Optional[Any] = None
+
+    def _get_or_create_bocpd(self):
+        if self._bocpd_detector is None:
+            try:
+                from core.bocpd import BayesianOnlineChangepointDetector
+                self._bocpd_detector = BayesianOnlineChangepointDetector(hazard_lambda=self.bocpd_hazard_lambda)
+            except Exception:
+                self._bocpd_detector = None
+        return self._bocpd_detector
 
     def detect_regime(
         self,
@@ -70,6 +83,7 @@ class RegimeDetectionEngine:
         atr_history: Optional[Sequence[float]] = None,
         current_atr: float = 0.0010,
         vix_or_vol_index: Optional[float] = None,
+        bocpd_changepoint_prob: Optional[float] = None,
     ) -> RegimeState:
         """Evaluates price series persistence, trend strength, and volatility state."""
         hurst = calculate_hurst_exponent(prices) if len(prices) >= 30 else 0.50
@@ -82,6 +96,26 @@ class RegimeDetectionEngine:
             atr_pct = 50.0
 
         vix = float(vix_or_vol_index) if vix_or_vol_index is not None and math.isfinite(float(vix_or_vol_index)) else 16.0
+
+        # BOCPD Changepoint evaluation
+        if bocpd_changepoint_prob is not None:
+            cp_prob = float(bocpd_changepoint_prob)
+        else:
+            cp_prob = 0.0
+            if prices is not None and len(prices) >= 1:
+                det = self._get_or_create_bocpd()
+                if det is not None:
+                    try:
+                        ref_price = float(prices[0])
+                        delta = float(prices[-1]) - ref_price
+                        scale = max(float(current_atr), 1e-5)
+                        raw_z = delta / scale
+                        obs = float(np.clip(raw_z / 10.0, -5.0, 5.0))
+                        cp_prob = det.update(obs)
+                    except Exception:
+                        cp_prob = 0.0
+
+        cp_detected = cp_prob >= 0.35
         
         # Determine 4-regime probability distribution
         p_crisis = 0.0
@@ -94,6 +128,10 @@ class RegimeDetectionEngine:
             p_crisis = 0.80
             p_hv_trend = 0.15
             p_lv_range = 0.05
+            if cp_detected:
+                shift = 0.15 * cp_prob
+                p_crisis += shift
+                p_hv_trend = max(0.02, p_hv_trend - shift)
         elif atr_pct >= 80.0 or vix >= 24.0:
             # High volatility
             if hurst > 0.52 or adx_val >= 25.0:
@@ -104,12 +142,21 @@ class RegimeDetectionEngine:
                 p_crisis = 0.50
                 p_hv_trend = 0.30
                 p_lv_range = 0.20
+
+            # Changepoint under high volatility shifts mass to crisis
+            if cp_detected:
+                shift = 0.25 * cp_prob
+                p_crisis += shift
+                p_hv_trend = max(0.05, p_hv_trend - shift)
         else:
             # Low / Normal volatility
             if hurst >= 0.53 and adx_val >= 22.0:
                 p_lv_trend = 0.75
                 p_lv_range = 0.15
                 p_hv_trend = 0.10
+                if cp_detected:
+                    p_lv_range += 0.20 * cp_prob
+                    p_lv_trend = max(0.10, p_lv_trend - 0.20 * cp_prob)
             elif hurst <= 0.47 and adx_val < 20.0:
                 p_lv_range = 0.75
                 p_lv_trend = 0.15
@@ -142,6 +189,8 @@ class RegimeDetectionEngine:
             adx=round(adx_val, 2),
             atr_percentile=round(atr_pct, 2),
             is_crisis=is_crisis,
+            bocpd_changepoint_prob=round(cp_prob, 4),
+            changepoint_detected=cp_detected,
         )
 
 
