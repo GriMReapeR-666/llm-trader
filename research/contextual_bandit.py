@@ -75,6 +75,26 @@ class ThompsonSamplingArm:
             self.losses += 1
             self.beta += 1.0
 
+    def decay(self, gamma: float = 0.40) -> None:
+        """Apply exponential forgetting on changepoint/regime boundary jump.
+        
+        gamma in (0.0, 1.0]: fraction of excess experience retained.
+        Preserves the prior baseline while discounting past observations.
+        """
+        g = float(min(1.0, max(0.01, gamma)))
+        excess_alpha = max(0.0, self.alpha - self.alpha_prior)
+        excess_beta = max(0.0, self.beta - self.beta_prior)
+        self.alpha = float(self.alpha_prior + g * excess_alpha)
+        self.beta = float(self.beta_prior + g * excess_beta)
+        self.samples = int(self.samples * g)
+        self.wins = int(self.wins * g)
+        self.losses = int(self.losses * g)
+        keep_r = max(1, int(len(self.r_values) * g)) if self.r_values else 0
+        if keep_r > 0:
+            self.r_values = self.r_values[-keep_r:]
+        else:
+            self.r_values = []
+
     def posterior_win_rate(self) -> float:
         return self.alpha / (self.alpha + self.beta)
 
@@ -144,6 +164,23 @@ class ContextualThompsonBandit:
 
     def update(self, context: str, arm: str, r_multiple: float) -> None:
         self.get_arm(context, arm).update(r_multiple)
+
+    def apply_changepoint_decay(self, gamma: float = 0.40, context: Optional[str] = None) -> None:
+        """Apply exponential forgetting across arms on BOCPD changepoints."""
+        if context is not None:
+            if context in self.arms:
+                for arm_obj in self.arms[context].values():
+                    arm_obj.decay(gamma)
+        else:
+            for ctx_arms in self.arms.values():
+                for arm_obj in ctx_arms.values():
+                    arm_obj.decay(gamma)
+
+    def reset_context(self, context: str) -> None:
+        """Reset all arms in a given context back to prior baseline."""
+        if context in self.arms:
+            self.arms[context].clear()
+            self._init_priors()
 
     def select_arm(self, context: str, candidate_arms: List[str], seed: Optional[int] = None) -> str:
         """Select best arm among candidates using Thompson Sampling."""
