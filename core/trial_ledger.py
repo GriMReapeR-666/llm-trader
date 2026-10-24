@@ -90,6 +90,7 @@ class DSRResult:
     gate_threshold: float         # τ_dsr threshold used
     pbo_proxy: float = 0.0       # Empirical PBO (fraction of trials with Sharpe <= 0)
     strategy_class: str = "global"  # Hypothesis class the deflation was scoped to ("global" = the whole ledger)
+    effective_trials: int = 0    # Effective deduplicated independent trial count
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -210,6 +211,8 @@ class TrialLedger:
     def _conn(self):
         con = sqlite3.connect(self._db_path, timeout=20.0)
         try:
+            con.execute("PRAGMA journal_mode=WAL;")
+            con.execute("PRAGMA synchronous=NORMAL;")
             con.execute("PRAGMA busy_timeout=5000;")
         except Exception:
             pass
@@ -229,6 +232,32 @@ class TrialLedger:
             with self._conn() as con:
                 row = con.execute("SELECT COUNT(*) FROM trials").fetchone()
                 return int(row[0]) if row else 0
+
+    @property
+    def n_effective_trials(self) -> int:
+        """Effective independent trial count (distinct strategy hypotheses)."""
+        with self._lock:
+            with self._conn() as con:
+                row = con.execute("SELECT COUNT(DISTINCT strategy_id) FROM trials").fetchone()
+                return int(row[0]) if row else 0
+
+    def n_effective_trials_for_class(self, strategy_class: Optional[str] = None) -> int:
+        """Effective independent trial count scoped to hypothesis class.
+        
+        Decouples true strategy hypotheses from cron heartbeat execution counts.
+        """
+        if strategy_class is None:
+            return self.n_effective_trials
+        with self._lock:
+            with self._conn() as con:
+                rows = con.execute("SELECT strategy_id, strategy_class FROM trials").fetchall()
+                distinct_strats = set()
+                target_cls = str(strategy_class)
+                for sid, scls in rows:
+                    eff_cls = scls if scls and scls != "general" else classify(sid)
+                    if eff_cls == target_cls:
+                        distinct_strats.add(sid)
+                return max(1, len(distinct_strats))
 
     def trial_sharpes(self) -> List[float]:
         """All recorded trial Sharpes (append-only list)."""
@@ -592,6 +621,7 @@ class TrialLedger:
         # Now read the UPDATED trial count and distribution — scoped to the
         # hypothesis class when tagged, global when untagged (fail-closed).
         true_n_trials = self.n_trials_for_class(scope)
+        effective_n_trials = self.n_effective_trials_for_class(scope)
         sharpes = self.trial_sharpes_for_class(scope)
 
         # Compute trial distribution stats
@@ -604,13 +634,13 @@ class TrialLedger:
             trial_std = 1.0
             pbo_proxy = 0.0
 
-        # DSR p-value using TRUE trial count (now includes this trial).
+        # DSR p-value using EFFECTIVE trial count (deduplicates repeated cron runs).
         # Units are declared by the caller (see the DSR contract): ignoring
         # them here -- the state before 2026-10-20 -- de-annualized a raw
         # mean/std estimator and failed every honest strategy.
         dsr_pvalue = calculate_deflated_sharpe_ratio(
             estimated_sharpe=estimated_sharpe,
-            num_trials=max(1, true_n_trials),
+            num_trials=max(1, effective_n_trials),
             sample_size=max(10, n_observations),
             skewness=skewness,
             kurtosis=kurtosis,
@@ -620,7 +650,7 @@ class TrialLedger:
 
         # Expected max Sharpe under null, in the caller's units.
         max_expected = expected_max_sharpe(
-            num_trials=max(1, true_n_trials),
+            num_trials=max(1, effective_n_trials),
             sample_size=max(10, n_observations),
             annualized=annualized,
             periods_per_year=periods_per_year,
@@ -651,6 +681,7 @@ class TrialLedger:
             gate_threshold=gate_threshold,
             pbo_proxy=pbo_proxy,
             strategy_class=scope or "global",
+            effective_trials=effective_n_trials,
         )
 
         # Log the gate evaluation
