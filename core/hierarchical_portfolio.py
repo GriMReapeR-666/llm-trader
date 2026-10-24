@@ -102,15 +102,20 @@ class RegimeDetectionEngine:
             cp_prob = float(bocpd_changepoint_prob)
         else:
             cp_prob = 0.0
-            if prices is not None and len(prices) >= 1:
+            if prices is not None and len(prices) >= 2:
                 det = self._get_or_create_bocpd()
                 if det is not None:
                     try:
-                        ref_price = float(prices[0])
-                        delta = float(prices[-1]) - ref_price
                         scale = max(float(current_atr), 1e-5)
+                        # Warm up detector if history is short to establish empirical baseline
+                        if len(prices) >= 15 and len(det.history) < 10:
+                            for p0, p1 in zip(prices[-25:-1], prices[-24:-1]):
+                                z = (float(p1) - float(p0)) / scale
+                                det.update(float(np.clip(z / 10.0, -4.0, 4.0)))
+
+                        delta = float(prices[-1]) - float(prices[-2])
                         raw_z = delta / scale
-                        obs = float(np.clip(raw_z / 10.0, -5.0, 5.0))
+                        obs = float(np.clip(raw_z / 10.0, -4.0, 4.0))
                         cp_prob = det.update(obs)
                     except Exception:
                         cp_prob = 0.0

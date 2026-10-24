@@ -207,6 +207,10 @@ def run_pipeline(
                     "staged_validating_count": staged_count,
                     "top_finalists": quant_pkg.ranked_finalists[:5],
                     "evaluated_at": quant_pkg.evaluated_at,
+                    "regime_context": quant_pkg.regime_context,
+                    "bandit_multipliers": quant_pkg.bandit_multipliers,
+                    "causal_prune_summary": quant_pkg.causal_prune_summary,
+                    "and_gate_audit": quant_pkg.and_gate_audit,
                     "execution_authority": False,
                 }
             except Exception as qop_exc:

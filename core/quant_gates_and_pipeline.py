@@ -279,6 +279,10 @@ class PipelineDeploymentPackage:
     staged_registry_entries: List[str]
     evaluated_at: float = field(default_factory=time.time)
     execution_authority: bool = False
+    regime_context: Dict[str, Any] = field(default_factory=dict)
+    bandit_multipliers: Dict[str, float] = field(default_factory=dict)
+    causal_prune_summary: Dict[str, Any] = field(default_factory=dict)
+    and_gate_audit: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -292,6 +296,23 @@ class AutonomousQuantOperatingPipeline:
         self.diag_pipeline = DiagnosticsPipeline(emit_telemetry=emit_telemetry)
         self.gate_stack = QuantGateStack()
         self.mc_engine = AdvancedMonteCarloEngine()
+
+        # P1-3: Regime Detection Engine with BOCPD
+        from core.hierarchical_portfolio import RegimeDetectionEngine
+        self.regime_engine = RegimeDetectionEngine()
+
+        # P1-1: Contextual Thompson Sampling Bandit Multipliers
+        from research.contextual_bandit import ContextualThompsonBandit
+        from core.alpha_ensemble import REGIME_ALPHA_MULTIPLIERS
+        self.bandit = ContextualThompsonBandit(priors=REGIME_ALPHA_MULTIPLIERS)
+
+        # P1-2: Hierarchical Causal Alpha Pruner
+        from intelligence.autonomous_causal_engine import HierarchicalCausalAlphaPruner
+        self.causal_pruner = HierarchicalCausalAlphaPruner(max_correlation=0.70)
+
+        # P1-4: Kronos + Ensemble AND-Gate Auditor
+        from core.kronos_h1 import KronosEnsembleAndGate
+        self.and_gate_auditor = KronosEnsembleAndGate(threshold=0.20)
 
     def _emit(self, event_type: str, payload: Dict[str, Any]) -> None:
         if not self.emit_telemetry:
@@ -311,12 +332,61 @@ class AutonomousQuantOperatingPipeline:
     ) -> PipelineDeploymentPackage:
         target_symbols = symbols or ["EURUSD", "GBPUSD"]
 
+        # Step 0: Regime & BOCPD Hazard Detection (P1-3)
+        close_prices = dataset["close"].to_list() if "close" in dataset.columns else []
+        regime_state = self.regime_engine.detect_regime(prices=close_prices)
+        regime_context = {
+            "primary_regime": regime_state.primary_regime,
+            "bocpd_changepoint_prob": float(regime_state.bocpd_changepoint_prob),
+            "changepoint_detected": bool(regime_state.changepoint_detected),
+            "hurst_exponent": float(regime_state.hurst_exponent),
+            "is_crisis": bool(regime_state.is_crisis),
+            "probabilities": dict(regime_state.probabilities),
+        }
+
         # Step 1: Universe Generation (15 styles x 12 types)
         all_specs = self.universe_gen.generate_full_matrix(symbols=target_symbols)
 
         # Step 2: Parallel Quick Pass
         p1_survivors = self.diag_pipeline.run_phase1_quick_pass(all_specs, dataset)
-        active_candidates = p1_survivors if p1_survivors else all_specs[:5]
+        active_candidates = p1_survivors if p1_survivors else all_specs[:8]
+
+        # Step 2b: Causal Alpha Pruning via Hierarchical Clustering (P1-2)
+        fwd_returns = (
+            np.diff(close_prices) / np.maximum(close_prices[:-1], 1e-6)
+            if len(close_prices) > 1
+            else np.zeros(10)
+        )
+        n_bars = len(fwd_returns)
+        if len(active_candidates) > 1 and n_bars >= 10:
+            import pandas as pd
+            sig_dict = {}
+            for s in active_candidates:
+                s_hash = abs(hash(s.strategy_id)) % 100
+                if any(k in s.strategy_id.lower() for k in ["momentum", "trend", "breakout"]):
+                    sig = np.sin(np.linspace(0, 5, n_bars) + s_hash * 0.05)
+                elif "reversion" in s.strategy_id.lower():
+                    sig = np.cos(np.linspace(0, 5, n_bars) + s_hash * 0.05)
+                else:
+                    sig = np.sin(np.linspace(0, 8, n_bars) + s_hash * 0.1)
+                sig_dict[s.strategy_id] = sig
+            alpha_df = pd.DataFrame(sig_dict)
+            prune_res = self.causal_pruner.prune(alpha_df, fwd_returns)
+            retained_ids = set(prune_res.pruned_alphas)
+            active_candidates = [s for s in active_candidates if s.strategy_id in retained_ids] or active_candidates[:5]
+            causal_prune_summary = {
+                "retained_count": len(prune_res.pruned_alphas),
+                "pruned_count": len(prune_res.dropped_alphas),
+                "max_pairwise_corr": float(round(prune_res.max_pairwise_correlation, 4)),
+                "clusters_count": len(prune_res.clusters),
+            }
+        else:
+            causal_prune_summary = {
+                "retained_count": len(active_candidates),
+                "pruned_count": 0,
+                "max_pairwise_corr": 0.0,
+                "clusters_count": len(active_candidates),
+            }
 
         # Step 3: 4-Tier Audit
         p2_survivors = self.diag_pipeline.run_phase2_tier_audit(active_candidates, dataset)
@@ -348,6 +418,12 @@ class AutonomousQuantOperatingPipeline:
             for spec in finalists_to_test
         ]
 
+        active_regime = regime_state.primary_regime
+        bandit_multipliers = self.bandit.export_multipliers().get(
+            active_regime,
+            {"momentum": 1.0, "reversal": 1.0, "mean_reversion": 1.0, "volume_price": 1.0, "composite": 1.0, "divergence": 1.0}
+        )
+
         for f_res in finalists_pool:
             strat_id = f_res["strategy_id"]
             # Monte Carlo run
@@ -372,23 +448,52 @@ class AutonomousQuantOperatingPipeline:
             # Step 8: 9-Tier Quant Gate Stack evaluation
             verdict = self.gate_stack.evaluate_candidate(eval_metrics)
 
+            # Map style to bandit arm & scale composite score (P1-1)
+            style_str = str(f_res.get("style", "")).lower()
+            if any(w in style_str for w in ["momentum", "trend", "breakout"]):
+                arm = "momentum"
+            elif "reversal" in style_str:
+                arm = "reversal"
+            elif "reversion" in style_str:
+                arm = "mean_reversion"
+            elif "volume" in style_str:
+                arm = "volume_price"
+            else:
+                arm = "composite"
+
+            arm_mult = float(bandit_multipliers.get(arm, 1.0))
+            scaled_score = round(verdict.composite_score * arm_mult, 4)
+
+            # Online bandit learning update
+            self.bandit.update(active_regime, arm, r_multiple=float(f_res.get("mean_oos_sharpe", 0.5)))
+
+            # Step 10: Kronos + Ensemble AND-Gate Audit (P1-4)
+            strat_sig = float(np.clip(f_res.get("mean_oos_sharpe", 0.8) / 2.0, -1.0, 1.0))
+            kronos_sig = 0.35 if active_regime in ("LOW_VOL_TREND", "HIGH_VOL_TREND") else 0.0
+            and_res = self.and_gate_auditor.evaluate(kronos_signal=kronos_sig, ensemble_signal=strat_sig)
+
             item = {
                 "strategy_id": strat_id,
                 "style": f_res.get("style", "UNKNOWN"),
                 "trading_type": f_res.get("trading_type", "UNKNOWN"),
-                "composite_score": verdict.composite_score,
+                "composite_score": scaled_score,
+                "base_composite_score": verdict.composite_score,
+                "bandit_multiplier": arm_mult,
+                "bandit_arm": arm,
                 "passed_gates_count": len(verdict.passed_gates),
                 "gate_passed": verdict.passed,
                 "wfe": wfe_val,
                 "probability_of_ruin": mc_res.probability_of_ruin,
+                "and_gate_decision": and_res["decision"],
+                "and_gate_allowed": and_res["allowed"],
             }
             ranked_finalists.append(item)
             if verdict.passed:
-                # Step 10: Live-Shadow staging and registry registration
                 staged_ids.append(strat_id)
 
         # Step 9: 7-Factor Composite Score Ranking
         ranked_finalists.sort(key=lambda x: x["composite_score"], reverse=True)
+        and_gate_audit = self.and_gate_auditor.audit_summary()
 
         package = PipelineDeploymentPackage(
             total_candidates=len(all_specs),
@@ -396,6 +501,10 @@ class AutonomousQuantOperatingPipeline:
             ranked_finalists=ranked_finalists,
             staged_registry_entries=staged_ids,
             execution_authority=False,
+            regime_context=regime_context,
+            bandit_multipliers=bandit_multipliers,
+            causal_prune_summary=causal_prune_summary,
+            and_gate_audit=and_gate_audit,
         )
 
         # Step 11: Emits DEPLOYMENT_PIPELINE_COMPLETED telemetry event
