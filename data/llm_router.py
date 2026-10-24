@@ -318,6 +318,20 @@ class BaseLLMProvider:
                 error_str = str(e).lower()
                 is_rate_limit = "429" in error_str or "rate limit" in error_str
                 is_server_error = "500" in error_str or "502" in error_str or "503" in error_str
+                is_model_unavailable = (
+                    "404" in error_str
+                    or "410" in error_str
+                    or ("model" in error_str and any(
+                        s in error_str for s in (
+                            "not found", "end of life", "no provider serves",
+                            "not available", "does not exist", "unknown model", "decommissioned"
+                        )
+                    ))
+                )
+
+                if is_model_unavailable:
+                    # Model-specific failure: do not trip circuit breaker for entire provider
+                    return f"Error: {self.provider_name} model_unavailable: {e}"
 
                 if is_rate_limit:
                     reset_ts = parse_rate_limit_reset(e)
@@ -641,6 +655,9 @@ class LLMRouter:
         self.config = config or self._load_config_from_env()
         self.providers: Dict[str, BaseLLMProvider] = {}
         self.agents: Dict[str, Dict[str, Any]] = {}
+        self._dead_models: Dict[str, set] = {}
+        self._catalogue_cache: Dict[str, list] = {}
+        self._catalogue_cache_ts: Dict[str, float] = {}
         self._init_providers()
         self._init_agents()
 
@@ -803,6 +820,11 @@ class LLMRouter:
         if p == "openrouter":
             return [
                 {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Free)", "provider": "OpenRouter"},
+                {"id": "nvidia/nemotron-3.5-lightning:free", "name": "Nemotron 3.5 Lightning (Free)", "provider": "OpenRouter"},
+                {"id": "nvidia/nemotron-3.5-super-vl:free", "name": "Nemotron 3.5 Super VL (Free)", "provider": "OpenRouter"},
+                {"id": "liquid/lfm-2.5-2.6b:free", "name": "Liquid LFM 2.5 2.6B (Free)", "provider": "OpenRouter"},
+                {"id": "dots-studio/dots-3-note-preview:free", "name": "Dots 3 Note Preview (Free)", "provider": "OpenRouter"},
+                {"id": "recursive/flint-v1.0:free", "name": "Flint v1.0 (Free)", "provider": "OpenRouter"},
                 {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B (Free)", "provider": "OpenRouter"},
                 {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash Exp (Free)", "provider": "OpenRouter"},
                 {"id": "qwen/qwen-2.5-coder-32b-instruct:free", "name": "Qwen 2.5 Coder 32B (Free)", "provider": "OpenRouter"},
@@ -812,6 +834,11 @@ class LLMRouter:
         elif p == "tokenrouter":
             return [
                 {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Free)", "provider": "TokenRouter"},
+                {"id": "nvidia/nemotron-3.5-lightning:free", "name": "Nemotron 3.5 Lightning (Free)", "provider": "TokenRouter"},
+                {"id": "nvidia/nemotron-3.5-super-vl:free", "name": "Nemotron 3.5 Super VL (Free)", "provider": "TokenRouter"},
+                {"id": "liquid/lfm-2.5-2.6b:free", "name": "Liquid LFM 2.5 2.6B (Free)", "provider": "TokenRouter"},
+                {"id": "dots-studio/dots-3-note-preview:free", "name": "Dots 3 Note Preview (Free)", "provider": "TokenRouter"},
+                {"id": "recursive/flint-v1.0:free", "name": "Flint v1.0 (Free)", "provider": "TokenRouter"},
                 {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B (Free)", "provider": "TokenRouter"},
                 {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash Exp (Free)", "provider": "TokenRouter"},
                 {"id": "qwen/qwen-2.5-coder-32b-instruct:free", "name": "Qwen 2.5 Coder 32B (Free)", "provider": "TokenRouter"},
@@ -850,6 +877,11 @@ class LLMRouter:
     FREE_MODEL_RANKING = {
         "openrouter": [
             "deepseek/deepseek-r1:free",
+            "nvidia/nemotron-3.5-lightning:free",
+            "nvidia/nemotron-3.5-super-vl:free",
+            "liquid/lfm-2.5-2.6b:free",
+            "dots-studio/dots-3-note-preview:free",
+            "recursive/flint-v1.0:free",
             "meta-llama/llama-3.3-70b-instruct:free",
             "google/gemini-2.0-flash-exp:free",
             "qwen/qwen-2.5-coder-32b-instruct:free",
@@ -858,6 +890,11 @@ class LLMRouter:
         ],
         "tokenrouter": [
             "deepseek/deepseek-r1:free",
+            "nvidia/nemotron-3.5-lightning:free",
+            "nvidia/nemotron-3.5-super-vl:free",
+            "liquid/lfm-2.5-2.6b:free",
+            "dots-studio/dots-3-note-preview:free",
+            "recursive/flint-v1.0:free",
             "meta-llama/llama-3.3-70b-instruct:free",
             "google/gemini-2.0-flash-exp:free",
             "qwen/qwen-2.5-coder-32b-instruct:free",
@@ -943,14 +980,16 @@ class LLMRouter:
         when the provider has no known free model.
         """
         ranking = self.FREE_MODEL_RANKING.get(provider, [])
+        dead = getattr(self, "_dead_models", {}).get(provider, set())
+        ranking = [m for m in ranking if m not in dead]
         cached = getattr(self, "_catalogue_cache", {}).get(provider)
-        available_ids = {m.get("id") for m in (cached or []) if m.get("id")}
+        available_ids = {m.get("id") for m in (cached or []) if m.get("id") and m.get("id") not in dead}
         if available_ids:
             for mid in ranking:
                 if mid in available_ids:
                     return mid
             best_cached = self._best_cached_free_model(provider, cached)
-            if best_cached:
+            if best_cached and best_cached not in dead:
                 return best_cached
         if ranking:
             return ranking[0]
@@ -967,6 +1006,10 @@ class LLMRouter:
             return best_default
 
         req = requested_model.strip()
+
+        # Check if known dead model
+        if req in getattr(self, "_dead_models", {}).get(provider, set()):
+            return best_default
 
         # Check provider-specific syntax and known valid catalogue
         static_models = [m["id"] for m in self._get_static_models(provider)]
@@ -1155,14 +1198,63 @@ class LLMRouter:
                 errors.append(
                     f"{prov}: paused until quota reset (~{remaining}s remaining); skipped")
                 continue
-            model_for_provider = provider_models.get(prov)
-            if not model_for_provider:
-                raw_candidate = model or agent_cfg.get("model", "")
-                model_for_provider = self.resolve_model_for_provider(prov, raw_candidate)
-            else:
-                model_for_provider = self.resolve_model_for_provider(prov, model_for_provider)
-            try:
-                result = provider.generate(messages, model_for_provider, **kwargs)
+            if not hasattr(self, "_dead_models"):
+                self._dead_models = {}
+            dead_set = self._dead_models.setdefault(prov, set())
+            max_model_attempts = 3
+            initial_req = model if model else (provider_models.get(prov) or agent_cfg.get("model", ""))
+            current_model_req = initial_req
+
+            for attempt_idx in range(max_model_attempts):
+                model_for_provider = self.resolve_model_for_provider(prov, current_model_req)
+                if model_for_provider in dead_set:
+                    alt = self.select_best_free_model(prov)
+                    if alt and alt not in dead_set:
+                        model_for_provider = alt
+                    else:
+                        errors.append(f"{prov}: all candidate models exhausted/dead")
+                        break
+
+                try:
+                    result = provider.generate(messages, model_for_provider, **kwargs)
+                except Exception as exc:
+                    err_str = str(exc).lower()
+                    is_dead = (
+                        "404" in err_str or "410" in err_str
+                        or "not found" in err_str or "end of life" in err_str
+                        or "no provider serves" in err_str or "model_unavailable" in err_str
+                    )
+                    if is_dead and attempt_idx < max_model_attempts - 1:
+                        dead_set.add(model_for_provider)
+                        logger.warning(
+                            "Model '%s' failed on provider '%s' (unavailable/dead: %s). Auto-recovering to next model...",
+                            model_for_provider, prov, exc,
+                        )
+                        next_fallback = self.select_best_free_model(prov)
+                        if next_fallback and next_fallback != model_for_provider and next_fallback not in dead_set:
+                            current_model_req = next_fallback
+                            continue
+                    errors.append(f"{prov}: {exc}")
+                    break
+
+                # If result is a string indicating model is unavailable, auto-recover
+                if isinstance(result, str) and (
+                    "model_unavailable" in result or "404" in result or "410" in result
+                    or "no provider serves" in result.lower()
+                ):
+                    if attempt_idx < max_model_attempts - 1:
+                        dead_set.add(model_for_provider)
+                        logger.warning(
+                            "Provider '%s' reported model '%s' unavailable (%s). Auto-recovering to next model...",
+                            prov, model_for_provider, result,
+                        )
+                        next_fallback = self.select_best_free_model(prov)
+                        if next_fallback and next_fallback != model_for_provider and next_fallback not in dead_set:
+                            current_model_req = next_fallback
+                            continue
+                    errors.append(f"{prov}: {result}")
+                    break
+
                 # Handle both message objects (new) and strings (legacy)
                 if hasattr(result, 'content'):
                     # Message object from OpenAI SDK
@@ -1201,6 +1293,7 @@ class LLMRouter:
                             ]
                         })
                     errors.append(f"{prov}: empty response")
+                    break
                 elif isinstance(result, str):
                     if result and not result.startswith("Error:"):
                         reasoning = None
@@ -1214,10 +1307,10 @@ class LLMRouter:
                             model=model_for_provider,
                         )
                     errors.append(f"{prov}: {result}")
+                    break
                 else:
                     errors.append(f"{prov}: unexpected response type")
-            except Exception as e:
-                errors.append(f"{prov}: {e}")
+                    break
 
         # GAP-12: never leave callers with an unstructured error string that
         # might be misinterpreted as a trade instruction. Emit a machine-readable
