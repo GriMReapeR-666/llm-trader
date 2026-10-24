@@ -1041,3 +1041,16 @@ def format_quality_report(result: EnsembleResult) -> str:
     lines.append("Legend: IC_IR = IC/Stdev(IC), IC+% = %% positive IC,")
     lines.append("        HL = half-life (bars), Stable = 1st-half/2nd-half IC correlation")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Kronos + Ensemble AND-Gate & Consensus Audit (P1-4 Integration)
+# ---------------------------------------------------------------------------
+try:
+    from core.kronos_h1 import (
+        compute_and_gate_decision,
+        disagreement_rate,
+        KronosEnsembleAndGate,
+    )
+except ImportError:
+    pass
