@@ -252,6 +252,16 @@ def build(
     )
 
     blockers = []
+    # P0-3: Sealed sandbox check on feature_schema
+    try:
+        from intelligence.feature_schema import verify_feature_schema_sealed
+        schema_seal = verify_feature_schema_sealed()
+        if not schema_seal.get("sealed", False):
+            blockers.append(schema_seal["reason"])
+    except Exception as exc:
+        schema_seal = {"sealed": False, "reason": f"SEALED_SANDBOX_VIOLATION: audit failed: {exc}"}
+        blockers.append(schema_seal["reason"])
+
     if not integrity.get("passed", False):
         blockers.append("journal integrity failed")
     if samples.get("status") != "READY_FOR_RESEARCH":
@@ -287,6 +297,7 @@ def build(
         "forward_test": forward,
         "live_approval": approval,
         "security": security,
+        "feature_schema_seal": schema_seal,
         "ppo_research": ppo_evidence,
         "meta_rl_research": meta_evidence,
         "limitation": "This package is evidence for human review; it never authorizes orders or bypasses deterministic risk gates.",

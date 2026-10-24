@@ -239,6 +239,16 @@ class AlphaDecayMonitor(StoreBackedState):
         if forward_returns is None:
             forward_returns = alpha_df["close"].pct_change().shift(-1)
 
+        # P0-2: Check N/T noise ratio
+        n_alphas = len(alpha_columns)
+        r = n_alphas / float(self.ic_window)
+        if r > 0.25:
+            log.warning(
+                "AlphaDecayMonitor N/T ratio r=%.3f > 0.25 (N=%d, T=%d). "
+                "High noise sensitivity regime in rolling IC estimation.",
+                r, n_alphas, self.ic_window,
+            )
+
         # --- Signal orthogonalization (ψ) ---
         # Re-purify signals against market factors before IC computation.
         # This is the key integration: decay detection uses PURIFIED signals
@@ -335,6 +345,11 @@ class AlphaDecayMonitor(StoreBackedState):
 
                 # Enqueue to operator outbox
                 self._emit_alert(alert)
+
+                # P0-1: Log knockout reason to lessons.jsonl and TradingMemory Level 2
+                if alert.severity == "CRITICAL" or alert.code.startswith(("ALPHA_DEAD_", "ALPHA_REVERSED_")):
+                    self._log_decay_knockout_to_lessons(alert)
+                    self._record_decay_knockout_to_memory(alert)
 
         return alerts
 
@@ -626,6 +641,79 @@ class AlphaDecayMonitor(StoreBackedState):
             log.info("Alpha decay alert upserted: %s [%s]", alert.code, alert.severity)
         except Exception as exc:
             log.warning("Failed to enqueue alpha decay alert: %s", exc)
+
+    def _log_decay_knockout_to_lessons(self, alert: DecayAlert) -> None:
+        """Log dead/reversed alpha decay knockout lesson to lessons.jsonl (P0-1)."""
+        try:
+            from pathlib import Path
+            import json
+            from datetime import datetime, timezone
+            status_str = "DEAD" if "DEAD" in alert.code else ("REVERSED" if "REVERSED" in alert.code else "DEGRADED")
+            record = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "kind": "alpha_decay_knockout",
+                "alpha_name": alert.alpha_name,
+                "severity": alert.severity,
+                "code": alert.code,
+                "status": status_str,
+                "ic_current": round(float(alert.ic_value), 4),
+                "ic_mean": round(float(alert.ic_mean), 4),
+                "consecutive_low": int(alert.consecutive_low),
+                "reason": alert.message,
+            }
+            lessons_path = Path("lessons.jsonl")
+            with open(lessons_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record) + "\n")
+            log.info("Decay knockout logged to lessons.jsonl: %s", alert.alpha_name)
+        except Exception as exc:
+            log.warning("Failed to write decay knockout to lessons.jsonl: %s", exc)
+
+    def _record_decay_knockout_to_memory(self, alert: DecayAlert) -> None:
+        """Record decay knockout to TradingMemory Level 2 verified memories (P0-1)."""
+        try:
+            from intelligence.trading_memory import TradingMemory
+            db_path = self.alert_db_path if self.alert_db_path else "trading_state.db"
+            tm = TradingMemory(db_path)
+            status_str = "DEAD" if "DEAD" in alert.code else ("REVERSED" if "REVERSED" in alert.code else "DEGRADED")
+            source_id = f"decay_knockout:{alert.alpha_name}:{int(alert.timestamp)}"
+            summary = f"Alpha {alert.alpha_name} knocked out from ensemble ({status_str}, IC={alert.ic_value:.4f}, mean={alert.ic_mean:.4f})"
+            lesson = f"Alpha {alert.alpha_name} entered {status_str} status; zeroed out to prevent capital erosion and Sharpe degradation."
+            evidence = {
+                "alpha": alert.alpha_name,
+                "status": status_str,
+                "ic_current": alert.ic_value,
+                "ic_mean": alert.ic_mean,
+                "ic_trend": alert.ic_trend,
+                "consecutive_low": alert.consecutive_low,
+            }
+            tm.save_verified_memory(
+                source_id=source_id,
+                kind="alpha_decay_knockout",
+                tags={"alpha": alert.alpha_name, "status": status_str, "layer": "level_2_pattern"},
+                summary=summary,
+                lesson=lesson,
+                evidence=evidence,
+                confidence=0.95,
+                status="APPROVED",
+            )
+            log.info("Decay knockout recorded to TradingMemory Level 2: %s", alert.alpha_name)
+        except Exception as exc:
+            log.warning("Failed to record decay knockout to TradingMemory: %s", exc)
+
+    def get_alive_alphas(self) -> List[str]:
+        """Return list of alpha names that are not DEAD or REVERSED (P0-1)."""
+        return [
+            name for name, h in self._health.items()
+            if h.status not in ("DEAD", "REVERSED")
+        ]
+
+    def filter_alive(self, alpha_columns: List[str]) -> List[str]:
+        """Filter a list of alpha columns to include only alive ones (P0-1)."""
+        alive = set(self.get_alive_alphas())
+        if not self._health:
+            return alpha_columns
+        result = [col for col in alpha_columns if col in alive or col not in self._health]
+        return result if result else alpha_columns
 
     # -------------------------------------------------------------------
     # State persistence

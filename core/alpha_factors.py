@@ -20,6 +20,64 @@ import pandas as pd
 
 log = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Sealed Alpha DSL Primitives & AST Validator (P0-3)
+# ---------------------------------------------------------------------------
+
+ALLOWED_DSL_PRIMITIVES: frozenset[str] = frozenset({
+    "ts_rank", "ts_argmax", "ts_argmin", "ts_min", "ts_max",
+    "delta", "delay", "rank", "scale", "decay_linear",
+    "signed_power", "log_safe", "ts_corr", "ts_cov", "ts_std",
+    "abs", "sign", "mean", "std", "sqrt", "log", "exp",
+    "rolling_mean", "rolling_std", "rolling_corr", "rolling_max", "rolling_min",
+})
+
+
+def validate_dsl_expression(expr: str) -> tuple[bool, str]:
+    """Validate alpha expression safety against sealed DSL whitelist (P0-3).
+
+    Ensures that proposed alpha expressions strictly parse via AST and use ONLY
+    whitelisted functional primitives and allowed market columns (no arbitrary
+    exec, import, attribute access, or eval).
+    """
+    import ast
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError as e:
+        return False, f"Syntax error: {e}"
+
+    allowed_nodes = (
+        ast.Expression,
+        ast.BinOp,
+        ast.UnaryOp,
+        ast.Call,
+        ast.Name,
+        ast.Constant,
+        ast.Load,
+        ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow,
+        ast.USub, ast.UAdd,
+        ast.Compare,
+        ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Eq, ast.NotEq,
+    )
+    allowed_columns = {"open", "high", "low", "close", "volume", "vwap", "returns"}
+    allowed_names = set(allowed_columns) | set(ALLOWED_DSL_PRIMITIVES)
+
+    for node in ast.walk(tree):
+        if not isinstance(node, allowed_nodes):
+            return False, f"AST node type {type(node).__name__} forbidden in alpha DSL"
+        if isinstance(node, ast.Name):
+            if node.id.startswith("_"):
+                return False, f"Dunder / private name '{node.id}' forbidden in alpha DSL"
+            if node.id not in allowed_names:
+                return False, f"Name '{node.id}' not allowed in alpha DSL"
+        elif isinstance(node, ast.Call):
+            if not isinstance(node.func, ast.Name):
+                return False, "Attribute and dynamic function calls forbidden in alpha DSL"
+            if node.func.id not in ALLOWED_DSL_PRIMITIVES:
+                return False, f"Function '{node.func.id}' not allowed in alpha DSL"
+
+    return True, "VALID"
+
 
 # ---------------------------------------------------------------------------
 # Reusable Primitives (O(n) vectorized where possible)

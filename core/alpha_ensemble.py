@@ -356,6 +356,16 @@ def rolling_ic(
     effective sample size of a strided estimate is close to the dense one —
     this turns an O(n·window) scipy loop into O(n/stride·window) for large
     histories where the IC only feeds scalar ensemble weights.
+
+    Architectural Separation (P0-4):
+    -------------------------------
+    Measurement vs. Allocation are decoupled:
+    - `measure_ic()`: strictly calculates empirical rolling Spearman IC, IC_IR,
+      autocorrelation, half-life, and stability for reporting and risk evaluation.
+      It NEVER modifies weights or applies shrinkage overrides.
+    - `allocate_weights()`: takes quality measurements and computes trading
+      portfolio weights. It enforces James-Stein shrinkage (P0-2), regime
+      multipliers, decay knockout (P0-1), and meta-loop adjustments.
     """
     a = alpha.values.astype(float)
     r = forward_returns.values.astype(float)
@@ -509,45 +519,142 @@ def _compute_stability(ic: pd.Series) -> float:
 # Weight calculation
 # ---------------------------------------------------------------------------
 
+def measure_ic(
+    normalized: Dict[str, pd.Series],
+    forward_returns: pd.Series,
+    ic_window: int = 60,
+    ic_stride: int = 1,
+) -> Dict[str, AlphaQuality]:
+    """Empirical Information Coefficient (IC) quality measurement for alpha signals.
+
+    Architectural Boundary (P0-4):
+    -----------------------------
+    This function is strictly for MEASUREMENT and REPORTING (e.g. risk reports,
+    diagnostics, quality auditing). It calculates empirical rolling Spearman IC,
+    mean IC, IC standard deviation, Information Ratio, turnover, half-life, and
+    temporal stability across split halves.
+
+    It NEVER applies portfolio optimization, shrinkage overrides, James-Stein
+    dampening, regime multipliers, decay knockout, or meta-weights.
+    Those decision logic belong exclusively to `allocate_weights()`.
+    """
+    qualities = {}
+    for col, norm_series in normalized.items():
+        qualities[col] = compute_alpha_quality(
+            norm_series, forward_returns, name=col, ic_window=ic_window, ic_stride=ic_stride
+        )
+    return qualities
+
+
 def compute_ic_weights(
     qualities: Dict[str, AlphaQuality],
     min_ir: float = 0.0,
-    shrinkage: float = 0.3,
+    shrinkage: Optional[float] = None,
+    t_eff: Optional[int] = None,
 ) -> Dict[str, float]:
     """Compute ensemble weights from alpha quality metrics with James-Stein shrinkage.
+
+    P0-2 & P0-4 Architectural Separation:
+    - Measurement (IC_IR, stability, turnover) is computed upstream by `measure_ic()`.
+    - This function implements portfolio optimization / James-Stein shrinkage.
+    - If N/T > 0.25, logs WARNING and enforces shrinkage lambda = min(0.5, r).
+    - If T_eff < 100, enforces shrinkage floor to combat small-sample noise.
 
     Weighting scheme (Alpha101-style + shrinkage):
       raw_i = max(IC_IR_i - min_ir, 0)
       w_i = (1 - λ) * raw_i / sum(raw) + λ * (1/N)   where λ = shrinkage
-
-    Shrinkage stabilizes N=23/T=60 r=0.38 noisy regime per Author-P (2002). λ=0.30
-    pulls weights toward equal-weight, reducing overfit. Alphas with negative
-    IC_IR get zero raw but still receive shrinkage floor.
-
-    The *min_ir* parameter acts as a threshold — only alphas with IC_IR
-    above this threshold receive raw weight.
     """
     n = len(qualities)
     if n == 0:
         return {}
+
+    t = int(t_eff) if t_eff is not None and t_eff > 0 else 60
+    r = n / float(t)
+
+    if r > 0.25:
+        log.warning(
+            "Ensemble N/T ratio r=%.3f > 0.25 (N=%d, T=%d). High noise sensitivity regime; "
+            "applying James-Stein shrinkage toward equal weights.",
+            r, n, t,
+        )
+
+    # Base user shrinkage or default 0.3
+    user_lam = float(shrinkage) if shrinkage is not None else 0.3
+
+    # Enforce shrinkage if r > 0.25 or t < 100
+    if r > 0.25:
+        lam = float(np.clip(max(user_lam, min(0.5, r)), 0.0, 0.5))
+    elif t < 100:
+        lam = float(np.clip(max(user_lam, min(0.5, max(0.15, r))), 0.0, 0.5))
+    else:
+        lam = float(np.clip(user_lam, 0.0, 0.5))
+
     raw = {}
     for name, q in qualities.items():
         raw[name] = max(q.ic_ir - min_ir, 0.0)
     total = sum(raw.values())
-    lam = float(np.clip(shrinkage, 0.0, 0.5))
     if total <= 0:
-        # Fallback: equal weight to all alphas (also shrinkage limit)
         return {name: 1.0 / n for name in qualities}
-    # Shrink toward equal weight
+
     equal_w = 1.0 / n
     shrunk = {}
     for name, val in raw.items():
         w_raw = val / total
         w = (1 - lam) * w_raw + lam * equal_w
         shrunk[name] = w
-    # Renormalize after shrinkage (maintains sum 1)
+
     s = sum(shrunk.values())
     return {k: v / s for k, v in shrunk.items()} if s > 0 else {name: 1.0 / n for name in qualities}
+
+
+def allocate_weights(
+    qualities: Dict[str, AlphaQuality],
+    regime: Optional[Any] = None,
+    decay_health: Optional[Dict[str, Any]] = None,
+    min_ir: float = 0.0,
+    shrinkage: Optional[float] = None,
+    ic_window: int = 60,
+    meta_adjustments: bool = True,
+    weighting: str = "ic_ir",
+) -> Dict[str, float]:
+    """Allocate portfolio weights to alpha signals based on quality metrics and constraints.
+
+    Architectural Boundary (P0-4 & P0-2):
+    -----------------------------------
+    This function represents the DECISION / ALLOCATION path.
+    Unlike `measure_ic()`, this function always applies:
+    1. James-Stein shrinkage toward equal weights (P0-2), scaling lambda = min(0.5, max(shrinkage, r))
+       where r = N / T_eff. Logs a warning if r > 0.25. Enforces T_eff >= 100 or shrinkage.
+    2. Minimum IR gating (min_ir > 0.0 zeroes out raw weights for alphas below threshold).
+    3. Macro / Microstructure regime multipliers (`_apply_regime_adjustments`).
+    4. Alpha decay knockout (P0-1) where DEAD/REVERSED alphas are strictly zeroed out.
+    5. Meta-loop validated adjustments (`_apply_meta_adjustments`).
+    """
+    if not qualities:
+        return {}
+
+    # 1. Base weights from chosen weighting scheme with James-Stein shrinkage
+    if weighting == "ic_ir":
+        weights = compute_ic_weights(qualities, min_ir=min_ir, shrinkage=shrinkage, t_eff=ic_window)
+    elif weighting == "ic":
+        raw = {name: max(q.ic_mean, 0.0) for name, q in qualities.items()}
+        total = sum(raw.values())
+        weights = {name: v / total if total > 0 else 1.0 / len(raw) for name, v in raw.items()}
+    else:  # equal
+        weights = {name: 1.0 / len(qualities) for name in qualities}
+
+    # 2. Apply regime multipliers
+    weights = _apply_regime_adjustments(weights, regime)
+
+    # 3. Apply decay health adjustments (DEAD/REVERSED -> 0.0, DEGRADED -> 0.5)
+    if decay_health:
+        weights = _apply_decay_health(weights, decay_health)
+
+    # 4. Apply meta-loop adjustments
+    if meta_adjustments:
+        weights = _apply_meta_adjustments(weights)
+
+    return weights
 
 
 # ---------------------------------------------------------------------------
@@ -654,6 +761,8 @@ def combine_alphas(
     ic_stride: int = 1,
     normalize_method: str = "zscore",
     weighting: str = "ic_ir",
+    min_ir: float = 0.0,
+    shrinkage: Optional[float] = None,
     regime: Optional[Dict[str, Any]] = None,
     orthogonalize: bool = False,
     ortho_method: str = "ols",
@@ -662,6 +771,8 @@ def combine_alphas(
     mutual_ortho_window: int = 480,
     mutual_ortho_stride: int = 0,
     decay_health: Optional[Dict[str, Any]] = None,
+    decay_monitor: Optional[Any] = None,
+    alive_only: bool = False,
 ) -> EnsembleResult:
     """Combine multiple alpha factors into a composite signal.
 
@@ -762,34 +873,37 @@ def combine_alphas(
             )
             mutual_diag = None
 
-    # --- Compute quality metrics for each alpha ---
-    qualities = {}
-    for col, norm_series in normalized.items():
-        qualities[col] = compute_alpha_quality(
-            norm_series, fwd_ret, name=col, ic_window=ic_window, ic_stride=ic_stride
-        )
+    # Wire decay monitor if passed directly
+    if decay_monitor is not None and decay_health is None:
+        try:
+            summary = decay_monitor.get_summary()
+            decay_health = summary.get("alphas", {})
+        except Exception as e:
+            log.warning("Failed to extract decay health from decay_monitor: %s", e)
 
-    # --- Compute weights ---
-    if weighting == "ic_ir":
-        weights = compute_ic_weights(qualities)
-    elif weighting == "ic":
-        raw = {name: max(q.ic_mean, 0.0) for name, q in qualities.items()}
-        total = sum(raw.values())
-        weights = {name: v / total if total > 0 else 1.0 / len(raw) for name, v in raw.items()}
-    else:  # equal
-        weights = {name: 1.0 / len(qualities) for name in qualities}
+    if alive_only and decay_health:
+        alive_cols = [
+            c for c in alpha_columns
+            if decay_health.get(c, {}).get("status") not in ("DEAD", "REVERSED")
+        ]
+        if alive_cols:
+            alpha_columns = alive_cols
+            normalized = {k: v for k, v in normalized.items() if k in alpha_columns}
 
-    # --- Apply regime-based weight adjustments ---
-    weights = _apply_regime_adjustments(weights, regime)
+    # --- Compute quality metrics for each alpha via decoupled measurement engine (P0-4) ---
+    qualities = measure_ic(normalized, fwd_ret, ic_window=ic_window, ic_stride=ic_stride)
 
-    # --- Apply decay health adjustments (from AlphaDecayMonitor) ---
-    # DEAD/REVERSED alphas get zeroed, DEGRADED get halved.
-    # This wires the decay monitor's orthogonalized IC into the ensemble.
-    if decay_health:
-        weights = _apply_decay_health(weights, decay_health)
-
-    # --- Apply validated meta-loop prior adjustments ---
-    weights = _apply_meta_adjustments(weights)
+    # --- Compute weights via decoupled allocation engine (P0-4 & P0-2) ---
+    weights = allocate_weights(
+        qualities,
+        regime=regime,
+        decay_health=decay_health,
+        min_ir=min_ir,
+        shrinkage=shrinkage,
+        ic_window=ic_window,
+        meta_adjustments=True,
+        weighting=weighting,
+    )
 
     # --- Minimum active alpha guard ---
     # If fewer than 3 alphas have non-zero weight, the ensemble lacks diversification.
