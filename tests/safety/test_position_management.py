@@ -70,8 +70,8 @@ def test_initial_risk_preserved_from_db_after_restart(store, fake_mt5):
     with store._connect() as con:
         con.execute(
             "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, "
-            "take_profit, risk_amount, opened_at, payload) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "take_profit, risk_amount, opened_at, payload, provenance) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mt5_broker')",
             (ticket, 460001, "scalp", symbol, "BUY", 0.1, initial_entry, initial_sl, 1.1150, risk_dollars,
              "2026-10-05T10:00:00Z", "{}"),
         )
@@ -114,8 +114,8 @@ def test_tighter_stop_wins_between_breakeven_and_trailing(store, fake_mt5):
     with store._connect() as con:
         con.execute(
             "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, "
-            "take_profit, risk_amount, opened_at, payload) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "take_profit, risk_amount, opened_at, payload, provenance) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mt5_broker')",
             (ticket, 460001, "scalp", symbol, "BUY", 0.1, open_price, initial_sl, 1.1200, 50.0,
              "2026-10-05T10:00:00Z", "{}"),
         )
@@ -162,8 +162,8 @@ def test_time_stop_uses_initial_r(store, fake_mt5):
     with store._connect() as con:
         con.execute(
             "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, "
-            "take_profit, risk_amount, opened_at, payload) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "take_profit, risk_amount, opened_at, payload, provenance) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mt5_broker')",
             (ticket, 460001, "scalp", symbol, "BUY", 0.1, open_price, initial_sl, 1.1200, 50.0,
              "2026-10-05T10:00:00Z", "{}"),
         )
@@ -422,8 +422,8 @@ def test_position_manager_action_is_advisory_only(store, fake_mt5):
     with store._connect() as con:
         con.execute(
             "INSERT INTO trades (ticket, magic, strategy, symbol, side, volume, entry, stop_loss, "
-            "take_profit, risk_amount, opened_at, payload) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "take_profit, risk_amount, opened_at, payload, provenance) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mt5_broker')",
             (888, 460001, "scalp", "EURUSD", "BUY", 0.1, 1.1000, 1.0950, 1.1200, 50.0,
              "2026-10-05T10:00:00Z", "{}"),
         )

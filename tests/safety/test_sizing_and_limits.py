@@ -158,9 +158,11 @@ def test_min_lot_over_cap_returns_zero_ts_p1(monkeypatch):
     mock_mt5 = SimpleNamespace(
         symbol_info=lambda s: mock_info,
         symbol_info_tick=lambda s: SimpleNamespace(bid=100.0, ask=100.02),
+        account_info=lambda: SimpleNamespace(equity=1000.0, balance=1000.0),
     )
     from tests.fakes.fake_mt5 import patch_everywhere
     patch_everywhere(monkeypatch, "core/risk_manager.py", "mt5", mock_mt5)
+    monkeypatch.setattr("core.order_execution._get_mt5", lambda: mock_mt5)
 
     # Entry 100.0, SL 95.0 -> 5.0 distance = 500 points.
     # At 0.1 lots min, dollar risk would be $50.00, but cap is $10.00.

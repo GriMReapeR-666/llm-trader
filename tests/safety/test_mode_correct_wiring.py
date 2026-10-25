@@ -41,6 +41,9 @@ def fake_mt5(monkeypatch):
     patch_everywhere(monkeypatch, "core/trade_manager.py", "mt5", fake)
     patch_everywhere(monkeypatch, "core/order_execution.py", "mt5", fake)
     monkeypatch.setattr("core.order_execution._get_mt5", lambda: fake)
+    patch_everywhere(monkeypatch, "data/market_data_provider.py", "mt5", fake)
+    monkeypatch.setattr("data.market_data_provider._get_mt5", lambda: fake, raising=False)
+    monkeypatch.setattr("intelligence.llm_orchestrator._get_mt5", lambda: fake, raising=False)
     # Pin sys.modules["mt5_trader"].mt5 too: the orchestrator resolves ticks
     # and reconcile reads through it when mt5_trader is imported anywhere in
     # the worker, so leaving it makes tick resolution depend on worker import
@@ -64,7 +67,7 @@ def _make_open_trade(store: TradingStore, ticket: int = 777, symbol: str = "EURU
         confidence=0.8,
         features={"setup_id": "test_setup"},
     )
-    store.record_open_trade(ticket, prop, volume=0.1, risk_amount=50.0, payload={})
+    store.record_open_trade(ticket, prop, volume=0.1, risk_amount=50.0, payload={}, provenance="mt5_broker")
 
 
 def test_probe1_live_mode_wiring_and_provider_isolation(store, fake_mt5):
@@ -526,7 +529,7 @@ def test_full_lifecycle_on_fake_mt5_with_wrapper_client(store, fake_mt5):
     )
     ops.resolve_order_intent("intent_5555", "PENDING", ticket=ticket)
     store.transition_latest_setup(prop.setup_key(), "ACCEPTED", ticket=ticket, reason="submitted")
-    store.record_open_trade(ticket, prop, volume=0.2, risk_amount=50.0, payload={"magic": 460001})
+    store.record_open_trade(ticket, prop, volume=0.2, risk_amount=50.0, payload={"magic": 460001}, provenance="mt5_broker")
 
     # 3. Fill: position appears on FakeMT5
     pos = NS(

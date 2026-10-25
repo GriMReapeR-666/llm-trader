@@ -1070,7 +1070,7 @@ class LLMOrchestrator:
         """
         count = 0
         try:
-            broker = _get_mt5()
+            broker = getattr(self, "client", None) or _get_mt5()
             if broker is None:
                 return None
             positions, _live_pos_err = broker_positions_get(mt5_inst=broker)
@@ -1099,7 +1099,7 @@ class LLMOrchestrator:
         if not self.risk:
             return None
         try:
-            broker = _get_mt5()
+            broker = getattr(self, "client", None) or _get_mt5()
             if broker is None:
                 return None
             _live_positions, _lp_err = broker_positions_get(mt5_inst=broker)
@@ -2798,7 +2798,7 @@ class LLMOrchestrator:
                 return None
         if granted == "DEMO":
             try:
-                broker = _get_mt5()
+                broker = getattr(self, "client", None) or _get_mt5()
                 if broker is None:
                     return None
                 _acct, _acct_err = broker_account_info(mt5_inst=broker)
@@ -5788,7 +5788,7 @@ class LLMOrchestrator:
             if is_paper:
                 actual_tickets = set(self.paper_broker.positions.keys()) if self.paper_broker else set()
             else:
-                broker = _get_mt5()
+                broker = getattr(self, "client", None) or _get_mt5()
                 if broker is None:
                     logging.getLogger("LLMOrchestrator").warning("Reconcile skipped: broker unavailable")
                     return
@@ -5835,7 +5835,7 @@ class LLMOrchestrator:
                 else:
                     # Live / Demo: Retrieve history to find PnL (Lookback 7 days to be safe)
                     from_date = datetime.now() - timedelta(days=7)
-                    broker = _get_mt5()
+                    broker = getattr(self, "client", None) or _get_mt5()
                     _deals, _deals_err = broker_history_deals_get(position=ticket, date_from=from_date, mt5_inst=broker)
                     deals = list(_deals or []) if broker is not None else []
                     if not deals or _deals_err is not None:

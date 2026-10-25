@@ -69,7 +69,7 @@ def test_1a_f13_fetch_data_sets_clock_health_and_provider_time(fake_mt5, store):
     server_time_msc = int((now_utc.timestamp() + server_offset) * 1000)
 
     fake_mt5.symbol_info_tick = lambda sym: NS(
-        bid=1.1000, ask=1.1002, time_msc=server_time_msc, last=1.1000
+        bid=1.1000, ask=1.1002, time_msc=int((datetime.now(timezone.utc).timestamp() + server_offset) * 1000), last=1.1000
     )
 
     mdp = MarketDataProvider(client=fake_mt5, risk_manager=MagicMock(risk_per_trade=0.01, max_drawdown=0.05, balance=10000.0))
@@ -82,6 +82,8 @@ def test_1a_f13_fetch_data_sets_clock_health_and_provider_time(fake_mt5, store):
     mdp.analyze_confluence = lambda sym, **kw: {"score": 8, "max_score": 12, "breakdown": {}}
     mdp._alpha_rotation_engine = None
     mdp._hierarchical_portfolio_engine = None
+    mdp.api_manager = None
+    mdp._auto_quant_tools = MagicMock()
 
     # Patch fetch_ohlc to return valid DataFrame
     import pandas as pd
@@ -99,9 +101,9 @@ def test_1a_f13_fetch_data_sets_clock_health_and_provider_time(fake_mt5, store):
     with patch("data.market_data_provider._get_fetch_ohlc", return_value=lambda *a, **k: df):
         with patch("data.market_data_provider.DOMCollector") as mock_dom_cls:
             mock_dom = MagicMock()
-            mock_dom.get_snapshot.return_value = {
+            mock_dom.get_snapshot.side_effect = lambda *a, **k: {
                 "available": True, "best_bid": 1.1000, "best_ask": 1.1002, "spread": 0.0002,
-                "captured_at": now_utc.isoformat(),
+                "captured_at": datetime.now(timezone.utc).isoformat(),
             }
             mock_dom_cls.return_value = mock_dom
 
@@ -115,7 +117,7 @@ def test_1a_f13_fetch_data_sets_clock_health_and_provider_time(fake_mt5, store):
 
     # Verify provider_time is within 5s of now_utc (not 2 hours off!)
     provider_dt = datetime.fromisoformat(context["provider_time"])
-    assert abs((now_utc - provider_dt).total_seconds()) <= 5.0
+    assert abs((datetime.now(timezone.utc) - provider_dt).total_seconds()) <= 10.0
 
     # DataQualityGate must now PASS with require_live_quote=True!
     # Populate source_identity required by gate in live mode

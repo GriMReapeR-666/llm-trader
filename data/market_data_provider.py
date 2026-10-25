@@ -1948,7 +1948,9 @@ class MarketDataProvider:
                 _ops = getattr(self, "_cached_ops", None)
                 if _ops is None:
                     from operations.agent_operations import AgentOperations
-                    _ops = AgentOperations(store=self._state_store())
+                    _st = self._state_store()
+                    _db_path = getattr(_st, "path", str(_st)) if _st else "trading_state.db"
+                    _ops = AgentOperations(db_path=_db_path)
                     self._cached_ops = _ops
                 clock_health = _ops.record_clock_observation(
                     "mt5_tick", _utc_tick_time, max_offset_seconds=5.0,

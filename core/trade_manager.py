@@ -636,7 +636,11 @@ class TradeManager(StoreBackedState):
             from core.broker_time import broker_epoch_to_utc
             open_utc = broker_epoch_to_utc(open_time, mt5_inst=self.client)
             elapsed = _time_mod.time() - open_utc.timestamp()
-        if elapsed < cfg.time_stop_seconds:
+        if self.time_stop_seconds is not None and self.time_stop_seconds != 4 * 3600:
+            effective_time_stop = self.time_stop_seconds
+        else:
+            effective_time_stop = cfg.time_stop_seconds
+        if elapsed < effective_time_stop:
             return
             
         # Calculate PnL in R using initial risk distance (1a-F9)
@@ -672,7 +676,7 @@ class TradeManager(StoreBackedState):
                 extra={"time_stop_exit": True, "elapsed_seconds": elapsed, "r_multiple": r_mult, "style": cfg.trading_style.value},
             )
             if authorized:
-                self._close_position(pos.ticket, str(pos.symbol), f"{cfg.trading_style.value}TimeStopExit")
+                self._close_position(pos.ticket, str(pos.symbol), "TimeStopExit")
             else:
                 self.log.warning(f"Time stop exit refused for #{pos.ticket}: {auth_reason}")
 
@@ -837,10 +841,7 @@ class TradeManager(StoreBackedState):
                     spread = 0.0002
                     tick = None
                     try:
-                        if self.paper_broker is not None:
-                            tick = mt5.symbol_info_tick(symbol) if mt5 else None
-                        elif mt5 is not None:
-                            tick = mt5.symbol_info_tick(symbol)
+                        tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=self.client or mt5)
                         if tick and tick.bid and tick.ask:
                             spread = abs(tick.ask - tick.bid)
                     except Exception:
@@ -874,10 +875,7 @@ class TradeManager(StoreBackedState):
                     spread = 0.0002
                     tick = None
                     try:
-                        if self.paper_broker is not None:
-                            tick = mt5.symbol_info_tick(symbol) if mt5 else None
-                        elif mt5 is not None:
-                            tick = mt5.symbol_info_tick(symbol)
+                        tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=self.client or mt5)
                         if tick and tick.bid and tick.ask:
                             spread = abs(tick.ask - tick.bid)
                     except Exception:
@@ -1099,7 +1097,7 @@ class TradeManager(StoreBackedState):
                 paper_price = getattr(pos, "price_current", getattr(pos, "price_open", 0.0))
                 if mt5 is not None:
                     try:
-                        tick = mt5.symbol_info_tick(pos.symbol)
+                        tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=self.client or mt5)
                         if tick:
                             paper_price = tick.ask if pos.type == 0 else tick.bid
                     except Exception:
