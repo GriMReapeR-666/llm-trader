@@ -376,6 +376,15 @@ class TrialLedger:
         """
         stored_class = str(strategy_class) if strategy_class else classify(
             strategy_id, metadata)
+        meta_dict = metadata or {}
+        explicit_version = (
+            meta_dict.get("version")
+            or meta_dict.get("strategy_version")
+            or meta_dict.get("genome_hash")
+        )
+        is_sweep = bool(meta_dict.get("is_sweep") or meta_dict.get("sweep_run"))
+        force_new = bool(meta_dict.get("force_new") or meta_dict.get("is_new_trial"))
+
         with self._lock:
             for attempt in range(10):
                 try:
@@ -385,6 +394,48 @@ class TrialLedger:
                     with _cross_process_lock(self._db_path):
                         with self._conn() as con:
                             con.execute("BEGIN IMMEDIATE")
+
+                            # Idempotency check: tie n_trials increments to a new strategy version
+                            if not force_new:
+                                prior_row = con.execute(
+                                    "SELECT trial_id, strategy_id, sharpe, n_observations, "
+                                    "skewness, kurtosis, timestamp, hash_prev, hash_current, "
+                                    "metadata, strategy_class FROM trials "
+                                    "WHERE strategy_id = ? ORDER BY trial_id DESC LIMIT 1",
+                                    (strategy_id,),
+                                ).fetchone()
+                                if prior_row:
+                                    prior_meta = {}
+                                    if prior_row[9]:
+                                        try:
+                                            prior_meta = json.loads(prior_row[9])
+                                        except Exception:
+                                            pass
+                                    prior_ver = (
+                                        prior_meta.get("version")
+                                        or prior_meta.get("strategy_version")
+                                        or prior_meta.get("genome_hash")
+                                    )
+                                    is_dup = False
+                                    if explicit_version and prior_ver:
+                                        is_dup = (explicit_version == prior_ver)
+                                    elif is_sweep:
+                                        is_dup = True
+
+                                    if is_dup:
+                                        return TrialRecord(
+                                            trial_id=int(prior_row[0]),
+                                            strategy_id=str(prior_row[1]),
+                                            sharpe=float(prior_row[2]),
+                                            n_observations=int(prior_row[3]),
+                                            skewness=float(prior_row[4]),
+                                            kurtosis=float(prior_row[5]),
+                                            timestamp=float(prior_row[6]),
+                                            hash_prev=str(prior_row[7]),
+                                            hash_current=str(prior_row[8]),
+                                            metadata=prior_meta,
+                                        )
+
                             # Get last hash for chain
                             last = con.execute(
                                 "SELECT hash_current FROM trials ORDER BY trial_id DESC LIMIT 1"

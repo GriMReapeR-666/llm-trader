@@ -908,9 +908,9 @@ class LLMRouter:
         ],
         "nvidia_nim": [
             "meta/llama-3.3-70b-instruct",
+            "meta/llama-3.2-11b-vision-instruct",
             "nvidia/llama-3.1-nemotron-70b-instruct",
-            "meta/llama-3.1-70b-instruct",
-            "meta/llama-3.1-8b-instruct",
+            "meta/llama-3.2-90b-vision-instruct",
             "deepseek-ai/deepseek-r1",
         ],
         "routesme": [
@@ -979,6 +979,16 @@ class LLMRouter:
         curated ranking default (provider may not be reachable). Returns None
         when the provider has no known free model.
         """
+        if (
+            hasattr(self, "fetch_model_catalogue")
+            and provider not in getattr(self, "_catalogue_cache", {})
+            and provider in getattr(self, "providers", {})
+        ):
+            try:
+                self.fetch_model_catalogue(provider)
+            except Exception:
+                pass
+
         ranking = self.FREE_MODEL_RANKING.get(provider, [])
         dead = getattr(self, "_dead_models", {}).get(provider, set())
         ranking = [m for m in ranking if m not in dead]
@@ -1021,31 +1031,37 @@ class LLMRouter:
 
         # Provider compatibility transformations
         if provider == "cerebras":
+            target = None
             if "llama-3.3-70b" in req:
-                return "llama-3.3-70b"
-            if "llama-3.1-70b" in req or "llama3.1-70b" in req:
-                return "llama3.1-70b"
-            if "llama-3.1-8b" in req or "llama3.1-8b" in req:
-                return "llama3.1-8b"
-            if "deepseek" in req or "r1" in req:
-                return "deepseek-r1-distill-llama-70b"
+                target = "llama-3.3-70b"
+            elif "llama-3.1-70b" in req or "llama3.1-70b" in req:
+                target = "llama3.1-70b"
+            elif "llama-3.1-8b" in req or "llama3.1-8b" in req:
+                target = "llama3.1-8b"
+            elif "deepseek" in req or "r1" in req:
+                target = "deepseek-r1-distill-llama-70b"
+            if target and target in valid_ids:
+                return target
             return best_default
 
         elif provider == "nvidia_nim":
             clean_id = req.replace(":free", "")
-            if not clean_id.startswith(("meta/", "nvidia/", "deepseek-ai/")):
+            if not clean_id.startswith(("meta/", "nvidia/", "deepseek-ai/", "mistralai/")):
                 if clean_id.startswith("llama"):
                     clean_id = f"meta/{clean_id}"
                 else:
                     clean_id = f"nvidia/{clean_id}"
             if clean_id in valid_ids:
                 return clean_id
+            target = None
             if "llama-3.3-70b" in req:
-                return "meta/llama-3.3-70b-instruct"
-            if "nemotron" in req:
-                return "nvidia/llama-3.1-nemotron-70b-instruct"
-            if "deepseek" in req or "r1" in req:
-                return "deepseek-ai/deepseek-r1"
+                target = "meta/llama-3.3-70b-instruct"
+            elif "nemotron" in req:
+                target = "nvidia/llama-3.1-nemotron-70b-instruct"
+            elif "deepseek" in req or "r1" in req:
+                target = "deepseek-ai/deepseek-r1"
+            if target and target in valid_ids:
+                return target
             return best_default
 
         elif provider in ("openrouter", "tokenrouter"):
@@ -1082,7 +1098,8 @@ class LLMRouter:
             return True
         free_prefixes = (
             "nvidia/", "meta/llama", "meta-llama/llama", "deepseek",
-            "llama-3.3", "llama3.1", "mistralai/mistral-nemo", "google/gemini", "qwen/",
+            "llama-3.3", "llama3.1", "mistralai/", "google/gemini", "qwen/",
+            "gpt-oss", "qwen-", "liquid/", "recursive/", "dots-studio/",
         )
         return model_id.startswith(free_prefixes)
 
@@ -1182,18 +1199,51 @@ class LLMRouter:
         else:
             allow_failover = os.getenv(
                 "LLM_TRADER_ALLOW_PROVIDER_FAILOVER", "false").lower() in {"1", "true", "yes"}
-        providers_to_try = [provider_name]
+        raw_providers_to_try = [provider_name]
         if allow_failover:
-            providers_to_try += [f for f in fallbacks if f in self.providers]
+            raw_providers_to_try += [f for f in fallbacks if f in self.providers]
         elif fallbacks:
             errors.append("provider failover disabled; selected provider is authoritative")
+
+        # Deduplicate providers that share the identical base_url and API key (e.g. tokenrouter == openrouter alias)
+        seen_credentials = set()
+        providers_to_try = []
+        for p in raw_providers_to_try:
+            prov_inst = self.providers.get(p)
+            if not prov_inst:
+                providers_to_try.append(p)
+                continue
+            b_url = getattr(prov_inst, "base_url", "")
+            p_keys = getattr(prov_inst, "api_keys", None) or []
+            first_key = p_keys[0] if p_keys else ""
+            cred_id = (b_url, first_key)
+            if first_key and cred_id in seen_credentials:
+                continue
+            if first_key:
+                seen_credentials.add(cred_id)
+            providers_to_try.append(p)
+
         for prov in providers_to_try:
             if prov not in self.providers:
                 errors.append(f"Provider '{prov}' not initialized")
                 continue
 
             provider = self.providers[prov]
-            if getattr(provider, "_is_quota_paused", None) and provider._is_quota_paused():
+            # Check provider's own quota pause or peer alias sharing the same credentials
+            is_paused = bool(getattr(provider, "_is_quota_paused", None) and provider._is_quota_paused())
+            p_keys = getattr(provider, "api_keys", None) or []
+            if not is_paused and p_keys:
+                p_url = getattr(provider, "base_url", "")
+                p_key = p_keys[0]
+                for _peer_name, _peer in self.providers.items():
+                    peer_keys = getattr(_peer, "api_keys", None) or []
+                    if _peer_name != prov and getattr(_peer, "base_url", "") == p_url and peer_keys and peer_keys[0] == p_key:
+                        if getattr(_peer, "_is_quota_paused", None) and _peer._is_quota_paused():
+                            provider.quota_paused_until = _peer.quota_paused_until
+                            is_paused = True
+                            break
+
+            if is_paused:
                 remaining = int(getattr(provider, "quota_paused_until", 0) - time.time())
                 errors.append(
                     f"{prov}: paused until quota reset (~{remaining}s remaining); skipped")

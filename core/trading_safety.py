@@ -244,11 +244,8 @@ class TradingStore:
 
     def __init__(self, path: str = "trading_state.db", mode: Optional[str] = None, account_fingerprint: str = ""):
         if path == "trading_state.db":
-            env_path = os.getenv("LLM_TRADER_JOURNAL_PATH")
-            if env_path:
-                path = env_path
-            elif not os.path.exists("trading_state.db") and os.path.exists(os.path.join("data", "trading_state.db")):
-                path = os.path.join("data", "trading_state.db")
+            from core.common_paths import get_trading_db_path
+            path = get_trading_db_path("trading_state.db")
         self.path = path
         self._local = threading.local()
         requested_mode = mode or os.getenv("TRADING_JOURNAL_MODE", "").strip()

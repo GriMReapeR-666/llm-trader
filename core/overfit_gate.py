@@ -185,7 +185,7 @@ class OverfitGate(StoreBackedState):
                 n_observations=max(10, len(returns)),
                 skewness=_skew,
                 kurtosis=_kurt,
-                metadata={"n_strategies_tested": n_strategies_tested},
+                metadata={"n_strategies_tested": n_strategies_tested, "is_sweep": True},
                 strategy_class=strategy_class,
             )
         except Exception as _rec_exc:
@@ -193,8 +193,9 @@ class OverfitGate(StoreBackedState):
 
         # True per-class count AFTER the canonical record — the count every
         # DSR in this call deflates against (None → global, fail-closed).
+        # Use effective independent trial count (distinct hypotheses), not raw cron execution counts.
         try:
-            _class_n = self._trial_ledger.n_trials_for_class(strategy_class)
+            _class_n = self._trial_ledger.n_effective_trials_for_class(strategy_class)
         except Exception:
             _class_n = 0
         _counted_n = max(n_strategies_tested, _class_n, 1)

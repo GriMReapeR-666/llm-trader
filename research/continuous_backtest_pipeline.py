@@ -142,21 +142,42 @@ class ContinuousBacktestPipeline:
             return "EURCHF"
         return symbol
 
-    def _extract_paper_r_multiples(self, db_path: str, symbol: Optional[str] = None) -> List[float]:
-        """Extract unbrokered/paper trade R-multiples for cold-start probation walk-forward."""
+    def _extract_paper_r_multiples(
+        self,
+        db_path: str,
+        symbol: Optional[str] = None,
+        strategy_name: Optional[str] = None,
+    ) -> List[float]:
+        """Extract unbrokered/paper trade R-multiples for cold-start probation walk-forward.
+        
+        Strictly isolates trades by symbol and strategy to prevent cross-asset or
+        cross-strategy contamination during walk-forward analysis.
+        """
         import sqlite3
         multiples: List[float] = []
         try:
             with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5.0) as con:
                 tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
                 if "trade_labels" in tables and "trades" in tables:
-                    rows = con.execute("""
+                    has_provenance = "provenance" in {r[1] for r in con.execute("PRAGMA table_info(trades)").fetchall()}
+                    query = """
                         SELECT tl.r_multiple
                         FROM trade_labels tl
                         JOIN trades t ON tl.ticket = t.ticket
                         WHERE tl.r_multiple IS NOT NULL
-                        ORDER BY t.ticket ASC
-                    """).fetchall()
+                          AND t.ticket < 200000
+                    """
+                    if has_provenance:
+                        query += " AND (t.provenance IS NULL OR t.provenance NOT IN ('synthetic', 'fixture', 'backtest')) "
+                    params = []
+                    if symbol:
+                        query += " AND UPPER(t.symbol) = UPPER(?) "
+                        params.append(symbol)
+                    if strategy_name:
+                        query += " AND (t.strategy = ? OR t.strategy LIKE ?) "
+                        params.extend([strategy_name, f"{strategy_name}%"])
+                    query += " ORDER BY t.ticket ASC"
+                    rows = con.execute(query, params).fetchall()
                     for (rm,) in rows:
                         if rm is not None:
                             try:
@@ -1025,9 +1046,14 @@ class ContinuousBacktestPipeline:
                 candidate = str(p)
                 break
         if candidate is None:
-            root_journal = Path(self.base_dir) / "trading_state.db"
-            if root_journal.is_file():
-                candidate = str(root_journal)
+            from core.common_paths import get_trading_db_path
+            resolved_db = get_trading_db_path("trading_state.db")
+            if os.path.isfile(resolved_db):
+                candidate = resolved_db
+            else:
+                root_journal = Path(self.base_dir) / "trading_state.db"
+                if root_journal.is_file():
+                    candidate = str(root_journal)
         if candidate is None:
             return {
                 "status": "INSUFFICIENT_JOURNAL_EVIDENCE",
@@ -1035,9 +1061,9 @@ class ContinuousBacktestPipeline:
                 "samples": 0,
                 "reason": "no journal found for %s" % symbol,
             }
-        return self._run_walkforward_with_db(candidate, symbol)
+        return self._run_walkforward_with_db(candidate, symbol, strategy_name)
 
-    def _run_walkforward_with_db(self, db_path: str, symbol: str) -> Dict[str, Any]:
+    def _run_walkforward_with_db(self, db_path: str, symbol: str, strategy_name: Optional[str] = None) -> Dict[str, Any]:
         """Execute walkforward analysis against a specific journal db."""
         from pathlib import Path
         db_path_obj = Path(db_path)
@@ -1061,7 +1087,7 @@ class ContinuousBacktestPipeline:
 
         if len(multiples) < 20:
             # Cold-start catch-22 resolution: check for verified paper trades in this journal
-            paper_multiples = self._extract_paper_r_multiples(db_path, symbol)
+            paper_multiples = self._extract_paper_r_multiples(db_path, symbol, strategy_name)
             if len(paper_multiples) >= 20:
                 penalized = [r - 0.10 for r in paper_multiples]
                 last_20 = penalized[-20:]
@@ -1097,70 +1123,70 @@ class ContinuousBacktestPipeline:
                 ),
             }
 
-            def _sharpe_from(items: List[float]) -> Optional[float]:
-                if len(items) < 2:
-                    return None
-                try:
-                    from scipy import stats as _sf_stats
-                except Exception:
-                    from scipy import stats as _sf_stats  # type: ignore[no-redef]
-                mean = sum(items) / len(items)
-                var = sum((x - mean) ** 2 for x in items) / (len(items) - 1)
-                std = var ** 0.5
-                if std == 0:
-                    return None
-                try:
-                    r = _sf_stats.ttest_1samp(items, 0.0)
-                    if r.pvalue is None:
-                        return None
-                except Exception:
-                    pass
-                sem = std / (len(items) ** 0.5)
-                return mean / sem
+        floor_20_ok = len(multiples) >= 20
+        floor_40_ok = len(multiples) >= 40
+        last_20 = multiples[-20:]
+        last_40 = multiples[-40:]
 
-            def _annualized_from(items: List[float]) -> Optional[float]:
-                """Same normalisation as the Stage-1 engine Sharpe.
-
-                The engine reports mean(R)/std(R) * sqrt(252); the t-stat above
-                is not comparable to it. Meta IS/OOS comparisons use this one.
-                """
-                if len(items) < 2:
+        def _sharpe_from(items: List[float]) -> Optional[float]:
+            if len(items) < 2:
+                return None
+            try:
+                from scipy import stats as _sf_stats
+            except Exception:
+                from scipy import stats as _sf_stats  # type: ignore[no-redef]
+            mean = sum(items) / len(items)
+            var = sum((x - mean) ** 2 for x in items) / (len(items) - 1)
+            std = var ** 0.5
+            if std == 0:
+                return None
+            try:
+                r = _sf_stats.ttest_1samp(items, 0.0)
+                if r.pvalue is None:
                     return None
-                mean = sum(items) / len(items)
-                var = sum((x - mean) ** 2 for x in items) / (len(items) - 1)
-                std = var ** 0.5
-                if std == 0:
-                    return None
-                return mean / std * (252 ** 0.5)
+            except Exception:
+                pass
+            sem = std / (len(items) ** 0.5)
+            return mean / sem
 
-            wf_sharpe = _sharpe_from(last_20)
-            robust_sharpe = _sharpe_from(last_40)
-            annualized_20 = _annualized_from(last_20)
-            annualized_40 = _annualized_from(last_40)
+        def _annualized_from(items: List[float]) -> Optional[float]:
+            """Same normalisation as the Stage-1 engine Sharpe.
 
-            return {
-                "status": "OK",
-                "journal": db_path,
-                "broker_tickets": len(tickets),
-                "r_multiples": len(multiples),
-                "floor_20": {"met": floor_20_ok, "count": len(last_20)},
-                "floor_40": {"met": floor_40_ok, "count": len(last_40)},
-                "reported_walkforward_sharpe": wf_sharpe,
-                "robust_sharpe_40": robust_sharpe,
-                "annualized_sharpe_20": annualized_20,
-                "annualized_sharpe_40": annualized_40,
-                "mean_r": float(sum(multiples) / len(multiples)) if multiples else 0.0,
-                "note": (
-                    "R-multiples sourced through labelled_dataset; the previous "
-                    "reader queried the non-existent trades.r_multiple column. "
-                    "reported_walkforward_sharpe is a t-stat; annualized_* use "
-                    "the engine's mean/std*sqrt(252) convention."
-                ),
-            }
+            The engine reports mean(R)/std(R) * sqrt(252); the t-stat above
+            is not comparable to it. Meta IS/OOS comparisons use this one.
+            """
+            if len(items) < 2:
+                return None
+            mean = sum(items) / len(items)
+            var = sum((x - mean) ** 2 for x in items) / (len(items) - 1)
+            std = var ** 0.5
+            if std == 0:
+                return None
+            return mean / std * (252 ** 0.5)
+
+        wf_sharpe = _sharpe_from(last_20)
+        robust_sharpe = _sharpe_from(last_40)
+        annualized_20 = _annualized_from(last_20)
+        annualized_40 = _annualized_from(last_40)
 
         return {
-            "status": "FAILED",
-            "reason": "no readable journal for %s" % symbol,
+            "status": "OK",
+            "journal": db_path,
+            "broker_tickets": len(tickets),
+            "r_multiples": len(multiples),
+            "floor_20": {"met": floor_20_ok, "count": len(last_20)},
+            "floor_40": {"met": floor_40_ok, "count": len(last_40)},
+            "reported_walkforward_sharpe": wf_sharpe,
+            "robust_sharpe_40": robust_sharpe,
+            "annualized_sharpe_20": annualized_20,
+            "annualized_sharpe_40": annualized_40,
+            "mean_r": float(sum(multiples) / len(multiples)) if multiples else 0.0,
+            "note": (
+                "R-multiples sourced through labelled_dataset; the previous "
+                "reader queried the non-existent trades.r_multiple column. "
+                "reported_walkforward_sharpe is a t-stat; annualized_* use "
+                "the engine's mean/std*sqrt(252) convention."
+            ),
         }
 
     def _stage_cpcv(
@@ -1253,7 +1279,10 @@ class ContinuousBacktestPipeline:
         and reported a divergence verdict from them.
         """
         try:
-            db_path = os.path.join(self.base_dir, "trading_state.db")
+            from core.common_paths import get_trading_db_path
+            db_path = get_trading_db_path("trading_state.db")
+            if not os.path.exists(db_path):
+                db_path = os.path.join(self.base_dir, "trading_state.db")
             if not os.path.exists(db_path):
                 return {"status": "skipped", "reason": "no_trading_db"}
 
