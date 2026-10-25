@@ -99,7 +99,13 @@ class DataQualityGate:
                     reasons.append("live market-data source account identity hash is invalid")
                 if any(key.lower() in {"password", "secret", "token"} for key in identity):
                     reasons.append("live market-data source identity contains sensitive fields")
-            captured_at = context.get("captured_at")
+            # DOM's own captured_at feeds the freshness check (1a-F14)
+            dom_captured = None
+            if isinstance(context.get("dom"), dict) and context["dom"].get("captured_at"):
+                dom_captured = context["dom"]["captured_at"]
+            elif isinstance(snapshot.get("dom"), dict) and snapshot["dom"].get("captured_at"):
+                dom_captured = snapshot["dom"]["captured_at"]
+            captured_at = dom_captured or context.get("captured_at")
             if not captured_at:
                 reasons.append("market snapshot capture time missing")
             else:

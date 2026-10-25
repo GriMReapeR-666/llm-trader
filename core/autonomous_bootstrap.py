@@ -315,8 +315,9 @@ def _phase_validate(
                 acc_info = client.get_account_info()
             if acc_info is None:
                 try:
-                    import MetaTrader5 as _mt5
-                    acc_info = _mt5.account_info()
+                    from core.broker_reads import broker_account_info as _boot_account_info
+                    _fallback_acc, _fallback_err = _boot_account_info(mt5_inst=None)
+                    acc_info = _fallback_acc
                 except Exception:
                     acc_info = None
 

@@ -280,7 +280,7 @@ class TradingStore:
                 cur = conn.cursor()
                 cur.execute("PRAGMA journal_mode=WAL;")
                 cur.execute("PRAGMA synchronous=NORMAL;")
-                cur.execute("PRAGMA busy_timeout=5000;")
+                cur.execute("PRAGMA busy_timeout=10000;")
                 cur.execute("PRAGMA cache_size=-64000;")
                 cur.execute("PRAGMA temp_store=MEMORY;")
                 cur.close()
@@ -1047,10 +1047,8 @@ class TradingStore:
     def record_close(self, ticket: int, exit_price: float, pnl: float, reason: str, *,
                      gross_pnl: Optional[float] = None, commission: float = 0.0,
                      swap: float = 0.0, financing: float = 0.0,
-                     closed_at: Optional[Any] = None) -> None:
-        # The broker-execution close is a reliable terminal mark.  Writing it
-        # before calculating excursions prevents a missing final observation
-        # from silently understating MFE/MAE.
+                     closed_at: Optional[Any] = None) -> bool:
+        # The broker-execution close is a reliable terminal mark.
         close_stamp = datetime.now(timezone.utc)
         if closed_at is not None:
             try:
@@ -1062,20 +1060,31 @@ class TradingStore:
                                if close_stamp.tzinfo is None else close_stamp.astimezone(timezone.utc))
             except (TypeError, ValueError, OverflowError):
                 raise ValueError("closed_at must be an ISO timestamp or datetime") from None
+
+        with self._connect() as con:
+            cur = con.execute(
+                "UPDATE trades SET closed_at=?,exit_price=?,pnl=?,exit_reason=?,gross_pnl=?,commission=?,swap=?,financing=? WHERE ticket=? AND closed_at IS NULL",
+                (close_stamp.isoformat(), exit_price, pnl, reason,
+                 pnl if gross_pnl is None else gross_pnl, commission, swap, financing, ticket),
+            )
+            if cur.rowcount == 0:
+                return False
+
         self.record_position_observation(
             ticket, exit_price, pnl, source="mt5_close_execution", mark_quality="BROKER_EXECUTION",
             observed_at=close_stamp,
         )
-        with self._connect() as con:
-            con.execute("UPDATE trades SET closed_at=?,exit_price=?,pnl=?,exit_reason=?,gross_pnl=?,commission=?,swap=?,financing=? WHERE ticket=?", (
-                close_stamp.isoformat(), exit_price, pnl, reason,
-                pnl if gross_pnl is None else gross_pnl, commission, swap, financing, ticket))
         self.transition_setup_for_ticket(ticket, "CLOSED", reason=reason, payload={"exit_price": exit_price, "pnl": pnl})
         self.log_lifecycle_event(ticket, "", "CLOSED", "reconciler", {
             "exit_price": exit_price, "pnl": pnl, "gross_pnl": pnl if gross_pnl is None else gross_pnl,
             "commission": commission, "swap": swap, "financing": financing, "reason": reason,
             **self.excursions(ticket),
         })
+        return True
+
+    def flag_execution_review(self, ticket: int, reason: str) -> None:
+        """Flag a trade for operator execution review when broker outcome is missing/ambiguous."""
+        self.log_lifecycle_event(int(ticket), "", "UNRESOLVED", "reconciler", {"reason": reason})
 
     def record_position_observation(self, ticket: int, price: float, unrealized_pnl: float = 0.0, *,
                                     source: str = "unknown", quote_time_msc: Optional[int] = None,
@@ -1348,6 +1357,11 @@ class TradingStore:
             total += self.reserved_risk()
         return total
 
+    def reserving_intents_count(self) -> int:
+        """Count of active intents currently reserving risk before fill."""
+        with self._connect() as con:
+            return len(reserving_intent_payloads(con))
+
     def open_bucket_risk(self, bucket: str, include_pending_intents: bool = True) -> float:
         with self._connect() as con:
             rows = con.execute("SELECT symbol,side,risk_amount FROM trades WHERE closed_at IS NULL").fetchall()
@@ -1368,17 +1382,24 @@ class TradingStore:
         return float(row["total"])
 
     def open_positions_for_netting(self) -> List[Dict[str, Any]]:
-        """Return all open positions with symbol, side, and risk_amount for FX netting."""
+        """Return all open positions and active reserving intents for FX netting (D3b)."""
         with self._connect() as con:
             rows = con.execute("SELECT symbol, side, risk_amount FROM trades WHERE closed_at IS NULL").fetchall()
-        return [
-            {
-                "symbol": str(r["symbol"]),
-                "side": str(r["side"]),
-                "risk_amount": float(r["risk_amount"] or 0.0),
-            }
-            for r in rows
-        ]
+            res = [
+                {
+                    "symbol": str(r["symbol"]),
+                    "side": str(r["side"]),
+                    "risk_amount": float(r["risk_amount"] or 0.0),
+                }
+                for r in rows
+            ]
+            for pl in reserving_intent_payloads(con):
+                sym = str(pl.get("symbol", "") or "")
+                side = str(pl.get("side", "") or "")
+                risk = float(pl.get("risk_amount", 0.0) or 0.0)
+                if sym and side:
+                    res.append({"symbol": sym, "side": side, "risk_amount": risk})
+            return res
 
 
 def check_selective_activation(
@@ -1936,12 +1957,18 @@ class PortfolioRiskArbiter:
             if drawdown >= self.max_drawdown_fraction:
                 self.store.set_kill_switch(True, f"maximum drawdown reached: {drawdown:.2%}")
                 return False, "maximum drawdown kill switch"
-            daily = self.store.realized_loss(now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat())
-            week_start = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=now.weekday())
+            try:
+                from core.broker_time import broker_trading_day_start_utc, broker_trading_week_start_utc
+                day_start = broker_trading_day_start_utc(now)
+                week_start = broker_trading_week_start_utc(now)
+            except Exception:
+                day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                week_start = day_start - timedelta(days=now.weekday())
+            daily = self.store.realized_loss(day_start.isoformat())
             weekly = self.store.realized_loss(week_start.isoformat())
             if daily >= equity * self.daily_loss_fraction: return False, "daily loss limit"
             if weekly >= equity * self.weekly_loss_fraction: return False, "weekly loss limit"
-            if self.store.open_risk() + new_risk > equity * self.max_open_risk_fraction: return False, "portfolio open-risk limit"
+            if self.store.open_risk() + new_risk > equity * self.max_open_risk_fraction: return False, "portfolio open-risk limit" 
 
             # FX Netting & Dollar Beta validation (opt-in when symbol and side are provided)
             is_hedging = False

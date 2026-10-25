@@ -14,6 +14,17 @@ import numpy as np
 log = logging.getLogger(__name__)
 logger = log
 
+# ── Locked broker reads (Phase 4 PH4-N1) ────────────────────────────────────
+# Raw mt5.* reads bypass the gateway's MT5 lock and race order_send's
+# last_error attribution. All reads below go through core.broker_reads.
+from core.broker_reads import (
+    broker_orders_get,
+    broker_positions_get,
+    broker_symbol_info,
+    broker_symbol_info_tick,
+)
+
+
 # ── Single-door gateway dispatch (Phase 2 One Door) ──────────────────────────
 # ONLY core/order_gateway.py may call mt5.order_send (runtime guard +
 # AST test enforce this). All live paths below delegate to the default
@@ -212,11 +223,13 @@ class PaperBroker:
                 "requested_volume": volume, "comment": "paper pending order placed"}
 
     def modify_position_sltp(self, symbol: Optional[str], sl: Optional[float], tp: Optional[float],
-                             magic: int = 0) -> int:
+                             magic: int = 0, ticket: Optional[int] = None) -> int:
         if isinstance(magic, bool) or not isinstance(magic, int) or magic <= 0:
             return 0
         count = 0
-        for pos in self.positions.values():
+        for pos_ticket, pos in list(self.positions.items()):
+            if ticket is not None and int(pos_ticket) != int(ticket):
+                continue
             if (symbol is None or pos["symbol"] == symbol) and int(pos.get("magic", 0) or 0) == magic:
                 if sl is not None:
                     pos["sl"] = sl
@@ -292,20 +305,58 @@ def _symbol_tick(symbol: str) -> Any:
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         raise RuntimeError("MetaTrader5 module unavailable")
-    info = mt5_inst.symbol_info(symbol)
+    info, _info_err = broker_symbol_info(symbol, mt5_inst=mt5_inst)
     if not info or not getattr(info, "visible", True):
         mt5_inst.symbol_select(symbol, True)
-    tick = mt5_inst.symbol_info_tick(symbol)
+    tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5_inst)
     if not tick:
         raise RuntimeError(f"Failed to get tick for {symbol}")
     return tick
+
+
+_SPREAD_HISTORY: Dict[str, List[float]] = {}
+
+
+def _get_rolling_spread_avg_points(symbol: str, current_points: float, point: float, max_window: int = 20) -> float:
+    """Calculate rolling spread average in points (1a-F5, TL-T2)."""
+    try:
+        from core.order_gateway import get_default_gateway
+        gw = get_default_gateway()
+        store = getattr(gw, "store", None)
+        if store is not None and hasattr(store, "get_state"):
+            ms = store.get_state(f"microstructure:{symbol}", {}) or {}
+            hist = ms.get("spread_history", [])
+            if hist:
+                return (sum(hist) / len(hist)) / point if point > 0 else (sum(hist) / len(hist))
+    except Exception:
+        pass
+    h = _SPREAD_HISTORY.setdefault(symbol, [])
+    if not h:
+        baseline_points = None
+        try:
+            mt5_inst = _get_mt5()
+            if mt5_inst:
+                info, _ = broker_symbol_info(symbol, mt5_inst=mt5_inst)
+                if info and getattr(info, "spread", None) is not None:
+                    s_val = float(info.spread)
+                    if s_val > 0:
+                        baseline_points = s_val
+        except Exception:
+            pass
+        h.append(current_points)
+        return baseline_points if baseline_points is not None else current_points
+    avg = sum(h) / len(h)
+    h.append(current_points)
+    if len(h) > max_window:
+        _SPREAD_HISTORY[symbol] = h[-max_window:]
+    return avg
 
 
 def _broker_market_filling_mode(symbol: str) -> int:
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         raise RuntimeError("MetaTrader5 module unavailable")
-    info = mt5_inst.symbol_info(symbol)
+    info, _info_err = broker_symbol_info(symbol, mt5_inst=mt5_inst)
     if not info:
         raise RuntimeError(f"Broker symbol specification unavailable for {symbol}")
     try:
@@ -320,35 +371,52 @@ def _broker_market_filling_mode(symbol: str) -> int:
 
 
 def validate_order_params(side: str, price: float, sl: Optional[float], tp: Optional[float], atr: Optional[float] = None) -> None:
-    if sl is not None and sl > 0:
-        if side.lower() == "buy":
-            if sl >= price:
-                raise ValueError(f"BUY Order Invalid: SL ({sl}) must be BELOW Price ({price})")
-            if tp and tp > 0 and tp <= price:
-                raise ValueError(f"BUY Order Invalid: TP ({tp}) must be ABOVE Price ({price})")
-        elif side.lower() == "sell":
-            if sl <= price:
-                raise ValueError(f"SELL Order Invalid: SL ({sl}) must be ABOVE Price ({price})")
-            if tp and tp > 0 and tp >= price:
-                raise ValueError(f"SELL Order Invalid: TP ({tp}) must be BELOW Price ({price})")
+    if not isinstance(side, str) or side.lower() not in ("buy", "sell"):
+        raise ValueError(f"Invalid side '{side}': must be 'buy' or 'sell'")
 
-        dist = abs(price - sl)
-        dist_pct = dist / price
-        if dist_pct > 0.05:
-            raise ValueError(f"SL Distance {dist_pct:.1%} exceeds max safety (5%). Trade Rejected.")
+    if not isinstance(price, (int, float)) or not math.isfinite(price) or price <= 0:
+        raise ValueError(f"Invalid price {price}: must be a finite positive number")
 
-        if atr and atr > 0:
-            dist_atr = dist / atr
-            if dist_atr < 0.5:
-                raise ValueError(f"SL Distance {dist_atr:.2f} ATR is too tight (Min 0.5 ATR). Rejected.")
+    if sl is None or not isinstance(sl, (int, float)) or not math.isfinite(sl) or sl <= 0:
+        raise ValueError(f"Stop-loss is mandatory and must be a finite positive number: {sl}")
 
-        if tp and tp > 0:
-            risk_dist = abs(price - sl)
-            reward_dist = abs(tp - price)
-            if risk_dist > 0:
-                rr = reward_dist / risk_dist
-                if rr < 2.0:
-                    raise ValueError(f"Risk:Reward {rr:.2f} is below minimum 2.0. Trade Rejected.")
+    if tp is not None:
+        if not isinstance(tp, (int, float)) or not math.isfinite(tp) or tp <= 0:
+            raise ValueError(f"Take-profit must be a finite positive number if provided: {tp}")
+
+    if atr is not None:
+        if not isinstance(atr, (int, float)) or not math.isfinite(atr) or atr <= 0:
+            raise ValueError(f"ATR must be a finite positive number if provided: {atr}")
+
+    side_lower = side.lower()
+    if side_lower == "buy":
+        if sl >= price:
+            raise ValueError(f"BUY Order Invalid: SL ({sl}) must be BELOW Price ({price})")
+        if tp and tp <= price:
+            raise ValueError(f"BUY Order Invalid: TP ({tp}) must be ABOVE Price ({price})")
+    elif side_lower == "sell":
+        if sl <= price:
+            raise ValueError(f"SELL Order Invalid: SL ({sl}) must be ABOVE Price ({price})")
+        if tp and tp >= price:
+            raise ValueError(f"SELL Order Invalid: TP ({tp}) must be BELOW Price ({price})")
+
+    dist = abs(price - sl)
+    dist_pct = dist / price
+    if dist_pct > 0.05:
+        raise ValueError(f"SL Distance {dist_pct:.1%} exceeds max safety (5%). Trade Rejected.")
+
+    if atr and atr > 0:
+        dist_atr = dist / atr
+        if dist_atr < 0.5:
+            raise ValueError(f"SL Distance {dist_atr:.2f} ATR is too tight (Min 0.5 ATR). Rejected.")
+
+    if tp and tp > 0:
+        risk_dist = abs(price - sl)
+        reward_dist = abs(tp - price)
+        if risk_dist > 0:
+            rr = reward_dist / risk_dist
+            if rr < 2.0:
+                raise ValueError(f"Risk:Reward {rr:.2f} is below minimum 2.0. Trade Rejected.")
 
 
 def validate_pending_entry_geometry(otype: str, entry: float, bid: float, ask: float) -> None:
@@ -680,7 +748,8 @@ def emergency_market_exit(*, symbol: str, position_ticket: int, side: str, volum
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         raise RuntimeError("MetaTrader5 module unavailable for emergency exit")
-    positions = mt5_inst.positions_get(ticket=int(position_ticket)) or []
+    positions, _pos_err = broker_positions_get(ticket=int(position_ticket), mt5_inst=mt5_inst)
+    positions = positions or []
     if len(positions) != 1:
         raise RuntimeError("emergency exit requires exactly one broker position")
     position = positions[0]
@@ -828,21 +897,25 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
         # latency signal available before dispatch.
         _t0 = time.perf_counter()
         try:
-            _tick = mt5_inst.symbol_info_tick(symbol)
+            _tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5_inst)
         except Exception:
             _tick = None
         _roundtrip_ms = (time.perf_counter() - _t0) * 1000.0
-        _current_spread = 0.0
-        if _tick is not None:
-            _bid = float(getattr(_tick, "bid", 0.0) or 0.0)
-            _ask = float(getattr(_tick, "ask", 0.0) or 0.0)
-            if _bid > 0 and _ask > 0:
-                _current_spread = (_ask - _bid) / _bid * 10000.0
+        if _tick is None:
+            raise RuntimeError("LiveExecutionSafetySupervisor: tick unavailable for live order")
+        _bid = float(getattr(_tick, "bid", 0.0) or 0.0)
+        _ask = float(getattr(_tick, "ask", 0.0) or 0.0)
+        if not (_bid > 0 and _ask > 0 and _ask >= _bid):
+            raise RuntimeError(f"LiveExecutionSafetySupervisor: invalid live prices bid={_bid}, ask={_ask}")
+        info, _info_err = broker_symbol_info(symbol, mt5_inst=mt5_inst) if hasattr(mt5_inst, "symbol_info") else (None, None)
+        point = float(getattr(info, "point", 0.00001) or 0.00001) if info else 0.00001
+        _current_spread = (_ask - _bid) / point if point > 0 else (_ask - _bid)
+        _avg_spread = _get_rolling_spread_avg_points(symbol, _current_spread, point)
         sup_check = sup.validate_pre_trade_safety(
             symbol=symbol,
             requested_volume=numeric_volume,
             current_spread_pips=_current_spread,
-            historical_avg_spread_pips=max(_current_spread * 0.8, 0.5),
+            historical_avg_spread_pips=_avg_spread,
             roundtrip_latency_ms=_roundtrip_ms,
         )
         # The gate reports "is_approved"; "allowed" is never a key it returns.
@@ -865,7 +938,7 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
              "take_profit": numeric_tp, "lots": numeric_volume, "symbol": symbol},
             {},
         )
-        if _cte_eval.overall_verdict in (ConstraintVerdict.REJECT,):
+        if _cte_eval.overall_verdict == ConstraintVerdict.REJECT:
             raise RuntimeError(f"TradingConstraintEngine {_cte_eval.overall_verdict.value}: {_cte_eval.reject_reasons}")
     except RuntimeError:
         raise
@@ -903,7 +976,7 @@ def place_pending_order(symbol: str, otype: str, price: float, volume: float,
     }
     # Dynamic deviation: 20 pipettes for FX, scale for metals/indices via point
     try:
-        info = mt5_inst.symbol_info(symbol)
+        info, _dev_info_err = broker_symbol_info(symbol, mt5_inst=mt5_inst)
         point = float(getattr(info, "point", 0.00001) or 0.00001)
         # ~15 points for FX majors, ~30 for XAU (point 0.01 vs 0.00001)
         dev = 30 if point >= 0.01 else 20
@@ -1008,7 +1081,7 @@ def modify_order_sltp(symbol: Optional[str], sl: Optional[float], tp: Optional[f
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         return 0
-    positions = mt5_inst.positions_get(symbol=symbol) if symbol else mt5_inst.positions_get()
+    positions, _mod_pos_err = broker_positions_get(symbol=symbol, mt5_inst=mt5_inst) if symbol else broker_positions_get(mt5_inst=mt5_inst)
     count = 0
     _gw = _live_gateway()
     for p in positions or []:
@@ -1038,7 +1111,7 @@ def cancel_pending_order(order_id: int, paper: Optional[PaperBroker], magic: int
     mt5_inst = _get_mt5()
     if mt5_inst is None:
         return False
-    order = mt5_inst.orders_get(ticket=order_id)
+    order, _order_err = broker_orders_get(ticket=order_id, mt5_inst=mt5_inst)
     if not order or len(order) != 1:
         return False
     if int(getattr(order[0], "magic", 0) or 0) != magic:

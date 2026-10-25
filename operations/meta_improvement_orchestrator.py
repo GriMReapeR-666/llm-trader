@@ -366,7 +366,7 @@ class MetaImprovementOrchestrator:
             if not tickets:
                 return hypotheses
 
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.row_factory = sqlite3.Row
 
             # Analyze recent broker-reconciled trades
@@ -475,7 +475,7 @@ class MetaImprovementOrchestrator:
 
         for imp in validated:
             try:
-                with sqlite3.connect(self.db_path, timeout=2) as con:
+                with sqlite3.connect(self.db_path, timeout=10) as con:
                     con.execute(
                         "INSERT INTO meta_improvements "
                         "(improvement_type, strategy, description, validation_state, applied_at) "
@@ -542,7 +542,7 @@ class MetaImprovementOrchestrator:
     def get_history(self, limit: int = 20) -> List[Dict[str, Any]]:
         """Get improvement history."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.row_factory = sqlite3.Row
 
             rows = con.execute(

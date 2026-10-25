@@ -214,9 +214,52 @@ def test_breakeven_and_trailing_stop_trigger_records(tmp_path):
         events = [row["event_type"] for row in lifecycle]
     finally:
         con.close()
-    
+
+    # 1a-F11: breakeven and trail are computed once and the tighter one wins.
+    # At +3R the trail (1.15) is tighter than breakeven (1.005), so only the
+    # trailing trigger fires — never both.
+    assert "TRAILING_TRIGGERED" in events
+    assert "BREAKEVEN_TRIGGERED" not in events
+    assert "SL_MODIFY_ACCEPTED" in events
+
+
+def test_breakeven_wins_when_trail_not_yet_valid(tmp_path):
+    """1a-F11 complement: at +1R with trail still below entry, breakeven fires alone."""
+    from unittest.mock import MagicMock, patch
+    from types import SimpleNamespace
+    from core.trade_manager import TradeManager
+    from core.trading_safety import TradingStore
+    store = TradingStore(str(tmp_path / "state2.db"))
+    manager = TradeManager(MagicMock(), MagicMock(), store=store, state_file=str(tmp_path / "tm2.json"), conditions_file=str(tmp_path / "tc2.json"))
+    position = SimpleNamespace(
+        ticket=105, volume=1.0, symbol="EURUSD", magic=460001, type=0, price_open=1.0, sl=0.9, tp=1.5
+    )
+    response = SimpleNamespace(retcode=10009, comment="done")
+    fake_mt5 = MagicMock(
+        positions_get=MagicMock(return_value=[position]),
+        order_send=MagicMock(return_value=response),
+        symbol_info=MagicMock(return_value=SimpleNamespace(point=0.0001, trade_stops_level=10, trade_freeze_level=10)),
+        symbol_info_tick=MagicMock(return_value=SimpleNamespace(bid=1.102, ask=1.1022)),
+        TRADE_RETCODE_DONE=10009,
+        ORDER_TYPE_BUY=0,
+        ORDER_TYPE_SELL=1,
+        TRADE_ACTION_SLTP=3,
+        POSITION_TYPE_BUY=0,
+    )
+    with patch("core.trade_manager.mt5", fake_mt5):
+        # +1.02R: breakeven valid (1.005), trail (0.952) below entry -> invalid.
+        manager._manage_position(position, 1.102, 0.05)
+
+    con = store._connect()
+    try:
+        lifecycle = con.execute("SELECT event_type FROM trade_lifecycle_events WHERE ticket=105").fetchall()
+        events = [row["event_type"] for row in lifecycle]
+    finally:
+        con.close()
+
     assert "BREAKEVEN_TRIGGERED" in events
-    assert "TRAILING_STOP_TRIGGERED" in events
+    assert "TRAILING_TRIGGERED" not in events
+    assert "SL_MODIFY_ACCEPTED" in events
 
 
 def test_trade_manager_state_persistence_roundtrip(tmp_path):

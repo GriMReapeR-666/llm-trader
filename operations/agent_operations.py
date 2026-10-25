@@ -151,6 +151,7 @@ class AgentOperations:
               error TEXT, payload TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_llm_requests_time ON llm_requests(created_at, status);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_llm_requests_active_trigger ON llm_requests(trigger_key) WHERE status IN ('RESERVED', 'SUCCESS');
             CREATE TABLE IF NOT EXISTS order_intents (
               intent_key TEXT PRIMARY KEY, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
               run_id TEXT, proposal_id TEXT, status TEXT NOT NULL, mt5_ticket INTEGER,
@@ -1183,29 +1184,54 @@ class AgentOperations:
         now = datetime.now(timezone.utc)
         hour = now.replace(minute=0, second=0, microsecond=0).isoformat()
         day = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-        with self._con() as con:
-            if con.execute("SELECT 1 FROM llm_requests WHERE trigger_key=? AND status IN ('RESERVED','SUCCESS')", (trigger_key,)).fetchone():
-                return False, "duplicate trigger"
-            per_hour = con.execute("SELECT COUNT(*) FROM llm_requests WHERE created_at >= ?", (hour,)).fetchone()[0]
-            per_day = con.execute("SELECT COUNT(*) FROM llm_requests WHERE created_at >= ?", (day,)).fetchone()[0]
-            provider_hour = con.execute("SELECT COUNT(*) FROM llm_requests WHERE provider=? AND model=? AND created_at >= ?", (provider, model, hour)).fetchone()[0]
-            concurrent = con.execute("SELECT COUNT(*) FROM llm_requests WHERE provider=? AND model=? AND status='RESERVED'", (provider, model)).fetchone()[0]
-            token_used = con.execute("SELECT COALESCE(SUM(CASE WHEN status='SUCCESS' THEN COALESCE(tokens,0) ELSE COALESCE(estimated_tokens,0) END),0) FROM llm_requests WHERE provider=? AND model=? AND created_at >= ?", (provider, model, hour)).fetchone()[0]
-            cost_used = con.execute("SELECT COALESCE(SUM(CASE WHEN status='SUCCESS' THEN COALESCE(cost,0) ELSE COALESCE(estimated_cost,0) END),0) FROM llm_requests WHERE provider=? AND model=? AND created_at >= ?", (provider, model, day)).fetchone()[0]
-            if per_hour >= max_per_hour:
-                return False, "hourly LLM budget exhausted"
-            if per_day >= max_per_day:
-                return False, "daily LLM budget exhausted"
-            if provider_hour >= max_per_hour:
-                return False, "provider/model hourly LLM budget exhausted"
-            if concurrent >= max_concurrent:
-                return False, "provider/model concurrency budget exhausted"
-            if int(token_used) + estimated_tokens > max_tokens_per_hour:
-                return False, "provider/model hourly token budget exhausted"
-            if float(cost_used) + estimated_cost > max_cost_per_day:
-                return False, "provider/model daily cost budget exhausted"
-            request_id = str(uuid.uuid4())
-            con.execute("INSERT INTO llm_requests(request_id,created_at,run_id,strategy,provider,model,trigger_key,status,estimated_tokens,estimated_cost,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (request_id, utcnow(), run_id, strategy, provider, model, trigger_key, "RESERVED", estimated_tokens, estimated_cost, self._stable_json({"budget": {"max_concurrent": max_concurrent, "max_tokens_per_hour": max_tokens_per_hour, "max_cost_per_day": max_cost_per_day}})))
+        with sqlite3.connect(self.db_path, timeout=10.0, isolation_level=None) as con:
+            con.row_factory = sqlite3.Row
+            con.execute("PRAGMA busy_timeout = 10000")
+            con.execute("BEGIN IMMEDIATE")
+            try:
+                if con.execute("SELECT 1 FROM llm_requests WHERE trigger_key=? AND status IN ('RESERVED','SUCCESS')", (trigger_key,)).fetchone():
+                    con.execute("ROLLBACK")
+                    return False, "duplicate trigger"
+                per_hour = con.execute("SELECT COUNT(*) FROM llm_requests WHERE created_at >= ?", (hour,)).fetchone()[0]
+                per_day = con.execute("SELECT COUNT(*) FROM llm_requests WHERE created_at >= ?", (day,)).fetchone()[0]
+                provider_hour = con.execute("SELECT COUNT(*) FROM llm_requests WHERE provider=? AND model=? AND created_at >= ?", (provider, model, hour)).fetchone()[0]
+                concurrent = con.execute("SELECT COUNT(*) FROM llm_requests WHERE provider=? AND model=? AND status='RESERVED'", (provider, model)).fetchone()[0]
+                token_used = con.execute("SELECT COALESCE(SUM(CASE WHEN status='SUCCESS' THEN COALESCE(tokens,0) ELSE COALESCE(estimated_tokens,0) END),0) FROM llm_requests WHERE provider=? AND model=? AND created_at >= ?", (provider, model, hour)).fetchone()[0]
+                cost_used = con.execute("SELECT COALESCE(SUM(CASE WHEN status='SUCCESS' THEN COALESCE(cost,0) ELSE COALESCE(estimated_cost,0) END),0) FROM llm_requests WHERE provider=? AND model=? AND created_at >= ?", (provider, model, day)).fetchone()[0]
+                if per_hour >= max_per_hour:
+                    con.execute("ROLLBACK")
+                    return False, "hourly LLM budget exhausted"
+                if per_day >= max_per_day:
+                    con.execute("ROLLBACK")
+                    return False, "daily LLM budget exhausted"
+                if provider_hour >= max_per_hour:
+                    con.execute("ROLLBACK")
+                    return False, "provider/model hourly LLM budget exhausted"
+                if concurrent >= max_concurrent:
+                    con.execute("ROLLBACK")
+                    return False, "provider/model concurrency budget exhausted"
+                if int(token_used) + estimated_tokens > max_tokens_per_hour:
+                    con.execute("ROLLBACK")
+                    return False, "provider/model hourly token budget exhausted"
+                if float(cost_used) + estimated_cost > max_cost_per_day:
+                    con.execute("ROLLBACK")
+                    return False, "provider/model daily cost budget exhausted"
+                request_id = str(uuid.uuid4())
+                try:
+                    con.execute(
+                        "INSERT INTO llm_requests(request_id,created_at,run_id,strategy,provider,model,trigger_key,status,estimated_tokens,estimated_cost,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        (request_id, utcnow(), run_id, strategy, provider, model, trigger_key, "RESERVED", estimated_tokens, estimated_cost, self._stable_json({"budget": {"max_concurrent": max_concurrent, "max_tokens_per_hour": max_tokens_per_hour, "max_cost_per_day": max_cost_per_day}})),
+                    )
+                except sqlite3.IntegrityError:
+                    con.execute("ROLLBACK")
+                    return False, "duplicate trigger"
+                con.execute("COMMIT")
+            except Exception:
+                try:
+                    con.execute("ROLLBACK")
+                except Exception:
+                    pass
+                raise
         self.event("llm", "request_reserved", {"strategy": strategy, "provider": provider, "model": model, "estimated_tokens": estimated_tokens, "estimated_cost": estimated_cost}, run_id=run_id, correlation_id=request_id)
         return True, request_id
 

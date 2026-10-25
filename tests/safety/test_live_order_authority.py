@@ -50,7 +50,15 @@ def test_grants_do_not_cross_journals(monkeypatch):
     assert _orch(mode="DEMO", granted="LIVE")._live_order_token() is None
 
 
-def test_live_token_is_short_lived_and_broker_scoped():
+def test_live_token_requires_live_entries_env(monkeypatch):
+    monkeypatch.delenv("LLM_TRADER_LIVE_ENTRIES", raising=False)
+    assert _orch(mode="LIVE", granted="LIVE")._live_order_token() is None
+    monkeypatch.setenv("LLM_TRADER_LIVE_ENTRIES", "1")
+    assert _orch(mode="LIVE", granted="LIVE")._live_order_token() is not None
+
+
+def test_live_token_is_short_lived_and_broker_scoped(monkeypatch):
+    monkeypatch.setenv("LLM_TRADER_LIVE_ENTRIES", "1")
     token = _orch()._live_order_token()
     assert token.can_access(PermissionLevel.ORDER_WRITE, scope="broker")
     assert token.expires_at - datetime.now(timezone.utc) <= timedelta(minutes=2)
@@ -89,6 +97,7 @@ def _pending(token):
 
 def test_live_pending_order_gate_accepts_a_live_token(monkeypatch):
     from core import order_execution
+    monkeypatch.setenv("LLM_TRADER_LIVE_ENTRIES", "1")
     with pytest.raises(PermissionError):
         _pending(None)
     expired = _orch()._live_order_token()

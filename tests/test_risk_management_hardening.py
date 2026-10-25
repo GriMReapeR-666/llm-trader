@@ -210,7 +210,12 @@ class TestRiskManagementHardening:
             rm_mod.mt5 = orig_mt5
 
     def test_meta_adaptive_risk_mutation_gating(self, tmp_path):
-        """Verify meta-adaptive risk mutation is blocked unless research influence approved."""
+        """Verify meta-adaptive risk mutation is blocked unless research influence approved.
+
+        1a-F3: the base risk is never written back. Each cycle computes an
+        effective risk per proposal; increases need research-influence
+        approval, decreases don't. rm.risk_per_trade stays 0.01 in both cases.
+        """
         from unittest.mock import MagicMock
         from intelligence.llm_orchestrator import LLMOrchestrator
         from core.risk_manager import RiskManager
@@ -222,6 +227,8 @@ class TestRiskManagementHardening:
         orch.risk = rm
         orch.run_id = "test_run"
         orch.operations = MagicMock()
+        # PR 4.3 reads the once-configured base risk, not the live field.
+        orch._base_risk_per_trade = 0.01
 
         # Bind the real method
         orch._apply_advanced_auto_tools = LLMOrchestrator._apply_advanced_auto_tools.__get__(orch, LLMOrchestrator)
@@ -244,11 +251,13 @@ class TestRiskManagementHardening:
         assert rm.risk_per_trade == 0.01
         assert toon["meta_adaptive_override"]["applied"] is False
 
-        # Case 2: Research influence allowed -> risk_per_trade mutates to 0.015
+        # Case 2: Research influence allowed -> effective risk 0.015 recorded
+        # in the toon override, but the base field is never mutated (1a-F3).
         orch._research_influence_allowed = MagicMock(return_value=True)
         orch._apply_advanced_auto_tools(toon, paper_mode=True)
-        assert rm.risk_per_trade == 0.015
+        assert rm.risk_per_trade == 0.01
         assert toon["meta_adaptive_override"]["applied"] is True
+        assert toon["meta_adaptive_override"]["adapted_risk_per_trade"] == pytest.approx(0.015)
 
     def test_advisory_gates_copula_and_bocpd_wiring(self, tmp_path):
         """Verify hub copula tail risk compresses heat budget and BOCPD vetoes in _validate_proposal."""
@@ -312,8 +321,8 @@ class TestRiskManagementHardening:
                     cond.return_value = MagicMock(allowed=True, reasons=[])
                     proposal, result = orch._validate_proposal(decision, toon, "EURUSD", "scalp", paper_mode=True)
 
-        # 1. Copula tail risk compressed the heat budget to 1.5R
-        assert rm.max_portfolio_heat_r == 1.5
+        # 1. Copula tail risk compressed the heat budget to 1.5R (per proposal feature, per H4 fix)
+        assert proposal.features.get("heat_budget_r") == 1.5
 
         # 2. BOCPD changepoint probability 0.85 exceeded threshold (0.45) -> vetoed
         assert result.approved is False

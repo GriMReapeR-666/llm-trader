@@ -164,7 +164,32 @@ class CorrelationRisk:
         """Estimate same-direction open risk; conservative bucket fallback on sparse data."""
         side_factor = 1 if side.upper() == "BUY" else -1
         total, pairs = 0.0, []
+        items = []
         for row in store.open_trade_rows():
+            items.append({
+                "ticket": int(row["ticket"]),
+                "symbol": str(row["symbol"]),
+                "side": str(row["side"]),
+                "risk_amount": float(row["risk_amount"] or 0),
+            })
+        if hasattr(store, "_connect"):
+            try:
+                with store._connect() as con:
+                    from core.trading_safety import reserving_intent_payloads
+                    for idx, pl in enumerate(reserving_intent_payloads(con)):
+                        sym = str(pl.get("symbol", "") or "")
+                        s = str(pl.get("side", "") or "")
+                        if sym and s:
+                            items.append({
+                                "ticket": -(idx + 1),
+                                "symbol": sym,
+                                "side": s,
+                                "risk_amount": float(pl.get("risk_amount", 0.0) or 0.0),
+                            })
+            except Exception:
+                pass
+
+        for row in items:
             existing_symbol, existing_side = str(row["symbol"]), str(row["side"])
             estimated = self._correlation(symbol, existing_symbol, timeframe)
             

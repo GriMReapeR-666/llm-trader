@@ -82,7 +82,7 @@ class MemoryOrchestrator:
     def _init_db(self) -> None:
         """Initialize unified memory table."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.execute("""
                 CREATE TABLE IF NOT EXISTS unified_memory (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -145,7 +145,7 @@ class MemoryOrchestrator:
         embedding_hash = hashlib.md5(content_str.encode()).hexdigest()[:16]
 
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             cursor = con.execute(
                 "INSERT INTO unified_memory "
                 "(layer, memory_type, content, embedding_hash, importance, source, tags, expires_at) "
@@ -180,7 +180,7 @@ class MemoryOrchestrator:
 
         results = []
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.row_factory = sqlite3.Row
 
             for layer in layers:
@@ -262,7 +262,7 @@ class MemoryOrchestrator:
         consolidated = {"working_to_episodic": 0, "episodic_to_semantic": 0, "semantic_to_core": 0}
 
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             now = datetime.now(timezone.utc).isoformat()
 
             # Working → Episodic: memories older than 24h with high importance
@@ -340,7 +340,7 @@ class MemoryOrchestrator:
         forgotten = {"working": 0, "episodic": 0, "semantic": 0, "core": 0}
 
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             now = datetime.now(timezone.utc).isoformat()
 
             for layer, config in self.LAYERS.items():
@@ -388,7 +388,7 @@ class MemoryOrchestrator:
         """Get memory statistics across all layers."""
         stats = {}
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.row_factory = sqlite3.Row
 
             for layer in self.LAYERS:
@@ -437,7 +437,7 @@ class MemoryOrchestrator:
             return False
 
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.execute(
                 "UPDATE unified_memory SET layer = ?, "
                 "expires_at = ? WHERE id = ?",
@@ -455,7 +455,7 @@ class MemoryOrchestrator:
     def get_layer(self, layer: str, limit: int = 50) -> List[Dict[str, Any]]:
         """Get all memories in a specific layer."""
         try:
-            con = sqlite3.connect(self.db_path, timeout=2)
+            con = sqlite3.connect(self.db_path, timeout=10)
             con.row_factory = sqlite3.Row
 
             rows = con.execute(

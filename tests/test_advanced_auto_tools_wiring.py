@@ -29,6 +29,9 @@ def _make_orchestrator():
     import types
     orch = types.SimpleNamespace()
     orch.risk = types.SimpleNamespace(risk_per_trade=0.01)
+    # PR 4.3 (1a-F3): the method reads the once-configured base risk and
+    # never writes risk_per_trade back; effective risk lands in the toon.
+    orch._base_risk_per_trade = 0.01
     orch.run_id = "test-run"
     orch.operations = MagicMock()
     orch.store = MagicMock()
@@ -102,22 +105,26 @@ class TestMetaAdaptiveWiring:
             },
         }
         _call_apply(orch, toon)
-        # risk_per_trade should be 0.01 * 1.3 = 0.013
-        assert abs(orch.risk.risk_per_trade - 0.013) < 1e-6
+        # Effective risk 0.01 * 1.3 = 0.013 recorded; base never mutated (1a-F3).
+        assert orch.risk.risk_per_trade == 0.01
         assert toon["meta_adaptive_override"]["risk_multiplier"] == 1.3
+        assert toon["meta_adaptive_override"]["adapted_risk_per_trade"] == pytest.approx(0.013)
+        assert toon["meta_adaptive_override"]["applied"] is True
         assert toon["meta_adaptive_override"]["regime"] == "LOW_VOL_TREND"
 
     def test_risk_multiplier_capped_at_max(self):
         orch = _make_orchestrator()
         orch.risk.risk_per_trade = 0.015
+        orch._base_risk_per_trade = 0.015
         toon = _base_toon()
         toon["auto_quant_tools"]["results"]["meta_adaptive"] = {
             "status": "OK",
             "adapted_profile": {"risk_multiplier": 2.0, "position_scale": 1.0},
         }
         _call_apply(orch, toon)
-        # 0.015 * 2.0 = 0.03, but capped at 0.02
-        assert orch.risk.risk_per_trade == 0.02
+        # 0.015 * 2.0 = 0.03, but capped at 0.02 in the override (1a-F3: no write-back).
+        assert orch.risk.risk_per_trade == 0.015
+        assert toon["meta_adaptive_override"]["adapted_risk_per_trade"] == pytest.approx(0.02)
 
     def test_risk_multiplier_capped_at_min(self):
         orch = _make_orchestrator()
@@ -128,8 +135,9 @@ class TestMetaAdaptiveWiring:
             "adapted_profile": {"risk_multiplier": 0.1, "position_scale": 1.0},
         }
         _call_apply(orch, toon)
-        # 0.01 * 0.1 = 0.001, but floored at 0.002
-        assert orch.risk.risk_per_trade == 0.002
+        # 0.01 * 0.1 = 0.001, but floored at 0.002 in the override (1a-F3: no write-back).
+        assert orch.risk.risk_per_trade == 0.01
+        assert toon["meta_adaptive_override"]["adapted_risk_per_trade"] == pytest.approx(0.002)
 
     def test_no_change_when_multiplier_is_1(self):
         orch = _make_orchestrator()
@@ -166,8 +174,8 @@ class TestMetaAdaptiveWiring:
         assert orch.risk.risk_per_trade == 0.01  # unmutated
         override = toon["meta_adaptive_override"]
         assert override["applied"] is False
-        # The suggestion is still computed and recorded for the operator.
-        assert override["adapted_risk_per_trade"] == pytest.approx(0.013)
+        # Gated increases fall back to the base risk in the recorded override.
+        assert override["adapted_risk_per_trade"] == pytest.approx(0.01)
 
 
 # ---------------------------------------------------------------------------
@@ -197,8 +205,10 @@ class TestSelfImprovementWiring:
             "applied_params": {"risk_per_trade": 0.008},
         }
         _call_apply(orch, toon)
-        assert orch.risk.risk_per_trade == 0.008
+        # 1a-F3: recorded as an override, never written back.
+        assert orch.risk.risk_per_trade == 0.01
         assert toon["self_improvement_risk_override"] == 0.008
+        assert toon["cycle_effective_risk"] == pytest.approx(0.008)
 
     def test_improvement_risk_gated_in_live_without_approval(self):
         """Live (non-paper) without research approval: no risk mutation."""
@@ -385,6 +395,9 @@ class TestMultimodalWiring:
 
 class TestAdvancedAutoToolsSummary:
     def test_summary_built(self):
+        """The apply step publishes per-module advisory keys plus the cycle
+        effective risk (1a-F3). There is no aggregated summary dict and no
+        risk_per_trade write-back."""
         orch = _make_orchestrator()
         toon = _base_toon()
         toon["auto_quant_tools"]["results"] = {
@@ -396,21 +409,19 @@ class TestAdvancedAutoToolsSummary:
             "multimodal": {"confluence": {"score": 0.5}},
         }
         _call_apply(orch, toon)
-        summary = toon["advanced_auto_tools_summary"]
-        assert summary["meta_adaptive_active"] is True
-        assert summary["self_improvement_applied"] is True
-        assert summary["evolutionary_best_fitness"] == 0.75
-        assert summary["cross_market_score"] == 0.6
-        assert summary["cross_market_strength"] == "MODERATE"
-        assert summary["alpha_discovery_new_count"] == 1
-        assert summary["multimodal_confluence"] == 0.5
+        assert orch.risk.risk_per_trade == 0.01
+        assert toon["meta_adaptive_override"]["applied"] is True
+        assert toon["cycle_effective_risk"] == pytest.approx(0.011)
+        assert toon["evolutionary_suggestions"]["fitness"] == 0.75
+        assert toon["multimodal_patterns"]["confluence_score"] == 0.5
 
     def test_empty_results_no_summary(self):
         orch = _make_orchestrator()
         toon = _base_toon()
         _call_apply(orch, toon)
-        # Empty results returns early before building summary
-        assert toon.get("advanced_auto_tools_summary") is None
+        # Empty results returns early before publishing advisory keys.
+        assert toon.get("meta_adaptive_override") is None
+        assert "cycle_effective_risk" not in toon
 
 
 # ---------------------------------------------------------------------------

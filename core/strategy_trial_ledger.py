@@ -152,7 +152,7 @@ class TrialLedger:
                 con.execute("PRAGMA journal_mode=WAL;")
             except sqlite3.OperationalError:
                 pass  # concurrent init switched/holds it; best-effort WAL
-            con.execute("PRAGMA busy_timeout=5000;")
+            con.execute("PRAGMA busy_timeout=10000;")
             con.execute("""
                 CREATE TABLE IF NOT EXISTS trials (
                     trial_id    INTEGER PRIMARY KEY,
@@ -210,7 +210,7 @@ class TrialLedger:
     def _conn(self):
         con = sqlite3.connect(self._db_path, timeout=20.0)
         try:
-            con.execute("PRAGMA busy_timeout=5000;")
+            con.execute("PRAGMA busy_timeout=10000;")
         except Exception:
             pass
         try:

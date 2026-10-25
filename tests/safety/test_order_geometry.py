@@ -52,7 +52,6 @@ def test_invalid_geometry_rejects(args, message):
 
 
 # ---------------------------------------------------------------- known bugs
-@pytest.mark.xfail(strict=True, reason="known fail-open order geometry (see roadmap_id)")
 @pytest.mark.parametrize("args,roadmap_id", [
     pytest.param(("long", 100.0, 101.0, 98.0, None), "P1-F-TS-6", id="unknown_side_skips_all_checks"),
     pytest.param(("buy", 100.0, None, 102.0, None), "PLAN-1.3", id="no_stop_loss_skips_all_checks"),

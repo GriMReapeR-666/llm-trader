@@ -19,6 +19,14 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Any, List, Optional, Tuple, Union
 
+from core.broker_reads import (
+    broker_account_info,
+    broker_orders_get,
+    broker_positions_get,
+    broker_symbol_info,
+    broker_symbol_info_tick,
+)
+
 
 class TradingStyle(str, Enum):
     SCALP = "SCALP"
@@ -38,7 +46,6 @@ class StyleManagementConfig:
     use_spread_trailing: bool = False
     spread_multiplier: float = 1.5
     weekly_rebalance: bool = False
-
 
 RETCODE_MESSAGES = {
     10004: "REQUOTE",
@@ -125,6 +132,8 @@ class TradeManager(StoreBackedState):
         self.partial_exits_stage2 = set() # Track tickets that completed stage 2 (25% more)
         self.initial_risk: Dict[int, float] = {} # Entry->initial-SL distance per ticket (R basis)
         self.pyramid_entries = set() # Track tickets that have been scaled in
+        self.pyramid_children = set() # Track pyramid child tickets that cannot pyramid (1a-F9)
+        self._observed_unowned_tickets = set() # Track unowned tickets observed this session (1a-F12)
         self.history = [] # Track trade action history
 
         # Style-Specific Post-Entry Management Configuration:
@@ -256,11 +265,14 @@ class TradeManager(StoreBackedState):
             return []
         try:
             if ticket is not None:
-                raw = mt5.positions_get(ticket=ticket)
+                raw, _read_err = broker_positions_get(ticket=ticket, mt5_inst=mt5)
             elif symbol is not None:
-                raw = mt5.positions_get(symbol=symbol)
+                raw, _read_err = broker_positions_get(symbol=symbol, mt5_inst=mt5)
             else:
-                raw = mt5.positions_get()
+                raw, _read_err = broker_positions_get(mt5_inst=mt5)
+            if _read_err is not None:
+                self.log.warning("positions_get failed: %s", _read_err)
+                return []
             return list(raw or [])
         except Exception as exc:
             self.log.warning("positions_get failed: %s", exc)
@@ -299,42 +311,52 @@ class TradeManager(StoreBackedState):
             return
 
         for pos in positions:
-            if not self._owns(pos):
-                if self.store is not None:
-                    self.store.record_manual_activity(
-                        "UNOWNED_POSITION_OBSERVED", ticket=int(getattr(pos, "ticket", 0) or 0),
-                        symbol=str(getattr(pos, "symbol", "") or ""),
-                        side="BUY" if getattr(pos, "type", None) == getattr(mt5, "POSITION_TYPE_BUY", 0) else "SELL",
-                        magic=getattr(pos, "magic", None), payload={"manager": "TradeManager", "action": "observe_only"},
-                    )
-                continue
-            self._manage_position(pos, current_price, atr)
-            # LLM conditional_scenarios are advisory-only; this observes matches
-            # without granting close authority.
-            self._check_programmatic_conditions(symbol, current_price, pos)
-            # --- StealthDaemon: check synthetic stop/TP triggers ---
             try:
-                from core.urgency_sor import SyntheticStealthExecutionDaemon
-                _sl = float(getattr(pos, 'sl', 0) or 0)
-                _tp = float(getattr(pos, 'tp', 0) or 0)
-                _side = 'BUY' if getattr(pos, 'type', 0) == 0 else 'SELL'
-                _vol = float(getattr(pos, 'volume', 0) or 0)
-                synth = SyntheticStealthExecutionDaemon.evaluate_synthetic_trigger(
-                    current_price=current_price, stop_loss_price=_sl if _sl > 0 else None,
-                    take_profit_price=_tp if _tp > 0 else None, side=_side)
-                if synth.get('synthetic_stop_fired') or synth.get('synthetic_tp_fired'):
-                    logging.getLogger('TradeManager').info(
-                        'StealthDaemon trigger: %s ticket=%s',
-                        'STOP' if synth.get('synthetic_stop_fired') else 'TP',
-                        getattr(pos, 'ticket', '?'))
-            except Exception:
-                pass
-            if self.partial_tp_enabled:
-                self._check_scale_out(pos, current_price, atr)
-            if self.time_stop_enabled:
-                self._check_time_stop(pos, current_price, atr)
-            if self.enable_pyramiding and indicators:
-                self._check_pyramid_entry(pos, current_price, atr, indicators)
+                ticket = int(getattr(pos, "ticket", 0) or 0)
+                if not self._owns(pos):
+                    observed_tickets = getattr(self, "_observed_unowned_tickets", None)
+                    if observed_tickets is None:
+                        self._observed_unowned_tickets = set()
+                        observed_tickets = self._observed_unowned_tickets
+                    if ticket not in observed_tickets:
+                        observed_tickets.add(ticket)
+                        if self.store is not None:
+                            self.store.record_manual_activity(
+                                "UNOWNED_POSITION_OBSERVED", ticket=ticket,
+                                symbol=str(getattr(pos, "symbol", "") or ""),
+                                side="BUY" if getattr(pos, "type", None) == getattr(mt5, "POSITION_TYPE_BUY", 0) else "SELL",
+                                magic=getattr(pos, "magic", None), payload={"manager": "TradeManager", "action": "observe_only"},
+                            )
+                    continue
+                self._manage_position(pos, current_price, atr)
+                # LLM conditional_scenarios are advisory-only; this observes matches
+                # without granting close authority.
+                self._check_programmatic_conditions(symbol, current_price, pos)
+                # --- StealthDaemon: check synthetic stop/TP triggers ---
+                try:
+                    from core.urgency_sor import SyntheticStealthExecutionDaemon
+                    _sl = float(getattr(pos, 'sl', 0) or 0)
+                    _tp = float(getattr(pos, 'tp', 0) or 0)
+                    _side = 'BUY' if getattr(pos, 'type', 0) == 0 else 'SELL'
+                    _vol = float(getattr(pos, 'volume', 0) or 0)
+                    synth = SyntheticStealthExecutionDaemon.evaluate_synthetic_trigger(
+                        current_price=current_price, stop_loss_price=_sl if _sl > 0 else None,
+                        take_profit_price=_tp if _tp > 0 else None, side=_side)
+                    if synth.get('synthetic_stop_fired') or synth.get('synthetic_tp_fired'):
+                        logging.getLogger('TradeManager').info(
+                            'StealthDaemon trigger: %s ticket=%s',
+                            'STOP' if synth.get('synthetic_stop_fired') else 'TP',
+                            getattr(pos, 'ticket', '?'))
+                except Exception:
+                    pass
+                if self.partial_tp_enabled:
+                    self._check_scale_out(pos, current_price, atr)
+                if self.time_stop_enabled:
+                    self._check_time_stop(pos, current_price, atr)
+                if self.enable_pyramiding and indicators:
+                    self._check_pyramid_entry(pos, current_price, atr, indicators)
+            except Exception as pos_exc:
+                self.log.error(f"Error managing position #{getattr(pos, 'ticket', '?')}: {pos_exc}")
 
     def enforce_protective_flatten(self) -> bool:
         """Close all owned positions when risk manager requests protective flatten.
@@ -375,8 +397,9 @@ class TradeManager(StoreBackedState):
             if not authorized:
                 self.log.error("Protective flatten refused for #%s: %s", pos.ticket, auth_reason)
                 continue
-            self._close_position(pos.ticket, str(pos.symbol), f"ProtectFlatten:{reason}"[:31])
-            closed_any = True
+            close_ok = self._close_position(pos.ticket, str(pos.symbol), f"ProtectFlatten:{reason}"[:31])
+            if close_ok:
+                closed_any = True
 
         remaining = [
             p for p in self._get_positions()
@@ -436,7 +459,7 @@ class TradeManager(StoreBackedState):
             symbol = str(getattr(pos, "symbol", "") or "")
             equity = None
             try:
-                acc = mt5.account_info()
+                acc, _authz_acc_err = broker_account_info(mt5_inst=mt5)
                 equity = float(acc.equity) if acc else None
             except Exception:
                 equity = None
@@ -525,12 +548,29 @@ class TradeManager(StoreBackedState):
 
     def _initial_risk_for(self, pos, atr: float) -> float:
         """Entry-to-initial-stop distance (R basis), captured before any
-        breakeven/trailing move mutates pos.sl. Falls back to ATR heuristics
-        when the initial stop is missing or already mutated."""
+        breakeven/trailing move mutates pos.sl. Reads open price and initial SL
+        from the trades table row written at fill (1a-F9). Falls back to ATR
+        heuristics when the initial stop is missing or unrecorded."""
         ticket = int(getattr(pos, "ticket", 0) or 0)
         cached = self.initial_risk.get(ticket)
         if cached and cached > 0:
             return float(cached)
+        if self.store is not None:
+            try:
+                import sqlite3
+                db_path = getattr(self.store, "path", None)
+                if db_path:
+                    with sqlite3.connect(db_path, timeout=10.0) as con:
+                        row = con.execute("SELECT entry, stop_loss, risk_amount FROM trades WHERE ticket=?", (ticket,)).fetchone()
+                        if row and row[0] is not None and row[1] is not None:
+                            init_entry, init_sl = float(row[0]), float(row[1])
+                            init_risk = abs(init_entry - init_sl)
+                            if init_risk > 0:
+                                self.initial_risk[ticket] = init_risk
+                                self.save_state()
+                                return init_risk
+            except Exception:
+                pass
         sl = float(getattr(pos, "sl", 0) or 0)
         open_price = float(getattr(pos, "price_open", 0) or 0)
         if sl > 0 and open_price > 0:
@@ -588,14 +628,19 @@ class TradeManager(StoreBackedState):
         open_time = getattr(pos, "time", 0) or 0
         if open_time <= 0:
             return
-
         cfg = self.get_style_config(pos)
-        elapsed = _time_mod.time() - open_time
+        # In paper mode, pos.time is UTC epoch; in MT5, it is broker server epoch (1a-F10).
+        if getattr(self, "paper_broker", None) is not None:
+            elapsed = _time_mod.time() - open_time
+        else:
+            from core.broker_time import broker_epoch_to_utc
+            open_utc = broker_epoch_to_utc(open_time, mt5_inst=self.client)
+            elapsed = _time_mod.time() - open_utc.timestamp()
         if elapsed < cfg.time_stop_seconds:
             return
-
-        # Calculate PnL in R
-        risk_dist = abs(pos.price_open - pos.sl) if pos.sl > 0 else (atr * 1.5)
+            
+        # Calculate PnL in R using initial risk distance (1a-F9)
+        risk_dist = self._initial_risk_for(pos, atr)
         if risk_dist <= 0:
             risk_dist = max(atr, 0.0001)
 
@@ -655,7 +700,7 @@ class TradeManager(StoreBackedState):
                 paper_price = getattr(pos, "price_current", getattr(pos, "price_open", 0.0))
                 if mt5 is not None:
                     try:
-                        tick = mt5.symbol_info_tick(pos.symbol)
+                        tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=mt5)
                         if tick:
                             paper_price = tick.bid if pos.type == 0 else tick.ask
                     except Exception:
@@ -678,7 +723,7 @@ class TradeManager(StoreBackedState):
                     self.log.warning(f"Partial Close Paper Failed: {res}")
                     return
 
-            tick = mt5.symbol_info_tick(pos.symbol)
+            tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=mt5)
             if not tick:
                 self._record_management(pos.ticket, "PARTIAL_CLOSE_REJECTED", {
                     "ticket": pos.ticket, "error": "quote unavailable",
@@ -775,60 +820,89 @@ class TradeManager(StoreBackedState):
             except Exception as _g_exit_exc:
                 self.log.debug("Gold dynamic exit evaluation skipped: %s", _g_exit_exc)
 
+        # Breakeven and trail are computed once and the tighter one wins (1a-F11)
+        target_sl = None
+        trigger_reason = None
+
         if pos_type == mt5.ORDER_TYPE_BUY:
             profit_dist = current_price - open_price
+            be_sl = None
             if profit_dist > (risk_dist * be_r):
-                # Move SL to Entry (plus small buffer)
-                new_sl = open_price + (atr * 0.1) 
-                if current_sl < new_sl: # Only move up
-                    self._record_management(ticket, "BREAKEVEN_TRIGGERED", {"old_sl": current_sl, "new_sl": new_sl, "atr": atr, "profit_dist": profit_dist, "style": cfg.trading_style.value})
-                    self._modify_sl(ticket, new_sl, "Breakeven")
-                    
+                cand_be = open_price + (atr * 0.1)
+                if cand_be > current_sl:
+                    be_sl = cand_be
+            trail_sl = None
+            if self.use_trailing_stop:
+                if cfg.use_spread_trailing:
+                    spread = 0.0002
+                    tick = None
+                    try:
+                        if self.paper_broker is not None:
+                            tick = mt5.symbol_info_tick(symbol) if mt5 else None
+                        elif mt5 is not None:
+                            tick = mt5.symbol_info_tick(symbol)
+                        if tick and tick.bid and tick.ask:
+                            spread = abs(tick.ask - tick.bid)
+                    except Exception:
+                        pass
+                    trail_dist = max(spread * cfg.spread_multiplier, risk_dist * trail_r)
+                else:
+                    trail_dist = risk_dist * trail_r
+                cand_trail = current_price - trail_dist
+                if cand_trail > current_sl and cand_trail > open_price:
+                    trail_sl = cand_trail
+            if be_sl is not None and trail_sl is not None:
+                if trail_sl >= be_sl:
+                    target_sl, trigger_reason = trail_sl, "Trailing"
+                else:
+                    target_sl, trigger_reason = be_sl, "Breakeven"
+            elif trail_sl is not None:
+                target_sl, trigger_reason = trail_sl, "Trailing"
+            elif be_sl is not None:
+                target_sl, trigger_reason = be_sl, "Breakeven"
+
         elif pos_type == mt5.ORDER_TYPE_SELL:
             profit_dist = open_price - current_price
+            be_sl = None
             if profit_dist > (risk_dist * be_r):
-                # Move SL to Entry (minus small buffer)
-                new_sl = open_price - (atr * 0.1)
-                if current_sl == 0 or current_sl > new_sl: # Only move down
-                    self._record_management(ticket, "BREAKEVEN_TRIGGERED", {"old_sl": current_sl, "new_sl": new_sl, "atr": atr, "profit_dist": profit_dist, "style": cfg.trading_style.value})
-                    self._modify_sl(ticket, new_sl, "Breakeven")
-
-        # 2. Trailing Stop — style parameterized (spread-based for SCALP, ATR/R for SWING/LONG_TERM)
-        if self.use_trailing_stop:
-            if cfg.use_spread_trailing:
-                # Tight spread-based trailing for SCALP
-                spread = 0.0002
-                if self.paper_broker is not None:
+                cand_be = open_price - (atr * 0.1)
+                if current_sl == 0 or cand_be < current_sl:
+                    be_sl = cand_be
+            trail_sl = None
+            if self.use_trailing_stop:
+                if cfg.use_spread_trailing:
+                    spread = 0.0002
+                    tick = None
                     try:
-                        tick = mt5.symbol_info_tick(symbol) if mt5 else None
+                        if self.paper_broker is not None:
+                            tick = mt5.symbol_info_tick(symbol) if mt5 else None
+                        elif mt5 is not None:
+                            tick = mt5.symbol_info_tick(symbol)
                         if tick and tick.bid and tick.ask:
                             spread = abs(tick.ask - tick.bid)
                     except Exception:
                         pass
-                elif mt5 is not None:
-                    try:
-                        tick = mt5.symbol_info_tick(symbol)
-                        if tick and tick.bid and tick.ask:
-                            spread = abs(tick.ask - tick.bid)
-                    except Exception:
-                        pass
-                trail_dist = max(spread * cfg.spread_multiplier, risk_dist * trail_r)
-            else:
-                trail_dist = risk_dist * trail_r
+                    trail_dist = max(spread * cfg.spread_multiplier, risk_dist * trail_r)
+                else:
+                    trail_dist = risk_dist * trail_r
+                cand_trail = current_price + trail_dist
+                if (current_sl == 0 or cand_trail < current_sl) and cand_trail < open_price:
+                    trail_sl = cand_trail
+            if be_sl is not None and trail_sl is not None:
+                # For SELL, tighter stop is lower price
+                if trail_sl <= be_sl:
+                    target_sl, trigger_reason = trail_sl, "Trailing"
+                else:
+                    target_sl, trigger_reason = be_sl, "Breakeven"
+            elif trail_sl is not None:
+                target_sl, trigger_reason = trail_sl, "Trailing"
+            elif be_sl is not None:
+                target_sl, trigger_reason = be_sl, "Breakeven"
 
-            if pos_type == mt5.ORDER_TYPE_BUY:
-                proposed_sl = current_price - trail_dist
-                # Only move SL up, never down
-                if proposed_sl > current_sl and proposed_sl > open_price:
-                    self._record_management(ticket, "TRAILING_STOP_TRIGGERED", {"old_sl": current_sl, "new_sl": proposed_sl, "atr": atr, "current_price": current_price, "style": cfg.trading_style.value})
-                    self._modify_sl(ticket, proposed_sl, "Trailing")
-                    
-            elif pos_type == mt5.ORDER_TYPE_SELL:
-                proposed_sl = current_price + trail_dist
-                # Only move SL down, never up
-                if (current_sl == 0 or proposed_sl < current_sl) and proposed_sl < open_price:
-                    self._record_management(ticket, "TRAILING_STOP_TRIGGERED", {"old_sl": current_sl, "new_sl": proposed_sl, "atr": atr, "current_price": current_price, "style": cfg.trading_style.value})
-                    self._modify_sl(ticket, proposed_sl, "Trailing")
+        if target_sl is not None and trigger_reason is not None:
+            event_name = f"{trigger_reason.upper()}_TRIGGERED"
+            self._record_management(ticket, event_name, {"old_sl": current_sl, "new_sl": target_sl, "atr": atr, "current_price": current_price, "style": cfg.trading_style.value})
+            self._modify_sl(ticket, target_sl, trigger_reason)
 
     def _check_pyramid_entry(self, pos, current_price: float, atr: float, indicators: Dict[str, Any]):
         """
@@ -837,6 +911,8 @@ class TradeManager(StoreBackedState):
         """
         if pos.ticket in self.pyramid_entries:
             return # Already scaled in
+        if getattr(pos, "ticket", 0) in getattr(self, "pyramid_children", set()) or "pyramid" in str(getattr(pos, "comment", "") or "").lower() or getattr(pos, "magic", 0) == 460002:
+            return # Pyramid child or scalp strategy cannot pyramid (1a-F9)
             
         # 1. Check Trend Strength
         # Assuming indicators dict has 'adx' (Series or float)
@@ -857,8 +933,9 @@ class TradeManager(StoreBackedState):
         elif pos.type == mt5.ORDER_TYPE_SELL:
             profit_points = pos.price_open - current_price
             
-        risk_dist = abs(pos.price_open - pos.sl) if pos.sl > 0 else (atr * 1.5)
-        if risk_dist == 0: risk_dist = atr
+        risk_dist = self._initial_risk_for(pos, atr)
+        if risk_dist <= 0:
+            risk_dist = max(atr, 0.0001)
         
         if profit_points > (1.5 * risk_dist) and profit_points > (1.5 * atr):
             # 3. Check Risk Limits (Max Trades) — pyramid also hits arbiter in execute.
@@ -882,7 +959,7 @@ class TradeManager(StoreBackedState):
         info = None
         if mt5 is not None and self.paper_broker is None:
             try:
-                info = mt5.symbol_info(symbol)
+                info, _info_err = broker_symbol_info(symbol, mt5_inst=mt5)
             except Exception:
                 info = None
         if not info:
@@ -953,7 +1030,10 @@ class TradeManager(StoreBackedState):
         broker contract is absent or malformed.
         """
         try:
-            contract = info if info is not None else mt5.symbol_info(symbol)
+            if info is not None:
+                contract = info
+            else:
+                contract, _contract_err = broker_symbol_info(symbol, mt5_inst=mt5)
             if not contract:
                 return None
             flags = int(getattr(contract, "filling_mode", -1))
@@ -1060,7 +1140,7 @@ class TradeManager(StoreBackedState):
                 return
             
             # Open Market Order via Client
-            tick = mt5.symbol_info_tick(pos.symbol)
+            tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=mt5)
             if not tick:
                 self._record_management(pos.ticket, "PYRAMID_REJECTED", {
                     "parent_ticket": pos.ticket, "volume": vol, "error": "quote unavailable",
@@ -1087,6 +1167,18 @@ class TradeManager(StoreBackedState):
                 "type_filling": filling_mode,
             }
             
+            # An add's risk is (entry − SL) × volume × tick value (1a-F9)
+            if mt5 is not None:
+                _info, _info_err = broker_symbol_info(pos.symbol, mt5_inst=mt5)
+            else:
+                _info = None
+            _point = float(getattr(_info, "point", 0.00001) or 0.00001) if _info else 0.00001
+            _tick_val = float(getattr(_info, "trade_tick_value", 1.0) or 1.0) if _info else 1.0
+            _tick_sz = float(getattr(_info, "trade_tick_size", _point) or _point) if _info else _point
+            _point_val = (_tick_val / _tick_sz) * _point if _tick_sz > 0 else 1.0
+            _entry_p = float(tick.ask if pos.type == mt5.ORDER_TYPE_BUY else tick.bid)
+            _pyr_risk = abs(_entry_p - sl) * vol * (_point_val / _point if _point > 0 else 1.0)
+
             # Open Market Order via the single-door gateway. Pyramiding has no
             # DeterministicValidator evidence, so the gateway fails closed
             # until Phase 4 gives it a validated proposal (1a-F8/1a-F9).
@@ -1094,9 +1186,9 @@ class TradeManager(StoreBackedState):
             _pyr_intent = OrderIntent(
                 intent_key=f"pyramid:{getattr(pos, 'ticket', 0)}:{getattr(pos, 'symbol', '')}",
                 symbol=str(pos.symbol), side="BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL",
-                volume=float(vol), price=float(tick.ask if pos.type == mt5.ORDER_TYPE_BUY else tick.bid),
+                volume=float(vol), price=_entry_p,
                 sl=float(sl) if sl else 0.0, tp=float(getattr(pos, "tp", 0.0) or 0.0),
-                risk_amount=0.0, setup_key="", order_type="MARKET",
+                risk_amount=_pyr_risk, setup_key="", order_type="MARKET",
                 magic=int(getattr(pos, "magic", 0) or 0), comment="pyramid_entry",
                 validation_result=None,
             )
@@ -1105,9 +1197,12 @@ class TradeManager(StoreBackedState):
             if _gw_res.success and res and res.retcode == mt5.TRADE_RETCODE_DONE:
                 self.log.info(f"✅ Pyramid Success: {vol} lots added for #{pos.ticket}")
                 self.pyramid_entries.add(pos.ticket)
+                _new_t = getattr(res, "order", None) or getattr(res, "deal", None)
+                if _new_t:
+                    self.pyramid_children.add(int(_new_t))
                 self._record_management(pos.ticket, "PYRAMID_FILLED", {
                     "parent_ticket": pos.ticket, "volume": vol,
-                    "new_ticket": getattr(res, "order", None),
+                    "new_ticket": _new_t,
                 }, retcode=res.retcode, requested_volume=vol, filled_volume=vol)
                 if self.risk is not None and hasattr(self.risk, "register_trade"):
                     try:
@@ -1132,11 +1227,14 @@ class TradeManager(StoreBackedState):
         Returns: R-multiple, Duration, PnL, etc.
         """
         try:
-            positions = mt5.positions_get(ticket=ticket)
+            positions, _ctx_err = broker_positions_get(ticket=ticket, mt5_inst=mt5)
             if not positions:
                 return {}
-            
+
             p = positions[0]
+            _cur_tick, _cur_err = broker_symbol_info_tick(p.symbol, mt5_inst=mt5)
+            _cur_bid = _cur_tick.bid if _cur_tick else 0.0
+            _cur_ask = _cur_tick.ask if _cur_tick else 0.0
             
             # Calculate Risk (Distance to SL)
             risk_dist = abs(p.price_open - p.sl) if p.sl > 0 else 0.0
@@ -1146,9 +1244,9 @@ class TradeManager(StoreBackedState):
             profit_points = 0.0
             
             if p.type == mt5.ORDER_TYPE_BUY:
-                profit_points = (mt5.symbol_info_tick(p.symbol).bid - p.price_open)
+                profit_points = (_cur_bid - p.price_open)
             else:
-                profit_points = (p.price_open - mt5.symbol_info_tick(p.symbol).ask)
+                profit_points = (p.price_open - _cur_ask)
                 
             if risk_dist > 0:
                 r_multiple = profit_points / risk_dist
@@ -1156,7 +1254,12 @@ class TradeManager(StoreBackedState):
             # Duration
             # Note: p.time is a timestamp (seconds)
             import time
-            duration_sec = time.time() - p.time
+            if getattr(self, "paper_broker", None) is not None:
+                duration_sec = time.time() - p.time
+            else:
+                from core.broker_time import broker_epoch_to_utc
+                open_utc = broker_epoch_to_utc(p.time, mt5_inst=self.client)
+                duration_sec = time.time() - open_utc.timestamp()
             duration_min = duration_sec / 60
             
             return {
@@ -1165,7 +1268,7 @@ class TradeManager(StoreBackedState):
                 "type": "BUY" if p.type == mt5.ORDER_TYPE_BUY else "SELL",
                 "volume": p.volume,
                 "open_price": p.price_open,
-                "current_price": mt5.symbol_info_tick(p.symbol).bid if p.type == mt5.ORDER_TYPE_BUY else mt5.symbol_info_tick(p.symbol).ask,
+                "current_price": _cur_bid if p.type == mt5.ORDER_TYPE_BUY else _cur_ask,
                 "sl": p.sl,
                 "tp": p.tp,
                 "pnl": p.profit,
@@ -1180,7 +1283,7 @@ class TradeManager(StoreBackedState):
     # ---------- Public Actions for LLM ----------
     def execute_modify_sl(self, ticket: int, new_sl: float, reason: str) -> bool:
         """Public wrapper for SL modification"""
-        positions = mt5.positions_get(ticket=ticket)
+        positions, _pos_err = broker_positions_get(ticket=ticket, mt5_inst=mt5)
         if not positions or not self._owns(positions[0]):
             if self.store is not None:
                 self.store.record_manual_activity("REFUSED_SL_UPDATE", ticket=int(ticket), payload={"reason": reason})
@@ -1194,7 +1297,7 @@ class TradeManager(StoreBackedState):
         percentage: 0.0 to 1.0 (e.g., 0.5 for 50%)
         """
         try:
-            positions = mt5.positions_get(ticket=ticket)
+            positions, _pos_err = broker_positions_get(ticket=ticket, mt5_inst=mt5)
             if not positions:
                 self.log.warning(f"Position {ticket} not found for partial close.")
                 return False
@@ -1223,7 +1326,7 @@ class TradeManager(StoreBackedState):
             if not authorized:
                 self.log.warning("AI partial close blocked by safety gate for #%s: %s", ticket, auth_reason)
                 return False
-            tick = mt5.symbol_info_tick(pos.symbol)
+            tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=mt5)
             if not tick:
                 self.log.warning("Partial-close quote unavailable for #%s", ticket)
                 return False
@@ -1310,12 +1413,16 @@ class TradeManager(StoreBackedState):
                 self.log.warning("Refused invalid SL for #%s", ticket)
                 return False
 
+            is_buy = getattr(pos, "type", None) == getattr(mt5, "POSITION_TYPE_BUY", getattr(mt5, "ORDER_TYPE_BUY", 0))
+            current_sl = float(getattr(pos, "sl", 0) or 0)
             if self.paper_broker is not None:
-                updated = self.paper_broker.modify_position_sltp(
-                    symbol=pos.symbol, sl=requested_sl, tp=pos.tp, magic=getattr(pos, "magic", 0)
+                _side = "BUY" if is_buy else "SELL"
+                _gw_res = self._gateway().modify_protection(
+                    int(ticket), str(pos.symbol), new_sl=float(requested_sl),
+                    new_tp=float(getattr(pos, "tp", 0.0) or 0.0),
+                    current_sl=float(current_sl), side=_side,
                 )
-                if updated > 0:
-                    current_sl = float(getattr(pos, "sl", 0) or 0)
+                if _gw_res.success:
                     self.log.info(f"Updated Paper {reason} SL for Ticket {ticket} to {requested_sl:.5f}")
                     self._record_management(ticket, "SL_MODIFY_ACCEPTED", {
                         "ticket": ticket, "old_sl": current_sl, "new_sl": requested_sl, "reason": reason, "paper": True
@@ -1325,10 +1432,11 @@ class TradeManager(StoreBackedState):
                             "action": "UPDATE_SL", "reason": reason, "new_sl": requested_sl, "paper": True
                         })
                     return True
+                self.log.warning(f"Paper SL modify refused for #{ticket}: {_gw_res.error}")
                 return False
 
-            info = mt5.symbol_info(pos.symbol)
-            tick = mt5.symbol_info_tick(pos.symbol)
+            info, _info_err = broker_symbol_info(pos.symbol, mt5_inst=mt5)
+            tick, _tick_err = broker_symbol_info_tick(pos.symbol, mt5_inst=mt5)
             bid = float(getattr(tick, "bid", 0) or 0) if tick else 0.0
             ask = float(getattr(tick, "ask", 0) or 0) if tick else 0.0
             point = float(getattr(info, "point", 0) or 0) if info else 0.0
@@ -1492,7 +1600,7 @@ class TradeManager(StoreBackedState):
         """Close a specific position after safety authorization across Paper, Demo, and Live."""
         pos_list = self._get_positions(ticket=ticket)
         if not pos_list:
-            return
+            return False
         pos = pos_list[0]
         if not self._owns(pos):
             if self.store is not None:
@@ -1500,20 +1608,20 @@ class TradeManager(StoreBackedState):
                     "REFUSED_FULL_CLOSE", ticket=int(ticket), symbol=symbol,
                     magic=getattr(pos, "magic", None), payload={"reason": "unowned", "comment": comment},
                 )
-            return
+            return False
         authorized, auth_reason = self._authorize_management_action(
             "FULL_CLOSE", pos, volume=float(getattr(pos, "volume", 0) or 0),
             extra={"comment": comment},
         )
         if not authorized:
             self.log.warning("Close blocked by safety gate for #%s: %s", ticket, auth_reason)
-            return
+            return False
 
         if self.paper_broker is not None:
             paper_price = getattr(pos, "price_current", getattr(pos, "price_open", 0.0))
             if mt5 is not None:
                 try:
-                    tick = mt5.symbol_info_tick(symbol)
+                    tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5)
                     if tick:
                         paper_price = tick.bid if pos.type == 0 else tick.ask
                 except Exception:
@@ -1528,21 +1636,24 @@ class TradeManager(StoreBackedState):
                     "volume": pos.volume, "price": paper_price, "comment": comment,
                     "pnl": res.get("profit", 0.0), "paper": True
                 })
+                if len(self.history) > 1000:
+                    self.history = self.history[-1000:]
                 self._record_management(ticket, "FULL_CLOSE", {
                     "symbol": symbol, "comment": comment, "price": paper_price,
                     "requested_volume": pos.volume, "filled_volume": pos.volume,
                     "pnl_observation": res.get("profit", 0.0), "paper": True,
                 }, retcode=10009, requested_volume=pos.volume, filled_volume=pos.volume)
+                return True
             else:
                 self.log.warning(f"Failed to close Paper #{ticket}: {res}")
                 self._record_management(ticket, "FULL_CLOSE_ERROR", {
                     "symbol": symbol, "comment": comment, "price": paper_price,
                     "requested_volume": pos.volume, "error": str(res), "paper": True,
                 }, requested_volume=pos.volume)
-            return
+                return False
 
         # MT5 Demo / Live Path
-        tick = mt5.symbol_info_tick(symbol)
+        tick, _tick_err = broker_symbol_info_tick(symbol, mt5_inst=mt5)
         if not tick:
             self.log.warning(f"Could not get tick for {symbol}, using position current price")
             price = getattr(pos, "price_current", 0.0)
@@ -1550,6 +1661,8 @@ class TradeManager(StoreBackedState):
             price = tick.bid if pos.type == mt5.ORDER_TYPE_BUY else tick.ask
 
         filling_mode = self._broker_filling_mode(symbol)
+        if filling_mode is None:
+            filling_mode = int(getattr(mt5, "ORDER_FILLING_FOK", 0)) if mt5 is not None else 0
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
@@ -1558,10 +1671,9 @@ class TradeManager(StoreBackedState):
             "position": ticket,
             "price": price,
             "magic": getattr(pos, "magic", 0),
-            "comment": comment
+            "comment": comment,
+            "type_filling": filling_mode,
         }
-        if filling_mode is not None:
-            request["type_filling"] = filling_mode
 
         # Single-door dispatch: full close via OrderGateway (risk-reducing).
         _gw_res = self._gateway().submit_exit(
@@ -1581,12 +1693,15 @@ class TradeManager(StoreBackedState):
                 "comment": comment,
                 "pnl": getattr(pos, "profit", 0.0)
             })
+            if len(self.history) > 1000:
+                self.history = self.history[-1000:]
             self._record_management(ticket, "FULL_CLOSE", {
                 "symbol": symbol, "comment": comment, "price": price,
                 "requested_volume": pos.volume, "filled_volume": pos.volume,
                 "pnl_observation": getattr(pos, "profit", None),
             }, retcode=getattr(res, "retcode", None), requested_volume=pos.volume,
                filled_volume=pos.volume)
+            return True
         else:
             _close_err = getattr(res, "comment", None) if res else (_gw_res.error or "Unknown")
             self.log.warning(f"Failed to close {ticket}: {_close_err}")
@@ -1596,6 +1711,7 @@ class TradeManager(StoreBackedState):
                 "broker_comment": getattr(res, "comment", "") if res else (_gw_res.error or "no response"),
             }, retcode=getattr(res, "retcode", None) if res else None,
                requested_volume=pos.volume)
+            return False
 
     def load_conditions(self):
         """Load smart conditions from the store + file mirror"""

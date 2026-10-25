@@ -264,7 +264,8 @@ class MarginSafetyGate:
             )
         account = dict(account_override or {})
         if not account:
-            info = mt5_module.account_info()
+            from core.broker_reads import broker_account_info as _margin_account_info
+            info, _margin_info_err = _margin_account_info(mt5_inst=mt5_module)
             if info is None:
                 return MarginRiskAssessment(
                     approved=False, reasons=["mt5.account_info() returned no snapshot"],

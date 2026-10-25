@@ -249,9 +249,9 @@ Optional, 30 minutes on the Mac: the same drill on the paper engine with the dec
 | Change | Where | Detail |
 |---|---|---|
 | Pass the journal mode in | `LLMOrchestrator.__init__` (`:523`), `:812-818`, `wire_trade_manager` (`:852-865`) | Create PaperBroker and the paper providers only when the mode is PAPER. A boot assertion in `mt5_trader` for LIVE/DEMO: `trade_manager.paper_broker is None` and the risk providers are the live ones. |
-| Live providers | `risk_manager.check_active_trade_limit` (`:695`), `open_portfolio_heat_r` (`:775`) | **Position count:** owned broker positions (magic allowlist) plus reserving intents.<br>**Heat:** owned positions plus owned pending orders (`CC-F1` item 2). |
-| Reconcile by mode | `llm_orchestrator.py:5172-5260` | • Branch on mode.<br>• Convert durable rows to dicts (`TL-T8`).<br>• No broker history → keep the trade open and count misses; `flag_execution_review` after 3.<br>• Guard `closing_deals`.<br>• Never fabricate a 0-P&L close. |
-| Close once | `TradingStore.record_close` (`core/trading_safety.py:604`) | `UPDATE … WHERE ticket=? AND closed_at IS NULL`, returning a bool. The side effects (`perf.close_trade`, `risk.record_trade_outcome`, lifecycle, labels, reflection) run only when it returns True. |
+| Live providers | `risk_manager.check_active_trade_limit` (`:695`), `open_portfolio_heat_r` (`:775`), `broker_reads` | **Position count:** owned broker positions (magic allowlist via module handle facade `core/broker_reads.py`, never `orch.client`) plus reserving intents.<br>**Heat:** owned positions plus owned pending orders (`CC-F1` item 2). Tests verify wrapper-shaped clients. |
+| Reconcile by mode | `llm_orchestrator.py:5172-5260` | • Branch on mode.<br>• Convert durable rows to dicts (`TL-T8`).<br>• An unreadable positions list skips the pass.<br>• Only a closing deal (`entry in (1, 2)`) marks a trade closed; entry deals keep open.<br>• Guard `closing_deals`.<br>• Never fabricate a 0-P&L close. |
+| Close once | `TradingStore.record_close` (`core/trading_safety.py:604`) | `UPDATE … WHERE ticket=? AND closed_at IS NULL`, returning a bool. The side effects (`perf.close_trade`, `risk.record_trade_outcome`, lifecycle, labels, reflection) run only when it returns True, isolated per ticket. |
 | One reconciler | `pipeline_v2` maintenance stages; legacy `:6406, 7152, 7295`; scheduled `position_reconcile` | Reconcile once per pulse on the main thread, before the strategy pool fans out. The scheduled handler takes the same `_reconcile_lock` without blocking, and skips if it's held. |
 | `TL-T4` | `mt5_trader.py:2748` | Import `_get_mt5`; test the live daily reconciliation on `FakeMT5`. |
 
@@ -264,8 +264,8 @@ Optional, 30 minutes on the Mac: the same drill on the paper engine with the dec
 ### PR 4.2: Broker time and the trading day (1.5 days) · `P1-H1`, `1a-F10`, `1a-F14`, `LA-A3` (part)
 | Change | Detail |
 |---|---|
-| `core/broker_time.py` | Move `_server_utc_offset_seconds` here from `market_data_provider.py:131-184`. Add `broker_epoch_to_utc(epoch)` and `broker_trading_day(now_utc)`. The day boundary is server midnight, as on MT5 daily bars. One cache per process (there is only one copy after PR 3.1). |
-| Risk day | Every date comparison in `risk_manager.py:97-118, 219` uses `broker_trading_day()`. The state stores `trading_day` and `day_basis: "broker"`. Existing `risk_state.json` dates are converted once. A restart on the same broker day keeps the breaker. |
+| `core/broker_time.py` | Move `_server_utc_offset_seconds` here from `market_data_provider.py:131-184`. Add `broker_epoch_to_utc(epoch)`, `broker_trading_day(now_utc)` and day/week window calculators. The day boundary is server midnight, as on MT5 daily bars. One cache per process with 1800s TTL. |
+| Risk day | Every date comparison in `risk_manager.py:97-118, 219` and `PortfolioRiskArbiter` realized loss windows (`core/trading_safety.py`) uses `broker_trading_day()` and `broker_trading_day_start_utc()`. The state stores `trading_day` and `day_basis: "broker"`. Existing `risk_state.json` dates are converted once. A restart on the same broker day keeps the breaker. |
 | Every MT5 epoch | The trade manager's time stop and duration (`1a-F10`), reconcile close times, the gateway sweep's history window, and the position context shown to the LLM. |
 | `captured_at` | Stamped at the quote read. The DOM's own `captured_at` feeds the freshness check (`1a-F14`). |
 
@@ -278,10 +278,10 @@ Optional, 30 minutes on the Mac: the same drill on the paper engine with the dec
 ### PR 4.3: Sizing and portfolio limits (2 days) · `1a-F3`, `1a-F16`, `TS-P1`, `TL-T7`, `D3b`, `CC-F6`, `PH4-N1`, `CC-F11`, `CC-F12`
 | Change | Where | Detail |
 |---|---|---|
-| Fixed base risk | `llm_orchestrator.py:4676, 4707, 4824`; `risk_manager` | Set `base_risk_per_trade` once from config. Each cycle computes `effective = base × product of this cycle's multipliers`, clamps it and passes it per proposal, never writing it back. Increases (multiplier > 1) need research-influence approval in every mode; decreases don't. |
-| Heat budget | `market_data_provider.py:1583`, `llm_orchestrator.py:3062` | Computed per proposal from the base budget and the current copula regime. No sticky writes (`1a-F16`). |
+| Fixed base risk | `llm_orchestrator.py:4676, 4707, 4824`; `risk_manager` | Set `base_risk_per_trade` once from config. Each cycle computes `effective = base × product of this cycle's multipliers`, clamps it and passes it per proposal, never writing it back. Increases (multiplier > 1) need research-influence approval in every mode; decreases don't. Protective crash cuts apply via `min`. |
+| Heat budget | `market_data_provider.py:1583`, `llm_orchestrator.py:3062` | Computed per proposal from the base budget and the current copula regime (`proposal.features["heat_budget_r"]`). No sticky writes (`1a-F16`). |
 | Lot floor | `risk_manager.calc_position_size` (`:861`) | If the broker's minimum lot risks more than the cap, the size is 0 with a reason (`TS-P1`). Never round up past the cap. |
-| Frozen writes | `llm_orchestrator.py:2569, 2693, 2709, 2887` | Size reductions return a scale on the sizing result, applied once at sizing (`TL-T7`). |
+| Frozen writes | `llm_orchestrator.py:2569, 2693, 2709, 2887` | Sizing reductions return scales applied to the risk cash amount before lot rounding (`TL-T7`). Sizing validated post-calc by `TradingConstraintEngine._rule_position_size`. |
 | `D3b` | Gateway reservation; `correlation_risk.correlated_open_risk`; `trading_safety.py:1412` netting | Both limits move inside the reservation transaction and count reserving intents. Symbol, side and risk are already on the intent payload. |
 | LLM budget | `agent_operations.reserve_llm` (`:1129`) | `BEGIN IMMEDIATE`, plus a partial UNIQUE index on `trigger_key` (`CC-F6`). |
 | Broker reads (`PH4-N1`) | 60 call sites | `core/broker_reads.py`: positions, orders, history, account, tick and symbol_info under the gateway's module lock. Each call returns `(result, last_error)` together. An AST ratchet test like the single-door test starts at today's count and goes to 0. |

@@ -174,7 +174,7 @@ class GraphStatePersistence:
                 cur = conn.cursor()
                 cur.execute("PRAGMA journal_mode=WAL;")
                 cur.execute("PRAGMA synchronous=NORMAL;")
-                cur.execute("PRAGMA busy_timeout=5000;")
+                cur.execute("PRAGMA busy_timeout=10000;")
                 cur.execute("PRAGMA cache_size=-32000;")
                 cur.execute("PRAGMA temp_store=MEMORY;")
                 cur.close()
@@ -806,7 +806,7 @@ class StateTensorCollector:
                 os.path.dirname(__file__), "..", "trading_state.db"
             )
             if os.path.exists(journal_path):
-                con = sqlite3.connect(journal_path, timeout=5)
+                con = sqlite3.connect(journal_path, timeout=10.0)
                 con.row_factory = sqlite3.Row
                 # Count open trades
                 row = con.execute(
