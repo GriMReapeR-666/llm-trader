@@ -28,6 +28,20 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
+BARS_PER_DAY: Dict[str, float] = {
+    "M1": 1440.0,
+    "M5": 288.0,
+    "M15": 96.0,
+    "M30": 48.0,
+    "H1": 24.0,
+    "H2": 12.0,
+    "H4": 6.0,
+    "H8": 3.0,
+    "D1": 1.0,
+    "W1": 0.2,
+    "MN1": 0.045,
+}
+
 
 @dataclass
 class BacktestMetrics:
@@ -518,6 +532,9 @@ class MT5BrokerBacktestEngine:
         self._data_source = source
 
         close = bars_df["close"].values
+        high = bars_df["high"].values
+        low = bars_df["low"].values
+        open_prices = bars_df["open"].values
         n = len(close)
         timestamps = bars_df.index if isinstance(bars_df.index, pd.DatetimeIndex) else (
             bars_df["time"].values if "time" in bars_df.columns else [f"bar_{i}" for i in range(n)]
@@ -528,6 +545,10 @@ class MT5BrokerBacktestEngine:
         tp_dist = tp_pips * pip_size
         spread_cost = self.spread_pips * pip_size
         slip_cost = self.slippage_pips * pip_size
+        comm_pips_per_trade = (
+            self.commission_per_lot / (100000.0 * pip_size)
+            if self.commission_per_lot > 0 else 0.0
+        )
 
         trades: List[Dict[str, Any]] = []
         r_multiples: List[float] = []
@@ -549,27 +570,64 @@ class MT5BrokerBacktestEngine:
                     entry_idx = i
                     side = -1
             else:
-                pnl_raw = side * (close[i] - entry_price)
                 exit_triggered = False
                 exit_price = entry_price
                 exit_reason = "HOLD"
 
-                if pnl_raw <= -sl_dist:
-                    exit_triggered = True
-                    exit_price = entry_price - side * sl_dist - slip_cost
-                    exit_reason = "STOP_LOSS"
-                elif pnl_raw >= tp_dist:
-                    exit_triggered = True
-                    exit_price = entry_price + side * tp_dist - slip_cost
-                    exit_reason = "TAKE_PROFIT"
-                elif i == n - 1:
-                    exit_triggered = True
-                    exit_price = close[i] - side * (spread_cost / 2.0 + slip_cost)
-                    exit_reason = "END_OF_SERIES"
+                if side == 1:
+                    sl_level = entry_price - sl_dist
+                    tp_level = entry_price + tp_dist
+                    sl_breached = low[i] <= sl_level
+                    tp_breached = high[i] >= tp_level
+
+                    if sl_breached and tp_breached:
+                        # Conservative institutional execution: Stop-Loss assumed hit first
+                        exit_triggered = True
+                        fill_base = min(sl_level, open_prices[i])
+                        exit_price = fill_base - slip_cost
+                        exit_reason = "STOP_LOSS"
+                    elif sl_breached:
+                        exit_triggered = True
+                        fill_base = min(sl_level, open_prices[i])
+                        exit_price = fill_base - slip_cost
+                        exit_reason = "STOP_LOSS"
+                    elif tp_breached:
+                        exit_triggered = True
+                        exit_price = tp_level - slip_cost
+                        exit_reason = "TAKE_PROFIT"
+                    elif i == n - 1:
+                        exit_triggered = True
+                        exit_price = close[i] - (spread_cost / 2.0 + slip_cost)
+                        exit_reason = "END_OF_SERIES"
+                else:  # side == -1 (SHORT)
+                    sl_level = entry_price + sl_dist
+                    tp_level = entry_price - tp_dist
+                    sl_breached = high[i] >= sl_level
+                    tp_breached = low[i] <= tp_level
+
+                    if sl_breached and tp_breached:
+                        # Conservative institutional execution: Stop-Loss assumed hit first
+                        exit_triggered = True
+                        fill_base = max(sl_level, open_prices[i])
+                        exit_price = fill_base + slip_cost
+                        exit_reason = "STOP_LOSS"
+                    elif sl_breached:
+                        exit_triggered = True
+                        fill_base = max(sl_level, open_prices[i])
+                        exit_price = fill_base + slip_cost
+                        exit_reason = "STOP_LOSS"
+                    elif tp_breached:
+                        exit_triggered = True
+                        exit_price = tp_level + slip_cost
+                        exit_reason = "TAKE_PROFIT"
+                    elif i == n - 1:
+                        exit_triggered = True
+                        exit_price = close[i] + (spread_cost / 2.0 + slip_cost)
+                        exit_reason = "END_OF_SERIES"
 
                 if exit_triggered:
                     pnl_price = (exit_price - entry_price) * side
-                    pnl_pips = pnl_price / pip_size
+                    pnl_pips = (pnl_price / pip_size) - comm_pips_per_trade
                     r_mult = pnl_pips / max(sl_pips, 1.0)
                     r_multiples.append(round(float(r_mult), 4))
 
@@ -590,6 +648,7 @@ class MT5BrokerBacktestEngine:
                         "exit_price": round(float(exit_price), 5),
                         "pnl_pips": round(float(pnl_pips), 2),
                         "r_multiple": round(float(r_mult), 4),
+                        "commission_pips": round(float(comm_pips_per_trade), 4),
                         "exit_reason": exit_reason,
                     })
                     in_trade = False
@@ -610,7 +669,7 @@ class MT5BrokerBacktestEngine:
         payoff_ratio = (avg_win / avg_loss) if avg_loss > 0 else (avg_win if avg_win > 0 else 1.0)
 
         gross_profit = sum(wins) if wins else 0.0
-        gross_loss = abs(sum(losses)) if losses else 1e-9
+        gross_loss = max(abs(float(sum(losses))), 1e-9)
         profit_factor = gross_profit / gross_loss
 
         returns_arr = np.array(pnls)
@@ -638,7 +697,20 @@ class MT5BrokerBacktestEngine:
             else:
                 curr_dd_duration = 0
 
-        calmar = (returns_arr.sum() / max_dd) if max_dd > 0 else 0.0
+        # R converts to a percentage of equity through the system's mandated 1% risk per trade.
+        total_r = total_pnl / max(sl_pips, 1.0)
+        max_dd_r = max_dd / max(sl_pips, 1.0)
+        risk_pct_per_trade = 1.0  # DeterministicValidator: 1% risk cap
+        total_return_pct_value = total_r * risk_pct_per_trade
+        max_drawdown_pct_value = max_dd_r * risk_pct_per_trade
+
+        # Timeframe-aware annualization mapping
+        bars_per_day = BARS_PER_DAY.get(str(timeframe or "H1").upper(), 24.0)
+        days = max(n / bars_per_day, 1.0)
+        annualized_return_pct_value = round(total_return_pct_value * (252.0 / days), 2)
+
+        # Institutional Calmar ratio: CAGR / |MaxDD|
+        calmar = (annualized_return_pct_value / max_drawdown_pct_value) if max_drawdown_pct_value > 0 else 0.0
 
         # Consecutive streaks
         max_cw = 0
@@ -664,32 +736,22 @@ class MT5BrokerBacktestEngine:
         total_spread = spread_cost * total_trades / pip_size
         total_slip = slip_cost * total_trades / pip_size
         total_comm = self.commission_per_lot * total_trades
+        total_comm_pips = comm_pips_per_trade * total_trades
         self.last_friction_breakdown = {
             "spread_drag_pips": round(total_spread, 2),
             "slippage_drag_pips": round(total_slip, 2),
+            "commission_drag_pips": round(total_comm_pips, 2),
             "commission_total_usd": round(total_comm, 2),
-            "total_friction_pips": round(total_spread + total_slip, 2),
+            "total_friction_pips": round(total_spread + total_slip + total_comm_pips, 2),
         }
 
         expectancy_r = float(np.mean(r_multiples)) if r_multiples else 0.0
         holding_bars_mean = float(np.mean([t["holding_bars"] for t in trades])) if trades else 0.0
         recovery_factor = (total_pnl / max_dd) if max_dd > 0 else 1.0
 
-        # Audit 2026-10-20: ``pnls`` are PIPs, so ``total_pnl / sl_pips`` is an
-        # R-multiple. The previous code multiplied that R by 100 and called it a
-        # percentage -- a +4.5R run was reported as "452%" and a 10.1R drawdown
-        # as "1010%", which then tripped the 20%-drawdown promotion gate on
-        # every strategy and fed 100x units into Calmar. R converts to a
-        # percentage of equity through the system's mandated 1% risk per trade.
-        total_r = total_pnl / max(sl_pips, 1.0)
-        max_dd_r = max_dd / max(sl_pips, 1.0)
-        risk_pct_per_trade = 1.0  # DeterministicValidator: 1% risk cap
-        total_return_pct_value = total_r * risk_pct_per_trade
-        max_drawdown_pct_value = max_dd_r * risk_pct_per_trade
-
         metrics = BacktestMetrics(
             total_return_pct=round(total_return_pct_value, 2),
-            annualized_return_pct=round(total_return_pct_value * (252.0 / max(n / 24.0, 1.0)), 2),
+            annualized_return_pct=annualized_return_pct_value,
             sharpe_ratio=round(float(sharpe), 2),
             sortino_ratio=round(float(sortino), 2),
             calmar_ratio=round(float(calmar), 2),

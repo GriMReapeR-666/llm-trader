@@ -211,6 +211,33 @@ class StrategyGit:
         self.db.commit()
         return {"merged": True, "strategy_id": strategy_id, "target_branch": target_branch, "new_head": src_head[0]}
 
+    def get_head(self, strategy_id: str, branch_name: str = "main") -> Optional[Dict[str, Any]]:
+        """Retrieve head commit details for a branch."""
+        cur = self.db.cursor()
+        row = cur.execute(
+            """
+            SELECT c.* FROM strategy_branches b
+            JOIN strategy_commits c ON b.head_commit_hash = c.commit_hash
+            WHERE b.strategy_id = ? AND b.branch_name = ?
+            """,
+            (strategy_id, branch_name),
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "commit_hash": row["commit_hash"],
+            "parent_hash": row["parent_hash"],
+            "strategy_id": row["strategy_id"],
+            "branch_name": branch_name,
+            "genome": json.loads(row["genome_json"]),
+            "commit_message": row["commit_message"],
+            "mean_sharpe": float(row["mean_sharpe"]),
+            "pbo": float(row["pbo"]),
+            "dsr": float(row["dsr"]),
+            "math_audit_passed": bool(row["math_audit_passed"]),
+            "created_at": row["created_at"],
+        }
+
     def revert_to_parent(self, strategy_id: str, branch_name: str = "main") -> Dict[str, Any]:
         """Atomically roll branch HEAD back to its parent commit when CUSUM edge decay is detected."""
         cur = self.db.cursor()

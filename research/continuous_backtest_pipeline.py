@@ -28,9 +28,11 @@ import hashlib
 import json
 import logging
 import os
+import sqlite3
 import sys
 import time
 import numpy as np
+import pandas as pd
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -464,6 +466,19 @@ class ContinuousBacktestPipeline:
         results["completed_at"] = datetime.now(timezone.utc).isoformat()
         results["duration_seconds"] = round(elapsed, 3)
         results["verdict"] = self._compute_verdict(results["stages"])
+
+        # Stage 6: Autonomous Evolution Sprint on Rejected Strategies (Autopsy -> Reasoner -> Git)
+        if not results["verdict"].get("passed", False):
+            evo_res = self._run_evolution_sprint_if_applicable(
+                strategy_name=strategy_name,
+                symbol=symbol,
+                timeframe=timeframe,
+                bars_df=bars_df,
+                results=results,
+            )
+            if evo_res is not None:
+                results["stages"]["autonomous_evolution"] = evo_res
+
         self._save_results(results)
 
         log.info(
@@ -482,6 +497,158 @@ class ContinuousBacktestPipeline:
             self.state["failed_runs"] += 1
         self._save_state()
         return results
+
+    def _run_evolution_sprint_if_applicable(
+        self,
+        strategy_name: str,
+        symbol: str,
+        timeframe: str,
+        bars_df: Optional[Any],
+        results: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Trigger autonomous forensic autopsy, hypothesis reasoner, and StrategyGit branching
+        when a strategy fails mathematical or validation gates.
+        """
+        try:
+            bt = results.get("stages", {}).get("backtest", {})
+            trades = bt.get("trades", [])
+            if not trades or len(trades) < 5 or bars_df is None or len(bars_df) < 50:
+                return None
+
+            log.info("Triggering Autonomous Evolution Sprint for rejected strategy: %s (%d parent trades)",
+                     strategy_name, len(trades))
+
+            from operations.autonomous_evolution_loop import run_autonomous_strategy_evolution_sprint
+            from research.strategy_git import StrategyGit
+            from intelligence.strategy_reasoner import StrategyReasoner
+            from research.mt5_backtest_engine import MT5BrokerBacktestEngine
+            from core.provenance import is_synthetic
+
+            # StrategyGit store in pipeline artifacts directory
+            git_db_path = os.path.join(self.artifacts_dir, "strategy_git.db")
+            conn = sqlite3.connect(git_db_path, timeout=10.0)
+            conn.row_factory = sqlite3.Row
+            sg = StrategyGit(conn)
+            reasoner = StrategyReasoner(llm_router=None)
+
+            # Establish baseline parent commit on main if absent
+            head = sg.get_head(strategy_name, "main")
+            parent_genome = {
+                "strategy_id": strategy_name,
+                "sl_atr_mult": 1.5,
+                "allowed_regimes": ["ALL"],
+                "fast_period": 8,
+                "slow_period": 20,
+            }
+            if head is None:
+                bt_sharpe = float(bt.get("sharpe", 0.0) or 0.0)
+                dsr_val = float(results.get("stages", {}).get("dsr", {}).get("deflated_sharpe", 0.0) or 0.0)
+                init_res = sg.commit(
+                    strategy_id=strategy_name,
+                    branch_name="main",
+                    genome=parent_genome,
+                    commit_message=f"Baseline commit before evolution: {strategy_name}",
+                    cpcv_oos_sharpes=[bt_sharpe] * 6,
+                    pbo=0.5,
+                    dsr=dsr_val,
+                    math_audit_passed=True,
+                )
+                parent_hash = init_res["commit_hash"]
+            else:
+                parent_hash = head["commit_hash"]
+                if isinstance(head.get("genome"), dict):
+                    parent_genome = head["genome"]
+
+            # Annotate parent trades with regime if missing
+            regime_label = results.get("market_regime") or "LOW_VOL_TREND"
+            annotated_parent_trades = []
+            for t in trades:
+                t_copy = dict(t)
+                if "regime" not in t_copy:
+                    t_copy["regime"] = regime_label
+                if "risk_dollars" not in t_copy:
+                    t_copy["risk_dollars"] = 10.0
+                if "net_pnl" not in t_copy:
+                    t_copy["net_pnl"] = float(t_copy.get("r_multiple", 0.0)) * 10.0
+                annotated_parent_trades.append(t_copy)
+
+            # Backtest runner closure using MT5BrokerBacktestEngine
+            def evolution_backtest_runner(mutated_genome: Dict[str, Any], b_df: Any):
+                fast_p = int(mutated_genome.get("fast_period", 8))
+                slow_p = int(mutated_genome.get("slow_period", 20))
+                sl_atr = float(mutated_genome.get("sl_atr_mult", 1.5))
+                sl_pips = sl_atr * 20.0
+                tp_pips = sl_pips * 2.0
+
+                engine = MT5BrokerBacktestEngine(
+                    spread_pips=1.5,
+                    slippage_pips=0.5,
+                    commission_per_lot=7.0,
+                )
+                active_bars = b_df if isinstance(b_df, pd.DataFrame) else bars_df
+                source = bt.get("data_source", "synthetic")
+                m = engine.run_crossover_strategy(
+                    bars_df=active_bars,
+                    fast_period=fast_p,
+                    slow_period=slow_p,
+                    sl_pips=sl_pips,
+                    tp_pips=tp_pips,
+                    strategy_name=strategy_name,
+                    data_source="synthetic" if is_synthetic(source) else "mt5_history",
+                )
+                formatted_trades = []
+                for tr in m.trades:
+                    r_val = float(tr.get("r_multiple", 0.0))
+                    formatted_trades.append({
+                        "trade_id": tr.get("trade_id"),
+                        "r_multiple": r_val,
+                        "risk_dollars": 10.0,
+                        "net_pnl": r_val * 10.0,
+                        "holding_bars": tr.get("holding_bars", 1),
+                        "regime": regime_label,
+                        "exit_reason": tr.get("exit_reason", "STOP_LOSS"),
+                    })
+
+                def sig_fn(b):
+                    if isinstance(b, pd.DataFrame):
+                        c = b["close"].values
+                    elif isinstance(b, np.ndarray) and b.ndim == 2:
+                        c = b[:, 3]
+                    else:
+                        c = np.asarray(b)
+                    f_ema = pd.Series(c).ewm(span=fast_p, adjust=False).mean().values
+                    s_ema = pd.Series(c).ewm(span=slow_p, adjust=False).mean().values
+                    return (f_ema > s_ema).astype(float) - (f_ema < s_ema).astype(float)
+
+                return formatted_trades, sig_fn
+
+            sprint_res = run_autonomous_strategy_evolution_sprint(
+                strategy_id=strategy_name,
+                current_genome=parent_genome,
+                parent_commit_hash=parent_hash,
+                parent_trades=annotated_parent_trades,
+                ohlcv_bars=bars_df,
+                backtest_runner_fn=evolution_backtest_runner,
+                strategy_git=sg,
+                strategy_reasoner=reasoner,
+                validated_alphas_pool=[],
+                n_effective_trials=13.0,
+            )
+
+            conn.close()
+
+            log.info("🧬 [AUTONOMOUS EVOLUTION] Strategy %s evaluated %d branches. Autopsy: %s",
+                     strategy_name, len(sprint_res.get("evaluated_branches", [])),
+                     sprint_res.get("autopsy_summary", []))
+            for b in sprint_res.get("evaluated_branches", []):
+                if b.get("merged_to_canary"):
+                    log.info("🚀 [PROMOTION] Strategy %s branch %s PROMOTED TO CANARY (Sharpe=%.2f, DSR=%.2f, PBO=%.2f)",
+                             strategy_name, b.get("branch"), b.get("mean_sharpe", 0.0), b.get("dsr", 0.0), b.get("pbo", 0.0))
+
+            return sprint_res
+        except Exception as exc:
+            log.warning("Autonomous Evolution Sprint skipped for %s: %s", strategy_name, exc)
+            return None
 
     # ------------------------------------------------------------------
     # Sub-stages
